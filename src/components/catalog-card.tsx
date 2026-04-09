@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ResilientMediaImage } from "@/components/resilient-media-image";
 import { MediaItem } from "@/lib/types";
 
@@ -16,7 +16,9 @@ export function CatalogCard({
   onBeforeNavigate?: () => void;
 }) {
   const router = useRouter();
+  const cardRef = useRef<HTMLAnchorElement>(null);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [isVisible, setIsVisible] = useState(priority);
   const href = useMemo(
     () => ({
       pathname: `/media/${item.slug}`,
@@ -43,6 +45,7 @@ export function CatalogCard({
     warmRoute();
   }
 
+  // Prefetch route for priority cards
   useEffect(() => {
     if (!priority) return;
 
@@ -66,10 +69,37 @@ export function CatalogCard({
     };
   }, [priority, routeHref]);
 
+  // IntersectionObserver: trigger stagger animation when card enters viewport
+  useEffect(() => {
+    if (isVisible) return;
+    const el = cardRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "80px", threshold: 0.05 },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isVisible]);
+
+  // Priority cards: immediately mark visible on mount so above-fold cards
+  // don't wait for an intersection event (they're already in view).
+  useEffect(() => {
+    if (priority) setIsVisible(true);
+  }, [priority]);
+
   return (
     <Link
+      ref={cardRef}
       href={href}
-      className={`catalog-card ${isNavigating ? "is-navigating" : ""}`}
+      className={`catalog-card ${isNavigating ? "is-navigating" : ""} ${isVisible ? "is-visible" : ""}`}
       prefetch
       onClick={handleNavigate}
       onMouseEnter={warmRoute}

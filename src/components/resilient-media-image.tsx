@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getMediaFallbackImage } from "@/lib/media-fallbacks";
 import { MediaItem } from "@/lib/types";
 
@@ -23,14 +23,27 @@ export function ResilientMediaImage({
 }: ResilientMediaImageProps) {
   const fallback = getMediaFallbackImage(item);
   const [src, setSrc] = useState(item.coverUrl || item.backdropUrl || fallback);
+  const [loaded, setLoaded] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
+    setLoaded(false);
     setSrc(item.coverUrl || item.backdropUrl || fallback);
   }, [fallback, item.backdropUrl, item.coverUrl]);
 
+  // If the browser already has the image cached, naturalWidth is set immediately
+  useEffect(() => {
+    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
+      setLoaded(true);
+    }
+  }, [src]);
+
+  const combinedClass = [className, "img-loaded-wrapper", loaded ? "img-loaded" : ""].filter(Boolean).join(" ");
+
   return (
     <img
-      className={className}
+      ref={imgRef}
+      className={combinedClass}
       src={src}
       alt={alt ?? item.title}
       loading={loading}
@@ -38,12 +51,12 @@ export function ResilientMediaImage({
       fetchPriority={fetchPriority}
       draggable={false}
       style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)), #0b1018" }}
+      onLoad={() => setLoaded(true)}
       onError={() => {
         if (src !== item.backdropUrl && item.backdropUrl) {
           setSrc(item.backdropUrl);
           return;
         }
-
         if (src !== fallback) {
           setSrc(fallback);
         }

@@ -661,10 +661,17 @@ export function BrowseWorkspace({
       {featured ? (
         <section className="workspace-hero glass">
           <div className="hero-media">
-            <img src={featured.backdropUrl} alt={featured.title} loading="eager" fetchPriority="high" decoding="async" />
+            <img
+              src={featured.backdropUrl}
+              alt={featured.title}
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
+              onLoad={(e) => (e.currentTarget as HTMLImageElement).classList.add("img-loaded")}
+            />
           </div>
           <div className="workspace-hero-grid">
-            <div className="workspace-copy">
+            <div className="workspace-copy" data-hero-key={featuredKey}>
               <div className="hero-topline">
                 <p className="eyebrow">Now surfacing</p>
                 <div className="hero-arrow-row">
@@ -737,6 +744,7 @@ export function BrowseWorkspace({
                 loading="eager"
                 fetchPriority="high"
                 decoding="async"
+                onLoad={(e) => (e.currentTarget as HTMLImageElement).classList.add("img-loaded")}
               />
             </div>
           </div>
@@ -844,7 +852,7 @@ export function BrowseWorkspace({
           <div className={`refresh-pulse ${isLoading ? "is-active" : ""}`} />
         </div>
 
-        <div className="catalog-grid">
+        <div className="catalog-grid" key={`${filter}-${activePage}-${sort}-${genre}`}>
           {visibleGridItems.map((item, index) => (
             <CatalogCard key={item.id} item={item} priority={index < 12} onBeforeNavigate={persistBrowseSnapshot} />
           ))}
