@@ -1,4 +1,4 @@
-import { NotificationType, Prisma, PrivacyLevel as PrismaPrivacyLevel } from "@prisma/client";
+import { Prisma, PrivacyLevel as PrismaPrivacyLevel } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { MediaItem } from "@/lib/types";
@@ -638,7 +638,7 @@ export async function removeItemFromFolder(userId: string, folderId: string, sou
 async function createNotification(data: {
   userId: string;
   fromUserId?: string;
-  type: NotificationType;
+  type: "friend_request" | "friend_accepted" | "recommendation" | "info";
   message: string;
   mediaId?: string;
 }) {
