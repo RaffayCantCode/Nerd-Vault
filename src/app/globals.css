@@ -953,6 +953,112 @@ input {
   align-content: center;
 }
 
+.auth-panel-header {
+  display: grid;
+  gap: 14px;
+}
+
+.auth-mode-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.auth-mode-chip {
+  padding: 0.72rem 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.auth-mode-chip:hover,
+.auth-mode-chip.is-active {
+  color: var(--text);
+  border-color: rgba(3, 252, 190, 0.26);
+  background: rgba(3, 252, 190, 0.08);
+  transform: translateY(-1px);
+}
+
+.auth-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.auth-field {
+  display: grid;
+  gap: 8px;
+}
+
+.auth-field label {
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.auth-field input {
+  width: 100%;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  padding: 0.95rem 1rem;
+  outline: none;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.auth-field input:focus {
+  border-color: rgba(3, 252, 190, 0.28);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.auth-submit-button {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.auth-feedback {
+  margin: 18px 0 0;
+  padding: 0.9rem 1rem;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  line-height: 1.5;
+}
+
+.auth-feedback-error {
+  color: #ffd7d7;
+  border-color: rgba(255, 124, 124, 0.2);
+  background: rgba(140, 34, 34, 0.18);
+}
+
+.auth-feedback-success {
+  color: #d7ffef;
+  border-color: rgba(3, 252, 190, 0.18);
+  background: rgba(3, 252, 190, 0.12);
+}
+
 .auth-google-button {
   width: 100%;
 }
