@@ -140,6 +140,7 @@ export function ProfileWorkspace({
   const [folderCoverFile, setFolderCoverFile] = useState<File | null>(null);
   const [draftFolderVisibility, setDraftFolderVisibility] = useState<PrivacyLevel>("public");
   const [profileMessage, setProfileMessage] = useState("");
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [watchedSort, setWatchedSort] = useState<LibrarySortMode>("recent");
   const [wishlistSort, setWishlistSort] = useState<LibrarySortMode>("recent");
   const [folderMediaFilter, setFolderMediaFilter] = useState<MediaFilterMode>("all");
@@ -220,15 +221,20 @@ export function ProfileWorkspace({
   }
 
   async function handleSaveProfile() {
-    await saveProfileSettings({
-      avatarUrl: draftAvatar,
-      bio: draftBio,
-      watchedVisibility: draftWatchedVisibility,
-      wishlistVisibility: draftWishlistVisibility,
-      foldersDefaultVisibility: draftFoldersVisibility,
-    });
-    setProfileMessage("Profile saved.");
-    setShowProfileSettings(false);
+    setIsSavingProfile(true);
+    try {
+      await saveProfileSettings({
+        avatarUrl: draftAvatar,
+        bio: draftBio,
+        watchedVisibility: draftWatchedVisibility,
+        wishlistVisibility: draftWishlistVisibility,
+        foldersDefaultVisibility: draftFoldersVisibility,
+      });
+      setProfileMessage("Profile saved.");
+      setShowProfileSettings(false);
+    } finally {
+      setIsSavingProfile(false);
+    }
   }
 
   async function handleSaveFolder() {
@@ -596,8 +602,13 @@ export function ProfileWorkspace({
                 </div>
 
                 <div className="button-row">
-                  <button type="button" className="button button-primary" onClick={() => void handleSaveProfile()}>
-                    Save profile settings
+                  <div className="profile-jump-row">
+                    <a href="#profile-watched" className="button button-secondary profile-jump-button">Watched</a>
+                    <a href="#profile-wishlist" className="button button-secondary profile-jump-button">Wishlist</a>
+                    <a href="#profile-folders" className="button button-secondary profile-jump-button">Folders</a>
+                  </div>
+                  <button type="button" className="button button-primary" onClick={() => void handleSaveProfile()} disabled={isSavingProfile}>
+                    {isSavingProfile ? "Saving..." : "Save profile settings"}
                   </button>
                 </div>
               </div>

@@ -31,6 +31,7 @@ export function ImageAdjusterModal({
   const [imageSize, setImageSize] = useState({ width: 1, height: 1 });
   const objectUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
   const imgRef = useRef<HTMLImageElement | null>(null);
+  const modalRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     return () => {
@@ -44,6 +45,13 @@ export function ImageAdjusterModal({
     setZoom(1);
     setOffsetX(0);
     setOffsetY(0);
+  }, [file]);
+
+  useEffect(() => {
+    if (!file) return;
+    window.setTimeout(() => {
+      modalRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 80);
   }, [file]);
 
   if (!file || !objectUrl) {
@@ -107,7 +115,7 @@ export function ImageAdjusterModal({
 
   return (
     <div className="sidebar-modal-shell" onClick={onClose}>
-      <div className="sidebar-folder-modal glass image-adjuster-modal" onClick={(event) => event.stopPropagation()}>
+      <div ref={modalRef} className="sidebar-folder-modal glass image-adjuster-modal" onClick={(event) => event.stopPropagation()}>
         <div className="sidebar-folder-modal-header">
           <div>
             <strong>{title}</strong>
@@ -139,7 +147,7 @@ export function ImageAdjusterModal({
         <div className="image-adjuster-controls">
           <label className="image-adjuster-label">
             <span>Zoom</span>
-            <input type="range" min="1" max="2.6" step="0.02" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} />
+            <input type="range" min="1" max="2.15" step="0.01" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} />
           </label>
           <label className="image-adjuster-label">
             <span>Left / Right</span>

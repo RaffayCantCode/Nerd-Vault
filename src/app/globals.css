@@ -115,9 +115,10 @@ input {
 .landing-copy {
   max-width: 1120px;
   display: grid;
-  gap: 14px;
+  gap: 18px;
   justify-items: center;
   text-align: center;
+  margin-inline: auto;
 }
 
 .landing-brand-badge {
@@ -157,15 +158,18 @@ input {
 
 .landing-copy-body {
   max-width: 62ch;
-  font-size: 1rem;
+  font-size: 1.02rem;
+  line-height: 1.7;
+  color: rgba(236, 240, 250, 0.84);
 }
 
 .landing-metrics {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
-  margin-top: 12px;
+  margin-top: 18px;
   width: 100%;
+  max-width: 1180px;
 }
 
 .landing-metric {
@@ -3751,6 +3755,14 @@ body {
   margin-inline: auto;
 }
 
+.landing-auth-panel .copy,
+.landing-carousel-card .copy,
+.folder-empty .copy,
+.profile-hero-subcopy,
+.copy {
+  line-height: 1.7;
+}
+
 .landing-carousel {
   display: grid;
   gap: 14px;
@@ -3895,6 +3907,27 @@ body {
   white-space: nowrap;
 }
 
+.profile-jump-row {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.profile-jump-button {
+  min-width: 132px;
+}
+
+.profile-settings-layout {
+  row-gap: 22px;
+}
+
+.profile-settings-main {
+  display: grid;
+  gap: 18px;
+}
+
 .profile-avatar-action-button {
   cursor: pointer;
 }
@@ -3913,7 +3946,7 @@ body {
 }
 
 .image-adjuster-preview {
-  object-fit: contain;
+  object-fit: cover;
   background: #060911;
 }
 
@@ -4006,5 +4039,13 @@ body {
 
   .landing-auth-panel {
     padding: 20px;
+  }
+
+  .profile-jump-row {
+    justify-content: stretch;
+  }
+
+  .profile-jump-button {
+    width: 100%;
   }
 }
