@@ -236,7 +236,7 @@ export async function browseIgdbGames(params: {
   const discoverySeed = params.seed ?? 1;
   const requestPage =
     !queryText && sort === "discovery"
-      ? Math.max(1, page + (discoverySeed % 5) * 2)
+      ? Math.max(1, page + (Math.abs(Math.sin(discoverySeed * 9301 + 49297) * 1000) | 0) % 18)
       : page;
   const offset = (requestPage - 1) * 24;
   const escapedQuery = queryText?.replace(/"/g, '\\"');
@@ -274,6 +274,8 @@ export async function browseIgdbGames(params: {
     "sort total_rating_count desc;",
     "sort total_rating desc;",
     "sort first_release_date desc;",
+    "sort total_rating_count asc;",   // surface obscure titles
+    "sort hypes desc;",               // upcoming/anticipated
   ];
   const sortClause =
     sort === "newest"

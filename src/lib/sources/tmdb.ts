@@ -363,12 +363,24 @@ async function getTmdbMoviePage(page: number, query?: string, genre?: string) {
 }
 
 function getDiscoveryPage(page: number, seed = 1, windowSize = 48, salt = 0) {
-  return ((page + seed * 3 + salt - 1) % windowSize) + 1;
+  // Use prime-based LCG for chaotic but deterministic page distribution
+  const a = 1664525;
+  const c = 1013904223;
+  const mixed = Math.abs((seed * a + c + salt * 22695477) | 0);
+  return (mixed % windowSize) + 1;
 }
 
 function getDiscoverySort(seed = 1, salt = 0) {
-  const modes = ["popularity.desc", "vote_average.desc", "vote_count.desc"] as const;
-  return modes[(seed + salt) % modes.length];
+  // Expanded sort modes: include revenue.desc and primary_release_date variety
+  // so we surface genuinely different kinds of content each visit
+  const modes = [
+    "popularity.desc",
+    "vote_average.desc",
+    "vote_count.desc",
+    "revenue.desc",
+    "primary_release_date.desc",
+  ] as const;
+  return modes[Math.abs(seed * 3 + salt) % modes.length];
 }
 
 async function getTmdbMoviePageWithMode(
@@ -381,13 +393,14 @@ async function getTmdbMoviePageWithMode(
   const movieGenres = await getGenreMap("movie");
   const genreId = findGenreId(movieGenres, genre);
   const sortBy = sort === "newest" ? "primary_release_date.desc" : sort === "discovery" ? getDiscoverySort(seed, 5) : "popularity.desc";
-  const requestPage = !query && sort === "discovery" ? getDiscoveryPage(page, seed, 140, 5) : page;
+  const requestPage = !query && sort === "discovery" ? getDiscoveryPage(page, seed, 200, 5) : page;
+  // Lower floors deliberately — discovery should surface underrated gems, not just blockbusters
   const voteFloor =
     sort === "discovery"
       ? sortBy === "vote_average.desc"
-        ? 350
-        : 120
-      : 120;
+        ? 80   // was 350 — allow niche films with strong ratings
+        : 30   // was 120 — allow obscure titles
+      : 80;
   const path = query
     ? `/search/movie?language=en-US&include_adult=false&page=${page}&query=${encodeURIComponent(query)}`
     : `/discover/movie?language=en-US&include_adult=false&sort_by=${sortBy}&page=${requestPage}&vote_count.gte=${voteFloor}&with_original_language=en${genreId ? `&with_genres=${genreId}` : ""}`;
@@ -415,13 +428,13 @@ async function getTmdbShowPageWithMode(
   const tvGenres = await getGenreMap("tv");
   const genreId = findGenreId(tvGenres, genre);
   const sortBy = sort === "newest" ? "first_air_date.desc" : sort === "discovery" ? getDiscoverySort(seed, 11) : "popularity.desc";
-  const requestPage = !query && sort === "discovery" ? getDiscoveryPage(page, seed, 140, 11) : page;
+  const requestPage = !query && sort === "discovery" ? getDiscoveryPage(page, seed, 200, 11) : page;
   const voteFloor =
     sort === "discovery"
       ? sortBy === "vote_average.desc"
-        ? 220
-        : 100
-      : 100;
+        ? 50   // was 220 — surface hidden gem shows
+        : 20   // was 100
+      : 50;
   const path = query
     ? `/search/tv?language=en-US&page=${page}&query=${encodeURIComponent(query)}`
     : `/discover/tv?language=en-US&sort_by=${sortBy}&page=${requestPage}&vote_count.gte=${voteFloor}&with_original_language=en${genreId ? `&with_genres=${genreId}` : ""}`;

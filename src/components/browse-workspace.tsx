@@ -137,29 +137,42 @@ function getRecencyBoost(year: number) {
 }
 
 function buildSurfacingDeck(items: MediaItem[], seed: number, filter: MediaType | "all") {
-  const spotlightScore = (item: MediaItem) =>
-    item.rating * 10 + getRecencyBoost(item.year) * 4 + Math.abs(Math.sin(seed + hashString(item.id))) * 18;
+  // Always pick exactly one per type for the "Now Surfacing" rail.
+  // Uses a mix of rating + recency + pure randomness so underrated gems surface too.
+  const types: MediaType[] = ["movie", "show", "anime", "game"];
+
+  const pickForType = (type: MediaType, typeSalt: number): MediaItem | undefined => {
+    const pool = items.filter((item) => item.type === type);
+    if (!pool.length) return undefined;
+
+    // Split pool into tiers to mix blockbusters with hidden gems
+    const sorted = [...pool].sort((a, b) => b.rating - a.rating);
+    const topTier = sorted.slice(0, Math.ceil(sorted.length * 0.25));     // top 25% — known good
+    const midTier = sorted.slice(Math.ceil(sorted.length * 0.25), Math.ceil(sorted.length * 0.6)); // mid
+    const gemTier = sorted.slice(Math.ceil(sorted.length * 0.6));         // bottom 40% — hidden gems
+
+    // Weighted random pick: ~35% top, ~30% mid, ~35% gems for real discovery feel
+    const tierWeights = [0.35, 0.30, 0.35];
+    const rand = Math.abs(Math.sin(seed * 9301 + typeSalt * 49297 + 233)) % 1;
+    let tier: MediaItem[];
+    if (rand < tierWeights[0]) tier = topTier.length ? topTier : pool;
+    else if (rand < tierWeights[0] + tierWeights[1]) tier = midTier.length ? midTier : pool;
+    else tier = gemTier.length ? gemTier : pool;
+
+    // Pick randomly within the chosen tier using seed
+    const idx = Math.abs(Math.floor(Math.sin(seed + typeSalt * 1000003) * 100000)) % tier.length;
+    return tier[idx];
+  };
 
   if (filter === "all") {
-    const orderedTypes: MediaType[] = ["movie", "show", "anime", "game"];
-
-    return orderedTypes
-      .map((type, typeIndex) => {
-        const candidates = shuffleBySeed(
-          items.filter((item) => item.type === type),
-          seed + typeIndex * 31,
-        )
-          .sort((left, right) => spotlightScore(right) - spotlightScore(left))
-          .slice(0, 18);
-
-        return shuffleBySeed(candidates, seed + typeIndex * 73)[0];
-      })
-      .filter((item): item is MediaItem => Boolean(item));
+    return types.map((type, i) => pickForType(type, i * 31)).filter((item): item is MediaItem => Boolean(item));
   }
 
-  return shuffleBySeed(items, seed)
-    .sort((left, right) => spotlightScore(right) - spotlightScore(left))
-    .slice(0, 4);
+  // Single-type filter: still return up to 4 varied picks from that type
+  const pool = items.filter((item) => item.type === filter);
+  if (!pool.length) return [];
+  const shuffled = shuffleBySeed(pool, seed);
+  return shuffled.slice(0, Math.min(4, shuffled.length));
 }
 
 export function BrowseWorkspace({
@@ -660,7 +673,7 @@ export function BrowseWorkspace({
     <div className="workspace">
       {featured ? (
         <section className="workspace-hero glass">
-          <div className="hero-media">
+          <div className="hero-media" key={featuredKey}>
             <img
               src={featured.backdropUrl}
               alt={featured.title}
@@ -671,34 +684,23 @@ export function BrowseWorkspace({
             />
           </div>
           <div className="workspace-hero-grid">
-            <div className="workspace-copy" data-hero-key={featuredKey}>
+            <div className="workspace-copy" key={featuredKey}>
               <div className="hero-topline">
                 <p className="eyebrow">Now surfacing</p>
-                <div className="hero-arrow-row">
-                  <button
-                    type="button"
-                    className="hero-arrow"
-                    onClick={() =>
-                      setHeroIndex((current) =>
-                        featuredDeck.length ? (current - 1 + featuredDeck.length) % featuredDeck.length : 0,
-                      )
-                    }
-                    disabled={featuredDeck.length <= 1}
-                  >
-                    <span aria-hidden="true">←</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="hero-arrow"
-                    onClick={() =>
-                      setHeroIndex((current) =>
-                        featuredDeck.length ? (current + 1) % featuredDeck.length : 0,
-                      )
-                    }
-                    disabled={featuredDeck.length <= 1}
-                  >
-                    <span aria-hidden="true">→</span>
-                  </button>
+                {/* Dot indicators — one per card in the deck */}
+                <div className="surfacing-dots">
+                  {featuredDeck.map((item, i) => (
+                    <button
+                      key={`${item.source}-${item.sourceId}`}
+                      type="button"
+                      className={`surfacing-dot ${i === heroIndex ? "is-active" : ""}`}
+                      onClick={() => setHeroIndex(i)}
+                      title={item.title}
+                      aria-label={`Switch to ${item.title}`}
+                    >
+                      <span className="surfacing-dot-type">{item.type}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -736,8 +738,11 @@ export function BrowseWorkspace({
                 </button>
               </div>
             </div>
+
+            {/* Right side: active cover + mini previews of other 3 cards */}
             <div className="hero-art">
               <img
+                key={featuredKey}
                 src={featured.coverUrl}
                 alt={featured.title}
                 className="hero-art-image"
@@ -746,6 +751,33 @@ export function BrowseWorkspace({
                 decoding="async"
                 onLoad={(e) => (e.currentTarget as HTMLImageElement).classList.add("img-loaded")}
               />
+              {/* Thumbnail strip for the other 3 cards */}
+              <div className="surfacing-thumbs">
+                {featuredDeck.map((item, i) => {
+                  if (i === heroIndex) return null;
+                  return (
+                    <button
+                      key={`${item.source}-${item.sourceId}`}
+                      type="button"
+                      className="surfacing-thumb"
+                      onClick={() => setHeroIndex(i)}
+                      title={item.title}
+                    >
+                      <img
+                        src={item.coverUrl}
+                        alt={item.title}
+                        loading="eager"
+                        decoding="async"
+                        onLoad={(e) => (e.currentTarget as HTMLImageElement).classList.add("img-loaded")}
+                      />
+                      <div className="surfacing-thumb-label">
+                        <span className="pill">{item.type}</span>
+                        <span className="surfacing-thumb-title">{item.title}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </section>
