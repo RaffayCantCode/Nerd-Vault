@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { startTransition, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { CatalogCard } from "@/components/catalog-card";
 import { FilterChipBar } from "@/components/filter-chip-bar";
@@ -137,7 +137,8 @@ function getRecencyBoost(year: number) {
 }
 
 function buildSurfacingDeck(items: MediaItem[], seed: number, filter: MediaType | "all") {
-  const spotlightScore = (item: MediaItem) => item.rating * 14 + getRecencyBoost(item.year) * 5;
+  const spotlightScore = (item: MediaItem) =>
+    item.rating * 10 + getRecencyBoost(item.year) * 4 + Math.abs(Math.sin(seed + hashString(item.id))) * 18;
 
   if (filter === "all") {
     const orderedTypes: MediaType[] = ["movie", "show", "anime", "game"];
@@ -149,7 +150,7 @@ function buildSurfacingDeck(items: MediaItem[], seed: number, filter: MediaType 
           seed + typeIndex * 31,
         )
           .sort((left, right) => spotlightScore(right) - spotlightScore(left))
-          .slice(0, 12);
+          .slice(0, 18);
 
         return shuffleBySeed(candidates, seed + typeIndex * 73)[0];
       })
@@ -170,6 +171,7 @@ export function BrowseWorkspace({
   discoverySeed: number;
   initialTotalPages: number;
 }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const queryFromUrl = searchParams.get("query") ?? "";
   const mediaTypeFromUrl = searchParams.get("mediaType");
@@ -572,6 +574,11 @@ export function BrowseWorkspace({
   const visibleGridItems = featured
     ? sortedVisible.filter((item) => `${item.source}-${item.sourceId}` !== featuredKey)
     : sortedVisible;
+
+  useEffect(() => {
+    if (!featured) return;
+    router.prefetch(`/media/${featured.slug}?source=${featured.source}&sourceId=${featured.sourceId}&type=${featured.type}`);
+  }, [featured, router]);
 
   function toggleWishlist(item: MediaItem) {
     const key = `${item.source}-${item.sourceId}`;

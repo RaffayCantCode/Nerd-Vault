@@ -3564,6 +3564,14 @@ body {
   min-width: 0;
 }
 
+.topbar-user-copy strong {
+  color: var(--text);
+}
+
+.topbar-user-copy span {
+  color: var(--muted);
+}
+
 .profile-menu-panel {
   width: 220px;
 }
@@ -3763,14 +3771,16 @@ body {
 }
 
 .landing-carousel-controls {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
+  width: 100%;
 }
 
 .landing-carousel-arrow {
   min-width: 96px;
+  justify-content: center;
 }
 
 .landing-carousel-dots {
@@ -3801,22 +3811,41 @@ body {
 }
 
 .folder-hero-topbar {
-  padding-right: 360px;
+  padding-right: 0;
+}
+
+.folder-hero-title-group {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 34px;
+}
+
+.folder-hero-cover-stack {
+  display: grid;
+  gap: 14px;
+  align-content: start;
 }
 
 .folder-hero-actions {
-  top: 18px;
-  right: 18px;
+  position: static;
+  display: grid;
+  gap: 10px;
+  justify-content: start;
 }
 
 .profile-identity {
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
 }
 
 .profile-avatar-stack {
   display: grid;
   gap: 12px;
   align-items: start;
+  width: 190px;
 }
 
 .profile-avatar-edit {
@@ -3841,6 +3870,12 @@ body {
   flex-wrap: wrap;
 }
 
+.profile-display {
+  font-size: clamp(3rem, 5vw, 4.8rem);
+  line-height: 0.9;
+  white-space: nowrap;
+}
+
 .profile-avatar-action-button {
   cursor: pointer;
 }
@@ -3861,6 +3896,10 @@ body {
 .image-adjuster-preview {
   object-fit: contain;
   background: #060911;
+}
+
+.delete-confirm-modal {
+  width: min(420px, calc(100vw - 28px));
 }
 
 .hero-art {
@@ -3911,7 +3950,21 @@ body {
     padding-right: 0;
   }
 
+  .folder-hero-title-group,
+  .profile-identity {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
   .landing-carousel-controls {
-    flex-wrap: wrap;
+    grid-template-columns: 1fr;
+  }
+
+  .profile-display {
+    white-space: normal;
+  }
+
+  .profile-avatar-stack {
+    width: auto;
   }
 }

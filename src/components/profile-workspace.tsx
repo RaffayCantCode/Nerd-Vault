@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { CatalogCard } from "@/components/catalog-card";
 import { ImageAdjusterModal } from "@/components/image-adjuster-modal";
 import { MediaItem } from "@/lib/types";
@@ -148,6 +148,9 @@ export function ProfileWorkspace({
   const [watchedSearch, setWatchedSearch] = useState("");
   const [wishlistSearch, setWishlistSearch] = useState("");
   const [folderSearch, setFolderSearch] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const profileSettingsRef = useRef<HTMLDivElement | null>(null);
+  const profileAvatarActionsRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (initialPayload) {
@@ -199,6 +202,11 @@ export function ProfileWorkspace({
     return () => window.clearTimeout(timeout);
   }, [profileMessage]);
 
+  useEffect(() => {
+    if (!showProfileSettings) return;
+    profileSettingsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [showProfileSettings]);
+
   function handleAvatarFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -236,10 +244,8 @@ export function ProfileWorkspace({
 
   async function handleDeleteFolder() {
     if (!selectedFolder) return;
-    if (!window.confirm(`Delete "${selectedFolder.name}"? This cannot be undone.`)) {
-      return;
-    }
     await deleteLibraryFolder(selectedFolder.id);
+    setShowDeleteConfirm(false);
     setIsEditingFolder(false);
     setProfileMessage("Folder deleted.");
     window.location.href = viewingOwnProfile ? "/profile" : `/profile?user=${viewedUserId}`;
@@ -251,6 +257,9 @@ export function ProfileWorkspace({
       avatarUrl: dataUrl,
     });
     setProfileMessage("Profile image applied.");
+    window.setTimeout(() => {
+      profileAvatarActionsRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 120);
   }
 
   async function handleRemoveAvatar() {
@@ -296,7 +305,19 @@ export function ProfileWorkspace({
             <div className="workspace-copy">
               <div className="folder-hero-topbar">
                 <div className="folder-hero-title-group">
-                  <div className="folder-hero-cover-card" style={getFolderBackdropStyle(selectedFolder.coverUrl)} />
+                  <div className="folder-hero-cover-stack">
+                    <div className="folder-hero-cover-card" style={getFolderBackdropStyle(selectedFolder.coverUrl)} />
+                    {viewingOwnProfile ? (
+                      <div className="folder-hero-actions">
+                        <button type="button" className="button button-secondary folder-edit-button" onClick={() => setIsEditingFolder((current) => !current)}>
+                          {isEditingFolder ? "Close edit" : "Edit folder"}
+                        </button>
+                        <button type="button" className="button button-secondary folder-delete-button" onClick={() => setShowDeleteConfirm(true)}>
+                          Delete folder
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
                   <div className="folder-hero-copy">
                     <p className="eyebrow">Folder view</p>
                     <h1 className="display" style={{ fontSize: "clamp(3rem, 7vw, 5.4rem)" }}>
@@ -307,16 +328,6 @@ export function ProfileWorkspace({
                     </p>
                   </div>
                 </div>
-                {viewingOwnProfile ? (
-                  <div className="folder-hero-actions">
-                    <button type="button" className="button button-secondary folder-edit-button" onClick={() => setIsEditingFolder((current) => !current)}>
-                      {isEditingFolder ? "Close edit" : "Edit folder"}
-                    </button>
-                    <button type="button" className="button button-secondary folder-delete-button" onClick={() => void handleDeleteFolder()}>
-                      Delete folder
-                    </button>
-                  </div>
-                ) : null}
               </div>
 
               <p className="copy">
@@ -381,6 +392,32 @@ export function ProfileWorkspace({
           </div>
         </section>
 
+        {showDeleteConfirm ? (
+          <div className="sidebar-modal-shell" onClick={() => setShowDeleteConfirm(false)}>
+            <div className="sidebar-folder-modal glass delete-confirm-modal" onClick={(event) => event.stopPropagation()}>
+              <div className="sidebar-folder-modal-header">
+                <div>
+                  <strong>Delete folder?</strong>
+                  <p className="copy">
+                    {selectedFolder.name} will be removed from your vault. This cannot be undone.
+                  </p>
+                </div>
+                <button type="button" className="topbar-panel-close" onClick={() => setShowDeleteConfirm(false)}>
+                  Close
+                </button>
+              </div>
+              <div className="button-row">
+                <button type="button" className="button button-secondary" onClick={() => setShowDeleteConfirm(false)}>
+                  Keep folder
+                </button>
+                <button type="button" className="button button-primary" onClick={() => void handleDeleteFolder()}>
+                  Delete folder
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         <section className="section-stack" style={{ paddingTop: 0 }}>
           <div className="section-header">
             <div>
@@ -436,7 +473,7 @@ export function ProfileWorkspace({
                       )}
                       <input type="file" accept="image/*" onChange={handleAvatarFileChange} />
                     </label>
-                    <div className="profile-avatar-actions">
+                    <div className="profile-avatar-actions" ref={profileAvatarActionsRef}>
                       <label className="button button-secondary profile-avatar-action-button">
                         {draftAvatar ? "Change image" : "Set profile image"}
                         <input type="file" accept="image/*" onChange={handleAvatarFileChange} />
@@ -486,7 +523,7 @@ export function ProfileWorkspace({
             </div>
           </div>
           {showProfileSettings ? (
-            <div className="info-panel glass profile-settings-layout">
+            <div className="info-panel glass profile-settings-layout" ref={profileSettingsRef}>
               <div className="profile-settings-side">
                 <div className="profile-settings-avatar-card">
                   {draftAvatar ? (
@@ -754,6 +791,7 @@ export function ProfileWorkspace({
                 key={folder.id}
                 href={viewingOwnProfile ? `/profile?folder=${folder.id}` : `/profile?user=${viewedUserId}&folder=${folder.id}`}
                 className="folder-showcase-card glass"
+                prefetch
               >
                 <div className="folder-showcase-art folder-showcase-art-compact" style={getFolderBackdropStyle(folder.coverUrl)} />
                 <div className="folder-showcase-copy">

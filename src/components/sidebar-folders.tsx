@@ -159,6 +159,7 @@ export function SidebarFolders({ initialFolders = [] }: { initialFolders?: Store
             className={`sidebar-folder-tile ${pathname === "/profile" && activeFolder === folder.id ? "is-active" : ""}`}
             title={folder.name}
             aria-label={folder.name}
+            prefetch
           >
             <span className="sidebar-folder-art" style={getFolderArtStyle(folder.coverUrl)} />
           </Link>

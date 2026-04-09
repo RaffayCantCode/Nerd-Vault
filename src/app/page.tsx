@@ -31,8 +31,8 @@ export default async function HomePage() {
               <div className="landing-brand-badge glass">
                 <BrandLogo className="landing-brand-mark" priority />
                 <div>
-                  <strong>NerdVault</strong>
-                  <span>The upgraded media vault</span>
+                  <strong>Personal media vault</strong>
+                  <span>Track what hit. Keep what matters.</span>
                 </div>
               </div>
               <p className="eyebrow">Taste-first media library</p>
