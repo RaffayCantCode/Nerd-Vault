@@ -31,6 +31,45 @@ const DETAIL_PALETTES = [
   { accent: "#ffdc78", accentSoft: "rgba(255, 220, 120, 0.18)", glow: "rgba(255, 220, 120, 0.2)", edge: "rgba(255, 220, 120, 0.32)", haze: "rgba(198, 164, 255, 0.16)" },
 ] as const;
 
+function cleanNarrativeText(input?: string) {
+  const text = (input ?? "").replace(/\[[^\]]+\]/g, "").replace(/\s+/g, " ").trim();
+
+  if (!text) return "No overview yet.";
+  if (text.length < 110) {
+    return `${text} This entry still needs a fuller synopsis, so the page leans more on genre, tone, and franchise context.`;
+  }
+  if (text.length > 320) {
+    return `${text.slice(0, 317).trimEnd()}...`;
+  }
+  return text;
+}
+
+function getAnimeAudienceLens(genres: string[]) {
+  const lowerGenres = genres.map((genre) => genre.toLowerCase());
+  const labels: string[] = [];
+
+  if (lowerGenres.some((genre) => ["action", "adventure", "martial arts", "super power"].includes(genre))) {
+    labels.push("action-heavy Shonen");
+  }
+  if (lowerGenres.some((genre) => ["romance", "drama", "slice of life"].includes(genre))) {
+    labels.push("romantic Shojo");
+  }
+  if (lowerGenres.some((genre) => ["psychological", "thriller", "horror", "mystery"].includes(genre))) {
+    labels.push("mature Seinen");
+  }
+  if (lowerGenres.some((genre) => ["fantasy", "isekai"].includes(genre))) {
+    labels.push("Isekai");
+  }
+  if (lowerGenres.some((genre) => ["girls love"].includes(genre))) {
+    labels.push("Yuri (Girls' Love)");
+  }
+  if (lowerGenres.some((genre) => ["boys love"].includes(genre))) {
+    labels.push("Yaoi (Boys' Love)");
+  }
+
+  return labels.slice(0, 3);
+}
+
 function dedupeItems(items: MediaItem[]) {
   const seen = new Set<string>();
   return items.filter((item) => {
@@ -191,20 +230,22 @@ function buildDeepDiveCards(
   const topGenres = media.genres.slice(0, 3).join(" • ") || "Genre blend still loading";
   const castLead = media.credits[0]?.name ?? "Unknown lead";
   const secondCredit = media.credits[1]?.name ?? media.details.studio ?? "No second anchor yet";
+  const balancedOverview = cleanNarrativeText(media.overview);
 
   if (media.type === "anime") {
+    const animeAudienceLens = getAnimeAudienceLens(media.genres);
     return [
       {
-        eyebrow: "World / Setting",
-        title: media.details.studio ? `${media.details.studio} signal` : "Anime world",
-        body: `This one leans into ${topGenres.toLowerCase()} energy, with ${castLead} setting the emotional center and ${media.overview.toLowerCase()}`,
+        eyebrow: "Anime lane",
+        title: animeAudienceLens.length ? animeAudienceLens.join(" â€¢ ") : topGenres,
+        body: balancedOverview,
       },
       {
         eyebrow: "Character pull",
         title: castLead,
         body: media.credits.length
           ? `${castLead} is the first name to watch here, and ${secondCredit} helps define the tone around them.`
-          : "Character data is thinner here, but the story and genre mix are carrying the pull.",
+          : "Character data is thinner here, so the genre mix and franchise shape are carrying more of the pull.",
       },
       {
         eyebrow: "Arc footprint",
@@ -213,7 +254,7 @@ function buildDeepDiveCards(
           ? `This franchise currently reads as ${animeFranchise.seasonCount} main seasons, so the page can point you toward the actual long-form run instead of mixing every side entry together.`
           : animeFranchise?.entries.length
             ? `This franchise spans ${animeFranchise.entries.length} connected entries, which means there is more here than a single season drop.`
-          : "This page is focused on the core entry right now, but it still carries enough atmosphere to judge whether the ride is for you.",
+          : "This page is focused on the core entry right now, but it still carries enough atmosphere and category context to judge whether the ride is for you.",
       },
     ];
   }
@@ -246,7 +287,7 @@ function buildDeepDiveCards(
     {
       eyebrow: "Story hook",
       title: topGenres,
-      body: media.overview,
+      body: balancedOverview,
     },
     {
       eyebrow: "People to watch",
@@ -267,7 +308,8 @@ function buildMoodLine(media: MediaItem) {
   const genreBlend = media.genres.slice(0, 3).join(", ").toLowerCase();
 
   if (media.type === "anime") {
-    return `An anime built around ${genreBlend || "emotion and atmosphere"}, with a sharper pull toward character energy and world mood than passive background watching.`;
+    const audienceLens = getAnimeAudienceLens(media.genres);
+    return `An anime built around ${genreBlend || "emotion and atmosphere"}, with a sharper pull toward character energy and world mood than passive background watching.${audienceLens.length ? ` It leans toward ${audienceLens.join(", ")}.` : ""}`;
   }
 
   if (media.type === "game") {
@@ -499,7 +541,7 @@ export default async function MediaDetailPage({
   noStore();
   const session = await auth();
   const viewerName = session?.user?.name || "Guest vault";
-  const viewerId = session?.user?.email || session?.user?.name || "guest-vault";
+  const viewerId = session?.user?.id || "guest-vault";
   const viewerAvatar = session?.user?.image || undefined;
   const { slug } = await params;
   const { source, sourceId, type } = await searchParams;

@@ -4,8 +4,9 @@ import { ChangeEvent, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { StoredFolder, createFolder, readLibraryState, subscribeLibraryChanges } from "@/lib/library-storage";
 import { readFileAsDataUrl } from "@/lib/read-file-as-data-url";
+import { createLibraryFolder, fetchLibraryState, subscribeVaultChanges } from "@/lib/vault-client";
+import { StoredFolder } from "@/lib/vault-types";
 
 function getFolderArtStyle(coverUrl?: string) {
   if (!coverUrl) {
@@ -35,11 +36,13 @@ export function SidebarFolders() {
 
   useEffect(() => {
     function sync() {
-      setFolders(readLibraryState().folders);
+      fetchLibraryState()
+        .then((library) => setFolders(library.folders))
+        .catch(() => setFolders([]));
     }
 
     sync();
-    return subscribeLibraryChanges(sync);
+    return subscribeVaultChanges(sync);
   }, []);
 
   useEffect(() => {
@@ -47,11 +50,12 @@ export function SidebarFolders() {
     return () => setIsMounted(false);
   }, []);
 
-  const visibleFolders = folders;
-
-  function handleCreateFolder() {
-    const created = createFolder(folderName, folderCover, folderDescription);
-    if (!created) return;
+  async function handleCreateFolder() {
+    await createLibraryFolder({
+      name: folderName,
+      description: folderDescription,
+      coverUrl: folderCover,
+    });
 
     setFolderName("");
     setFolderDescription("");
@@ -115,7 +119,7 @@ export function SidebarFolders() {
                   <input type="file" accept="image/*" onChange={handleFolderFileChange} />
                 </label>
                 <div className="sidebar-folder-actions">
-                  <button type="button" className="button button-primary" onClick={handleCreateFolder} disabled={!folderName.trim()}>
+                  <button type="button" className="button button-primary" onClick={() => void handleCreateFolder()} disabled={!folderName.trim()}>
                     Create folder
                   </button>
                   <button type="button" className="button button-secondary" onClick={() => setIsCreating(false)}>
@@ -129,7 +133,7 @@ export function SidebarFolders() {
         : null}
 
       <div className="sidebar-folder-stack">
-        {visibleFolders.map((folder) => (
+        {folders.map((folder) => (
           <Link
             key={folder.id}
             href={`/profile?folder=${folder.id}`}
@@ -137,10 +141,7 @@ export function SidebarFolders() {
             title={folder.name}
             aria-label={folder.name}
           >
-            <span
-              className="sidebar-folder-art"
-              style={getFolderArtStyle("coverUrl" in folder ? folder.coverUrl : undefined)}
-            />
+            <span className="sidebar-folder-art" style={getFolderArtStyle(folder.coverUrl)} />
           </Link>
         ))}
       </div>

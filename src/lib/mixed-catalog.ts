@@ -2,6 +2,7 @@ import { browseIgdbGames } from "@/lib/sources/igdb";
 import { browseJikanAnime } from "@/lib/sources/jikan";
 import { browseTmdbCatalog } from "@/lib/sources/tmdb";
 import { itemMatchesGenre } from "@/lib/catalog-utils";
+import { itemMatchesSearch, searchScore } from "@/lib/search-utils";
 import { MediaItem } from "@/lib/types";
 
 const MIXED_CACHE_TTL_MS = 1000 * 60 * 10;
@@ -42,36 +43,11 @@ const mixedSourceWarmCache = new Map<
   }
 >();
 
-function normalizeSearchText(input: string) {
-  return input.toLowerCase().replace(/[^a-z0-9\s]+/g, " ").replace(/\s+/g, " ").trim();
-}
-
-function searchScore(item: MediaItem, query: string) {
-  const normalizedQuery = normalizeSearchText(query);
-  const title = normalizeSearchText(item.title);
-  const originalTitle = normalizeSearchText(item.originalTitle ?? "");
-  const genres = normalizeSearchText(item.genres.join(" "));
-  const overview = normalizeSearchText(item.overview);
-  const queryTokens = normalizedQuery.split(" ").filter(Boolean);
-  const matchedTokens = queryTokens.filter((token) => title.includes(token) || originalTitle.includes(token)).length;
-
-  let score = 0;
-  if (title === normalizedQuery) score += 140;
-  if (originalTitle === normalizedQuery) score += 110;
-  if (title.startsWith(normalizedQuery)) score += 70;
-  if (originalTitle.startsWith(normalizedQuery)) score += 48;
-  if (title.includes(normalizedQuery)) score += 40;
-  if (originalTitle.includes(normalizedQuery)) score += 26;
-  if (genres.includes(normalizedQuery)) score += 10;
-  if (overview.includes(normalizedQuery)) score += 4;
-  if (queryTokens.length > 1 && matchedTokens === queryTokens.length) score += 150;
-  else if (queryTokens.length > 1) score += matchedTokens * 20 - (queryTokens.length - matchedTokens) * 14;
-  return score;
-}
-
 function rankSearchItems(items: MediaItem[], query: string) {
   if (!query.trim()) return items;
-  return [...items].sort((left, right) => {
+  return [...items]
+    .filter((item) => itemMatchesSearch(item, query))
+    .sort((left, right) => {
     const scoreGap = searchScore(right, query) - searchScore(left, query);
     if (scoreGap !== 0) return scoreGap;
     return right.rating - left.rating || right.year - left.year;

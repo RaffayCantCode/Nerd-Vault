@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { startTransition, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { CatalogCard } from "@/components/catalog-card";
 import { FilterChipBar } from "@/components/filter-chip-bar";
 import { filterCatalog, itemGenreLabels, itemMatchesGenre } from "@/lib/catalog-utils";
-import { addToWishlist, isInWishlist, removeFromWishlist, subscribeLibraryChanges } from "@/lib/library-storage";
+import { itemMatchesSearch, searchScore } from "@/lib/search-utils";
 import { MediaItem, MediaType } from "@/lib/types";
+import { addMediaToWishlist, fetchLibraryState, removeMediaFromWishlist, subscribeVaultChanges } from "@/lib/vault-client";
 
 type SortMode = "discovery" | "newest" | "rating" | "title";
 type CachedPage = {
@@ -65,37 +67,6 @@ function shuffleBySeed(items: MediaItem[], seed: number) {
     }))
     .sort((left, right) => left.key - right.key)
     .map((entry) => entry.item);
-}
-
-function normalizeSearchText(input: string) {
-  return input.toLowerCase().replace(/[^a-z0-9\s]+/g, " ").replace(/\s+/g, " ").trim();
-}
-
-function searchScore(item: MediaItem, query: string) {
-  const normalizedQuery = normalizeSearchText(query);
-  if (!normalizedQuery) return 0;
-
-  const title = normalizeSearchText(item.title);
-  const originalTitle = normalizeSearchText(item.originalTitle ?? "");
-  const genres = normalizeSearchText(item.genres.join(" "));
-  const overview = normalizeSearchText(item.overview);
-  const queryTokens = normalizedQuery.split(" ").filter(Boolean);
-  const matchedTokens = queryTokens.filter((token) => title.includes(token) || originalTitle.includes(token)).length;
-
-  let score = 0;
-
-  if (title === normalizedQuery) score += 120;
-  if (originalTitle === normalizedQuery) score += 90;
-  if (title.startsWith(normalizedQuery)) score += 70;
-  if (originalTitle.startsWith(normalizedQuery)) score += 45;
-  if (title.includes(normalizedQuery)) score += 40;
-  if (originalTitle.includes(normalizedQuery)) score += 26;
-  if (genres.includes(normalizedQuery)) score += 12;
-  if (overview.includes(normalizedQuery)) score += 6;
-  if (queryTokens.length > 1 && matchedTokens === queryTokens.length) score += 140;
-  else if (queryTokens.length > 1) score += matchedTokens * 18 - (queryTokens.length - matchedTokens) * 12;
-
-  return score;
 }
 
 function interleaveTypeBuckets(buckets: MediaItem[][]) {
@@ -195,6 +166,9 @@ export function BrowseWorkspace({
   discoverySeed: number;
   initialTotalPages: number;
 }) {
+  const searchParams = useSearchParams();
+  const queryFromUrl = searchParams.get("query") ?? "";
+  const mediaTypeFromUrl = searchParams.get("mediaType");
   const initialState =
     typeof window !== "undefined"
       ? (() => {
@@ -214,15 +188,21 @@ export function BrowseWorkspace({
         })()
       : null;
   const [filter, setFilter] = useState<MediaType | "all">(
-    initialState?.filter === "movie" ||
-      initialState?.filter === "show" ||
-      initialState?.filter === "anime" ||
-      initialState?.filter === "game" ||
-      initialState?.filter === "all"
-      ? initialState.filter
+    mediaTypeFromUrl === "movie" ||
+      mediaTypeFromUrl === "show" ||
+      mediaTypeFromUrl === "anime" ||
+      mediaTypeFromUrl === "game" ||
+      mediaTypeFromUrl === "all"
+      ? mediaTypeFromUrl
+      : initialState?.filter === "movie" ||
+          initialState?.filter === "show" ||
+          initialState?.filter === "anime" ||
+          initialState?.filter === "game" ||
+          initialState?.filter === "all"
+        ? initialState.filter
       : "all",
   );
-  const [query, setQuery] = useState(initialState?.query ?? "");
+  const [query, setQuery] = useState(queryFromUrl || initialState?.query || "");
   const deferredQuery = useDeferredValue(query);
   const [genre, setGenre] = useState(initialState?.genre ?? "all");
   const [sort, setSort] = useState<SortMode>(
@@ -283,15 +263,29 @@ export function BrowseWorkspace({
   }, [activePage, filter, genre, query, sort]);
 
   useEffect(() => {
+    const nextFilter =
+      mediaTypeFromUrl === "movie" ||
+      mediaTypeFromUrl === "show" ||
+      mediaTypeFromUrl === "anime" ||
+      mediaTypeFromUrl === "game" ||
+      mediaTypeFromUrl === "all"
+        ? mediaTypeFromUrl
+        : "all";
+    setFilter(nextFilter);
+    setQuery(queryFromUrl);
+    setPage(1);
+    setHeroIndex(0);
+  }, [mediaTypeFromUrl, queryFromUrl]);
+
+  useEffect(() => {
     function syncWishlist() {
-      const keys = catalog
-        .filter((item) => isInWishlist(item))
-        .map((item) => `${item.source}-${item.sourceId}`);
-      setWishlistedKeys(keys);
+      fetchLibraryState()
+        .then((library) => setWishlistedKeys(library.wishlist.map((item) => `${item.source}-${item.sourceId}`)))
+        .catch(() => setWishlistedKeys([]));
     }
 
     syncWishlist();
-    return subscribeLibraryChanges(syncWishlist);
+    return subscribeVaultChanges(syncWishlist);
   }, [catalog]);
 
   useEffect(() => {
@@ -406,10 +400,7 @@ export function BrowseWorkspace({
         return false;
       }
       seen.add(key);
-      return (
-        (filter === "all" || item.type === filter) &&
-        searchScore(item, deferredQuery) > 0
-      );
+      return (filter === "all" || item.type === filter) && itemMatchesSearch(item, deferredQuery);
     });
   }, [catalog, deferredQuery, filter, remoteCatalog, typedVisible]);
 
@@ -511,8 +502,7 @@ export function BrowseWorkspace({
       return;
     }
 
-    const normalized = normalizeSearchText(trimmedQuery);
-    const shouldAssistScroll = normalized.length >= 8 || normalized.includes(" ");
+    const shouldAssistScroll = trimmedQuery.length >= 8 || trimmedQuery.includes(" ");
     if (!shouldAssistScroll) {
       return;
     }
@@ -566,31 +556,25 @@ export function BrowseWorkspace({
     featuredDeck[heroIndex] ?? sortedVisible[0] ?? typedVisible[0] ?? baseCatalog[0] ?? catalog[0];
   const featuredKey = featured ? `${featured.source}-${featured.sourceId}` : "";
   const featuredWishlisted = featured ? wishlistedKeys.includes(featuredKey) : false;
+  const visibleGridItems = featured
+    ? sortedVisible.filter((item) => `${item.source}-${item.sourceId}` !== featuredKey)
+    : sortedVisible;
 
   function toggleWishlist(item: MediaItem) {
     const key = `${item.source}-${item.sourceId}`;
 
     if (wishlistedKeys.includes(key)) {
-      removeFromWishlist(item);
+      void removeMediaFromWishlist(item);
       return;
     }
 
-    addToWishlist(item);
+    void addMediaToWishlist(item);
   }
 
   function handlePageChange(nextPage: number) {
     const clamped = Math.min(totalPages, Math.max(1, nextPage));
     setPage(clamped);
     toolbarRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
-  function handleSearchSubmit() {
-    shouldScrollToResultsRef.current = true;
-    if (!isLoading) {
-      window.setTimeout(() => {
-        resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 120);
-    }
   }
 
   function persistBrowseSnapshot() {
@@ -746,23 +730,14 @@ export function BrowseWorkspace({
             </div>
           </div>
 
-          <div className="browse-toolbar-row">
-            <div className="search-cluster">
-              <input
-                className="search-input"
-                type="search"
-                placeholder="Search titles, genres, moods..."
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    handleSearchSubmit();
-                  }
-                }}
-              />
+            <div className="browse-toolbar-row">
+              <div className="search-cluster">
+                <div className="search-input browse-search-display" aria-live="polite">
+                  {query.trim() ? `Search: ${query}` : "Use the centered top search to find media."}
+                </div>
 
-              <div className="sort-shell">
-                <label className="sort-label" htmlFor="catalog-sort">
+                <div className="sort-shell">
+                  <label className="sort-label" htmlFor="catalog-sort">
                   Sort
                 </label>
                 <select
@@ -823,7 +798,7 @@ export function BrowseWorkspace({
         </div>
 
         <div className={`catalog-grid ${pageTransition ? "catalog-grid-loading" : ""}`}>
-          {sortedVisible.map((item, index) => (
+          {visibleGridItems.map((item, index) => (
             <CatalogCard key={item.id} item={item} priority={index < 12} onBeforeNavigate={persistBrowseSnapshot} />
           ))}
         </div>

@@ -40,7 +40,18 @@ export async function AppSidebar({ active }: AppSidebarProps) {
       <div className="sidebar-rail-divider" />
 
       <div className="sidebar-rail-stack" aria-label="Folders">
-        <SidebarFolders />
+        {shouldShowSignOut ? (
+          <SidebarFolders />
+        ) : (
+          <Link
+            href="/sign-in"
+            className="sidebar-nav-button"
+            aria-label="Sign in to save"
+            title="Sign in to save"
+          >
+            <span>Sign in</span>
+          </Link>
+        )}
       </div>
 
       {shouldShowSignOut ? (

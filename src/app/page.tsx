@@ -32,11 +32,11 @@ export default function HomePage() {
               <p className="eyebrow">Taste-first media library</p>
               <h1 className="display">Log what hit. Save what calls next.</h1>
               <p className="copy landing-copy-body">
-                NerdVault is your private vault for games, films, series, and anime with folders like playlists, rich detail pages, and discovery that actually feels personal.
+                NerdVault is a cinematic media vault for games, films, series, and anime with playlist-like folders, sharper detail pages, and discovery that feels curated instead of noisy.
               </p>
               <div className="button-row" style={{ marginTop: 24 }}>
                 <Link href="/sign-in" className="button button-primary">
-                  Open your library
+                  Build your vault
                 </Link>
                 <Link href="/browse" className="button button-secondary">
                   Browse as guest

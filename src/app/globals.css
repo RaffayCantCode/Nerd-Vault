@@ -2920,6 +2920,270 @@ body {
   min-width: 100%;
 }
 
+.topbar-search-unified {
+  width: min(780px, 100%);
+}
+
+.app-topbar-actions {
+  grid-template-columns: minmax(320px, 1fr) auto auto;
+}
+
+.topbar-search-shell {
+  display: grid;
+  grid-template-columns: auto auto minmax(220px, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.topbar-search-scopes {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.topbar-search-select {
+  min-width: 142px;
+}
+
+.topbar-search-input-centered {
+  text-align: left;
+}
+
+.topbar-search-results {
+  width: min(860px, calc(100vw - 180px));
+}
+
+.topbar-media-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.browse-search-display {
+  display: flex;
+  align-items: center;
+  min-height: 52px;
+}
+
+@media (max-width: 1080px) {
+  .topbar-search-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar-search-results {
+    width: min(100%, calc(100vw - 40px));
+  }
+}
+
+body {
+  overflow-x: hidden;
+}
+
+.page-shell,
+.workspace,
+.section-stack,
+.catalog-grid,
+.detail-story-panel,
+.detail-story-image-shell,
+.detail-atlas-track {
+  min-width: 0;
+}
+
+.app-shell-layout {
+  width: min(calc(100% - 32px), 1680px);
+  gap: clamp(14px, 2vw, 28px);
+}
+
+.sidebar {
+  margin-right: 2px;
+}
+
+.workspace {
+  min-width: 0;
+}
+
+.hero-media img,
+.catalog-card img,
+.detail-story-image-shell img,
+.detail-atlas-tile img,
+.detail-side-poster-media img,
+.surfacing-backdrop img {
+  opacity: 1;
+  object-position: center center;
+}
+
+.catalog-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015)),
+    #0b1018;
+}
+
+.hero-art {
+  position: relative;
+  overflow: hidden;
+  border-left: 0;
+  background-position: center;
+  background-size: cover;
+}
+
+.hero-art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 18% 24%, rgba(255, 255, 255, 0.14), transparent 32%),
+    linear-gradient(135deg, rgba(7, 9, 14, 0.12), rgba(7, 9, 14, 0.72));
+}
+
+.workspace-hero-grid {
+  gap: 0;
+}
+
+.browse-toolbar,
+.workspace-hero,
+.app-topbar {
+  width: 100%;
+}
+
+.catalog-card,
+.catalog-card img,
+.workspace,
+.section-stack {
+  backface-visibility: visible;
+}
+
+.catalog-card,
+.hero-arrow,
+.picker-chip,
+.sidebar-nav-button,
+.sidebar-folder-tile,
+.sidebar-icon-button,
+.button,
+.chip,
+.topbar-chip {
+  will-change: auto;
+}
+
+@media (max-width: 1200px) {
+  .app-shell-layout {
+    width: min(calc(100% - 24px), 1480px);
+    gap: 18px;
+  }
+}
+
+@media (max-width: 1080px) {
+  .app-shell-layout {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .sidebar.sidebar-rail {
+    position: static;
+    max-height: none;
+    width: 100%;
+    grid-template-columns: repeat(auto-fit, minmax(56px, 1fr));
+    justify-items: stretch;
+  }
+
+  .sidebar-rail-nav,
+  .sidebar-folder-stack {
+    grid-template-columns: repeat(auto-fit, minmax(56px, 1fr));
+  }
+
+  .workspace-hero-grid,
+  .detail-hero-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-art {
+    min-height: 280px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+}
+
+@media (max-width: 720px) {
+  .container,
+  .app-shell-layout {
+    width: min(calc(100% - 16px), 100%);
+  }
+
+  .page-shell {
+    padding-bottom: 12px;
+  }
+
+  .sidebar.sidebar-rail {
+    padding: 12px;
+    border-radius: 22px;
+    gap: 10px;
+  }
+
+  .workspace {
+    gap: 12px;
+  }
+
+  .app-topbar,
+  .browse-toolbar,
+  .workspace-copy,
+  .detail-content {
+    padding: 18px;
+  }
+
+  .topbar-search-shell {
+    gap: 8px;
+  }
+
+  .topbar-search-results {
+    width: min(100vw - 24px, 100%);
+  }
+
+  .topbar-media-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .catalog-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .catalog-card {
+    min-height: 244px;
+    border-radius: 22px;
+  }
+
+  .catalog-title {
+    font-size: 0.98rem;
+  }
+
+  .detail-side-poster {
+    max-width: none;
+  }
+
+  .detail-side-poster-media,
+  .detail-story-image-shell,
+  .detail-atlas-tile {
+    aspect-ratio: 16 / 10;
+    min-height: 0;
+  }
+
+  .detail-story-image-shell img,
+  .detail-atlas-tile img,
+  .detail-side-poster-media img {
+    object-fit: cover;
+    object-position: center;
+  }
+
+  .folder-hero-cover-card {
+    width: 112px;
+    min-width: 112px;
+  }
+
+  .workspace-hero {
+    min-height: auto;
+  }
+
+  .hero-art {
+    min-height: 220px;
+  }
+}
+
 .folder-description-input {
   min-height: 112px;
   resize: vertical;

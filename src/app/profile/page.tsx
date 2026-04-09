@@ -6,7 +6,7 @@ import { auth } from "@/lib/auth";
 export default async function ProfilePage() {
   const session = await auth();
   const userName = session?.user?.name || "Guest vault";
-  const viewerId = session?.user?.email || session?.user?.name || "guest-vault";
+  const viewerId = session?.user?.id || "guest-vault";
   const viewerAvatar = session?.user?.image || undefined;
   const isDemo = !session?.user;
 

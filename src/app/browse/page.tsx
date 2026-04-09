@@ -27,7 +27,7 @@ export default async function BrowsePage() {
     })),
   ]);
   const viewerName = session?.user?.name || "Guest vault";
-  const viewerId = session?.user?.email || session?.user?.name || "guest-vault";
+  const viewerId = session?.user?.id || "guest-vault";
   const viewerAvatar = session?.user?.image || undefined;
 
   return (

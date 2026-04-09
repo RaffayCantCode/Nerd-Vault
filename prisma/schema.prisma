@@ -8,19 +8,29 @@ datasource db {
 }
 
 model User {
-  id          String        @id @default(cuid())
-  name        String?
-  email       String?       @unique
-  emailVerified DateTime?
-  image       String?
-  passwordHash String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  watched     WatchedItem[]
-  wishlist    WishlistItem[]
-  folders     Folder[]
-  accounts    Account[]
-  sessions    Session[]
+  id                     String                @id @default(cuid())
+  name                   String?
+  email                  String?               @unique
+  emailVerified          DateTime?
+  image                  String?
+  bio                    String?               @db.Text
+  passwordHash           String?
+  watchedVisibility      PrivacyLevel          @default(public)
+  wishlistVisibility     PrivacyLevel          @default(friends)
+  foldersDefaultVisibility PrivacyLevel        @default(public)
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  watched                WatchedItem[]
+  wishlist               WishlistItem[]
+  folders                Folder[]
+  sentFriendRequests     FriendRequest[]       @relation("FriendRequestSender")
+  receivedFriendRequests FriendRequest[]       @relation("FriendRequestReceiver")
+  sentNotifications      Notification[]        @relation("NotificationSender")
+  notifications          Notification[]        @relation("NotificationReceiver")
+  friendships            Friendship[]          @relation("FriendshipUser")
+  friendOf               Friendship[]          @relation("FriendshipFriend")
+  accounts               Account[]
+  sessions               Session[]
 }
 
 model Media {
@@ -48,6 +58,7 @@ model Media {
   watchedBy     WatchedItem[]
   wishlistedBy  WishlistItem[]
   folderItems   FolderItem[]
+  notifications Notification[]
 
   @@unique([source, sourceId])
 }
@@ -126,7 +137,9 @@ model Folder {
   userId     String
   name       String
   slug       String
+  description String?     @db.Text
   coverUrl   String?
+  visibility PrivacyLevel @default(public)
   createdAt  DateTime     @default(now())
   updatedAt  DateTime     @updatedAt
   user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -143,6 +156,43 @@ model FolderItem {
   media      Media    @relation(fields: [mediaId], references: [id], onDelete: Cascade)
 
   @@id([folderId, mediaId])
+}
+
+model FriendRequest {
+  id         String              @id @default(cuid())
+  fromUserId String
+  toUserId   String
+  status     FriendRequestStatus @default(pending)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  fromUser   User                @relation("FriendRequestSender", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser     User                @relation("FriendRequestReceiver", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@unique([fromUserId, toUserId])
+}
+
+model Friendship {
+  userId    String
+  friendId  String
+  createdAt DateTime @default(now())
+  user      User     @relation("FriendshipUser", fields: [userId], references: [id], onDelete: Cascade)
+  friend    User     @relation("FriendshipFriend", fields: [friendId], references: [id], onDelete: Cascade)
+
+  @@id([userId, friendId])
+}
+
+model Notification {
+  id         String             @id @default(cuid())
+  userId     String
+  fromUserId String?
+  mediaId    String?
+  type       NotificationType
+  message    String             @db.Text
+  status     NotificationStatus @default(unread)
+  createdAt  DateTime           @default(now())
+  user       User               @relation("NotificationReceiver", fields: [userId], references: [id], onDelete: Cascade)
+  fromUser   User?              @relation("NotificationSender", fields: [fromUserId], references: [id], onDelete: SetNull)
+  media      Media?             @relation(fields: [mediaId], references: [id], onDelete: SetNull)
 }
 
 model Account {
@@ -209,4 +259,28 @@ enum ImageKind {
   backdrop
   screenshot
   logo
+}
+
+enum PrivacyLevel {
+  public
+  friends
+  private
+}
+
+enum FriendRequestStatus {
+  pending
+  accepted
+  declined
+}
+
+enum NotificationType {
+  friend_request
+  friend_accepted
+  recommendation
+  info
+}
+
+enum NotificationStatus {
+  unread
+  read
 }

@@ -3,17 +3,17 @@ import Link from "next/link";
 export function LandingAuthCard() {
   return (
     <div className="auth-card glass landing-auth-panel">
-      <p className="eyebrow">Start here</p>
-      <h2 className="headline">Use the site now, sync it properly next.</h2>
+      <p className="eyebrow">Pick your route</p>
+      <h2 className="headline">Browse the vault now, then claim your own corner of it.</h2>
       <p className="copy">
-        Browse works as a guest, your local library already saves in the browser, and the real account-backed version is ready to sit on top of this shell.
+        Guest mode lets you explore the catalog fast. Signing in turns that same space into a persistent personal vault with profile identity, folders, friends, inbox, and saved media history.
       </p>
       <div className="button-row" style={{ marginTop: 18 }}>
         <Link href="/sign-in" className="button button-primary">
-          Sign in
+          Start your vault
         </Link>
         <Link href="/browse" className="button button-secondary">
-          Enter browse
+          Explore as guest
         </Link>
       </div>
     </div>

@@ -1,22 +1,26 @@
 "use client";
 
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
-import {
-  addItemToFolder,
-  addToWatched,
-  addToWishlist,
-  createFolder,
-  isInWatched,
-  isInWishlist,
-  readLibraryState,
-  removeFromWishlist,
-  subscribeLibraryChanges,
-} from "@/lib/library-storage";
-import { SocialProfile, getFriends, sendRecommendation, subscribeSocialChanges } from "@/lib/social-storage";
-import { MediaItem } from "@/lib/types";
+import Link from "next/link";
 import { readFileAsDataUrl } from "@/lib/read-file-as-data-url";
+import { MediaItem } from "@/lib/types";
+import {
+  addMediaToFolder,
+  addMediaToWatched,
+  addMediaToWishlist,
+  createLibraryFolder,
+  fetchLibraryState,
+  fetchProfilePayload,
+  recommendToFriend,
+  removeMediaFromFolder,
+  removeMediaFromWatched,
+  removeMediaFromWishlist,
+  subscribeVaultChanges,
+} from "@/lib/vault-client";
+import { SocialProfile, StoredFolder } from "@/lib/vault-types";
 
 export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: string }) {
+  const isGuest = viewerId === "guest-vault";
   const [isWatched, setIsWatched] = useState(false);
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [folderId, setFolderId] = useState("");
@@ -26,27 +30,63 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [friendId, setFriendId] = useState("");
   const [message, setMessage] = useState("");
-  const [folders, setFolders] = useState(readLibraryState().folders);
+  const [folders, setFolders] = useState<StoredFolder[]>([]);
   const [friends, setFriends] = useState<SocialProfile[]>([]);
 
   const primaryLabel = item.type === "game" ? "Played" : "Watched";
 
   useEffect(() => {
+    if (isGuest) {
+      setFolders([]);
+      setFriends([]);
+      setIsWatched(false);
+      setIsWishlisted(false);
+      return;
+    }
+
     function sync() {
-      setIsWatched(isInWatched(item));
-      setIsWishlisted(isInWishlist(item));
-      setFolders(readLibraryState().folders);
-      setFriends(getFriends(viewerId));
+      fetchLibraryState()
+        .then((library) => {
+          setFolders(library.folders);
+          setIsWatched(library.watched.some((entry) => entry.source === item.source && entry.sourceId === item.sourceId));
+          setIsWishlisted(library.wishlist.some((entry) => entry.source === item.source && entry.sourceId === item.sourceId));
+        })
+        .catch(() => {
+          setFolders([]);
+          setIsWatched(false);
+          setIsWishlisted(false);
+        });
+
+      fetchProfilePayload()
+        .then((payload) => setFriends(payload.friends))
+        .catch(() => setFriends([]));
     }
 
     sync();
-    const unsubscribeLibrary = subscribeLibraryChanges(sync);
-    const unsubscribeSocial = subscribeSocialChanges(sync);
-    return () => {
-      unsubscribeLibrary();
-      unsubscribeSocial();
-    };
-  }, [item, viewerId]);
+    const unsubscribe = subscribeVaultChanges(sync);
+    return () => unsubscribe();
+  }, [isGuest, item.source, item.sourceId, viewerId]);
+
+  if (isGuest) {
+    return (
+      <div className="media-actions">
+        <div className="media-action-surface glass">
+          <div className="media-action-section">
+            <p className="eyebrow">Save to your vault</p>
+            <p className="copy">Guest browse is now read-only so account data stays private and separate. Sign in to log watched, wishlist, folders, profile image, friends, and inbox activity properly.</p>
+            <div className="button-row" style={{ marginTop: 16 }}>
+              <Link href="/sign-in" className="button button-primary">
+                Sign in to save
+              </Link>
+              <Link href="/browse" className="button button-secondary">
+                Keep browsing
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     if (!message) return;
@@ -55,39 +95,55 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
   }, [message]);
 
   const folderOptions = useMemo(() => folders, [folders]);
+  const selectedFolder = folderOptions.find((folder) => folder.id === folderId);
+  const selectedFolderContainsItem = selectedFolder?.items.some((entry) => entry.source === item.source && entry.sourceId === item.sourceId) ?? false;
 
-  function handleWatched() {
-    addToWatched(item);
+  async function handleWatched() {
+    if (isWatched) {
+      await removeMediaFromWatched(item);
+      setMessage(`${item.title} removed from ${primaryLabel.toLowerCase()}.`);
+      return;
+    }
+
+    await addMediaToWatched(item);
     setMessage(`${item.title} added to ${primaryLabel.toLowerCase()}.`);
   }
 
-  function handleWishlist() {
+  async function handleWishlist() {
     if (isWishlisted) {
-      removeFromWishlist(item);
+      await removeMediaFromWishlist(item);
       setMessage(`${item.title} removed from wishlist.`);
       return;
     }
 
-    addToWishlist(item);
+    await addMediaToWishlist(item);
     setMessage(`${item.title} added to wishlist.`);
   }
 
-  function handleAddToFolder() {
+  async function handleFolderToggle() {
     if (!folderId) return;
-    addItemToFolder(folderId, item);
-    const target = folderOptions.find((folder) => folder.id === folderId);
-    setMessage(`Added to ${target?.name ?? "folder"}.`);
+
+    if (selectedFolderContainsItem) {
+      await removeMediaFromFolder(folderId, item);
+      setMessage(`Removed from ${selectedFolder?.name ?? "folder"}.`);
+      return;
+    }
+
+    await addMediaToFolder(folderId, item);
+    setMessage(`Added to ${selectedFolder?.name ?? "folder"}.`);
   }
 
-  function handleCreateFolder() {
-    const folder = createFolder(folderName, folderCover, folderDescription);
-    if (!folder) return;
-    setFolderId(folder.id);
+  async function handleCreateFolder() {
+    await createLibraryFolder({
+      name: folderName,
+      description: folderDescription,
+      coverUrl: folderCover,
+    });
     setFolderName("");
     setFolderDescription("");
     setFolderCover("");
     setIsCreatingFolder(false);
-    setMessage(`Created ${folder.name}.`);
+    setMessage(`Created ${folderName.trim()}.`);
   }
 
   async function handleFolderCoverFileChange(event: ChangeEvent<HTMLInputElement>) {
@@ -98,9 +154,9 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
     setFolderCover(dataUrl);
   }
 
-  function handleRecommend() {
+  async function handleRecommend() {
     if (!friendId) return;
-    sendRecommendation(viewerId, friendId, item);
+    await recommendToFriend(friendId, item);
     const target = friends.find((friend) => friend.id === friendId);
     setMessage(`Sent ${item.title} to ${target?.name ?? "your friend"}.`);
     setFriendId("");
@@ -115,16 +171,16 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
             <button
               className={`button button-primary ${isWatched ? "button-success" : ""}`}
               type="button"
-              onClick={handleWatched}
+              onClick={() => void handleWatched()}
             >
-              {isWatched ? `${primaryLabel} logged` : `Mark as ${primaryLabel}`}
+              {isWatched ? `Remove ${primaryLabel}` : `Mark as ${primaryLabel}`}
             </button>
             <button
               className={`button button-secondary ${isWishlisted ? "button-accent" : ""}`}
               type="button"
-              onClick={handleWishlist}
+              onClick={() => void handleWishlist()}
             >
-              {isWishlisted ? "Wishlisted" : "Add to wishlist"}
+              {isWishlisted ? "Remove wishlist" : "Add to wishlist"}
             </button>
           </div>
         </div>
@@ -134,23 +190,26 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
           <div className="folder-action-panel">
             <div className="picker-grid">
               {folderOptions.length ? (
-                folderOptions.map((folder) => (
-                  <button
-                    key={folder.id}
-                    type="button"
-                    className={`picker-chip ${folderId === folder.id ? "is-active" : ""}`}
-                    onClick={() => setFolderId(folder.id)}
-                  >
-                    {folder.name}
-                  </button>
-                ))
+                folderOptions.map((folder) => {
+                  const containsItem = folder.items.some((entry) => entry.source === item.source && entry.sourceId === item.sourceId);
+                  return (
+                    <button
+                      key={folder.id}
+                      type="button"
+                      className={`picker-chip ${folderId === folder.id ? "is-active" : ""}`}
+                      onClick={() => setFolderId(folder.id)}
+                    >
+                      {folder.name} {containsItem ? "• saved" : ""}
+                    </button>
+                  );
+                })
               ) : (
                 <p className="copy">No folders yet. Make your first one below.</p>
               )}
             </div>
             <div className="folder-action-row">
-              <button className="button button-secondary" type="button" onClick={handleAddToFolder} disabled={!folderId}>
-                Add to folder
+              <button className="button button-secondary" type="button" onClick={() => void handleFolderToggle()} disabled={!folderId}>
+                {selectedFolderContainsItem ? "Remove from folder" : "Add to folder"}
               </button>
               <button className="button button-secondary" type="button" onClick={() => setIsCreatingFolder(true)}>
                 New folder
@@ -177,7 +236,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
               ))}
             </div>
             <div className="folder-action-row">
-              <button className="button button-secondary" type="button" onClick={handleRecommend} disabled={!friendId}>
+              <button className="button button-secondary" type="button" onClick={() => void handleRecommend()} disabled={!friendId}>
                 Send rec
               </button>
             </div>
@@ -221,7 +280,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
               <input type="file" accept="image/*" onChange={handleFolderCoverFileChange} />
             </label>
             <div className="sidebar-folder-actions">
-              <button className="button button-primary" type="button" onClick={handleCreateFolder} disabled={!folderName.trim()}>
+              <button className="button button-primary" type="button" onClick={() => void handleCreateFolder()} disabled={!folderName.trim()}>
                 Create folder
               </button>
               <button className="button button-secondary" type="button" onClick={() => setIsCreatingFolder(false)}>
