@@ -1,0 +1,202 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String        @id @default(cuid())
+  name        String?
+  email       String?       @unique
+  image       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  watched     WatchedItem[]
+  wishlist    WishlistItem[]
+  folders     Folder[]
+  accounts    Account[]
+  sessions    Session[]
+}
+
+model Media {
+  id            String          @id @default(cuid())
+  slug          String          @unique
+  title         String
+  originalTitle String?
+  overview      String?         @db.Text
+  type          MediaType
+  status        String?
+  releaseYear   Int?
+  runtime       Int?
+  rating        Float?
+  coverUrl      String?
+  backdropUrl   String?
+  trailerUrl    String?
+  language      String?         @default("en")
+  source        MediaSource
+  sourceId      String
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  genres        MediaGenre[]
+  people        MediaPerson[]
+  images        MediaImage[]
+  watchedBy     WatchedItem[]
+  wishlistedBy  WishlistItem[]
+  folderItems   FolderItem[]
+
+  @@unique([source, sourceId])
+}
+
+model Genre {
+  id      String       @id @default(cuid())
+  name    String       @unique
+  slug    String       @unique
+  media   MediaGenre[]
+}
+
+model MediaGenre {
+  mediaId String
+  genreId String
+  media   Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  genre   Genre @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@id([mediaId, genreId])
+}
+
+model Person {
+  id        String       @id @default(cuid())
+  name      String
+  slug      String       @unique
+  imageUrl  String?
+  roles     MediaPerson[]
+}
+
+model MediaPerson {
+  mediaId     String
+  personId    String
+  role        PersonRole
+  character   String?
+  sortOrder   Int?
+  media       Media   @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  person      Person  @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@id([mediaId, personId, role])
+}
+
+model MediaImage {
+  id       String    @id @default(cuid())
+  mediaId  String
+  url      String
+  kind     ImageKind
+  width    Int?
+  height   Int?
+  media    Media     @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+}
+
+model WatchedItem {
+  userId     String
+  mediaId    String
+  watchedAt  DateTime   @default(now())
+  rating     Int?
+  notes      String?    @db.Text
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  media      Media      @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@id([userId, mediaId])
+}
+
+model WishlistItem {
+  userId    String
+  mediaId   String
+  createdAt DateTime @default(now())
+  priority  Int?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  media     Media    @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@id([userId, mediaId])
+}
+
+model Folder {
+  id         String       @id @default(cuid())
+  userId     String
+  name       String
+  slug       String
+  coverUrl   String?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items      FolderItem[]
+
+  @@unique([userId, slug])
+}
+
+model FolderItem {
+  folderId   String
+  mediaId    String
+  createdAt  DateTime @default(now())
+  folder     Folder   @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  media      Media    @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@id([folderId, mediaId])
+}
+
+model Account {
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?
+  access_token       String?
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?
+  session_state      String?
+  user               User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([sessionToken])
+}
+
+enum MediaType {
+  movie
+  show
+  anime
+  game
+}
+
+enum MediaSource {
+  tmdb
+  igdb
+  jikan
+  local
+}
+
+enum PersonRole {
+  actor
+  voice_actor
+  director
+  creator
+  writer
+  developer
+  publisher
+  studio
+}
+
+enum ImageKind {
+  cover
+  backdrop
+  screenshot
+  logo
+}

@@ -1,0 +1,48 @@
+import { unstable_noStore as noStore } from "next/cache";
+import { auth } from "@/lib/auth";
+import { AppSidebar } from "@/components/app-sidebar";
+import { AppTopBar } from "@/components/app-topbar";
+import { BrowseWorkspace } from "@/components/browse-workspace";
+import { browseMixedCatalog } from "@/lib/mixed-catalog";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+export default async function BrowsePage() {
+  noStore();
+  const discoverySeed = Date.now() + Math.floor(Math.random() * 10_000);
+  const [session, initialBrowse] = await Promise.all([
+    auth(),
+    browseMixedCatalog({
+      page: 1,
+      query: "",
+      genre: "",
+      sort: "discovery",
+      seed: discoverySeed,
+    }).catch(() => ({
+      page: 1,
+      totalPages: 30,
+      totalResults: 0,
+      items: [],
+    })),
+  ]);
+  const viewerName = session?.user?.name || "Guest vault";
+  const viewerId = session?.user?.email || session?.user?.name || "guest-vault";
+  const viewerAvatar = session?.user?.image || undefined;
+
+  return (
+    <div className="page-shell">
+      <div className="app-shell-layout">
+        <AppSidebar active="browse" />
+        <main className="workspace">
+          <AppTopBar viewerId={viewerId} viewerName={viewerName} viewerAvatar={viewerAvatar} />
+          <BrowseWorkspace
+            catalog={initialBrowse.items}
+            discoverySeed={discoverySeed}
+            initialTotalPages={initialBrowse.totalPages}
+          />
+        </main>
+      </div>
+    </div>
+  );
+}

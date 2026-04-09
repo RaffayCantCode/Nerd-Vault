@@ -1,0 +1,571 @@
+import { MediaItem } from "@/lib/types";
+
+const TMDB_BASE_URL = "https://api.themoviedb.org/3";
+const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/original";
+const TMDB_CACHE_TTL_MS = 1000 * 60 * 30;
+const TMDB_BROWSE_PAGE_CAP = 500;
+
+type TmdbGenre = {
+  id: number;
+  name: string;
+};
+
+type TmdbListItem = {
+  id: number;
+  title?: string;
+  name?: string;
+  original_title?: string;
+  original_name?: string;
+  overview: string;
+  poster_path: string | null;
+  backdrop_path: string | null;
+  vote_average: number;
+  release_date?: string;
+  first_air_date?: string;
+  original_language?: string;
+  genre_ids?: number[];
+  genres?: TmdbGenre[];
+  runtime?: number | null;
+  episode_run_time?: number[];
+  number_of_seasons?: number;
+  number_of_episodes?: number;
+  status?: string;
+  production_companies?: Array<{ name: string }>;
+  networks?: Array<{ name: string }>;
+};
+
+type TmdbCredits = {
+  cast: Array<{ name: string; character?: string }>;
+  crew: Array<{ name: string; job: string }>;
+};
+
+type TmdbImages = {
+  backdrops?: Array<{ file_path: string | null }>;
+  posters?: Array<{ file_path: string | null }>;
+};
+
+type TmdbPagedResponse = {
+  page: number;
+  total_pages: number;
+  total_results: number;
+  results: TmdbListItem[];
+};
+
+export type TmdbBrowseParams = {
+  type: "all" | "movie" | "show";
+  page?: number;
+  query?: string;
+  genre?: string;
+  sort?: "discovery" | "newest" | "rating" | "title";
+  seed?: number;
+};
+
+export type TmdbAnimeImageEnrichment = {
+  coverUrl?: string;
+  backdropUrl?: string;
+  screenshots: string[];
+};
+
+let cachedMovieGenres: Map<number, string> | null = null;
+let cachedTvGenres: Map<number, string> | null = null;
+const tmdbResponseCache = new Map<string, { expiresAt: number; payload: unknown }>();
+const animeImageEnrichmentCache = new Map<string, { expiresAt: number; payload: TmdbAnimeImageEnrichment }>();
+
+async function tmdbFetch<T>(path: string) {
+  const cached = tmdbResponseCache.get(path);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.payload as T;
+  }
+
+  const apiKey = process.env.TMDB_API_KEY;
+  if (!apiKey) {
+    throw new Error("Missing TMDB_API_KEY");
+  }
+
+  const connector = path.includes("?") ? "&" : "?";
+  const response = await fetch(`${TMDB_BASE_URL}${path}${connector}api_key=${apiKey}`, {
+    next: { revalidate: 3600 },
+  });
+
+  if (!response.ok) {
+    throw new Error(`TMDB request failed for ${path}`);
+  }
+
+  const payload = (await response.json()) as T;
+  tmdbResponseCache.set(path, {
+    expiresAt: Date.now() + TMDB_CACHE_TTL_MS,
+    payload,
+  });
+  return payload;
+}
+
+function buildImage(path: string | null) {
+  return path ? `${TMDB_IMAGE_BASE_URL}${path}` : null;
+}
+
+function slugify(input: string) {
+  return input
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
+function yearFromDate(value?: string) {
+  return value ? Number(value.slice(0, 4)) : 0;
+}
+
+function normalizeTitle(input?: string) {
+  return (input ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function titleMatchScore(candidate: TmdbListItem, titles: string[], year?: number) {
+  const candidateTitles = [
+    candidate.name,
+    candidate.title,
+    candidate.original_name,
+    candidate.original_title,
+  ]
+    .map((value) => normalizeTitle(value))
+    .filter(Boolean);
+
+  let score = 0;
+  for (const rawTitle of titles) {
+    const title = normalizeTitle(rawTitle);
+    if (!title) continue;
+
+    for (const candidateTitle of candidateTitles) {
+      if (candidateTitle === title) score += 120;
+      else if (candidateTitle.startsWith(title) || title.startsWith(candidateTitle)) score += 65;
+      else if (candidateTitle.includes(title) || title.includes(candidateTitle)) score += 36;
+    }
+  }
+
+  if (candidate.original_language === "ja") score += 18;
+  if ((candidate.genre_ids ?? []).includes(16)) score += 10;
+
+  const candidateYear = yearFromDate(candidate.first_air_date ?? candidate.release_date);
+  if (candidateYear && year) {
+    const gap = Math.abs(candidateYear - year);
+    if (gap === 0) score += 28;
+    else if (gap <= 1) score += 18;
+    else if (gap <= 2) score += 8;
+  }
+
+  return score + Math.round((candidate.vote_average ?? 0) * 2);
+}
+
+function dedupeImageUrls(images: Array<string | null | undefined>) {
+  const seen = new Set<string>();
+  return images.filter((image): image is string => {
+    if (!image) return false;
+    const key = image.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function mapMovieOrShow(
+  item: TmdbListItem,
+  type: "movie" | "show",
+  genres: Map<number, string>,
+  credits?: TmdbCredits,
+  images?: TmdbImages,
+): MediaItem {
+  const title = type === "movie" ? item.title ?? "Untitled" : item.name ?? "Untitled";
+  const originalTitle =
+    type === "movie" ? item.original_title ?? title : item.original_name ?? title;
+
+  const cast = credits?.cast.slice(0, 4).map((person) => ({
+    name: person.name,
+    role: "Actor",
+    character: person.character,
+  })) ?? [];
+
+  const creators = credits?.crew
+    .filter((person) => ["Director", "Creator", "Writer"].includes(person.job))
+    .slice(0, 3)
+    .map((person) => ({
+      name: person.name,
+      role: person.job,
+    })) ?? [];
+
+  const genreNames =
+    item.genres?.map((genre) => genre.name) ??
+    (item.genre_ids ?? [])
+      .map((genreId) => genres.get(genreId))
+      .filter((genre): genre is string => Boolean(genre));
+  const runtime =
+    type === "movie"
+      ? item.runtime
+        ? `${item.runtime} min`
+        : undefined
+      : item.episode_run_time?.[0]
+        ? `${item.episode_run_time[0]} min episodes`
+        : item.number_of_episodes
+          ? `${item.number_of_episodes} episodes`
+          : undefined;
+  const seasonCount = type === "show" ? item.number_of_seasons ?? undefined : undefined;
+  const episodeCount = type === "show" ? item.number_of_episodes ?? undefined : undefined;
+  const studio =
+    (type === "show" ? item.networks?.[0]?.name : undefined) ||
+    item.production_companies?.[0]?.name;
+  const releaseInfo =
+    type === "show" && (seasonCount || episodeCount)
+      ? [seasonCount ? `${seasonCount} season${seasonCount === 1 ? "" : "s"}` : "", episodeCount ? `${episodeCount} episodes` : ""]
+          .filter(Boolean)
+          .join(" · ")
+      : undefined;
+
+  return {
+    id: `tmdb-${type}-${item.id}`,
+    slug: slugify(title),
+    source: "tmdb",
+    sourceId: String(item.id),
+    title,
+    originalTitle,
+    type,
+    year: yearFromDate(type === "movie" ? item.release_date : item.first_air_date),
+    rating: Number(item.vote_average?.toFixed(1)) || 0,
+    language: item.original_language || "en",
+    genres: genreNames,
+    coverUrl:
+      buildImage(item.poster_path) ??
+      "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=900&q=80",
+    backdropUrl:
+      buildImage(item.backdrop_path) ??
+      "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1600&q=80",
+    screenshots: [
+      ...(images?.backdrops?.map((image) => buildImage(image.file_path)).filter((value): value is string => Boolean(value)) ?? []),
+      ...(images?.posters?.map((image) => buildImage(image.file_path)).filter((value): value is string => Boolean(value)) ?? []),
+    ].slice(0, 8),
+    overview: item.overview || "No overview yet.",
+    credits: [...cast, ...creators],
+    details: {
+      runtime,
+      status: item.status || "Released",
+      studio,
+      releaseInfo,
+      seasonCount,
+      episodeCount,
+    },
+  };
+}
+
+function isUsefulMovie(item: MediaItem) {
+  const banned = new Set(["News", "Talk"]);
+  return (
+    item.language === "en" &&
+    item.year >= 1980 &&
+    item.rating >= 5 &&
+    !item.genres.some((genre) => banned.has(genre))
+  );
+}
+
+function isUsefulShow(item: MediaItem) {
+  const banned = new Set(["News", "Talk", "Soap"]);
+  return (
+    item.language === "en" &&
+    item.year >= 1980 &&
+    item.rating >= 6 &&
+    !item.genres.some((genre) => banned.has(genre))
+  );
+}
+
+async function getGenreMap(type: "movie" | "tv") {
+  if (type === "movie" && cachedMovieGenres) {
+    return cachedMovieGenres;
+  }
+  if (type === "tv" && cachedTvGenres) {
+    return cachedTvGenres;
+  }
+
+  const payload = await tmdbFetch<{ genres: TmdbGenre[] }>(`/genre/${type}/list?language=en-US`);
+  const mapped = new Map(payload.genres.map((genre) => [genre.id, genre.name]));
+
+  if (type === "movie") {
+    cachedMovieGenres = mapped;
+  } else {
+    cachedTvGenres = mapped;
+  }
+
+  return mapped;
+}
+
+async function getGenreMaps() {
+  const [movieGenres, tvGenres] = await Promise.all([getGenreMap("movie"), getGenreMap("tv")]);
+  return { movieGenres, tvGenres };
+}
+
+function findGenreId(genres: Map<number, string>, genreName?: string) {
+  if (!genreName || genreName === "all") return null;
+  const match = [...genres.entries()].find(([, name]) => name.toLowerCase() === genreName.toLowerCase());
+  return match?.[0] ?? null;
+}
+
+export async function getTmdbStarterCatalog() {
+  const [movieGenres, tvGenres, movies, shows] = await Promise.all([
+    getGenreMap("movie"),
+    getGenreMap("tv"),
+    tmdbFetch<{ results: TmdbListItem[] }>(
+      "/discover/movie?language=en-US&include_adult=false&sort_by=popularity.desc&page=1&vote_count.gte=250&with_original_language=en",
+    ),
+    tmdbFetch<{ results: TmdbListItem[] }>(
+      "/discover/tv?language=en-US&sort_by=popularity.desc&page=1&vote_count.gte=150&with_original_language=en",
+    ),
+  ]);
+
+  const movieItems = movies.results
+    .map((item) => mapMovieOrShow(item, "movie", movieGenres))
+    .filter(isUsefulMovie)
+    .slice(0, 12);
+
+  const showItems = shows.results
+    .map((item) => mapMovieOrShow(item, "show", tvGenres))
+    .filter(isUsefulShow)
+    .slice(0, 12);
+
+  const mixed: MediaItem[] = [];
+  const buckets = [movieItems, showItems];
+  let hasMore = true;
+
+  while (hasMore) {
+    hasMore = false;
+    for (const bucket of buckets) {
+      if (bucket.length) {
+        mixed.push(bucket.shift() as MediaItem);
+        hasMore = true;
+      }
+    }
+  }
+
+  return mixed;
+}
+
+function dedupeBySource(items: MediaItem[]) {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = `${item.source}-${item.sourceId}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
+async function getTmdbMoviePage(page: number, query?: string, genre?: string) {
+  return getTmdbMoviePageWithMode(page, query, genre, "discovery", 1);
+}
+
+function getDiscoveryPage(page: number, seed = 1, windowSize = 48, salt = 0) {
+  return ((page + seed * 3 + salt - 1) % windowSize) + 1;
+}
+
+function getDiscoverySort(seed = 1, salt = 0) {
+  const modes = ["popularity.desc", "vote_average.desc", "vote_count.desc"] as const;
+  return modes[(seed + salt) % modes.length];
+}
+
+async function getTmdbMoviePageWithMode(
+  page: number,
+  query?: string,
+  genre?: string,
+  sort: "discovery" | "newest" | "rating" | "title" = "discovery",
+  seed = 1,
+) {
+  const movieGenres = await getGenreMap("movie");
+  const genreId = findGenreId(movieGenres, genre);
+  const sortBy = sort === "newest" ? "primary_release_date.desc" : sort === "discovery" ? getDiscoverySort(seed, 5) : "popularity.desc";
+  const requestPage = !query && sort === "discovery" ? getDiscoveryPage(page, seed, 140, 5) : page;
+  const voteFloor =
+    sort === "discovery"
+      ? sortBy === "vote_average.desc"
+        ? 350
+        : 120
+      : 120;
+  const path = query
+    ? `/search/movie?language=en-US&include_adult=false&page=${page}&query=${encodeURIComponent(query)}`
+    : `/discover/movie?language=en-US&include_adult=false&sort_by=${sortBy}&page=${requestPage}&vote_count.gte=${voteFloor}&with_original_language=en${genreId ? `&with_genres=${genreId}` : ""}`;
+  const payload = await tmdbFetch<TmdbPagedResponse>(path);
+
+  return {
+    page: payload.page,
+    totalPages: Math.max(1, Math.min(payload.total_pages, TMDB_BROWSE_PAGE_CAP)),
+    totalResults: payload.total_results,
+    items: payload.results.map((item) => mapMovieOrShow(item, "movie", movieGenres)).filter(isUsefulMovie),
+  };
+}
+
+async function getTmdbShowPage(page: number, query?: string, genre?: string) {
+  return getTmdbShowPageWithMode(page, query, genre, "discovery", 1);
+}
+
+async function getTmdbShowPageWithMode(
+  page: number,
+  query?: string,
+  genre?: string,
+  sort: "discovery" | "newest" | "rating" | "title" = "discovery",
+  seed = 1,
+) {
+  const tvGenres = await getGenreMap("tv");
+  const genreId = findGenreId(tvGenres, genre);
+  const sortBy = sort === "newest" ? "first_air_date.desc" : sort === "discovery" ? getDiscoverySort(seed, 11) : "popularity.desc";
+  const requestPage = !query && sort === "discovery" ? getDiscoveryPage(page, seed, 140, 11) : page;
+  const voteFloor =
+    sort === "discovery"
+      ? sortBy === "vote_average.desc"
+        ? 220
+        : 100
+      : 100;
+  const path = query
+    ? `/search/tv?language=en-US&page=${page}&query=${encodeURIComponent(query)}`
+    : `/discover/tv?language=en-US&sort_by=${sortBy}&page=${requestPage}&vote_count.gte=${voteFloor}&with_original_language=en${genreId ? `&with_genres=${genreId}` : ""}`;
+  const payload = await tmdbFetch<TmdbPagedResponse>(path);
+
+  return {
+    page: payload.page,
+    totalPages: Math.max(1, Math.min(payload.total_pages, TMDB_BROWSE_PAGE_CAP)),
+    totalResults: payload.total_results,
+    items: payload.results.map((item) => mapMovieOrShow(item, "show", tvGenres)).filter(isUsefulShow),
+  };
+}
+
+function interleaveCatalog(movieItems: MediaItem[], showItems: MediaItem[]) {
+  const movies = [...movieItems];
+  const shows = [...showItems];
+  const mixed: MediaItem[] = [];
+
+  while (movies.length || shows.length) {
+    if (movies.length) mixed.push(movies.shift() as MediaItem);
+    if (shows.length) mixed.push(shows.shift() as MediaItem);
+  }
+
+  return mixed;
+}
+
+export async function browseTmdbCatalog(params: TmdbBrowseParams) {
+  const page = Math.max(1, params.page ?? 1);
+  const query = params.query?.trim();
+  const genre = params.genre?.trim();
+  const sort = params.sort ?? "discovery";
+  const seed = params.seed ?? 1;
+
+  if (params.type === "movie") {
+    return getTmdbMoviePageWithMode(page, query, genre, sort, seed);
+  }
+
+  if (params.type === "show") {
+    return getTmdbShowPageWithMode(page, query, genre, sort, seed);
+  }
+
+  const { movieGenres, tvGenres } = await getGenreMaps();
+  const movieGenreId = findGenreId(movieGenres, genre);
+  const tvGenreId = findGenreId(tvGenres, genre);
+
+  const [movies, shows] = await Promise.all([
+    getTmdbMoviePageWithMode(page, query, movieGenreId ? movieGenres.get(movieGenreId) ?? genre : genre, sort, seed),
+    getTmdbShowPageWithMode(page, query, tvGenreId ? tvGenres.get(tvGenreId) ?? genre : genre, sort, seed),
+  ]);
+
+  return {
+    page,
+    totalPages: Math.max(movies.totalPages, shows.totalPages),
+    totalResults: movies.totalResults + shows.totalResults,
+    items: dedupeBySource(interleaveCatalog(movies.items, shows.items)),
+  };
+}
+
+export async function getTmdbMediaDetails(id: number, type: "movie" | "tv") {
+  const [genres, details, credits, images] = await Promise.all([
+    getGenreMap(type === "movie" ? "movie" : "tv"),
+    tmdbFetch<TmdbListItem>(`/${type}/${id}?language=en-US`),
+    tmdbFetch<TmdbCredits>(`/${type}/${id}/credits?language=en-US`),
+    tmdbFetch<TmdbImages>(`/${type}/${id}/images?include_image_language=en,null`),
+  ]);
+
+  return mapMovieOrShow(details, type === "movie" ? "movie" : "show", genres, credits, images);
+}
+
+export async function enrichAnimeImagesFromTmdb(params: {
+  titles: string[];
+  year?: number;
+}) {
+  const titles = Array.from(new Set(params.titles.map((title) => title.trim()).filter(Boolean)));
+  const cacheKey = JSON.stringify({ titles, year: params.year ?? 0 });
+  const cached = animeImageEnrichmentCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.payload;
+  }
+
+  if (!titles.length) {
+    const payload = {
+      screenshots: [],
+    } satisfies TmdbAnimeImageEnrichment;
+    animeImageEnrichmentCache.set(cacheKey, {
+      expiresAt: Date.now() + TMDB_CACHE_TTL_MS,
+      payload,
+    });
+    return payload;
+  }
+
+  const searchTitle = titles[0];
+  const [tvResults, movieResults] = await Promise.all([
+    tmdbFetch<TmdbPagedResponse>(`/search/tv?language=en-US&page=1&query=${encodeURIComponent(searchTitle)}`).catch(() => null),
+    tmdbFetch<TmdbPagedResponse>(`/search/movie?language=en-US&include_adult=false&page=1&query=${encodeURIComponent(searchTitle)}`).catch(
+      () => null,
+    ),
+  ]);
+
+  const candidates = [
+    ...(tvResults?.results.map((item) => ({ item, type: "tv" as const })) ?? []),
+    ...(movieResults?.results.map((item) => ({ item, type: "movie" as const })) ?? []),
+  ]
+    .map((entry) => ({
+      ...entry,
+      score: titleMatchScore(entry.item, titles, params.year),
+    }))
+    .filter((entry) => entry.score >= 40)
+    .sort((left, right) => right.score - left.score);
+
+  const best = candidates[0];
+  if (!best) {
+    const payload = {
+      screenshots: [],
+    } satisfies TmdbAnimeImageEnrichment;
+    animeImageEnrichmentCache.set(cacheKey, {
+      expiresAt: Date.now() + TMDB_CACHE_TTL_MS,
+      payload,
+    });
+    return payload;
+  }
+
+  const [details, images] = await Promise.all([
+    tmdbFetch<TmdbListItem>(`/${best.type}/${best.item.id}?language=en-US`).catch(() => null),
+    tmdbFetch<TmdbImages>(`/${best.type}/${best.item.id}/images?include_image_language=en,null,ja`).catch(() => null),
+  ]);
+
+  const coverUrl = buildImage(details?.poster_path ?? best.item.poster_path ?? null) ?? undefined;
+  const backdropUrl = buildImage(details?.backdrop_path ?? best.item.backdrop_path ?? null) ?? undefined;
+  const screenshots = dedupeImageUrls([
+    ...(images?.backdrops?.map((image) => buildImage(image.file_path)) ?? []),
+    backdropUrl,
+  ]).slice(0, 10);
+
+  const payload = {
+    coverUrl,
+    backdropUrl,
+    screenshots,
+  } satisfies TmdbAnimeImageEnrichment;
+
+  animeImageEnrichmentCache.set(cacheKey, {
+    expiresAt: Date.now() + TMDB_CACHE_TTL_MS,
+    payload,
+  });
+
+  return payload;
+}
