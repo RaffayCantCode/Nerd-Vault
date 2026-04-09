@@ -223,7 +223,6 @@ export function BrowseWorkspace({
   const [activePage, setActivePage] = useState(initialPage);
   const [totalPages, setTotalPages] = useState(Math.max(1, initialTotalPages));
   const [isLoading, setIsLoading] = useState(false);
-  const [pageTransition, setPageTransition] = useState(false);
   const [heroIndex, setHeroIndex] = useState(0);
   const [wishlistedKeys, setWishlistedKeys] = useState<string[]>([]);
   const prefetchedPagesRef = useRef<Record<string, CachedPage>>(
@@ -293,55 +292,6 @@ export function BrowseWorkspace({
   }, [catalog]);
 
   useEffect(() => {
-    if (query.trim() || genre !== "all") {
-      return;
-    }
-
-    const controller = new AbortController();
-    let timeoutId: number | undefined;
-
-    async function warmFilter(type: MediaType | "all") {
-      const key = buildCacheKey(type, 1, "all", "", sort, discoverySeed);
-      if (prefetchedPagesRef.current[key]) {
-        return;
-      }
-
-      const params = new URLSearchParams({
-        type,
-        page: "1",
-        sort,
-        seed: String(discoverySeed),
-      });
-
-      const response = await fetch(`/api/catalog/browse?${params.toString()}`, {
-        signal: controller.signal,
-      });
-      if (!response.ok) return;
-
-      const payload = await response.json();
-      if (!payload.ok || !Array.isArray(payload.items)) return;
-
-      prefetchedPagesRef.current[key] = {
-        items: payload.items,
-        totalPages: Math.max(1, payload.totalPages ?? 1),
-        cachedAt: Date.now(),
-      };
-      writeBrowsePageCache(prefetchedPagesRef.current);
-    }
-
-    timeoutId = window.setTimeout(() => {
-      void Promise.allSettled([warmFilter("anime"), warmFilter("game")]);
-    }, 900);
-
-    return () => {
-      controller.abort();
-      if (timeoutId) {
-        window.clearTimeout(timeoutId);
-      }
-    };
-  }, [discoverySeed, genre, query, sort]);
-
-  useEffect(() => {
     const controller = new AbortController();
 
     async function fetchPage(targetPage: number, cacheOnly = false) {
@@ -406,12 +356,10 @@ export function BrowseWorkspace({
         setTotalPages(1);
         setActivePage(1);
         setIsLoading(false);
-        setPageTransition(false);
         return;
       }
 
       setIsLoading(true);
-      setPageTransition(true);
 
       try {
         await fetchPage(page);
@@ -425,7 +373,6 @@ export function BrowseWorkspace({
         setActivePage(1);
       } finally {
         setIsLoading(false);
-        window.setTimeout(() => setPageTransition(false), 180);
       }
     }
 
@@ -850,7 +797,7 @@ export function BrowseWorkspace({
           <div className={`refresh-pulse ${isLoading ? "is-active" : ""}`} />
         </div>
 
-        <div className={`catalog-grid ${pageTransition ? "catalog-grid-loading" : ""}`}>
+        <div className="catalog-grid">
           {visibleGridItems.map((item, index) => (
             <CatalogCard key={item.id} item={item} priority={index < 12} onBeforeNavigate={persistBrowseSnapshot} />
           ))}

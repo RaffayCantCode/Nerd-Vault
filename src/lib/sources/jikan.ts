@@ -13,9 +13,9 @@ function proxiedImageUrl(url?: string) {
     if (parsed.hostname === "myanimelist.net") {
       parsed.hostname = "cdn.myanimelist.net";
     }
-    return `/api/image?url=${encodeURIComponent(parsed.toString())}`;
+    return parsed.toString();
   } catch {
-    return `/api/image?url=${encodeURIComponent(url)}`;
+    return url;
   }
 }
 

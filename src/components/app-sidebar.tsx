@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { signOutUser } from "@/app/sign-in/sign-out-action";
+import { BrandLogo } from "@/components/brand-logo";
 import { SidebarFolders } from "@/components/sidebar-folders";
 import { BrowseResetLink } from "@/components/browse-reset-link";
+import { getFoldersForUser } from "@/lib/vault-server";
 
 type AppSidebarProps = {
   active: "browse" | "profile";
@@ -12,11 +14,12 @@ export async function AppSidebar({ active }: AppSidebarProps) {
   const session = await auth();
   const userName = session?.user?.name || null;
   const shouldShowSignOut = Boolean(userName);
+  const initialFolders = session?.user?.id ? await getFoldersForUser(session.user.id).catch(() => []) : [];
 
   return (
     <aside className="sidebar sidebar-rail glass">
       <Link href="/" className="brand brand-rail" aria-label="NerdVault home" title="NerdVault">
-        <span className="brand-mark">NV</span>
+        <BrandLogo className="brand-mark brand-mark-logo" />
       </Link>
 
       <nav className="sidebar-rail-nav" aria-label="Primary navigation">
@@ -41,7 +44,7 @@ export async function AppSidebar({ active }: AppSidebarProps) {
 
       <div className="sidebar-rail-stack" aria-label="Folders">
         {shouldShowSignOut ? (
-          <SidebarFolders />
+          <SidebarFolders initialFolders={initialFolders} />
         ) : (
           <Link
             href="/sign-in"
@@ -55,7 +58,7 @@ export async function AppSidebar({ active }: AppSidebarProps) {
       </div>
 
       {shouldShowSignOut ? (
-        <form action={signOutUser}>
+        <form action={signOutUser} className="sidebar-signout-form">
           <button className="sidebar-nav-button sidebar-signout-button" type="submit" aria-label="Sign out" title="Sign out">
             <span>Sign out</span>
           </button>

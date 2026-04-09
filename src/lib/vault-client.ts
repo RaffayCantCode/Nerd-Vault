@@ -8,6 +8,13 @@ const CACHE_TTL_MS = 8000;
 const requestCache = new Map<string, { expiresAt: number; value: unknown }>();
 const inflightRequests = new Map<string, Promise<unknown>>();
 
+function primeCache(key: string, value: unknown) {
+  requestCache.set(key, {
+    expiresAt: Date.now() + CACHE_TTL_MS,
+    value,
+  });
+}
+
 function emitVaultChange() {
   if (typeof window === "undefined") return;
   requestCache.clear();
@@ -68,6 +75,15 @@ export function subscribeVaultChanges(callback: () => void) {
   if (typeof window === "undefined") return () => undefined;
   window.addEventListener(VAULT_EVENT, callback);
   return () => window.removeEventListener(VAULT_EVENT, callback);
+}
+
+export function primeLibraryState(library: LibraryState) {
+  primeCache("library", library);
+}
+
+export function primeProfilePayload(payload: VaultProfilePayload, userId?: string) {
+  const params = userId ? `?user=${encodeURIComponent(userId)}` : "";
+  primeCache(`profile:${params || "self"}`, payload);
 }
 
 export async function fetchLibraryState(): Promise<LibraryState> {
@@ -153,6 +169,12 @@ export async function saveFolder(folderId: string, input: {
   await mutate(`/api/library/folders/${encodeURIComponent(folderId)}`, {
     method: "PATCH",
     body: JSON.stringify(input),
+  });
+}
+
+export async function deleteLibraryFolder(folderId: string) {
+  await mutate(`/api/library/folders/${encodeURIComponent(folderId)}`, {
+    method: "DELETE",
   });
 }
 

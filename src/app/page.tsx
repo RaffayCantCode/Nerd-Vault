@@ -1,9 +1,15 @@
 import Image from "next/image";
 import Link from "next/link";
+import { signOutUser } from "@/app/sign-in/sign-out-action";
+import { BrandLogo } from "@/components/brand-logo";
 import { LandingAuthCard } from "@/components/landing-auth-card";
 import { SiteHeader } from "@/components/site-header";
+import { auth } from "@/lib/auth";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const session = await auth();
+  const isSignedIn = Boolean(session?.user?.id);
+
   return (
     <div className="page-shell">
       <SiteHeader />
@@ -23,7 +29,7 @@ export default function HomePage() {
           <div className="landing-stage-grid">
             <div className="landing-copy">
               <div className="landing-brand-badge glass">
-                <span className="landing-brand-mark">NV</span>
+                <BrandLogo className="landing-brand-mark" priority />
                 <div>
                   <strong>NerdVault</strong>
                   <span>The upgraded media vault</span>
@@ -35,12 +41,27 @@ export default function HomePage() {
                 NerdVault is a cinematic media vault for games, films, series, and anime with playlist-like folders, sharper detail pages, and discovery that feels curated instead of noisy.
               </p>
               <div className="button-row" style={{ marginTop: 24 }}>
-                <Link href="/sign-in" className="button button-primary">
-                  Build your vault
-                </Link>
-                <Link href="/browse" className="button button-secondary">
-                  Browse as guest
-                </Link>
+                {isSignedIn ? (
+                  <>
+                    <Link href="/browse" className="button button-primary">
+                      Go back to browse
+                    </Link>
+                    <form action={signOutUser}>
+                      <button type="submit" className="button button-secondary">
+                        Sign out
+                      </button>
+                    </form>
+                  </>
+                ) : (
+                  <>
+                    <Link href="/sign-in" className="button button-primary">
+                      Sign in and start saving
+                    </Link>
+                    <Link href="/browse" className="button button-secondary">
+                      Try browse first
+                    </Link>
+                  </>
+                )}
               </div>
 
               <div className="landing-metrics">
@@ -59,7 +80,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            <LandingAuthCard />
+            <LandingAuthCard isSignedIn={isSignedIn} />
           </div>
         </section>
       </main>

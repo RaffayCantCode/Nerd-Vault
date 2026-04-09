@@ -23,8 +23,8 @@ function getFolderArtStyle(coverUrl?: string) {
   };
 }
 
-export function SidebarFolders() {
-  const [folders, setFolders] = useState<StoredFolder[]>([]);
+export function SidebarFolders({ initialFolders = [] }: { initialFolders?: StoredFolder[] }) {
+  const [folders, setFolders] = useState<StoredFolder[]>(initialFolders);
   const [isCreating, setIsCreating] = useState(false);
   const [folderName, setFolderName] = useState("");
   const [folderDescription, setFolderDescription] = useState("");
@@ -45,7 +45,7 @@ export function SidebarFolders() {
 
     sync();
     return subscribeVaultChanges(sync);
-  }, []);
+  }, [initialFolders]);
 
   useEffect(() => {
     setIsMounted(true);

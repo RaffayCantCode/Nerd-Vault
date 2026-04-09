@@ -1,16 +1,16 @@
 import Link from "next/link";
 import { signOutUser } from "@/app/sign-in/sign-out-action";
 import { auth } from "@/lib/auth";
+import { BrandLogo } from "@/components/brand-logo";
 
 export async function SiteHeader() {
   const session = await auth();
   const isSignedIn = Boolean(session?.user?.id);
-  const homeHref = isSignedIn ? "/browse" : "/";
 
   return (
     <header className="topbar container">
-      <Link href={homeHref} className="brand">
-        <span className="brand-mark">NV</span>
+      <Link href="/" className="brand">
+        <BrandLogo className="brand-mark brand-mark-logo" priority />
         <span className="brand-copy">
           <strong>NerdVault</strong>
           <span>{isSignedIn ? "Back to browsing your vault." : "Log what wrecked you. Save what calls next."}</span>

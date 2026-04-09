@@ -90,6 +90,33 @@ function serializeNotification(notification: NotificationRecord): SocialNotifica
   };
 }
 
+function serializeFolder(folder: Prisma.FolderGetPayload<{
+  include: {
+    items: {
+      include: {
+        media: {
+          include: {
+            genres: {
+              include: {
+                genre: true;
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+}>): StoredFolder {
+  return {
+    id: folder.id,
+    name: folder.name,
+    description: folder.description ?? undefined,
+    coverUrl: folder.coverUrl ?? undefined,
+    visibility: toPrivacyLevel(folder.visibility),
+    items: folder.items.map((entry) => serializeMedia(entry.media)),
+  };
+}
+
 function serializeProfile(
   user: {
     id: string;
@@ -310,15 +337,33 @@ export async function getLibraryStateForUser(userId: string): Promise<LibrarySta
   return {
     watched: watchedRows.map((row) => serializeMedia(row.media)),
     wishlist: wishlistRows.map((row) => serializeMedia(row.media)),
-    folders: folders.map((folder) => ({
-      id: folder.id,
-      name: folder.name,
-      description: folder.description ?? undefined,
-      coverUrl: folder.coverUrl ?? undefined,
-      visibility: toPrivacyLevel(folder.visibility),
-      items: folder.items.map((entry) => serializeMedia(entry.media)),
-    })),
+    folders: folders.map(serializeFolder),
   };
+}
+
+export async function getFoldersForUser(userId: string): Promise<StoredFolder[]> {
+  const folders = await prisma.folder.findMany({
+    where: { userId },
+    orderBy: { updatedAt: "desc" },
+    include: {
+      items: {
+        orderBy: { createdAt: "desc" },
+        include: {
+          media: {
+            include: {
+              genres: {
+                include: {
+                  genre: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  return folders.map(serializeFolder);
 }
 
 export async function getVaultProfilePayload(viewerId: string, viewedUserId: string): Promise<VaultProfilePayload> {
@@ -575,6 +620,15 @@ export async function updateFolder(userId: string, folderId: string, updates: {
       description: updates.description?.trim() || undefined,
       coverUrl: updates.coverUrl?.trim() || undefined,
       visibility: updates.visibility,
+    },
+  });
+}
+
+export async function deleteFolder(userId: string, folderId: string) {
+  await prisma.folder.deleteMany({
+    where: {
+      id: folderId,
+      userId,
     },
   });
 }

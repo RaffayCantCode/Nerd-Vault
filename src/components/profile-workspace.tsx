@@ -6,7 +6,7 @@ import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { CatalogCard } from "@/components/catalog-card";
 import { ImageAdjusterModal } from "@/components/image-adjuster-modal";
 import { MediaItem } from "@/lib/types";
-import { fetchProfilePayload, saveFolder, saveProfileSettings, subscribeVaultChanges } from "@/lib/vault-client";
+import { deleteLibraryFolder, fetchProfilePayload, primeProfilePayload, saveFolder, saveProfileSettings, subscribeVaultChanges } from "@/lib/vault-client";
 import { PrivacyLevel, SocialProfile, StoredFolder, VaultProfilePayload } from "@/lib/vault-types";
 
 type LibrarySortMode = "recent" | "title" | "rating";
@@ -113,17 +113,19 @@ export function ProfileWorkspace({
   viewerId,
   viewerAvatar,
   isDemo,
+  initialPayload,
 }: {
   userName: string;
   viewerId: string;
   viewerAvatar?: string;
   isDemo: boolean;
+  initialPayload?: VaultProfilePayload;
 }) {
   const searchParams = useSearchParams();
   const selectedFolderId = searchParams.get("folder");
   const viewedUserId = searchParams.get("user") || viewerId;
-  const [payload, setPayload] = useState<VaultProfilePayload>(emptyPayload(viewerId, userName, viewerAvatar));
-  const [loading, setLoading] = useState(true);
+  const [payload, setPayload] = useState<VaultProfilePayload>(initialPayload ?? emptyPayload(viewerId, userName, viewerAvatar));
+  const [loading, setLoading] = useState(!initialPayload);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [isEditingFolder, setIsEditingFolder] = useState(false);
   const [draftAvatar, setDraftAvatar] = useState("");
@@ -148,6 +150,12 @@ export function ProfileWorkspace({
   const [folderSearch, setFolderSearch] = useState("");
 
   useEffect(() => {
+    if (initialPayload) {
+      primeProfilePayload(initialPayload, initialPayload.viewingOwnProfile ? undefined : initialPayload.viewedProfile.id);
+    }
+  }, [initialPayload]);
+
+  useEffect(() => {
     if (isDemo) {
       setPayload(emptyPayload(viewerId, userName, viewerAvatar));
       setLoading(false);
@@ -155,7 +163,7 @@ export function ProfileWorkspace({
     }
 
     function sync() {
-      setLoading(true);
+      setLoading((current) => current || !initialPayload);
       fetchProfilePayload(viewedUserId)
         .then((nextPayload) => {
           setPayload(nextPayload);
@@ -168,9 +176,11 @@ export function ProfileWorkspace({
         .finally(() => setLoading(false));
     }
 
-    sync();
+    if (!initialPayload || viewedUserId !== initialPayload.viewedProfile.id) {
+      void sync();
+    }
     return subscribeVaultChanges(sync);
-  }, [isDemo, viewedUserId, viewerAvatar, viewerId, userName]);
+  }, [initialPayload, isDemo, viewedUserId, viewerAvatar, viewerId, userName]);
 
   const { viewerProfile, viewedProfile, friends, watched, wishlist, folders, canSeeWatched, canSeeWishlist, viewingOwnProfile } = payload;
   const selectedFolder = folders.find((folder) => folder.id === selectedFolderId);
@@ -222,6 +232,14 @@ export function ProfileWorkspace({
     });
     setIsEditingFolder(false);
     setProfileMessage("Folder saved.");
+  }
+
+  async function handleDeleteFolder() {
+    if (!selectedFolder) return;
+    await deleteLibraryFolder(selectedFolder.id);
+    setIsEditingFolder(false);
+    setProfileMessage("Folder deleted.");
+    window.location.href = viewingOwnProfile ? "/profile" : `/profile?user=${viewedUserId}`;
   }
 
   async function handleApplyAvatar(dataUrl: string) {
@@ -279,9 +297,14 @@ export function ProfileWorkspace({
                   </div>
                 </div>
                 {viewingOwnProfile ? (
-                  <button type="button" className="button button-secondary folder-edit-button" onClick={() => setIsEditingFolder((current) => !current)}>
-                    {isEditingFolder ? "Close edit" : "Edit folder"}
-                  </button>
+                  <div className="folder-hero-actions">
+                    <button type="button" className="button button-secondary folder-edit-button" onClick={() => setIsEditingFolder((current) => !current)}>
+                      {isEditingFolder ? "Close edit" : "Edit folder"}
+                    </button>
+                    <button type="button" className="button button-secondary folder-delete-button" onClick={() => void handleDeleteFolder()}>
+                      Delete folder
+                    </button>
+                  </div>
                 ) : null}
               </div>
 
@@ -327,6 +350,9 @@ export function ProfileWorkspace({
                   <div className="button-row">
                     <button type="button" className="button button-primary" onClick={() => void handleSaveFolder()}>
                       Save changes
+                    </button>
+                    <button type="button" className="button button-secondary" onClick={() => void handleDeleteFolder()}>
+                      Delete folder
                     </button>
                     <button type="button" className="button button-secondary" onClick={() => setIsEditingFolder(false)}>
                       Cancel
