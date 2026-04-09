@@ -1,7 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { signOutUser } from "@/app/sign-in/sign-out-action";
-import { BrandLogo } from "@/components/brand-logo";
 import { LandingAuthCard } from "@/components/landing-auth-card";
 import { SiteHeader } from "@/components/site-header";
 import { auth } from "@/lib/auth";
@@ -28,14 +27,7 @@ export default async function HomePage() {
 
           <div className="landing-stage-grid">
             <div className="landing-copy">
-              <div className="landing-brand-badge glass">
-                <BrandLogo className="landing-brand-mark" priority />
-                <div>
-                  <strong>Personal media vault</strong>
-                  <span>Track what hit. Keep what matters.</span>
-                </div>
-              </div>
-              <p className="eyebrow">Taste-first media library</p>
+              <p className="eyebrow">NerdVault</p>
               <h1 className="display">Log what hit. Save what calls next.</h1>
               <p className="copy landing-copy-body">
                 NerdVault is a cinematic media vault for games, films, series, and anime with playlist-like folders, sharper detail pages, and discovery that feels curated instead of noisy.
