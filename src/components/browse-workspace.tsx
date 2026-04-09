@@ -452,6 +452,23 @@ export function BrowseWorkspace({
         ? immediateLocalMatches
         : typedVisible;
   const visible = visibleSource.filter((item) => itemMatchesGenre(item, genre));
+  const queryVisible = useMemo(() => {
+    if (!deferredQuery.trim()) {
+      return visible;
+    }
+
+    const merged = [...remoteCatalog, ...catalog];
+    const seen = new Set<string>();
+
+    return merged.filter((item) => {
+      const key = `${item.source}-${item.sourceId}`;
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return (filter === "all" || item.type === filter) && itemMatchesSearch(item, deferredQuery) && itemMatchesGenre(item, genre);
+    });
+  }, [catalog, deferredQuery, filter, genre, remoteCatalog, visible]);
 
   const heroBaseCatalog = useMemo(() => {
     const typeScoped = filterCatalog(catalog, filter, "");
@@ -461,7 +478,7 @@ export function BrowseWorkspace({
   }, [catalog, filter, genre]);
 
   const sortedVisible = useMemo(() => {
-    const items = [...visible];
+    const items = [...queryVisible];
     const normalizedQuery = deferredQuery.trim();
 
     if (normalizedQuery) {
@@ -494,7 +511,7 @@ export function BrowseWorkspace({
     }
 
     return takeBalancedTypeMix(sortedItems, Math.min(24, sortedItems.length));
-  }, [activePage, deferredQuery, filter, sort, visible]);
+  }, [activePage, deferredQuery, filter, queryVisible, sort]);
 
   const featuredDeck = useMemo(() => {
     const source = heroBaseCatalog;
@@ -765,22 +782,23 @@ export function BrowseWorkspace({
                   {query.trim() ? `Search: ${query}` : "Use the centered top search to find media."}
                 </div>
 
-                <div className="sort-shell">
-                  <label className="sort-label" htmlFor="catalog-sort">
-                  Sort
-                </label>
-                <select
-                  id="catalog-sort"
-                  className="sort-select"
-                  value={sort}
-                  onChange={(event) => setSort(event.target.value as SortMode)}
-                >
-                  <option value="discovery">Discovery</option>
-                  <option value="newest">Newest first</option>
-                  <option value="rating">Top rated</option>
-                  <option value="title">A-Z</option>
-                </select>
-              </div>
+                <div className="sort-chip-block">
+                  <p className="sort-label">Sort</p>
+                  <div className="picker-grid sort-chip-row">
+                    <button type="button" className={`picker-chip ${sort === "discovery" ? "is-active" : ""}`} onClick={() => setSort("discovery")}>
+                      Discovery
+                    </button>
+                    <button type="button" className={`picker-chip ${sort === "newest" ? "is-active" : ""}`} onClick={() => setSort("newest")}>
+                      Newest
+                    </button>
+                    <button type="button" className={`picker-chip ${sort === "rating" ? "is-active" : ""}`} onClick={() => setSort("rating")}>
+                      Top rated
+                    </button>
+                    <button type="button" className={`picker-chip ${sort === "title" ? "is-active" : ""}`} onClick={() => setSort("title")}>
+                      A-Z
+                    </button>
+                  </div>
+                </div>
             </div>
 
             <FilterChipBar active={filter} onChange={setFilter} />

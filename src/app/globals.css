@@ -3915,6 +3915,11 @@ body {
   flex-wrap: wrap;
 }
 
+.profile-jump-row-outside {
+  margin-top: 18px;
+  justify-content: flex-start;
+}
+
 .profile-jump-button {
   min-width: 132px;
 }
@@ -3926,6 +3931,20 @@ body {
 .profile-settings-main {
   display: grid;
   gap: 18px;
+}
+
+.sort-chip-block {
+  display: grid;
+  gap: 10px;
+}
+
+.sort-chip-row {
+  gap: 8px;
+}
+
+.sort-chip-row .picker-chip {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.06);
 }
 
 .profile-avatar-action-button {

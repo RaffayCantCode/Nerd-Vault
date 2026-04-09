@@ -602,11 +602,6 @@ export function ProfileWorkspace({
                 </div>
 
                 <div className="button-row">
-                  <div className="profile-jump-row">
-                    <a href="#profile-watched" className="button button-secondary profile-jump-button">Watched</a>
-                    <a href="#profile-wishlist" className="button button-secondary profile-jump-button">Wishlist</a>
-                    <a href="#profile-folders" className="button button-secondary profile-jump-button">Folders</a>
-                  </div>
                   <button type="button" className="button button-primary" onClick={() => void handleSaveProfile()} disabled={isSavingProfile}>
                     {isSavingProfile ? "Saving..." : "Save profile settings"}
                   </button>
@@ -614,6 +609,12 @@ export function ProfileWorkspace({
               </div>
             </div>
           ) : null}
+
+          <div className="profile-jump-row profile-jump-row-outside">
+            <a href="#profile-watched" className="button button-secondary profile-jump-button">Watched</a>
+            <a href="#profile-wishlist" className="button button-secondary profile-jump-button">Wishlist</a>
+            <a href="#profile-folders" className="button button-secondary profile-jump-button">Folders</a>
+          </div>
         </section>
       ) : null}
 

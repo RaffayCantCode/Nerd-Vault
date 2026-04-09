@@ -120,10 +120,10 @@ function interleaveTypePriority(items: MediaItem[], totalTarget: number) {
   };
 
   const guaranteed = [
-    ...buckets.movie.splice(0, 4),
-    ...buckets.show.splice(0, 4),
-    ...buckets.anime.splice(0, 4),
-    ...buckets.game.splice(0, 7),
+    ...buckets.movie.splice(0, 3),
+    ...buckets.show.splice(0, 3),
+    ...buckets.anime.splice(0, 3),
+    ...buckets.game.splice(0, 5),
   ];
 
   const overflow = interleaveBuckets(buckets.movie, buckets.show, buckets.anime, buckets.game);
@@ -146,12 +146,12 @@ function rotateBuckets<T>(items: T[], offset: number) {
 function buildDiscoverySlice(items: MediaItem[], seed: number, targetSize: number) {
   if (items.length <= targetSize) return items;
 
-  const topBand = shuffleBySeed(items.slice(0, Math.min(8, items.length)), seed + 1).slice(0, Math.min(3, targetSize));
-  const middleBand = shuffleBySeed(items.slice(8, Math.min(18, items.length)), seed + 2).slice(
+  const topBand = shuffleBySeed(items.slice(0, Math.min(12, items.length)), seed + 1).slice(0, Math.min(2, targetSize));
+  const middleBand = shuffleBySeed(items.slice(12, Math.min(28, items.length)), seed + 2).slice(
     0,
-    Math.min(2, Math.max(0, targetSize - topBand.length)),
+    Math.min(3, Math.max(0, targetSize - topBand.length)),
   );
-  const deepBand = shuffleBySeed(items.slice(18), seed + 3).slice(
+  const deepBand = shuffleBySeed(items.slice(28), seed + 3).slice(
     0,
     Math.max(0, targetSize - topBand.length - middleBand.length),
   );
@@ -292,6 +292,7 @@ export async function browseMixedCatalog({
             return payload;
           }),
           readSourceFallback("movie", sourcePage, safeQuery, "", sort),
+          safeQuery ? 4200 : 1800,
         ),
         withTimeout(
           browseTmdbCatalog({
@@ -306,6 +307,7 @@ export async function browseMixedCatalog({
             return payload;
           }),
           readSourceFallback("show", sourcePage, safeQuery, "", sort),
+          safeQuery ? 4200 : 1800,
         ),
         withTimeout(
           browseJikanAnime({
@@ -321,6 +323,7 @@ export async function browseMixedCatalog({
             })
             .catch(() => readSourceFallback("anime", sourcePage, safeQuery, "", sort)),
           readSourceFallback("anime", sourcePage, safeQuery, "", sort),
+          safeQuery ? 6500 : 1800,
         ),
         withTimeout(
           browseIgdbGames({
