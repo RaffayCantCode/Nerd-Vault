@@ -1803,18 +1803,75 @@ input {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
-.hero-topline {
+.hero-nav-row {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 4px;
 }
 
-.hero-arrow-row {
-  display: inline-flex;
+.hero-nav-controls {
+  display: flex;
+  align-items: center;
   gap: 10px;
 }
 
+.hero-nav-arrow {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font-size: 1rem;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.hero-nav-arrow:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.24);
+  transform: translateY(-1px);
+}
+
+/* Type pills row */
+.surfacing-pills {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.surfacing-pill {
+  padding: 5px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: background 180ms ease, border-color 180ms ease, color 180ms ease, transform 160ms ease;
+}
+
+.surfacing-pill:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text);
+  transform: translateY(-1px);
+}
+
+.surfacing-pill.is-active {
+  background: rgba(3, 252, 190, 0.12);
+  border-color: rgba(3, 252, 190, 0.45);
+  color: var(--gold);
+}
+
+/* Keep old hero-arrow for any other usage */
 .hero-arrow {
   width: 42px;
   height: 42px;
@@ -4295,179 +4352,105 @@ body {
   animation-play-state: running;
 }
 
-/* ─── Now Surfacing — dot indicators ──────────────────────────────────────── */
-
-.surfacing-dots {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.surfacing-dot {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
-  cursor: pointer;
-  transition: background 200ms ease, border-color 200ms ease, transform 180ms ease;
-  color: var(--muted);
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-}
-
-.surfacing-dot:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.22);
-  transform: translateY(-1px);
-}
-
-.surfacing-dot.is-active {
-  background: rgba(3, 252, 190, 0.14);
-  border-color: rgba(3, 252, 190, 0.5);
-  color: var(--gold);
-}
-
-.surfacing-dot::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  opacity: 0.7;
-}
-
-.surfacing-dot.is-active::before {
-  opacity: 1;
-  box-shadow: 0 0 6px var(--gold);
-}
-
-.surfacing-dot-type {
-  line-height: 1;
-}
-
-/* ─── Now Surfacing — crossfade animation on key change ───────────────────── */
+/* ─── Now Surfacing — crossfade animations (triggered by React key changes) ─ */
 
 @keyframes heroCrossfadeIn {
-  0%   { opacity: 0; transform: translateY(16px) scale(0.985); }
+  0%   { opacity: 0; transform: translateY(14px) scale(0.988); }
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes heroImageCrossfade {
-  0%   { opacity: 0; transform: scale(1.06); }
+  0%   { opacity: 0; transform: scale(1.05); }
   100% { opacity: 1; transform: scale(1); }
 }
 
 @keyframes heroCoverCrossfade {
-  0%   { opacity: 0; transform: scale(1.05) translateX(8px); }
+  0%   { opacity: 0; transform: scale(1.04) translateX(6px); }
   100% { opacity: 1; transform: scale(1) translateX(0); }
 }
 
-/* The key prop on these elements forces React to remount, re-running the animation */
 .workspace-hero .hero-media img {
-  animation: heroImageCrossfade 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: heroImageCrossfade 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .workspace-copy {
-  animation: heroCrossfadeIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: heroCrossfadeIn 0.48s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .hero-art .hero-art-image {
-  animation: heroCoverCrossfade 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.06s both;
+  animation: heroCoverCrossfade 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.05s both;
 }
 
-/* ─── Now Surfacing — thumbnail strip ────────────────────────────────────── */
+/* ─── Hero art — clean, just the cover ──────────────────────────────────── */
 
 .hero-art {
   position: relative;
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.surfacing-thumbs {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px 16px 16px;
-  animation: fadeSlideUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
-}
-
-.surfacing-thumb {
-  display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  background: rgba(255, 255, 255, 0.03);
-  cursor: pointer;
-  text-align: left;
-  transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
-  width: 100%;
+  justify-content: center;
 }
 
-.surfacing-thumb:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.18);
-  transform: translateX(3px);
-}
-
-.surfacing-thumb img {
-  width: 42px;
-  height: 58px;
-  object-fit: cover;
-  border-radius: 10px;
-  flex-shrink: 0;
-  opacity: 0;
-  transition: opacity 280ms ease;
-}
-
-.surfacing-thumb img.img-loaded {
-  opacity: 1;
-}
-
-.surfacing-thumb-label {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  min-width: 0;
-}
-
-.surfacing-thumb-title {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1.3;
-}
-
-/* ─── Discovery grid — true randomness, no bias toward popular ─────────────── */
-/* (Handled in JS; CSS just ensures the grid doesn't show a "loading" flash) */
+/* ─── Discovery grid ─────────────────────────────────────────────────────── */
 
 .catalog-grid {
   will-change: contents;
 }
 
-/* ─── Reduced motion overrides for new surfacing elements ────────────────── */
+/* ─── Image load reveal ──────────────────────────────────────────────────── */
+
+.catalog-card img.img-loaded {
+  opacity: 1 !important;
+}
+
+.hero-art-image {
+  opacity: 0;
+  transition: opacity 360ms ease;
+}
+
+.hero-art-image.img-loaded {
+  opacity: 1;
+}
+
+.workspace-hero .hero-media img {
+  opacity: 0;
+  transition: opacity 480ms ease;
+}
+
+.workspace-hero .hero-media img.img-loaded {
+  opacity: 1;
+}
+
+/* ─── Catalog grid stagger re-run on key change ──────────────────────────── */
+
+.catalog-grid .catalog-card {
+  animation: cardStagger 0.48s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-play-state: paused;
+}
+
+.catalog-grid .catalog-card.is-visible {
+  animation-play-state: running;
+}
+
+/* ─── Reduced motion ────────────────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
   .workspace-copy,
   .workspace-hero .hero-media img,
   .hero-art .hero-art-image,
-  .surfacing-thumbs,
-  .surfacing-dot,
-  .surfacing-thumb {
+  .browse-toolbar,
+  .bottom-pager,
+  .workspace,
+  .page-enter,
+  .surfacing-pill,
+  .hero-nav-arrow,
+  .catalog-card {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
     transition: none !important;
+  }
+
+  .catalog-card img {
+    opacity: 1 !important;
   }
 }

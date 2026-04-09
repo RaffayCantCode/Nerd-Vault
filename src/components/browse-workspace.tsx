@@ -673,61 +673,83 @@ export function BrowseWorkspace({
     <div className="workspace">
       {featured ? (
         <section className="workspace-hero glass">
-          <div className="hero-media" key={featuredKey}>
+          {/* Full-bleed backdrop */}
+          <div className="hero-media" key={`bg-${featuredKey}`}>
             <img
               src={featured.backdropUrl}
-              alt={featured.title}
+              alt=""
               loading="eager"
               fetchPriority="high"
               decoding="async"
               onLoad={(e) => (e.currentTarget as HTMLImageElement).classList.add("img-loaded")}
             />
           </div>
+
           <div className="workspace-hero-grid">
+            {/* ── Left: content ── */}
             <div className="workspace-copy" key={featuredKey}>
-              <div className="hero-topline">
-                <p className="eyebrow">Now surfacing</p>
-                {/* Dot indicators — one per card in the deck */}
-                <div className="surfacing-dots">
-                  {featuredDeck.map((item, i) => (
-                    <button
-                      key={`${item.source}-${item.sourceId}`}
-                      type="button"
-                      className={`surfacing-dot ${i === heroIndex ? "is-active" : ""}`}
-                      onClick={() => setHeroIndex(i)}
-                      title={item.title}
-                      aria-label={`Switch to ${item.title}`}
-                    >
-                      <span className="surfacing-dot-type">{item.type}</span>
-                    </button>
-                  ))}
+
+              {/* Row: eyebrow + arrow nav + type pills */}
+              <div className="hero-nav-row">
+                <p className="eyebrow" style={{ margin: 0 }}>Now surfacing</p>
+                <div className="hero-nav-controls">
+                  <button
+                    type="button"
+                    className="hero-nav-arrow"
+                    onClick={() => setHeroIndex((i) => (i - 1 + featuredDeck.length) % featuredDeck.length)}
+                    aria-label="Previous"
+                  >
+                    ←
+                  </button>
+
+                  {/* One pill per type — click to jump */}
+                  <div className="surfacing-pills">
+                    {featuredDeck.map((item, i) => (
+                      <button
+                        key={`${item.source}-${item.sourceId}`}
+                        type="button"
+                        className={`surfacing-pill ${i === heroIndex ? "is-active" : ""}`}
+                        onClick={() => setHeroIndex(i)}
+                        aria-label={`Show ${item.type}: ${item.title}`}
+                      >
+                        {item.type}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    className="hero-nav-arrow"
+                    onClick={() => setHeroIndex((i) => (i + 1) % featuredDeck.length)}
+                    aria-label="Next"
+                  >
+                    →
+                  </button>
                 </div>
               </div>
 
               <h1 className="display browse-hero-title" title={featured.title}>
                 {featured.title}
               </h1>
+
               <div className="hero-meta-strip">
                 <span className="hero-stat">{featured.type}</span>
-                <span className="hero-stat">{genreLabel}</span>
-                <span className="hero-stat">{featured.year || "Unknown year"}</span>
-                <span className="hero-stat">{featured.rating.toFixed(1)}</span>
+                <span className="hero-stat">{featured.year || "—"}</span>
+                <span className="hero-stat">★ {featured.rating.toFixed(1)}</span>
               </div>
+
               <p className="copy workspace-hero-copy">{featured.overview}</p>
-              <div className="button-row" style={{ marginTop: 20 }}>
+
+              <div className="button-row" style={{ marginTop: 24 }}>
                 <Link
                   href={{
                     pathname: `/media/${featured.slug}`,
-                    query: {
-                      source: featured.source,
-                      sourceId: featured.sourceId,
-                      type: featured.type,
-                    },
+                    query: { source: featured.source, sourceId: featured.sourceId, type: featured.type },
                   }}
                   className="button button-primary"
                   onClick={persistBrowseSnapshot}
                 >
-                  Open pick
+                  Open
                 </Link>
                 <button
                   type="button"
@@ -739,10 +761,10 @@ export function BrowseWorkspace({
               </div>
             </div>
 
-            {/* Right side: active cover + mini previews of other 3 cards */}
+            {/* ── Right: cover art only, clean ── */}
             <div className="hero-art">
               <img
-                key={featuredKey}
+                key={`cover-${featuredKey}`}
                 src={featured.coverUrl}
                 alt={featured.title}
                 className="hero-art-image"
@@ -751,33 +773,6 @@ export function BrowseWorkspace({
                 decoding="async"
                 onLoad={(e) => (e.currentTarget as HTMLImageElement).classList.add("img-loaded")}
               />
-              {/* Thumbnail strip for the other 3 cards */}
-              <div className="surfacing-thumbs">
-                {featuredDeck.map((item, i) => {
-                  if (i === heroIndex) return null;
-                  return (
-                    <button
-                      key={`${item.source}-${item.sourceId}`}
-                      type="button"
-                      className="surfacing-thumb"
-                      onClick={() => setHeroIndex(i)}
-                      title={item.title}
-                    >
-                      <img
-                        src={item.coverUrl}
-                        alt={item.title}
-                        loading="eager"
-                        decoding="async"
-                        onLoad={(e) => (e.currentTarget as HTMLImageElement).classList.add("img-loaded")}
-                      />
-                      <div className="surfacing-thumb-label">
-                        <span className="pill">{item.type}</span>
-                        <span className="surfacing-thumb-title">{item.title}</span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
             </div>
           </div>
         </section>
