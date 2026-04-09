@@ -10,7 +10,7 @@ export function BrandLogo({ className, alt = "NerdVault logo", priority = false 
   return (
     <span className={`brand-logo-shell ${className ?? ""}`.trim()}>
       <Image
-        src="/logo.jpg"
+        src="/logo1.png"
         alt={alt}
         fill
         priority={priority}

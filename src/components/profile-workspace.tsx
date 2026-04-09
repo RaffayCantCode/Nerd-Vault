@@ -128,12 +128,12 @@ export function ProfileWorkspace({
   const [loading, setLoading] = useState(!initialPayload);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [isEditingFolder, setIsEditingFolder] = useState(false);
-  const [draftAvatar, setDraftAvatar] = useState("");
+  const [draftAvatar, setDraftAvatar] = useState(initialPayload?.viewerProfile.avatarUrl ?? "");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [draftBio, setDraftBio] = useState("");
-  const [draftWatchedVisibility, setDraftWatchedVisibility] = useState<PrivacyLevel>("public");
-  const [draftWishlistVisibility, setDraftWishlistVisibility] = useState<PrivacyLevel>("friends");
-  const [draftFoldersVisibility, setDraftFoldersVisibility] = useState<PrivacyLevel>("public");
+  const [draftBio, setDraftBio] = useState(initialPayload?.viewerProfile.bio ?? "");
+  const [draftWatchedVisibility, setDraftWatchedVisibility] = useState<PrivacyLevel>(initialPayload?.viewerProfile.watchedVisibility ?? "public");
+  const [draftWishlistVisibility, setDraftWishlistVisibility] = useState<PrivacyLevel>(initialPayload?.viewerProfile.wishlistVisibility ?? "friends");
+  const [draftFoldersVisibility, setDraftFoldersVisibility] = useState<PrivacyLevel>(initialPayload?.viewerProfile.foldersDefaultVisibility ?? "public");
   const [draftFolderName, setDraftFolderName] = useState("");
   const [draftFolderDescription, setDraftFolderDescription] = useState("");
   const [draftFolderCover, setDraftFolderCover] = useState("");
@@ -236,6 +236,9 @@ export function ProfileWorkspace({
 
   async function handleDeleteFolder() {
     if (!selectedFolder) return;
+    if (!window.confirm(`Delete "${selectedFolder.name}"? This cannot be undone.`)) {
+      return;
+    }
     await deleteLibraryFolder(selectedFolder.id);
     setIsEditingFolder(false);
     setProfileMessage("Folder deleted.");
@@ -248,6 +251,14 @@ export function ProfileWorkspace({
       avatarUrl: dataUrl,
     });
     setProfileMessage("Profile image applied.");
+  }
+
+  async function handleRemoveAvatar() {
+    setDraftAvatar("");
+    await saveProfileSettings({
+      avatarUrl: "",
+    });
+    setProfileMessage("Profile image removed.");
   }
 
   const headlineCopy = viewingOwnProfile
@@ -416,15 +427,27 @@ export function ProfileWorkspace({
             <div className="profile-hero-topbar">
               <div className="profile-identity">
                 {viewingOwnProfile ? (
-                  <label className="profile-avatar-edit" title="Change profile image">
-                    {draftAvatar ? (
-                      <img src={draftAvatar} alt={viewedProfile.name} className="profile-avatar" />
-                    ) : (
-                      <span className="profile-avatar profile-avatar-fallback">{(viewedProfile.name || userName).charAt(0).toUpperCase()}</span>
-                    )}
-                    <span className="profile-avatar-pencil" aria-hidden="true">Edit</span>
-                    <input type="file" accept="image/*" onChange={handleAvatarFileChange} />
-                  </label>
+                  <div className="profile-avatar-stack">
+                    <label className="profile-avatar-edit" title="Change profile image">
+                      {draftAvatar ? (
+                        <img src={draftAvatar} alt={viewedProfile.name} className="profile-avatar" />
+                      ) : (
+                        <span className="profile-avatar profile-avatar-fallback">{(viewedProfile.name || userName).charAt(0).toUpperCase()}</span>
+                      )}
+                      <input type="file" accept="image/*" onChange={handleAvatarFileChange} />
+                    </label>
+                    <div className="profile-avatar-actions">
+                      <label className="button button-secondary profile-avatar-action-button">
+                        {draftAvatar ? "Change image" : "Set profile image"}
+                        <input type="file" accept="image/*" onChange={handleAvatarFileChange} />
+                      </label>
+                      {draftAvatar ? (
+                        <button type="button" className="button button-secondary" onClick={() => void handleRemoveAvatar()}>
+                          Remove image
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
                 ) : viewedProfile.avatarUrl ? (
                   <img src={viewedProfile.avatarUrl} alt={viewedProfile.name} className="profile-avatar" />
                 ) : (
@@ -535,16 +558,6 @@ export function ProfileWorkspace({
                 </div>
 
                 <div className="button-row">
-                  <button
-                    type="button"
-                    className="button button-secondary"
-                    onClick={async () => {
-                      await saveProfileSettings({ avatarUrl: draftAvatar });
-                      setProfileMessage("Profile image applied.");
-                    }}
-                  >
-                    Apply profile image
-                  </button>
                   <button type="button" className="button button-primary" onClick={() => void handleSaveProfile()}>
                     Save profile settings
                   </button>

@@ -3726,3 +3726,192 @@ body {
     justify-content: flex-start;
   }
 }
+
+.landing-auth-panel {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+  padding: 28px;
+}
+
+.landing-carousel {
+  display: grid;
+  gap: 14px;
+  margin-top: 6px;
+  overflow: hidden;
+}
+
+.landing-carousel-track {
+  display: flex;
+  transition: transform 220ms ease;
+}
+
+.landing-carousel-card {
+  min-width: 100%;
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
+    rgba(8, 11, 17, 0.5);
+}
+
+.landing-carousel-card .eyebrow {
+  margin-bottom: 0;
+}
+
+.landing-carousel-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.landing-carousel-arrow {
+  min-width: 96px;
+}
+
+.landing-carousel-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.landing-carousel-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  border: 0;
+  background: rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+  transition: transform 160ms ease, background 160ms ease;
+}
+
+.landing-carousel-dot.is-active {
+  background: var(--gold);
+  transform: scale(1.08);
+}
+
+.landing-auth-details {
+  display: none;
+}
+
+.folder-hero-topbar {
+  padding-right: 360px;
+}
+
+.folder-hero-actions {
+  top: 18px;
+  right: 18px;
+}
+
+.profile-identity {
+  align-items: flex-start;
+}
+
+.profile-avatar-stack {
+  display: grid;
+  gap: 12px;
+  align-items: start;
+}
+
+.profile-avatar-edit {
+  position: relative;
+  display: inline-flex;
+  width: fit-content;
+  cursor: pointer;
+}
+
+.profile-avatar-edit input,
+.profile-avatar-action-button input {
+  display: none;
+}
+
+.profile-avatar-pencil {
+  display: none;
+}
+
+.profile-avatar-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.profile-avatar-action-button {
+  cursor: pointer;
+}
+
+.profile-avatar {
+  object-fit: cover;
+  object-position: center;
+}
+
+.image-adjuster-modal {
+  width: min(460px, calc(100vw - 24px));
+}
+
+.image-adjuster-stage {
+  max-height: min(54vh, 340px);
+}
+
+.image-adjuster-preview {
+  object-fit: contain;
+  background: #060911;
+}
+
+.hero-art {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 18px 18px 18px 0;
+  background: transparent;
+}
+
+.hero-art::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(6, 9, 17, 0.9) 0%, rgba(6, 9, 17, 0.35) 22%, rgba(6, 9, 17, 0) 38%),
+    radial-gradient(circle at left center, rgba(6, 9, 17, 0.72), transparent 48%);
+  z-index: 1;
+}
+
+.hero-art::after {
+  content: "";
+  position: absolute;
+  inset: 18px 18px 18px 0;
+  border-radius: 28px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0)),
+    linear-gradient(135deg, rgba(6, 9, 17, 0.06), rgba(6, 9, 17, 0.26));
+  pointer-events: none;
+  z-index: 3;
+}
+
+.hero-art-image {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  min-height: 420px;
+  border-radius: 28px;
+  object-fit: contain;
+  object-position: center right;
+  filter: saturate(1.05) contrast(1.02);
+}
+
+@media (max-width: 900px) {
+  .folder-hero-topbar {
+    padding-right: 0;
+  }
+
+  .landing-carousel-controls {
+    flex-wrap: wrap;
+  }
+}

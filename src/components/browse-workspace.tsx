@@ -228,6 +228,7 @@ export function BrowseWorkspace({
   const prefetchedPagesRef = useRef<Record<string, CachedPage>>(
     typeof window !== "undefined" ? readBrowsePageCache() : {},
   );
+  const sessionSeedRef = useRef(discoverySeed);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const shouldScrollToResultsRef = useRef(false);
@@ -240,6 +241,18 @@ export function BrowseWorkspace({
     filter === "show" ||
     filter === "anime" ||
     filter === "game";
+
+  useEffect(() => {
+    const initialKey = buildCacheKey("all", 1, "all", "", "discovery", sessionSeedRef.current);
+    if (!prefetchedPagesRef.current[initialKey] && catalog.length) {
+      prefetchedPagesRef.current[initialKey] = {
+        items: catalog,
+        totalPages: Math.max(1, initialTotalPages),
+        cachedAt: Date.now(),
+      };
+      writeBrowsePageCache(prefetchedPagesRef.current);
+    }
+  }, [catalog, initialTotalPages]);
 
   useEffect(() => {
     if (!didInitBrowseStateRef.current) {
@@ -295,7 +308,7 @@ export function BrowseWorkspace({
     const controller = new AbortController();
 
     async function fetchPage(targetPage: number, cacheOnly = false) {
-      const targetKey = buildCacheKey(filter, targetPage, genre, deferredQuery, sort, discoverySeed);
+      const targetKey = buildCacheKey(filter, targetPage, genre, deferredQuery, sort, sessionSeedRef.current);
       if (prefetchedPagesRef.current[targetKey]) {
         if (!cacheOnly) {
           setRemoteCatalog(prefetchedPagesRef.current[targetKey].items);
@@ -309,7 +322,7 @@ export function BrowseWorkspace({
         type: filter,
         page: String(targetPage),
         sort,
-        seed: String(discoverySeed),
+        seed: String(sessionSeedRef.current),
       });
 
       if (deferredQuery.trim()) {
@@ -470,7 +483,7 @@ export function BrowseWorkspace({
         sortedItems = items.sort((left, right) => left.title.localeCompare(right.title));
         break;
       default:
-        sortedItems = shuffleBySeed(items, discoverySeed + activePage);
+        sortedItems = shuffleBySeed(items, sessionSeedRef.current + activePage * 13);
         break;
     }
 
@@ -479,13 +492,13 @@ export function BrowseWorkspace({
     }
 
     return takeBalancedTypeMix(sortedItems, Math.min(24, sortedItems.length));
-  }, [activePage, deferredQuery, discoverySeed, filter, sort, visible]);
+  }, [activePage, deferredQuery, filter, sort, visible]);
 
   const featuredDeck = useMemo(() => {
     const source = heroBaseCatalog;
-    const deckSeed = discoverySeed + hashString(`${filter}-${genre}-${sort}-${activePage}`);
+    const deckSeed = sessionSeedRef.current + hashString(`${filter}-${genre}-${sort}-${activePage}`);
     return buildSurfacingDeck(source, deckSeed, filter);
-  }, [activePage, discoverySeed, filter, genre, heroBaseCatalog, sort]);
+  }, [activePage, filter, genre, heroBaseCatalog, sort]);
 
   useEffect(() => {
     if (!shouldScrollToResultsRef.current || isLoading) {
@@ -692,7 +705,16 @@ export function BrowseWorkspace({
                 </button>
               </div>
             </div>
-            <div className="hero-art" style={{ backgroundImage: `url(${featured.coverUrl})` }} />
+            <div className="hero-art">
+              <img
+                src={featured.coverUrl}
+                alt={featured.title}
+                className="hero-art-image"
+                loading="eager"
+                fetchPriority="high"
+                decoding="async"
+              />
+            </div>
           </div>
         </section>
       ) : (

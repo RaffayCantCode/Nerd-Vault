@@ -149,7 +149,7 @@ export function ImageAdjusterModal({
             <span>Up / Down</span>
             <input type="range" min="-1" max="1" step="0.01" value={offsetY} onChange={(event) => setOffsetY(Number(event.target.value))} />
           </label>
-          <p className="copy">Source: {imageSize.width} × {imageSize.height}</p>
+          <p className="copy">Source: {imageSize.width} x {imageSize.height}</p>
         </div>
 
         <div className="sidebar-folder-actions">
