@@ -203,13 +203,17 @@ export async function requireSessionUser() {
 
 export async function ensureCurrentUserRecord() {
   const sessionUser = await requireSessionUser();
+  const existingUser = await prisma.user.findUnique({
+    where: { id: sessionUser.id },
+    select: { image: true },
+  });
 
   const user = await prisma.user.update({
     where: { id: sessionUser.id },
     data: {
       name: sessionUser.name ?? undefined,
       email: sessionUser.email ?? undefined,
-      image: sessionUser.image ?? undefined,
+      image: existingUser?.image ?? sessionUser.image ?? undefined,
     },
   });
 

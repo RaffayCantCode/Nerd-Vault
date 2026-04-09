@@ -228,6 +228,7 @@ export function ProfileWorkspace({
       foldersDefaultVisibility: draftFoldersVisibility,
     });
     setProfileMessage("Profile saved.");
+    setShowProfileSettings(false);
   }
 
   async function handleSaveFolder() {
