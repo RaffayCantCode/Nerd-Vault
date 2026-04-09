@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { CatalogCard } from "@/components/catalog-card";
-import { readFileAsDataUrl } from "@/lib/read-file-as-data-url";
+import { ImageAdjusterModal } from "@/components/image-adjuster-modal";
 import { MediaItem } from "@/lib/types";
 import { fetchProfilePayload, saveFolder, saveProfileSettings, subscribeVaultChanges } from "@/lib/vault-client";
 import { PrivacyLevel, SocialProfile, StoredFolder, VaultProfilePayload } from "@/lib/vault-types";
@@ -127,6 +127,7 @@ export function ProfileWorkspace({
   const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [isEditingFolder, setIsEditingFolder] = useState(false);
   const [draftAvatar, setDraftAvatar] = useState("");
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [draftBio, setDraftBio] = useState("");
   const [draftWatchedVisibility, setDraftWatchedVisibility] = useState<PrivacyLevel>("public");
   const [draftWishlistVisibility, setDraftWishlistVisibility] = useState<PrivacyLevel>("friends");
@@ -134,7 +135,9 @@ export function ProfileWorkspace({
   const [draftFolderName, setDraftFolderName] = useState("");
   const [draftFolderDescription, setDraftFolderDescription] = useState("");
   const [draftFolderCover, setDraftFolderCover] = useState("");
+  const [folderCoverFile, setFolderCoverFile] = useState<File | null>(null);
   const [draftFolderVisibility, setDraftFolderVisibility] = useState<PrivacyLevel>("public");
+  const [profileMessage, setProfileMessage] = useState("");
   const [watchedSort, setWatchedSort] = useState<LibrarySortMode>("recent");
   const [wishlistSort, setWishlistSort] = useState<LibrarySortMode>("recent");
   const [folderMediaFilter, setFolderMediaFilter] = useState<MediaFilterMode>("all");
@@ -180,20 +183,22 @@ export function ProfileWorkspace({
     setDraftFolderVisibility(selectedFolder.visibility);
   }, [selectedFolder]);
 
-  async function handleAvatarFileChange(event: ChangeEvent<HTMLInputElement>) {
+  useEffect(() => {
+    if (!profileMessage) return;
+    const timeout = window.setTimeout(() => setProfileMessage(""), 2200);
+    return () => window.clearTimeout(timeout);
+  }, [profileMessage]);
+
+  function handleAvatarFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-
-    const dataUrl = await readFileAsDataUrl(file);
-    setDraftAvatar(dataUrl);
+    setAvatarFile(file);
   }
 
-  async function handleFolderCoverFileChange(event: ChangeEvent<HTMLInputElement>) {
+  function handleFolderCoverFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-
-    const dataUrl = await readFileAsDataUrl(file);
-    setDraftFolderCover(dataUrl);
+    setFolderCoverFile(file);
   }
 
   async function handleSaveProfile() {
@@ -204,6 +209,7 @@ export function ProfileWorkspace({
       wishlistVisibility: draftWishlistVisibility,
       foldersDefaultVisibility: draftFoldersVisibility,
     });
+    setProfileMessage("Profile saved.");
   }
 
   async function handleSaveFolder() {
@@ -215,6 +221,15 @@ export function ProfileWorkspace({
       visibility: draftFolderVisibility,
     });
     setIsEditingFolder(false);
+    setProfileMessage("Folder saved.");
+  }
+
+  async function handleApplyAvatar(dataUrl: string) {
+    setDraftAvatar(dataUrl);
+    await saveProfileSettings({
+      avatarUrl: dataUrl,
+    });
+    setProfileMessage("Profile image applied.");
   }
 
   const headlineCopy = viewingOwnProfile
@@ -399,6 +414,7 @@ export function ProfileWorkspace({
               </div>
             </div>
             <p className="copy">{loading ? "Loading your saved profile..." : headlineCopy}</p>
+            {profileMessage ? <p className="media-action-message">{profileMessage}</p> : null}
           </div>
         </div>
       </section>
@@ -493,6 +509,16 @@ export function ProfileWorkspace({
                 </div>
 
                 <div className="button-row">
+                  <button
+                    type="button"
+                    className="button button-secondary"
+                    onClick={async () => {
+                      await saveProfileSettings({ avatarUrl: draftAvatar });
+                      setProfileMessage("Profile image applied.");
+                    }}
+                  >
+                    Apply profile image
+                  </button>
                   <button type="button" className="button button-primary" onClick={() => void handleSaveProfile()}>
                     Save profile settings
                   </button>
@@ -719,6 +745,20 @@ export function ProfileWorkspace({
           )}
         </div>
       </section>
+
+      <ImageAdjusterModal
+        file={avatarFile}
+        title="Adjust profile image"
+        onClose={() => setAvatarFile(null)}
+        onApply={(dataUrl) => void handleApplyAvatar(dataUrl)}
+      />
+
+      <ImageAdjusterModal
+        file={folderCoverFile}
+        title="Adjust folder cover"
+        onClose={() => setFolderCoverFile(null)}
+        onApply={(dataUrl) => setDraftFolderCover(dataUrl)}
+      />
     </main>
   );
 }

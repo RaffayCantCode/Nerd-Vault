@@ -186,6 +186,27 @@ input {
   align-self: stretch;
   display: grid;
   align-content: end;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top right, rgba(3, 252, 190, 0.12), transparent 32%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
+    rgba(8, 11, 17, 0.54);
+}
+
+.landing-auth-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.06), transparent 24%, transparent 70%, rgba(158, 135, 255, 0.08)),
+    radial-gradient(circle at bottom left, rgba(158, 135, 255, 0.1), transparent 34%);
+}
+
+.landing-auth-panel > * {
+  position: relative;
+  z-index: 1;
 }
 
 .glass {
@@ -333,6 +354,11 @@ input {
   border: 1px solid var(--line);
   color: var(--muted);
   background: rgba(255, 255, 255, 0.02);
+}
+
+.nav-link-button {
+  cursor: pointer;
+  font: inherit;
 }
 
 .hero {
@@ -2930,7 +2956,7 @@ body {
 
 .topbar-search-shell {
   display: grid;
-  grid-template-columns: auto auto minmax(220px, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
 }
@@ -2941,8 +2967,52 @@ body {
   align-items: center;
 }
 
-.topbar-search-select {
-  min-width: 142px;
+.topbar-media-type-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.topbar-media-type-chip {
+  min-width: fit-content;
+}
+
+.image-adjuster-modal {
+  width: min(560px, calc(100vw - 28px));
+}
+
+.image-adjuster-stage {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)),
+    rgba(8, 11, 17, 0.62);
+}
+
+.image-adjuster-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform-origin: center center;
+}
+
+.image-adjuster-controls {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.image-adjuster-label {
+  display: grid;
+  gap: 8px;
+}
+
+.image-adjuster-label span {
+  color: var(--muted);
+  font-size: 0.84rem;
 }
 
 .topbar-search-input-centered {

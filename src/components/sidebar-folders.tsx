@@ -4,7 +4,7 @@ import { ChangeEvent, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { readFileAsDataUrl } from "@/lib/read-file-as-data-url";
+import { ImageAdjusterModal } from "@/components/image-adjuster-modal";
 import { createLibraryFolder, fetchLibraryState, subscribeVaultChanges } from "@/lib/vault-client";
 import { StoredFolder } from "@/lib/vault-types";
 
@@ -29,6 +29,8 @@ export function SidebarFolders() {
   const [folderName, setFolderName] = useState("");
   const [folderDescription, setFolderDescription] = useState("");
   const [folderCover, setFolderCover] = useState("");
+  const [folderCoverFile, setFolderCoverFile] = useState<File | null>(null);
+  const [createMessage, setCreateMessage] = useState("");
   const [isMounted, setIsMounted] = useState(false);
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -50,25 +52,34 @@ export function SidebarFolders() {
     return () => setIsMounted(false);
   }, []);
 
-  async function handleCreateFolder() {
-    await createLibraryFolder({
-      name: folderName,
-      description: folderDescription,
-      coverUrl: folderCover,
-    });
+  useEffect(() => {
+    if (!createMessage) return;
+    const timeout = window.setTimeout(() => setCreateMessage(""), 2400);
+    return () => window.clearTimeout(timeout);
+  }, [createMessage]);
 
-    setFolderName("");
-    setFolderDescription("");
-    setFolderCover("");
-    setIsCreating(false);
+  async function handleCreateFolder() {
+    try {
+      await createLibraryFolder({
+        name: folderName,
+        description: folderDescription,
+        coverUrl: folderCover,
+      });
+
+      setFolderName("");
+      setFolderDescription("");
+      setFolderCover("");
+      setIsCreating(false);
+      setCreateMessage("Folder created.");
+    } catch (error) {
+      setCreateMessage(error instanceof Error ? error.message : "Folder creation failed.");
+    }
   }
 
-  async function handleFolderFileChange(event: ChangeEvent<HTMLInputElement>) {
+  function handleFolderFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-
-    const dataUrl = await readFileAsDataUrl(file);
-    setFolderCover(dataUrl);
+    setFolderCoverFile(file);
   }
 
   return (
@@ -126,11 +137,19 @@ export function SidebarFolders() {
                     Cancel
                   </button>
                 </div>
+                {createMessage ? <p className="media-action-message">{createMessage}</p> : null}
               </div>
             </div>,
             document.body,
           )
         : null}
+
+      <ImageAdjusterModal
+        file={folderCoverFile}
+        title="Adjust folder cover"
+        onClose={() => setFolderCoverFile(null)}
+        onApply={(dataUrl) => setFolderCover(dataUrl)}
+      />
 
       <div className="sidebar-folder-stack">
         {folders.map((folder) => (

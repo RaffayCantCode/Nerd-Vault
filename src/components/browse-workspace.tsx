@@ -55,6 +55,10 @@ function writeBrowsePageCache(cache: Record<string, CachedPage>) {
   }
 }
 
+function buildCacheKey(filter: MediaType | "all", page: number, genre: string, query: string, sort: SortMode, seed: number) {
+  return `${filter}-${page}-${genre}-${query.trim().toLowerCase()}-${sort}-${seed}`;
+}
+
 function hashString(input: string) {
   return input.split("").reduce((total, char) => total + char.charCodeAt(0), 0);
 }
@@ -289,10 +293,59 @@ export function BrowseWorkspace({
   }, [catalog]);
 
   useEffect(() => {
+    if (query.trim() || genre !== "all") {
+      return;
+    }
+
+    const controller = new AbortController();
+    let timeoutId: number | undefined;
+
+    async function warmFilter(type: MediaType | "all") {
+      const key = buildCacheKey(type, 1, "all", "", sort, discoverySeed);
+      if (prefetchedPagesRef.current[key]) {
+        return;
+      }
+
+      const params = new URLSearchParams({
+        type,
+        page: "1",
+        sort,
+        seed: String(discoverySeed),
+      });
+
+      const response = await fetch(`/api/catalog/browse?${params.toString()}`, {
+        signal: controller.signal,
+      });
+      if (!response.ok) return;
+
+      const payload = await response.json();
+      if (!payload.ok || !Array.isArray(payload.items)) return;
+
+      prefetchedPagesRef.current[key] = {
+        items: payload.items,
+        totalPages: Math.max(1, payload.totalPages ?? 1),
+        cachedAt: Date.now(),
+      };
+      writeBrowsePageCache(prefetchedPagesRef.current);
+    }
+
+    timeoutId = window.setTimeout(() => {
+      void Promise.allSettled([warmFilter("anime"), warmFilter("game")]);
+    }, 900);
+
+    return () => {
+      controller.abort();
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [discoverySeed, genre, query, sort]);
+
+  useEffect(() => {
     const controller = new AbortController();
 
     async function fetchPage(targetPage: number, cacheOnly = false) {
-      const targetKey = `${filter}-${targetPage}-${genre}-${deferredQuery.trim().toLowerCase()}-${sort}-${discoverySeed}`;
+      const targetKey = buildCacheKey(filter, targetPage, genre, deferredQuery, sort, discoverySeed);
       if (prefetchedPagesRef.current[targetKey]) {
         if (!cacheOnly) {
           setRemoteCatalog(prefetchedPagesRef.current[targetKey].items);

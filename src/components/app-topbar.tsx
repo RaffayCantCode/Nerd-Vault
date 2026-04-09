@@ -32,6 +32,10 @@ const mediaSearchTypes: Array<{ value: MediaType | "all"; label: string }> = [
   { value: "game", label: "Games" },
 ];
 
+function mediaTypeLabel(value: MediaType | "all") {
+  return mediaSearchTypes.find((option) => option.value === value)?.label ?? "All media";
+}
+
 export function AppTopBar({ viewerId, viewerName, viewerAvatar }: AppTopBarProps) {
   const router = useRouter();
   const isGuest = viewerId === "guest-vault";
@@ -175,17 +179,19 @@ export function AppTopBar({ viewerId, viewerName, viewerAvatar }: AppTopBarProps
             </div>
 
             {scope === "media" ? (
-              <select
-                className="sort-select topbar-search-select"
-                value={mediaType}
-                onChange={(event) => setMediaType(event.target.value as MediaType | "all")}
-              >
+              <div className="topbar-media-type-row" aria-label="Media type">
                 {mediaSearchTypes.map((option) => (
-                  <option key={option.value} value={option.value}>
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={`picker-chip topbar-media-type-chip ${mediaType === option.value ? "is-active" : ""}`}
+                    onClick={() => setMediaType(option.value)}
+                    title={option.label}
+                  >
                     {option.label}
-                  </option>
+                  </button>
                 ))}
-              </select>
+              </div>
             ) : null}
 
             <input
@@ -206,7 +212,7 @@ export function AppTopBar({ viewerId, viewerName, viewerAvatar }: AppTopBarProps
 
             {scope === "media" ? (
               <button type="submit" className="button button-primary">
-                Search
+                Search {mediaType !== "all" ? mediaTypeLabel(mediaType) : ""}
               </button>
             ) : null}
           </div>

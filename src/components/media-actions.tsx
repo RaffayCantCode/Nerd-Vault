@@ -2,7 +2,7 @@
 
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { readFileAsDataUrl } from "@/lib/read-file-as-data-url";
+import { ImageAdjusterModal } from "@/components/image-adjuster-modal";
 import { MediaItem } from "@/lib/types";
 import {
   addMediaToFolder,
@@ -27,6 +27,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
   const [folderName, setFolderName] = useState("");
   const [folderDescription, setFolderDescription] = useState("");
   const [folderCover, setFolderCover] = useState("");
+  const [folderCoverFile, setFolderCoverFile] = useState<File | null>(null);
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [friendId, setFriendId] = useState("");
   const [message, setMessage] = useState("");
@@ -146,12 +147,10 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
     setMessage(`Created ${folderName.trim()}.`);
   }
 
-  async function handleFolderCoverFileChange(event: ChangeEvent<HTMLInputElement>) {
+  function handleFolderCoverFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-
-    const dataUrl = await readFileAsDataUrl(file);
-    setFolderCover(dataUrl);
+    setFolderCoverFile(file);
   }
 
   async function handleRecommend() {
@@ -290,6 +289,13 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
           </div>
         </div>
       ) : null}
+
+      <ImageAdjusterModal
+        file={folderCoverFile}
+        title="Adjust folder cover"
+        onClose={() => setFolderCoverFile(null)}
+        onApply={(dataUrl) => setFolderCover(dataUrl)}
+      />
     </div>
   );
 }
