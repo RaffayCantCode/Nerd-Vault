@@ -7,6 +7,7 @@ import { CatalogCard } from "@/components/catalog-card";
 import { DetailBackButton } from "@/components/detail-back-button";
 import { DetailViewEffects } from "@/components/detail-view-effects";
 import { MediaActions } from "@/components/media-actions";
+import { RelatedMediaSection } from "@/components/related-media-section";
 import { ResilientMediaImage } from "@/components/resilient-media-image";
 import { auth } from "@/lib/auth";
 import { getMediaBySlug, mockCatalog } from "@/lib/mock-catalog";
@@ -188,12 +189,25 @@ function scoreRelatedCandidate(base: MediaItem, candidate: MediaItem) {
   const sharedGenres = candidate.genres.filter((genre) => base.genres.includes(genre)).length;
   const primaryGenre = base.genres[0];
   const secondaryGenre = base.genres[1];
+  const tertiaryGenre = base.genres[2];
+  const baseStudio = (base.details.studio ?? "").trim().toLowerCase();
+  const candidateStudio = (candidate.details.studio ?? "").trim().toLowerCase();
+  const baseCollection = normalizeSlugValue(base.details.collectionTitle ?? base.title);
+  const candidateCollection = normalizeSlugValue(candidate.details.collectionTitle ?? candidate.title);
+  const baseCreditNames = new Set(base.credits.map((credit) => credit.name.trim().toLowerCase()).filter(Boolean));
+  const sharedCredits = candidate.credits.filter((credit) => baseCreditNames.has(credit.name.trim().toLowerCase())).length;
 
   if (candidate.type === base.type) score += 14;
   if (candidate.source === base.source) score += 2;
   score += sharedGenres * 10;
   if (primaryGenre && candidate.genres.includes(primaryGenre)) score += 8;
   if (secondaryGenre && candidate.genres.includes(secondaryGenre)) score += 4;
+  if (tertiaryGenre && candidate.genres.includes(tertiaryGenre)) score += 2;
+  if (baseStudio && candidateStudio && baseStudio === candidateStudio) score += 12;
+  if (sharedCredits) score += sharedCredits * 11;
+  if (baseCollection && candidateCollection && (candidateCollection.includes(baseCollection) || baseCollection.includes(candidateCollection))) {
+    score += 20;
+  }
 
   const yearDistance = Math.abs((candidate.year || 0) - (base.year || 0));
   if (yearDistance <= 1) score += 5;
@@ -450,6 +464,7 @@ async function withTimeout<T>(work: Promise<T>, fallback: T, timeoutMs = 1200) {
 async function getRelatedMediaRail(media: MediaItem) {
   const primaryGenre = media.genres[0];
   const secondaryGenre = media.genres[1];
+  const tertiaryGenre = media.genres[2];
   const queries = buildQueryVariants(media.title);
   const collected: MediaItem[] = [];
 
@@ -461,12 +476,20 @@ async function getRelatedMediaRail(media: MediaItem) {
         { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
       ),
       withTimeout(
-        browseTmdbCatalog({ type: mediaType, page: 1, sort: "discovery", seed: 7 }),
+        browseTmdbCatalog({ type: mediaType, page: 2, genre: primaryGenre, sort: "discovery", seed: 7 }),
         { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
       ),
-      ...queries.slice(0, 1).map((query) =>
+      ...(secondaryGenre
+        ? [
+            withTimeout(
+              browseTmdbCatalog({ type: mediaType, page: 1, genre: secondaryGenre, sort: "discovery", seed: 9 }),
+              { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
+            ),
+          ]
+        : []),
+      ...queries.slice(0, 2).map((query, index) =>
         withTimeout(
-          browseTmdbCatalog({ type: mediaType, page: 1, query, sort: "discovery", seed: 5 }),
+          browseTmdbCatalog({ type: mediaType, page: 1, query, sort: "discovery", seed: 5 + index }),
           { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
         ),
       ),
@@ -486,12 +509,20 @@ async function getRelatedMediaRail(media: MediaItem) {
         { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
       ),
       withTimeout(
-        browseJikanAnime({ page: 1, sort: "discovery", seed: 7 }),
+        browseJikanAnime({ page: 2, genre: primaryGenre, sort: "discovery", seed: 7 }),
         { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
       ),
-      ...queries.slice(0, 1).map((query) =>
+      ...(secondaryGenre
+        ? [
+            withTimeout(
+              browseJikanAnime({ page: 1, genre: secondaryGenre, sort: "discovery", seed: 9 }),
+              { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
+            ),
+          ]
+        : []),
+      ...queries.slice(0, 2).map((query, index) =>
         withTimeout(
-          browseJikanAnime({ page: 1, query, sort: "discovery", seed: 5 }),
+          browseJikanAnime({ page: 1, query, sort: "discovery", seed: 5 + index }),
           { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
         ),
       ),
@@ -511,12 +542,28 @@ async function getRelatedMediaRail(media: MediaItem) {
         { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
       ),
       withTimeout(
-        browseIgdbGames({ page: 1, sort: "discovery", seed: 7 }),
+        browseIgdbGames({ page: 2, genre: primaryGenre, sort: "discovery", seed: 7 }),
         { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
       ),
-      ...queries.slice(0, 1).map((query) =>
+      ...(secondaryGenre
+        ? [
+            withTimeout(
+              browseIgdbGames({ page: 1, genre: secondaryGenre, sort: "discovery", seed: 9 }),
+              { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
+            ),
+          ]
+        : []),
+      ...(tertiaryGenre
+        ? [
+            withTimeout(
+              browseIgdbGames({ page: 1, genre: tertiaryGenre, sort: "discovery", seed: 11 }),
+              { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
+            ),
+          ]
+        : []),
+      ...queries.slice(0, 2).map((query, index) =>
         withTimeout(
-          browseIgdbGames({ page: 1, query, sort: "discovery", seed: 5 }),
+          browseIgdbGames({ page: 1, query, sort: "discovery", seed: 5 + index }),
           { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
         ),
       ),
@@ -535,10 +582,10 @@ async function getRelatedMediaRail(media: MediaItem) {
       candidate,
       score: scoreRelatedCandidate(media, candidate),
     }))
-    .filter((entry) => entry.score >= 18)
+    .filter((entry) => entry.score >= 16)
     .sort((left, right) => right.score - left.score)
     .map((entry) => entry.candidate)
-    .slice(0, 6);
+    .slice(0, 18);
 }
 
 export default async function MediaDetailPage({
@@ -911,18 +958,7 @@ export default async function MediaDetailPage({
                 <h2 className="headline">More like this</h2>
               </div>
             </div>
-            {related.length ? (
-              <div className="catalog-grid">
-                {related.map((item, index) => (
-                  <CatalogCard key={item.id} item={item} priority={index < 6} />
-                ))}
-              </div>
-            ) : (
-              <div className="folder-empty glass">
-                <p className="headline">No close matches yet.</p>
-                <p className="copy">We are still tuning the related rail for this title.</p>
-              </div>
-            )}
+            <RelatedMediaSection items={related} />
           </section>
         </main>
       </div>

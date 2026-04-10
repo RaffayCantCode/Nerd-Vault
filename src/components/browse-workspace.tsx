@@ -20,6 +20,7 @@ type CachedPage = {
 const BROWSE_SCROLL_KEY = "nerdvault-browse-scroll";
 const BROWSE_STATE_KEY = "nerdvault-browse-state";
 const BROWSE_PAGE_CACHE_KEY = "nerdvault-browse-page-cache-v1";
+const BROWSE_LAST_URL_KEY = "nerdvault-browse-last-url";
 const BROWSE_CACHE_TTL_MS = 1000 * 60 * 10;
 
 function getBrowsePageSize(viewportWidth: number) {
@@ -313,6 +314,7 @@ export function BrowseWorkspace({
         page: activePage,
       }),
     );
+    window.sessionStorage.setItem(BROWSE_LAST_URL_KEY, `${window.location.pathname}${window.location.search}`);
   }, [activePage, filter, genre, query, sort]);
 
   useEffect(() => {

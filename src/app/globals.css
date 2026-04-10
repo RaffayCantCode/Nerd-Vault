@@ -1434,14 +1434,23 @@ input {
 }
 
 .detail-side-poster-media {
-  aspect-ratio: 0.74;
-  overflow: hidden;
+  display: grid;
+  place-items: center;
+  padding: 18px 18px 10px;
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.08), transparent 46%),
+    linear-gradient(180deg, rgba(8, 11, 17, 0.18), rgba(8, 11, 17, 0.02));
 }
 
 .detail-side-poster-media img {
-  width: 100%;
-  height: 100%;
+  width: min(100%, 248px);
+  height: auto;
+  max-height: 372px;
+  border-radius: 26px;
   object-fit: cover;
+  box-shadow:
+    0 24px 46px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
 .detail-side-poster-copy {
@@ -4512,7 +4521,7 @@ body {
   letter-spacing: 0.02em;
   box-shadow: 0 18px 38px rgba(0, 0, 0, 0.3);
   transition: opacity 140ms ease, transform 140ms ease;
-  z-index: 20;
+  z-index: 999;
 }
 
 .sidebar-folder-tile:hover .sidebar-folder-tooltip,
@@ -4612,6 +4621,38 @@ body {
   animation-duration: 0.26s !important;
 }
 
+.workspace-hero .hero-media {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.workspace-hero .hero-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  filter: saturate(0.92) contrast(0.9) brightness(0.74);
+}
+
+.workspace-hero::after {
+  background:
+    linear-gradient(90deg, rgba(5, 8, 13, 0.94) 0%, rgba(5, 8, 13, 0.68) 26%, rgba(5, 8, 13, 0.3) 52%, rgba(5, 8, 13, 0.86) 78%, rgba(5, 8, 13, 0.97) 100%),
+    linear-gradient(180deg, rgba(5, 8, 13, 0.16), rgba(5, 8, 13, 0.9) 100%),
+    radial-gradient(circle at 74% 46%, rgba(12, 18, 30, 0.04), rgba(12, 18, 30, 0.48) 30%, rgba(5, 8, 13, 0.88) 62%);
+}
+
+.hero-art::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(5, 8, 13, 0.72) 0%, rgba(5, 8, 13, 0.18) 20%, rgba(5, 8, 13, 0) 38%),
+    radial-gradient(circle at left center, rgba(5, 8, 13, 0.44), transparent 54%);
+  z-index: 1;
+  pointer-events: none;
+}
+
 .profile-jump-section {
   display: grid;
   gap: 16px;
@@ -4682,5 +4723,44 @@ body {
 
   .profile-jump-section {
     margin-top: 34px;
+  }
+}
+
+.related-media-section {
+  display: grid;
+  gap: 10px;
+}
+
+.related-media-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 18px;
+}
+
+@media (min-width: 1680px) {
+  .related-media-section .catalog-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1080px) {
+  .detail-side-poster-media {
+    padding: 16px 16px 10px;
+  }
+
+  .detail-side-poster-media img {
+    width: min(100%, 220px);
+    max-height: 330px;
+  }
+}
+
+@media (max-width: 720px) {
+  .detail-side-poster-media {
+    padding: 14px 14px 8px;
+  }
+
+  .detail-side-poster-media img {
+    width: min(100%, 210px);
+    max-height: 300px;
   }
 }
