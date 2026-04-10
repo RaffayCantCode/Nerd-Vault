@@ -5100,6 +5100,56 @@ html {
   opacity: 0;
 }
 
+.catalog-card-skeleton {
+  min-height: 320px;
+  overflow: hidden;
+}
+
+.catalog-card-skeleton::before,
+.catalog-card-skeleton::after,
+.catalog-card-skeleton .catalog-sheen {
+  display: none !important;
+}
+
+.catalog-card-skeleton-media,
+.catalog-skeleton-line,
+.catalog-skeleton-pill,
+.sidebar-folder-skeleton {
+  background: linear-gradient(90deg, rgba(255,255,255,0.05), rgba(255,255,255,0.14), rgba(255,255,255,0.05));
+  background-size: 220% 100%;
+  animation: cardImageShimmer 1.2s linear infinite;
+}
+
+.catalog-card-skeleton-media {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.catalog-skeleton-pill {
+  width: 52px;
+  height: 28px;
+  border-radius: 999px;
+  border: 0;
+}
+
+.catalog-skeleton-line {
+  height: 14px;
+  border-radius: 999px;
+  width: 72%;
+}
+
+.catalog-skeleton-line.title {
+  height: 28px;
+  width: 84%;
+  border-radius: 14px;
+}
+
+.sidebar-folder-skeleton {
+  display: block;
+  border-radius: 22px;
+}
+
 .catalog-copy {
   gap: 8px;
 }

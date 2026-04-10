@@ -12,6 +12,7 @@ type ResilientMediaImageProps = {
   decoding?: "sync" | "async" | "auto";
   fetchPriority?: "high" | "low" | "auto";
   onLoadStateChange?: (loaded: boolean) => void;
+  useProxy?: boolean;
 };
 
 function proxiedImage(url?: string) {
@@ -34,10 +35,11 @@ export function ResilientMediaImage({
   decoding = "async",
   fetchPriority = "auto",
   onLoadStateChange,
+  useProxy = false,
 }: ResilientMediaImageProps) {
-  const fallback = proxiedImage(getMediaFallbackImage(item)) ?? getMediaFallbackImage(item);
-  const primaryCover = proxiedImage(item.coverUrl) ?? item.coverUrl;
-  const secondaryBackdrop = proxiedImage(item.backdropUrl) ?? item.backdropUrl;
+  const fallback = useProxy ? proxiedImage(getMediaFallbackImage(item)) ?? getMediaFallbackImage(item) : getMediaFallbackImage(item);
+  const primaryCover = useProxy ? proxiedImage(item.coverUrl) ?? item.coverUrl : item.coverUrl;
+  const secondaryBackdrop = useProxy ? proxiedImage(item.backdropUrl) ?? item.backdropUrl : item.backdropUrl;
   const [src, setSrc] = useState(primaryCover || secondaryBackdrop || fallback);
   const [loaded, setLoaded] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);

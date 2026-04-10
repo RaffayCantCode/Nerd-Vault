@@ -810,7 +810,7 @@ export function ProfileWorkspace({
                 key={folder.id}
                 href={viewingOwnProfile ? `/profile?folder=${folder.id}` : `/profile?user=${viewedUserId}&folder=${folder.id}`}
                 className="folder-showcase-card glass"
-                prefetch
+                prefetch={false}
               >
                 <div className="folder-showcase-art folder-showcase-art-compact" style={getFolderBackdropStyle(folder.coverUrl)} />
                 <div className="folder-showcase-copy">

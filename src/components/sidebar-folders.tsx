@@ -25,6 +25,7 @@ function getFolderArtStyle(coverUrl?: string) {
 
 export function SidebarFolders({ initialFolders = [] }: { initialFolders?: StoredFolder[] }) {
   const [folders, setFolders] = useState<StoredFolder[]>(initialFolders);
+  const [loadingFolders, setLoadingFolders] = useState(initialFolders.length === 0);
   const [isCreating, setIsCreating] = useState(false);
   const [folderName, setFolderName] = useState("");
   const [folderDescription, setFolderDescription] = useState("");
@@ -38,9 +39,11 @@ export function SidebarFolders({ initialFolders = [] }: { initialFolders?: Store
 
   useEffect(() => {
     function sync() {
+      setLoadingFolders(true);
       fetchLibraryState()
         .then((library) => setFolders(library.folders))
-        .catch(() => setFolders([]));
+        .catch(() => setFolders([]))
+        .finally(() => setLoadingFolders(false));
     }
 
     sync();
@@ -152,6 +155,11 @@ export function SidebarFolders({ initialFolders = [] }: { initialFolders?: Store
       />
 
       <div className="sidebar-folder-stack">
+        {loadingFolders && !folders.length
+          ? Array.from({ length: 3 }, (_, index) => (
+              <span key={`folder-skeleton-${index}`} className="sidebar-folder-tile sidebar-folder-skeleton" aria-hidden="true" />
+            ))
+          : null}
         {folders.map((folder) => (
           <Link
             key={folder.id}
@@ -159,7 +167,7 @@ export function SidebarFolders({ initialFolders = [] }: { initialFolders?: Store
             className={`sidebar-folder-tile ${pathname === "/profile" && activeFolder === folder.id ? "is-active" : ""}`}
             title={folder.name}
             aria-label={folder.name}
-            prefetch
+            prefetch={false}
           >
             <span className="sidebar-folder-art" style={getFolderArtStyle(folder.coverUrl)} />
             <span className="sidebar-folder-tooltip">{folder.name}</span>

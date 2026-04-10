@@ -990,9 +990,26 @@ export function BrowseWorkspace({
         </div>
 
         <div className={`catalog-grid ${isLoading ? "catalog-grid-loading" : ""}`} key={`${filter}-${activePage}-${sort}-${genre}`}>
-          {visibleGridItems.map((item, index) => (
-            <CatalogCard key={item.id} item={item} priority={index < 10} onBeforeNavigate={persistBrowseSnapshot} />
-          ))}
+          {visibleGridItems.length
+            ? visibleGridItems.map((item, index) => (
+                <CatalogCard key={item.id} item={item} priority={index < 10} onBeforeNavigate={persistBrowseSnapshot} />
+              ))
+            : isLoading
+              ? Array.from({ length: Math.min(pageSize, 12) }, (_, index) => (
+                  <article key={`browse-skeleton-${index}`} className="catalog-card catalog-card-skeleton" aria-hidden="true">
+                    <div className="catalog-card-skeleton-media" />
+                    <div className="catalog-copy">
+                      <div className="meta-row">
+                        <span className="pill catalog-skeleton-pill" />
+                        <span className="pill catalog-skeleton-pill" />
+                        <span className="pill catalog-skeleton-pill" />
+                      </div>
+                      <div className="catalog-skeleton-line title" />
+                      <div className="catalog-skeleton-line" />
+                    </div>
+                  </article>
+                ))
+              : null}
         </div>
 
         {renderPager("bottom")}
