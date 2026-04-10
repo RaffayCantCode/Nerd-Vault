@@ -1,15 +1,33 @@
 import { NextResponse } from "next/server";
-import { getTmdbStarterCatalog } from "@/lib/sources/tmdb";
+import { getBrowseBootstrapCatalog } from "@/lib/browse-bootstrap";
+
+const BOOTSTRAP_CACHE_TTL_MS = 1000 * 60 * 10;
+
+let bootstrapCache:
+  | {
+      expiresAt: number;
+      items: Awaited<ReturnType<typeof getBrowseBootstrapCatalog>>;
+    }
+  | undefined;
 
 export async function GET() {
   try {
-    const tmdb = await getTmdbStarterCatalog();
+    if (bootstrapCache && bootstrapCache.expiresAt > Date.now()) {
+      return NextResponse.json({
+        ok: true,
+        items: bootstrapCache.items,
+      });
+    }
+
+    const items = await getBrowseBootstrapCatalog(Date.now());
+    bootstrapCache = {
+      expiresAt: Date.now() + BOOTSTRAP_CACHE_TTL_MS,
+      items,
+    };
 
     return NextResponse.json({
       ok: true,
-      source: "tmdb",
-      imported: tmdb.length,
-      items: tmdb,
+      items,
     });
   } catch (error) {
     return NextResponse.json(

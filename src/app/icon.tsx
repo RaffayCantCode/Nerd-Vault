@@ -18,32 +18,36 @@ export default function Icon() {
           alignItems: "center",
           justifyContent: "center",
           background:
-            "radial-gradient(circle at 30% 25%, #d6f3ff 0%, #69d2ff 28%, #0b1d2c 72%, #04080d 100%)",
+            "linear-gradient(145deg, #1a2231 0%, #121a28 46%, #0a1018 100%)",
           borderRadius: 18,
-          color: "#f8fbff",
-          fontSize: 38,
+          color: "#dff8ff",
+          fontSize: 30,
           fontWeight: 900,
-          letterSpacing: "-0.08em",
-          textShadow: "0 6px 18px rgba(0, 0, 0, 0.35)",
+          letterSpacing: "-0.14em",
+          textShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
         }}
       >
         <div
           style={{
             position: "absolute",
-            width: 52,
-            height: 52,
-            borderRadius: 16,
-            border: "2px solid rgba(255,255,255,0.24)",
-            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.22)",
+            width: 56,
+            height: 56,
+            borderRadius: 17,
+            border: "1px solid rgba(188, 236, 255, 0.18)",
+            boxShadow:
+              "inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 18px rgba(0,0,0,0.22)",
+            background:
+              "radial-gradient(circle at 28% 26%, rgba(101, 219, 255, 0.32) 0%, rgba(101, 219, 255, 0.08) 24%, rgba(255,255,255,0) 52%)",
           }}
         />
         <span
           style={{
             display: "flex",
             transform: "translateY(-1px)",
+            zIndex: 1,
           }}
         >
-          N
+          NV
         </span>
       </div>
     ),

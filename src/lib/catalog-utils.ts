@@ -9,8 +9,29 @@ function normalizeGenreValue(value: string) {
     .trim();
 }
 
+const ANIME_GENRE_ALIASES: Record<string, string[]> = {
+  "battle shonen": ["shounen", "shonen", "action", "adventure", "martial arts", "super power"],
+  "shojo heartlines": ["shoujo", "shojo", "romance", "drama", "slice of life"],
+  "after hours seinen": ["seinen", "psychological", "thriller", "mystery", "horror"],
+  "josei slow burn": ["josei", "romance", "drama", "adult cast"],
+  "saturday morning kodomo": ["kids", "family", "kodomo"],
+  "isekai fever dream": ["isekai", "fantasy", "adventure"],
+  "cosmic mind-benders": ["sci fi", "mecha", "psychological", "space"],
+  "dark supernatural": ["supernatural", "horror", "demons", "vampire", "suspense"],
+  "rom-com spiral": ["romance", "comedy", "school", "harem"],
+  "cozy chaos comedy": ["comedy", "slice of life", "gourmet", "iyashikei"],
+  "sports adrenaline": ["sports"],
+  "fantasy questlines": ["fantasy", "adventure", "magic"],
+  "boys love": ["boys love", "bl"],
+  "girls love": ["girls love", "gl"],
+};
+
 function genreTerms(genre: string) {
   const normalized = normalizeGenreValue(genre);
+
+  if (ANIME_GENRE_ALIASES[normalized]) {
+    return [normalized, ...ANIME_GENRE_ALIASES[normalized]];
+  }
 
   switch (normalized) {
     case "action":
@@ -46,6 +67,34 @@ export function itemMatchesGenre(item: MediaItem, genre: string) {
 }
 
 export function itemGenreLabels(item: MediaItem) {
+  if (item.type === "anime") {
+    const normalizedGenres = item.genres.map(normalizeGenreValue);
+    const labels = new Set<string>();
+
+    const hasAny = (...terms: string[]) =>
+      terms.some((term) => normalizedGenres.some((genre) => genre.includes(term) || term.includes(genre)));
+
+    if (hasAny("shounen", "shonen", "martial arts", "super power")) labels.add("Battle Shonen");
+    if (hasAny("shoujo", "shojo")) labels.add("Shojo Heartlines");
+    if (hasAny("seinen", "psychological", "thriller", "mystery")) labels.add("After Hours Seinen");
+    if (hasAny("josei")) labels.add("Josei Slow Burn");
+    if (hasAny("kids", "family", "kodomo")) labels.add("Saturday Morning Kodomo");
+    if (hasAny("isekai")) labels.add("Isekai Fever Dream");
+    if (hasAny("sci fi", "mecha", "space")) labels.add("Cosmic Mind-Benders");
+    if (hasAny("supernatural", "horror", "demons", "vampire", "suspense")) labels.add("Dark Supernatural");
+    if (hasAny("romance", "comedy", "school", "harem")) labels.add("Rom-Com Spiral");
+    if (hasAny("comedy", "slice of life", "gourmet", "iyashikei")) labels.add("Cozy Chaos Comedy");
+    if (hasAny("sports")) labels.add("Sports Adrenaline");
+    if (hasAny("fantasy", "adventure", "magic")) labels.add("Fantasy Questlines");
+    if (hasAny("boys love", "bl")) labels.add("Boys Love");
+    if (hasAny("girls love", "gl")) labels.add("Girls Love");
+    if (item.rating >= 8.2) labels.add("Critics' Darlings");
+
+    if (labels.size) {
+      return [...labels];
+    }
+  }
+
   const labels = new Set<string>();
 
   item.genres.forEach((genre) => labels.add(genre));

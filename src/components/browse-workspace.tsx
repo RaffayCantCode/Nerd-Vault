@@ -21,13 +21,13 @@ const BROWSE_SCROLL_KEY = "nerdvault-browse-scroll";
 const BROWSE_STATE_KEY = "nerdvault-browse-state";
 const BROWSE_PAGE_CACHE_KEY = "nerdvault-browse-page-cache-v1";
 const BROWSE_LAST_URL_KEY = "nerdvault-browse-last-url";
+const BROWSE_BOOTSTRAP_CACHE_KEY = "nerdvault-browse-bootstrap-v1";
 const BROWSE_CACHE_TTL_MS = 1000 * 60 * 10;
 
 function getBrowsePageSize(viewportWidth: number) {
-  if (viewportWidth < 640) return 12;
-  if (viewportWidth < 960) return 20;
-  if (viewportWidth < 1440) return 24;
-  if (viewportWidth < 1800) return 30;
+  if (viewportWidth < 768) return 17;
+  if (viewportWidth < 1280) return 26;
+  if (viewportWidth < 1680) return 30;
   return 36;
 }
 
@@ -200,6 +200,11 @@ function buildSurfacingDeck(items: MediaItem[], seed: number, filter: MediaType 
   return shuffled.slice(0, Math.min(4, shuffled.length));
 }
 
+function hasEverySurfacingType(items: MediaItem[]) {
+  const requiredTypes: MediaType[] = ["movie", "show", "anime", "game"];
+  return requiredTypes.every((type) => items.some((item) => item.type === type));
+}
+
 export function BrowseWorkspace({
   catalog,
   discoverySeed,
@@ -260,6 +265,22 @@ export function BrowseWorkspace({
       ? initialState.sort
       : "discovery",
   );
+  const [bootstrapCatalog, setBootstrapCatalog] = useState<MediaItem[]>(
+    typeof window === "undefined"
+      ? catalog
+      : (() => {
+          try {
+            const raw = window.sessionStorage.getItem(BROWSE_BOOTSTRAP_CACHE_KEY);
+            if (!raw) return catalog;
+            const parsed = JSON.parse(raw) as { items?: MediaItem[]; cachedAt?: number };
+            if (!Array.isArray(parsed.items) || !parsed.cachedAt) return catalog;
+            if (Date.now() - parsed.cachedAt >= BROWSE_CACHE_TTL_MS) return catalog;
+            return parsed.items;
+          } catch {
+            return catalog;
+          }
+        })(),
+  );
   const [remoteCatalog, setRemoteCatalog] = useState<MediaItem[]>(catalog);
   const initialPage =
     Number.isFinite(pageFromUrl) && pageFromUrl > 0
@@ -270,7 +291,8 @@ export function BrowseWorkspace({
   const [page, setPage] = useState(initialPage);
   const [activePage, setActivePage] = useState(initialPage);
   const [totalPages, setTotalPages] = useState(Math.max(1, initialTotalPages));
-  const [isLoading, setIsLoading] = useState(catalog.length === 0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [cacheVersion, setCacheVersion] = useState(0);
   const [pageSize, setPageSize] = useState(
     typeof window === "undefined" ? 24 : getBrowsePageSize(window.innerWidth),
   );
@@ -288,6 +310,8 @@ export function BrowseWorkspace({
   const didRestoreScrollRef = useRef(false);
   const didInitBrowseStateRef = useRef(false);
   const didSyncUrlStateRef = useRef(false);
+  const hasUnlockedLiveSurfacingRef = useRef(false);
+  const didInitSurfacingRef = useRef(false);
 
   const supportsRemotePaging =
     filter === "all" ||
@@ -308,15 +332,50 @@ export function BrowseWorkspace({
 
   useEffect(() => {
     const initialKey = buildCacheKey("all", 1, "all", "", "discovery", sessionSeedRef.current, initialBootstrapPageSize);
-    if (!prefetchedPagesRef.current[initialKey] && catalog.length) {
+    if (!prefetchedPagesRef.current[initialKey] && bootstrapCatalog.length) {
       prefetchedPagesRef.current[initialKey] = {
-        items: catalog,
+        items: bootstrapCatalog,
         totalPages: Math.max(1, initialTotalPages),
         cachedAt: Date.now(),
       };
       writeBrowsePageCache(prefetchedPagesRef.current);
+      setCacheVersion((value) => value + 1);
     }
-  }, [catalog, initialBootstrapPageSize, initialTotalPages]);
+  }, [bootstrapCatalog, initialBootstrapPageSize, initialTotalPages]);
+
+  useEffect(() => {
+    if (bootstrapCatalog.length) {
+      return;
+    }
+
+    let isActive = true;
+
+    async function loadBootstrap() {
+      try {
+        const response = await fetch("/api/catalog/bootstrap", { cache: "no-store" });
+        const payload = await response.json();
+        if (!isActive || !payload.ok || !Array.isArray(payload.items)) {
+          return;
+        }
+
+        setBootstrapCatalog(payload.items);
+        window.sessionStorage.setItem(
+          BROWSE_BOOTSTRAP_CACHE_KEY,
+          JSON.stringify({
+            items: payload.items,
+            cachedAt: Date.now(),
+          }),
+        );
+      } catch {
+        // Browse still works even if the surfacing bootstrap misses.
+      }
+    }
+
+    void loadBootstrap();
+    return () => {
+      isActive = false;
+    };
+  }, [bootstrapCatalog.length]);
 
   useEffect(() => {
     if (!didInitBrowseStateRef.current) {
@@ -429,6 +488,7 @@ export function BrowseWorkspace({
         cachedAt: Date.now(),
       };
       writeBrowsePageCache(prefetchedPagesRef.current);
+      setCacheVersion((value) => value + 1);
 
       if (!cacheOnly) {
         startTransition(() => {
@@ -458,13 +518,18 @@ export function BrowseWorkspace({
       }
 
       try {
-        await fetchPage(page);
-        void fetchPage(page + 1, true).catch(() => undefined);
+        const primaryItems = await fetchPage(page);
+        const minimumVisible = Math.max(12, pageSize - 1);
+        const nextItems = await fetchPage(page + 1, true).catch(() => [] as MediaItem[]);
+        if (primaryItems.length + nextItems.length < minimumVisible) {
+          void fetchPage(page + 2, true).catch(() => undefined);
+          void fetchPage(page + 3, true).catch(() => undefined);
+        }
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
         }
-        setRemoteCatalog(catalog);
+        setRemoteCatalog(bootstrapCatalog);
         setTotalPages(Math.max(1, initialTotalPages));
         setActivePage(1);
       } finally {
@@ -474,9 +539,9 @@ export function BrowseWorkspace({
 
     void loadCatalog();
     return () => controller.abort();
-  }, [catalog, deferredQuery, discoverySeed, filter, genre, initialTotalPages, page, pageSize, sort, supportsRemotePaging]);
+  }, [bootstrapCatalog, catalog, deferredQuery, discoverySeed, filter, genre, initialTotalPages, page, pageSize, sort, supportsRemotePaging]);
 
-  const baseCatalog = supportsRemotePaging ? remoteCatalog : catalog;
+  const baseCatalog = supportsRemotePaging ? remoteCatalog : bootstrapCatalog;
   const typedVisible = filterCatalog(
     baseCatalog,
     filter,
@@ -487,7 +552,7 @@ export function BrowseWorkspace({
       return typedVisible;
     }
 
-    const merged = [...catalog, ...remoteCatalog];
+    const merged = [...bootstrapCatalog, ...catalog, ...remoteCatalog];
     const seen = new Set<string>();
 
     return merged.filter((item) => {
@@ -498,12 +563,12 @@ export function BrowseWorkspace({
       seen.add(key);
       return (filter === "all" || item.type === filter) && itemMatchesSearch(item, deferredQuery);
     });
-  }, [catalog, deferredQuery, filter, remoteCatalog, typedVisible]);
+  }, [bootstrapCatalog, catalog, deferredQuery, filter, remoteCatalog, typedVisible]);
 
   const availableGenres = useMemo(() => {
     const genreSource =
       filter === "all"
-        ? [...catalog, ...remoteCatalog]
+        ? [...bootstrapCatalog, ...catalog, ...remoteCatalog]
         : typedVisible;
 
     return Array.from(
@@ -516,7 +581,7 @@ export function BrowseWorkspace({
       .filter(Boolean)
       .sort((left, right) => left.localeCompare(right))
       .slice(0, 18);
-  }, [catalog, filter, remoteCatalog, typedVisible]);
+  }, [bootstrapCatalog, catalog, filter, remoteCatalog, typedVisible]);
 
   useEffect(() => {
     if (genre !== "all" && !availableGenres.includes(genre)) {
@@ -551,8 +616,8 @@ export function BrowseWorkspace({
     });
   }, [catalog, deferredQuery, filter, genre, remoteCatalog, visible]);
 
-  const heroBaseCatalog = useMemo(() => {
-    const typeScoped = filterCatalog(catalog, filter, "");
+  const bootstrapHeroBaseCatalog = useMemo(() => {
+    const typeScoped = filterCatalog(bootstrapCatalog, filter, "");
     const genreScoped = typeScoped.filter((item) => itemMatchesGenre(item, genre));
     const safeGenreScoped = genreScoped.filter(isSafeForSurfacing);
     const safeTypeScoped = typeScoped.filter(isSafeForSurfacing);
@@ -561,8 +626,43 @@ export function BrowseWorkspace({
     if (safeTypeScoped.length) return safeTypeScoped;
     if (genreScoped.length) return genreScoped;
     if (typeScoped.length) return typeScoped;
-    return catalog.filter(isSafeForSurfacing).length ? catalog.filter(isSafeForSurfacing) : catalog;
-  }, [catalog, filter, genre]);
+    return bootstrapCatalog.filter(isSafeForSurfacing).length ? bootstrapCatalog.filter(isSafeForSurfacing) : bootstrapCatalog;
+  }, [bootstrapCatalog, filter, genre]);
+
+  const liveHeroBaseCatalog = useMemo(() => {
+    const mergedCatalog = (() => {
+      const seen = new Set<string>();
+      return [...remoteCatalog, ...catalog].filter((item) => {
+        const key = `${item.source}-${item.sourceId}`;
+        if (seen.has(key)) {
+          return false;
+        }
+        seen.add(key);
+        return true;
+      });
+    })();
+
+    const preferredSource =
+      filter === "all" && hasEverySurfacingType(mergedCatalog)
+        ? mergedCatalog
+        : bootstrapCatalog;
+    const typeScoped = filterCatalog(preferredSource, filter, "");
+    const genreScoped = typeScoped.filter((item) => itemMatchesGenre(item, genre));
+    const safeGenreScoped = genreScoped.filter(isSafeForSurfacing);
+    const safeTypeScoped = typeScoped.filter(isSafeForSurfacing);
+
+    if (safeGenreScoped.length) return safeGenreScoped;
+    if (safeTypeScoped.length) return safeTypeScoped;
+    if (genreScoped.length) return genreScoped;
+    if (typeScoped.length) return typeScoped;
+    const safeMergedCatalog = mergedCatalog.filter(isSafeForSurfacing);
+    if (safeMergedCatalog.length) return safeMergedCatalog;
+    return mergedCatalog.length ? mergedCatalog : bootstrapCatalog;
+  }, [bootstrapCatalog, catalog, filter, genre, remoteCatalog]);
+
+  const heroBaseCatalog = hasUnlockedLiveSurfacingRef.current
+    ? liveHeroBaseCatalog
+    : bootstrapHeroBaseCatalog;
 
   const sortedVisible = useMemo(() => {
     const items = [...queryVisible];
@@ -643,8 +743,13 @@ export function BrowseWorkspace({
   }, [deferredQuery, filter, genre, isLoading, sort]);
 
   useEffect(() => {
+    if (!didInitSurfacingRef.current) {
+      didInitSurfacingRef.current = true;
+    } else {
+      hasUnlockedLiveSurfacingRef.current = true;
+    }
     setHeroIndex(0);
-  }, [activePage, featuredDeck.length, filter, genre, sort]);
+  }, [activePage, filter, genre, sort]);
 
   useEffect(() => {
     if (didRestoreScrollRef.current || isLoading) {
@@ -681,22 +786,42 @@ export function BrowseWorkspace({
   const genreLabel = genre === "all" ? "All genres" : genre;
   const resultLabel = `${sortedVisible.length} visible now`;
   const featured =
-    featuredDeck[heroIndex] ?? sortedVisible[0] ?? typedVisible[0] ?? baseCatalog[0] ?? catalog[0];
+    featuredDeck[heroIndex] ?? sortedVisible[0] ?? typedVisible[0] ?? baseCatalog[0] ?? bootstrapCatalog[0] ?? catalog[0];
   const featuredKey = featured ? `${featured.source}-${featured.sourceId}` : "";
   const featuredWishlisted = featured ? wishlistedKeys.includes(featuredKey) : false;
   const isPagePending = supportsRemotePaging && page !== activePage;
   const showGridSkeletons = isLoading || isPagePending;
+  const cachedAdjacentItems = useMemo(() => {
+    const items: MediaItem[] = [];
+    const seen = new Set<string>();
+    const targetPages = Array.from(new Set([activePage, page, page + 1, page + 2, page + 3])).filter((value) => value > 0);
+
+    for (const targetPage of targetPages) {
+      const key = buildCacheKey(filter, targetPage, genre, deferredQuery, sort, sessionSeedRef.current, pageSize);
+      const cachedPage = prefetchedPagesRef.current[key];
+      if (!cachedPage) continue;
+
+      for (const item of cachedPage.items) {
+        const itemKey = `${item.source}-${item.sourceId}`;
+        if (seen.has(itemKey)) continue;
+        seen.add(itemKey);
+        items.push(item);
+      }
+    }
+
+    return items;
+  }, [activePage, cacheVersion, deferredQuery, filter, genre, page, pageSize, sort]);
   const visibleGridItems = useMemo(() => {
     const baseItems = featured
       ? sortedVisible.filter((item) => `${item.source}-${item.sourceId}` !== featuredKey)
       : [...sortedVisible];
-    const targetMinimum = Math.min(pageSize, pageSize <= 12 ? 10 : 12);
+    const targetMinimum = Math.max(12, pageSize - (featured ? 1 : 0));
 
     if (baseItems.length >= targetMinimum) {
       return baseItems;
     }
 
-    const mergedFallbacks = [...queryVisible, ...typedVisible, ...remoteCatalog, ...catalog];
+    const mergedFallbacks = [...queryVisible, ...typedVisible, ...cachedAdjacentItems, ...remoteCatalog, ...bootstrapCatalog, ...catalog];
     const seen = new Set(baseItems.map((item) => `${item.source}-${item.sourceId}`));
 
     if (featured && !seen.has(featuredKey)) {
@@ -715,7 +840,7 @@ export function BrowseWorkspace({
     }
 
     return baseItems;
-  }, [catalog, featured, featuredKey, filter, genre, pageSize, queryVisible, remoteCatalog, sortedVisible, typedVisible]);
+  }, [bootstrapCatalog, cachedAdjacentItems, catalog, featured, featuredKey, filter, genre, pageSize, queryVisible, remoteCatalog, sortedVisible, typedVisible]);
 
   useEffect(() => {
     if (!featured) return;
@@ -882,6 +1007,11 @@ export function BrowseWorkspace({
 
             {/* ── Right: cover art only, clean ── */}
             <div className="hero-art">
+              <div
+                className="hero-art-backdrop"
+                style={{ backgroundImage: `url(${featured.coverUrl})` }}
+                aria-hidden="true"
+              />
               <img
                 key={`cover-${featuredKey}`}
                 src={featured.coverUrl}
@@ -932,10 +1062,6 @@ export function BrowseWorkspace({
 
             <div className="browse-toolbar-row">
               <div className="search-cluster">
-                <div className="search-input browse-search-display" aria-live="polite">
-                  {query.trim() ? `Search: ${query}` : "Use the centered top search to find media."}
-                </div>
-
                 <div className="sort-chip-block">
                   <p className="sort-label">Sort</p>
                   <div className="picker-grid sort-chip-row">

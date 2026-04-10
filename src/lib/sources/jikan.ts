@@ -54,6 +54,9 @@ type JikanAnime = {
     };
   };
   genres?: JikanGenre[];
+  themes?: JikanGenre[];
+  demographics?: JikanGenre[];
+  explicit_genres?: JikanGenre[];
   studios?: Array<{ name: string }>;
   title_japanese?: string | null;
   aired?: {
@@ -297,7 +300,14 @@ function mapAnime(
     year: getAnimeYear(item),
     rating: Number(item.score?.toFixed(1)) || 0,
     language: "ja",
-    genres: item.genres?.map((genre) => genre.name) ?? [],
+    genres: Array.from(
+      new Set([
+        ...(item.genres?.map((genre) => genre.name) ?? []),
+        ...(item.themes?.map((genre) => genre.name) ?? []),
+        ...(item.demographics?.map((genre) => genre.name) ?? []),
+        ...(item.explicit_genres?.map((genre) => genre.name) ?? []),
+      ]),
+    ),
     coverUrl:
       proxiedImageUrl(item.images?.jpg?.large_image_url) ??
       proxiedImageUrl(item.images?.jpg?.image_url) ??

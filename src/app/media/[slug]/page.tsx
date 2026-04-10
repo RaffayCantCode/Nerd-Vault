@@ -152,6 +152,7 @@ function buildFranchiseSignals(media: MediaItem) {
     { query: "pokemon", matches: ["pokemon", "pokémon"] },
     { query: "dragon ball", matches: ["dragon ball", "saiyan"] },
     { query: "naruto", matches: ["naruto", "shinobi", "hokage"] },
+    { query: "resident evil", matches: ["resident evil", "biohazard", "umbrella", "raccoon city"] },
     { query: "zelda", matches: ["hyrule", "zelda", "link"] },
     { query: "mario", matches: ["mario", "bowser", "mushroom kingdom"] },
   ];
@@ -573,6 +574,36 @@ function emptyBrowseResult() {
   return { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] };
 }
 
+async function getFranchiseFallback(media: MediaItem, signals: string[]) {
+  if (!signals.length) {
+    return [] as MediaItem[];
+  }
+
+  const signal = signals[0];
+
+  if (media.type === "anime") {
+    const pages = await Promise.all([
+      withTimeout(browseJikanAnime({ page: 1, query: signal, sort: "rating", seed: 31 }), emptyBrowseResult(), 1400),
+      withTimeout(browseJikanAnime({ page: 2, query: signal, sort: "rating", seed: 32 }), emptyBrowseResult(), 1400),
+    ]);
+    return dedupeItems(pages.flatMap((page) => page.items));
+  }
+
+  if (media.type === "game") {
+    const pages = await Promise.all([
+      withTimeout(browseIgdbGames({ page: 1, query: signal, sort: "rating", seed: 31 }), emptyBrowseResult(), 1800),
+      withTimeout(browseIgdbGames({ page: 2, query: signal, sort: "rating", seed: 32 }), emptyBrowseResult(), 1800),
+    ]);
+    return dedupeItems(pages.flatMap((page) => page.items));
+  }
+
+  const pages = await Promise.all([
+    withTimeout(browseTmdbCatalog({ type: media.type, page: 1, query: signal, sort: "rating", seed: 31 }), emptyBrowseResult(), 1400),
+    withTimeout(browseTmdbCatalog({ type: media.type, page: 2, query: signal, sort: "rating", seed: 32 }), emptyBrowseResult(), 1400),
+  ]);
+  return dedupeItems(pages.flatMap((page) => page.items));
+}
+
 async function getRelatedMediaRail(media: MediaItem) {
   const primaryGenre = media.genres[0];
   const secondaryGenre = media.genres[1];
@@ -736,6 +767,7 @@ async function getRelatedMediaRail(media: MediaItem) {
   }
 
   const fallbackGenre = primaryGenre || secondaryGenre || tertiaryGenre || "";
+  const franchiseFallback = await getFranchiseFallback(media, franchiseSignals);
   const sourceFallback =
     media.type === "anime"
       ? await withTimeout(
@@ -755,7 +787,7 @@ async function getRelatedMediaRail(media: MediaItem) {
             1200,
           );
 
-  return dedupeItems(sourceFallback.items)
+  return dedupeItems([...franchiseFallback, ...sourceFallback.items])
     .filter((candidate) => `${candidate.source}-${candidate.sourceId}` !== `${media.source}-${media.sourceId}`)
     .slice(0, 12);
 }
