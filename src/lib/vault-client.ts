@@ -4,7 +4,7 @@ import { MediaItem } from "@/lib/types";
 import { LibraryState, PrivacyLevel, VaultProfilePayload } from "@/lib/vault-types";
 
 const VAULT_EVENT = "nerdvault-data-change";
-const CACHE_TTL_MS = 8000;
+const CACHE_TTL_MS = 15000;
 const requestCache = new Map<string, { expiresAt: number; value: unknown }>();
 const inflightRequests = new Map<string, Promise<unknown>>();
 

@@ -73,7 +73,7 @@ export function AppTopBar({
     }
 
     const unsubscribe = subscribeVaultChanges(sync);
-    if (!initialProfile) {
+    if (initialProfile) {
       void sync();
     }
 

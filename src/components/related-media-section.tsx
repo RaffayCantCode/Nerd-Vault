@@ -1,13 +1,12 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { CatalogCard } from "@/components/catalog-card";
+import { DetailBackButton } from "@/components/detail-back-button";
 import type { MediaItem } from "@/lib/types";
 
 const COLLAPSED_RELATED_COUNT = 12;
-const BROWSE_LAST_URL_KEY = "nerdvault-browse-last-url";
 
 export function RelatedMediaSection({
   items,
@@ -16,7 +15,6 @@ export function RelatedMediaSection({
   items: MediaItem[];
   onBeforeNavigate?: () => void;
 }) {
-  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
 
   if (!items.length) {
@@ -44,29 +42,11 @@ export function RelatedMediaSection({
           <button type="button" className="button button-secondary" onClick={() => setExpanded((current) => !current)}>
             {expanded ? "Show less" : "Show more"}
           </button>
-          <button
-            type="button"
-            className="button button-primary"
-            onClick={() => {
-              const lastBrowseUrl = window.sessionStorage.getItem(BROWSE_LAST_URL_KEY) || "/browse";
-              router.push(lastBrowseUrl);
-            }}
-          >
-            Back to browse
-          </button>
+          <DetailBackButton />
         </div>
       ) : (
         <div className="related-media-actions">
-          <button
-            type="button"
-            className="button button-primary"
-            onClick={() => {
-              const lastBrowseUrl = window.sessionStorage.getItem(BROWSE_LAST_URL_KEY) || "/browse";
-              router.push(lastBrowseUrl);
-            }}
-          >
-            Back to browse
-          </button>
+          <DetailBackButton />
         </div>
       )}
     </div>

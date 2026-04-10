@@ -276,6 +276,7 @@ export function BrowseWorkspace({
   const resultsRef = useRef<HTMLDivElement>(null);
   const shouldScrollToResultsRef = useRef(false);
   const shouldScrollToToolbarRef = useRef(false);
+  const pageScrollOffsetRef = useRef(110);
   const didRestoreScrollRef = useRef(false);
   const didInitBrowseStateRef = useRef(false);
 
@@ -598,7 +599,7 @@ export function BrowseWorkspace({
       return;
     }
 
-    scrollToElementWithOffset(resultsRef.current, 110);
+    scrollToElementWithOffset(resultsRef.current, pageScrollOffsetRef.current);
     shouldScrollToResultsRef.current = false;
   }, [deferredQuery, isLoading, sortedVisible.length]);
 
@@ -662,9 +663,36 @@ export function BrowseWorkspace({
     featuredDeck[heroIndex] ?? sortedVisible[0] ?? typedVisible[0] ?? baseCatalog[0] ?? catalog[0];
   const featuredKey = featured ? `${featured.source}-${featured.sourceId}` : "";
   const featuredWishlisted = featured ? wishlistedKeys.includes(featuredKey) : false;
-  const visibleGridItems = featured
-    ? sortedVisible.filter((item) => `${item.source}-${item.sourceId}` !== featuredKey)
-    : sortedVisible;
+  const visibleGridItems = useMemo(() => {
+    const baseItems = featured
+      ? sortedVisible.filter((item) => `${item.source}-${item.sourceId}` !== featuredKey)
+      : [...sortedVisible];
+    const targetMinimum = Math.min(pageSize, pageSize <= 12 ? 10 : 12);
+
+    if (baseItems.length >= targetMinimum) {
+      return baseItems;
+    }
+
+    const mergedFallbacks = [...queryVisible, ...typedVisible, ...remoteCatalog, ...catalog];
+    const seen = new Set(baseItems.map((item) => `${item.source}-${item.sourceId}`));
+
+    if (featured && !seen.has(featuredKey)) {
+      baseItems.push(featured);
+      seen.add(featuredKey);
+    }
+
+    for (const item of mergedFallbacks) {
+      const key = `${item.source}-${item.sourceId}`;
+      if (seen.has(key)) continue;
+      if (!itemMatchesGenre(item, genre)) continue;
+      if (filter !== "all" && item.type !== filter) continue;
+      baseItems.push(item);
+      seen.add(key);
+      if (baseItems.length >= targetMinimum) break;
+    }
+
+    return baseItems;
+  }, [catalog, featured, featuredKey, filter, genre, pageSize, queryVisible, remoteCatalog, sortedVisible, typedVisible]);
 
   useEffect(() => {
     if (!featured) return;
@@ -685,7 +713,8 @@ export function BrowseWorkspace({
   function handlePageChange(nextPage: number, source: "top" | "bottom") {
     const clamped = Math.min(totalPages, Math.max(1, nextPage));
     shouldScrollToToolbarRef.current = false;
-    shouldScrollToResultsRef.current = source === "top";
+    shouldScrollToResultsRef.current = true;
+    pageScrollOffsetRef.current = source === "top" ? 110 : 44;
     setPage(clamped);
   }
 

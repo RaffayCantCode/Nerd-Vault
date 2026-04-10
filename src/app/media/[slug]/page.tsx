@@ -36,13 +36,47 @@ function cleanNarrativeText(input?: string) {
   const text = (input ?? "").replace(/\[[^\]]+\]/g, "").replace(/\s+/g, " ").trim();
 
   if (!text) return "No overview yet.";
-  if (text.length < 110) {
-    return `${text} This entry still needs a fuller synopsis, so the page leans more on genre, tone, and franchise context.`;
-  }
-  if (text.length > 320) {
-    return `${text.slice(0, 317).trimEnd()}...`;
-  }
-  return text;
+  const sentences = text
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+  const limited = sentences.slice(0, 2).join(" ");
+  const clipped = (limited || text).slice(0, 220).trimEnd();
+  return clipped.length < text.length ? `${clipped}...` : clipped;
+}
+
+function normalizeCopyFingerprint(input: string) {
+  return input.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function clampCardBody(input: string, fallback: string) {
+  const source = cleanNarrativeText(input) || fallback;
+  return source.length > 190 ? `${source.slice(0, 187).trimEnd()}...` : source;
+}
+
+function dedupeDeepDiveCards(cards: Array<{ eyebrow: string; title: string; body: string }>, media: MediaItem) {
+  const seen = new Set<string>();
+
+  return cards.map((card, index) => {
+    const normalized = normalizeCopyFingerprint(card.body);
+    if (!seen.has(normalized)) {
+      seen.add(normalized);
+      return card;
+    }
+
+    const fallbackBodies = [
+      `${media.year || "Unknown year"} release with ${media.rating.toFixed(1)} / 10 user score and a ${media.type} focus.`,
+      `${media.genres.slice(0, 3).join(" • ") || "Genre details still loading"} shape the strongest first impression here.`,
+      `${media.details.studio ?? media.credits[0]?.name ?? "The creative team"} is the clearest name tied to how this one lands.`,
+    ];
+
+    const replacementBody = fallbackBodies[index] ?? fallbackBodies[fallbackBodies.length - 1];
+    seen.add(normalizeCopyFingerprint(replacementBody));
+    return {
+      ...card,
+      body: replacementBody,
+    };
+  });
 }
 
 function getAnimeAudienceLens(genres: string[]) {
@@ -326,32 +360,34 @@ function buildDeepDiveCards(
   const castLead = media.credits[0]?.name ?? "Unknown lead";
   const secondCredit = media.credits[1]?.name ?? media.details.studio ?? "No second anchor yet";
   const balancedOverview = cleanNarrativeText(media.overview);
+  const runtimeRead = media.details.runtime ?? media.details.releaseInfo ?? media.details.platform ?? "Runtime details are still sparse.";
+  const scoreRead = `${media.rating.toFixed(1)} / 10`;
 
   if (media.type === "anime") {
     const animeAudienceLens = getAnimeAudienceLens(media.genres);
-    return [
+    return dedupeDeepDiveCards([
       {
         eyebrow: "Anime lane",
-        title: animeAudienceLens.length ? animeAudienceLens.join(" â€¢ ") : topGenres,
-        body: balancedOverview,
+        title: animeAudienceLens.length ? animeAudienceLens.join(" • ") : topGenres,
+        body: clampCardBody(balancedOverview, "This anime is still waiting on a cleaner synopsis."),
       },
       {
         eyebrow: "Character pull",
         title: castLead,
-        body: media.credits.length
+        body: clampCardBody(media.credits.length
           ? `${castLead} is the first name to watch here, and ${secondCredit} helps define the tone around them.`
-          : "Character data is thinner here, so the genre mix and franchise shape are carrying more of the pull.",
+          : "Character data is lighter here, so the genre mix and franchise shape carry more of the appeal.", ""),
       },
       {
         eyebrow: "Arc footprint",
         title: animeFranchise?.seasonCount ? `${animeFranchise.seasonCount} seasons released` : animeFranchise?.entries.length ? `${animeFranchise.entries.length} connected entries` : "Single entry focus",
-        body: animeFranchise?.seasonCount
+        body: clampCardBody(animeFranchise?.seasonCount
           ? `This franchise currently reads as ${animeFranchise.seasonCount} main seasons, so the page can point you toward the actual long-form run instead of mixing every side entry together.`
           : animeFranchise?.entries.length
             ? `This franchise spans ${animeFranchise.entries.length} connected entries, which means there is more here than a single season drop.`
-          : "This page is focused on the core entry right now, but it still carries enough atmosphere and category context to judge whether the ride is for you.",
+          : `This entry is carrying the core pitch right now, with ${runtimeRead.toLowerCase()} and ${scoreRead} helping fill in the quick read.`, ""),
       },
-    ];
+    ], media);
   }
 
   if (media.type === "game") {
@@ -359,44 +395,44 @@ function buildDeepDiveCards(
     const platformRead = media.details.platform ?? "Platform lineup still coming together";
     const releaseRead = media.details.releaseInfo ?? media.details.status ?? `${media.year || "Unknown"} release`;
 
-    return [
+    return dedupeDeepDiveCards([
       {
         eyebrow: "Play energy",
         title: topGenres,
-        body: `The fantasy here is built around ${topGenres.toLowerCase()}, with ${media.overview.toLowerCase()}`,
+        body: clampCardBody(`The hook is ${topGenres.toLowerCase()}, with ${balancedOverview.toLowerCase()}`, ""),
+      },
+      {
+        eyebrow: "How it plays",
+        title: genreRead,
+        body: clampCardBody(`Built for ${genreRead.toLowerCase()} players, with ${platformRead.toLowerCase()} and ${releaseRead.toLowerCase()} setting the quick expectation.`, ""),
       },
       {
         eyebrow: "Studio signal",
         title: media.details.studio ?? "Unknown studio",
-        body: `${media.details.studio ?? "The studio"} is the main creative anchor here, and ${secondCredit} gives you another point of reference for how it was built.`,
+        body: clampCardBody(`${media.details.studio ?? "The studio"} is the clearest creative anchor here, with ${secondCredit} giving the page a second useful production signal.`, ""),
       },
-      {
-        eyebrow: "What to expect",
-        title: genreRead,
-        body: `If you are checking this out for the feel first, the key read is ${releaseRead.toLowerCase()}, tuned for ${genreRead.toLowerCase()}, and playable across ${platformRead.toLowerCase()}.`,
-      },
-    ];
+    ], media);
   }
 
-  return [
+  return dedupeDeepDiveCards([
     {
       eyebrow: "Story hook",
       title: topGenres,
-      body: balancedOverview,
+      body: clampCardBody(balancedOverview, "The story summary is still being cleaned up."),
     },
     {
-      eyebrow: "People to watch",
+      eyebrow: "Creative signal",
       title: castLead,
-      body: media.credits.length
+      body: clampCardBody(media.credits.length
         ? `${castLead} leads the pull here, with ${secondCredit} helping shape how this one lands.`
-        : `${media.details.studio ?? "The production team"} is the clearest creative signal on this title.`,
+        : `${media.details.studio ?? "The production team"} is the clearest creative signal on this title.`, ""),
     },
     {
-      eyebrow: "Why it lands",
-      title: `${media.rating.toFixed(1)} / 10`,
-      body: `Between ${topGenres.toLowerCase()} and a ${media.year || "current"} release footprint, this feels built for someone chasing strong atmosphere more than background watching.`,
+      eyebrow: "Release read",
+      title: `${media.year || "Unknown year"} • ${scoreRead}`,
+      body: clampCardBody(`Between ${topGenres.toLowerCase()}, ${runtimeRead.toLowerCase()}, and a ${media.year || "current"} release footprint, this reads like a stronger lean-in watch than background viewing.`, ""),
     },
-  ];
+  ], media);
 }
 
 function buildMoodLine(media: MediaItem) {
@@ -1052,9 +1088,6 @@ export default async function MediaDetailPage({
             <RelatedMediaSection items={related} />
           </section>
 
-          <section className="detail-return-row">
-            <DetailBackButton />
-          </section>
         </main>
       </div>
     </div>
