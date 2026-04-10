@@ -61,16 +61,16 @@ if (googleConfigured) {
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: {
-    strategy: "jwt",
+    strategy: "database",
   },
   providers,
   pages: {
     signIn: "/sign-in",
   },
   callbacks: {
-    async session({ session, token }) {
+    async session({ session, token, user }) {
       if (session.user) {
-        session.user.id = token.sub ?? "";
+        session.user.id = user?.id ?? token?.sub ?? "";
       }
 
       return session;

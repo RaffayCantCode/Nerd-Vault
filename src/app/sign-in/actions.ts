@@ -2,15 +2,23 @@
 
 import { hash } from "bcryptjs";
 import { AuthError } from "next-auth";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { credentialsSignInSchema, credentialsSignUpSchema, normalizeEmail } from "@/lib/auth-credentials";
+import { OAUTH_TRANSIENT_COOKIE_NAMES } from "@/lib/auth-cookies";
 import { signIn } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function signInWithGoogle() {
   if (!process.env.AUTH_GOOGLE_ID || !process.env.AUTH_GOOGLE_SECRET || !process.env.AUTH_SECRET) {
     redirect("/sign-in?mode=login&error=google-not-configured");
+  }
+
+  const cookieStore = await cookies();
+
+  for (const cookieName of OAUTH_TRANSIENT_COOKIE_NAMES) {
+    cookieStore.delete(cookieName);
   }
 
   await signIn("google", { redirectTo: "/browse" });
