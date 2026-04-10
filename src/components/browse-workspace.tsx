@@ -31,11 +31,11 @@ function getBrowsePageSize(viewportWidth: number) {
   return 36;
 }
 
-function scrollToElementWithOffset(element: HTMLElement | null, offset: number) {
+function scrollToElementWithOffset(element: HTMLElement | null, offset: number, behavior: ScrollBehavior = "auto") {
   if (!element) return;
 
   const nextTop = Math.max(0, window.scrollY + element.getBoundingClientRect().top - offset);
-  window.scrollTo({ top: nextTop, behavior: "auto" });
+  window.scrollTo({ top: nextTop, behavior });
 }
 
 function isSafeForSurfacing(item: MediaItem) {
@@ -203,10 +203,12 @@ function buildSurfacingDeck(items: MediaItem[], seed: number, filter: MediaType 
 export function BrowseWorkspace({
   catalog,
   discoverySeed,
+  initialBootstrapPageSize = 24,
   initialTotalPages,
 }: {
   catalog: MediaItem[];
   discoverySeed: number;
+  initialBootstrapPageSize?: number;
   initialTotalPages: number;
 }) {
   const router = useRouter();
@@ -268,7 +270,7 @@ export function BrowseWorkspace({
   const [page, setPage] = useState(initialPage);
   const [activePage, setActivePage] = useState(initialPage);
   const [totalPages, setTotalPages] = useState(Math.max(1, initialTotalPages));
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(catalog.length === 0);
   const [pageSize, setPageSize] = useState(
     typeof window === "undefined" ? 24 : getBrowsePageSize(window.innerWidth),
   );
@@ -305,7 +307,7 @@ export function BrowseWorkspace({
   }, []);
 
   useEffect(() => {
-    const initialKey = buildCacheKey("all", 1, "all", "", "discovery", sessionSeedRef.current, 24);
+    const initialKey = buildCacheKey("all", 1, "all", "", "discovery", sessionSeedRef.current, initialBootstrapPageSize);
     if (!prefetchedPagesRef.current[initialKey] && catalog.length) {
       prefetchedPagesRef.current[initialKey] = {
         items: catalog,
@@ -314,7 +316,7 @@ export function BrowseWorkspace({
       };
       writeBrowsePageCache(prefetchedPagesRef.current);
     }
-  }, [catalog, initialTotalPages]);
+  }, [catalog, initialBootstrapPageSize, initialTotalPages]);
 
   useEffect(() => {
     if (!didInitBrowseStateRef.current) {
@@ -682,6 +684,8 @@ export function BrowseWorkspace({
     featuredDeck[heroIndex] ?? sortedVisible[0] ?? typedVisible[0] ?? baseCatalog[0] ?? catalog[0];
   const featuredKey = featured ? `${featured.source}-${featured.sourceId}` : "";
   const featuredWishlisted = featured ? wishlistedKeys.includes(featuredKey) : false;
+  const isPagePending = supportsRemotePaging && page !== activePage;
+  const showGridSkeletons = isLoading || isPagePending;
   const visibleGridItems = useMemo(() => {
     const baseItems = featured
       ? sortedVisible.filter((item) => `${item.source}-${item.sourceId}` !== featuredKey)
@@ -731,9 +735,14 @@ export function BrowseWorkspace({
 
   function handlePageChange(nextPage: number, source: "top" | "bottom") {
     const clamped = Math.min(totalPages, Math.max(1, nextPage));
+    if (clamped === page) {
+      return;
+    }
+
     shouldScrollToToolbarRef.current = false;
-    shouldScrollToResultsRef.current = true;
+    shouldScrollToResultsRef.current = false;
     pageScrollOffsetRef.current = source === "top" ? 110 : 44;
+    scrollToElementWithOffset(resultsRef.current, pageScrollOffsetRef.current, "smooth");
     setPage(clamped);
   }
 
@@ -914,11 +923,11 @@ export function BrowseWorkspace({
                 <span>Genre</span>
                 <strong>{genreLabel}</strong>
               </div>
-              <div className="toolbar-stat">
-                <span>Results</span>
-                <strong>{resultLabel}</strong>
-              </div>
+            <div className="toolbar-stat">
+              <span>Results</span>
+              <strong>{showGridSkeletons ? "Loading next page..." : resultLabel}</strong>
             </div>
+          </div>
           </div>
 
             <div className="browse-toolbar-row">
@@ -974,7 +983,7 @@ export function BrowseWorkspace({
 
         <div className="section-header browse-status" style={{ alignItems: "center" }} ref={resultsRef}>
           <p className="copy browse-status-copy">
-            {isLoading
+            {showGridSkeletons
               ? `Refreshing live ${
                   filter === "anime"
                     ? "anime"
@@ -986,15 +995,15 @@ export function BrowseWorkspace({
                 } results...`
               : `Showing ${sortedVisible.length} titles on page ${activePage}${supportsRemotePaging ? ` of ${totalPages}` : ""}.`}
           </p>
-          <div className={`refresh-pulse ${isLoading ? "is-active" : ""}`} />
+          <div className={`refresh-pulse ${showGridSkeletons ? "is-active" : ""}`} />
         </div>
 
-        <div className={`catalog-grid ${isLoading ? "catalog-grid-loading" : ""}`} key={`${filter}-${activePage}-${sort}-${genre}`}>
-          {visibleGridItems.length
+        <div className={`catalog-grid ${showGridSkeletons ? "catalog-grid-loading" : ""}`} key={`${filter}-${activePage}-${sort}-${genre}`}>
+          {!showGridSkeletons && visibleGridItems.length
             ? visibleGridItems.map((item, index) => (
                 <CatalogCard key={item.id} item={item} priority={index < 10} onBeforeNavigate={persistBrowseSnapshot} />
               ))
-            : isLoading
+            : showGridSkeletons
               ? Array.from({ length: Math.min(pageSize, 12) }, (_, index) => (
                   <article key={`browse-skeleton-${index}`} className="catalog-card catalog-card-skeleton" aria-hidden="true">
                     <div className="catalog-card-skeleton-media" />

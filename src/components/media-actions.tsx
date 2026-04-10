@@ -33,6 +33,9 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
   const [message, setMessage] = useState("");
   const [folders, setFolders] = useState<StoredFolder[]>([]);
   const [friends, setFriends] = useState<SocialProfile[]>([]);
+  const [isTogglingWatched, setIsTogglingWatched] = useState(false);
+  const [isTogglingWishlist, setIsTogglingWishlist] = useState(false);
+  const [isUpdatingFolder, setIsUpdatingFolder] = useState(false);
 
   const primaryLabel = item.type === "game" ? "Played" : "Watched";
 
@@ -100,38 +103,90 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
   const selectedFolderContainsItem = selectedFolder?.items.some((entry) => entry.source === item.source && entry.sourceId === item.sourceId) ?? false;
 
   async function handleWatched() {
-    if (isWatched) {
-      await removeMediaFromWatched(item);
-      setMessage(`${item.title} removed from ${primaryLabel.toLowerCase()}.`);
-      return;
-    }
+    if (isTogglingWatched) return;
 
-    await addMediaToWatched(item);
-    setMessage(`${item.title} added to ${primaryLabel.toLowerCase()}.`);
+    const nextValue = !isWatched;
+    setIsTogglingWatched(true);
+    setIsWatched(nextValue);
+    setMessage(nextValue ? `${item.title} added to ${primaryLabel.toLowerCase()}.` : `${item.title} removed from ${primaryLabel.toLowerCase()}.`);
+
+    try {
+      if (nextValue) {
+        await addMediaToWatched(item);
+      } else {
+        await removeMediaFromWatched(item);
+      }
+    } catch {
+      setIsWatched(!nextValue);
+      setMessage(`Could not update ${primaryLabel.toLowerCase()} yet. Try again.`);
+    } finally {
+      setIsTogglingWatched(false);
+    }
   }
 
   async function handleWishlist() {
-    if (isWishlisted) {
-      await removeMediaFromWishlist(item);
-      setMessage(`${item.title} removed from wishlist.`);
-      return;
-    }
+    if (isTogglingWishlist) return;
 
-    await addMediaToWishlist(item);
-    setMessage(`${item.title} added to wishlist.`);
+    const nextValue = !isWishlisted;
+    setIsTogglingWishlist(true);
+    setIsWishlisted(nextValue);
+    setMessage(nextValue ? `${item.title} added to wishlist.` : `${item.title} removed from wishlist.`);
+
+    try {
+      if (nextValue) {
+        await addMediaToWishlist(item);
+      } else {
+        await removeMediaFromWishlist(item);
+      }
+    } catch {
+      setIsWishlisted(!nextValue);
+      setMessage("Could not update wishlist yet. Try again.");
+    } finally {
+      setIsTogglingWishlist(false);
+    }
   }
 
   async function handleFolderToggle() {
-    if (!folderId) return;
+    if (!folderId || isUpdatingFolder) return;
 
-    if (selectedFolderContainsItem) {
-      await removeMediaFromFolder(folderId, item);
-      setMessage(`Removed from ${selectedFolder?.name ?? "folder"}.`);
-      return;
+    const nextContainsItem = !selectedFolderContainsItem;
+    const nextFolders = folders.map((folder) => {
+      if (folder.id !== folderId) return folder;
+
+      const alreadySaved = folder.items.some((entry) => entry.source === item.source && entry.sourceId === item.sourceId);
+      if (nextContainsItem && !alreadySaved) {
+        return {
+          ...folder,
+          items: [...folder.items, item],
+        };
+      }
+
+      if (!nextContainsItem && alreadySaved) {
+        return {
+          ...folder,
+          items: folder.items.filter((entry) => !(entry.source === item.source && entry.sourceId === item.sourceId)),
+        };
+      }
+
+      return folder;
+    });
+
+    setIsUpdatingFolder(true);
+    setFolders(nextFolders);
+    setMessage(`${nextContainsItem ? "Added to" : "Removed from"} ${selectedFolder?.name ?? "folder"}.`);
+
+    try {
+      if (nextContainsItem) {
+        await addMediaToFolder(folderId, item);
+      } else {
+        await removeMediaFromFolder(folderId, item);
+      }
+    } catch {
+      setFolders(folders);
+      setMessage(`Could not update ${selectedFolder?.name ?? "folder"} yet. Try again.`);
+    } finally {
+      setIsUpdatingFolder(false);
     }
-
-    await addMediaToFolder(folderId, item);
-    setMessage(`Added to ${selectedFolder?.name ?? "folder"}.`);
   }
 
   async function handleCreateFolder() {
@@ -171,15 +226,17 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
               className={`button button-primary ${isWatched ? "button-success" : ""}`}
               type="button"
               onClick={() => void handleWatched()}
+              disabled={isTogglingWatched}
             >
-              {isWatched ? `Remove ${primaryLabel}` : `Mark as ${primaryLabel}`}
+              {isTogglingWatched ? "Saving..." : isWatched ? `Remove ${primaryLabel}` : `Mark as ${primaryLabel}`}
             </button>
             <button
               className={`button button-secondary ${isWishlisted ? "button-accent" : ""}`}
               type="button"
               onClick={() => void handleWishlist()}
+              disabled={isTogglingWishlist}
             >
-              {isWishlisted ? "Remove wishlist" : "Add to wishlist"}
+              {isTogglingWishlist ? "Saving..." : isWishlisted ? "Remove wishlist" : "Add to wishlist"}
             </button>
           </div>
         </div>
@@ -207,8 +264,8 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
               )}
             </div>
             <div className="folder-action-row">
-              <button className="button button-secondary" type="button" onClick={() => void handleFolderToggle()} disabled={!folderId}>
-                {selectedFolderContainsItem ? "Remove from folder" : "Add to folder"}
+              <button className="button button-secondary" type="button" onClick={() => void handleFolderToggle()} disabled={!folderId || isUpdatingFolder}>
+                {isUpdatingFolder ? "Saving..." : selectedFolderContainsItem ? "Remove from folder" : "Add to folder"}
               </button>
               <button className="button button-secondary" type="button" onClick={() => setIsCreatingFolder(true)}>
                 New folder

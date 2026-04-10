@@ -21,7 +21,10 @@ export function RelatedMediaSection({
     return (
       <div className="folder-empty glass">
         <p className="headline">No close matches yet.</p>
-        <p className="copy">We are still tuning the related rail for this title.</p>
+        <p className="copy">We could not find a strong related mix for this title yet. Jump back to browse and keep the trail moving.</p>
+        <div className="related-media-actions">
+          <DetailBackButton />
+        </div>
       </div>
     );
   }

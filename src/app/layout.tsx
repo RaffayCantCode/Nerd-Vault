@@ -18,14 +18,6 @@ export const metadata: Metadata = {
   title: "NerdVault",
   description:
     "A cinematic media vault for games, movies, anime, and series. Track what you finish, discover what is next, and build smart folders like playlists.",
-  icons: {
-    icon: [
-      { url: "/logo1.png", sizes: "32x32", type: "image/png" },
-      { url: "/logo1.png", sizes: "192x192", type: "image/png" },
-    ],
-    shortcut: "/logo1.png",
-    apple: "/logo1.png",
-  },
 };
 
 export default function RootLayout({

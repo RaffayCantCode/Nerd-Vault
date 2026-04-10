@@ -708,16 +708,56 @@ async function getRelatedMediaRail(media: MediaItem) {
     });
   }
 
-  return dedupeItems(collected)
+  const scored = dedupeItems(collected)
     .filter((candidate) => `${candidate.source}-${candidate.sourceId}` !== `${media.source}-${media.sourceId}`)
     .map((candidate) => ({
       candidate,
       score: scoreRelatedCandidate(media, candidate) + (candidateMatchesSignal(candidate, franchiseSignals) ? 18 : 0),
-    }))
+    }));
+
+  const strictMatches = scored
     .filter((entry) => (franchiseSignals.length ? candidateMatchesSignal(entry.candidate, franchiseSignals) || entry.score >= 28 : entry.score >= 16))
     .sort((left, right) => right.score - left.score)
     .map((entry) => entry.candidate)
     .slice(0, 18);
+
+  if (strictMatches.length) {
+    return strictMatches;
+  }
+
+  const fallbackMatches = scored
+    .filter((entry) => entry.candidate.type === media.type || entry.score >= 10 || candidateMatchesSignal(entry.candidate, franchiseSignals))
+    .sort((left, right) => right.score - left.score)
+    .map((entry) => entry.candidate)
+    .slice(0, 12);
+
+  if (fallbackMatches.length) {
+    return fallbackMatches;
+  }
+
+  const fallbackGenre = primaryGenre || secondaryGenre || tertiaryGenre || "";
+  const sourceFallback =
+    media.type === "anime"
+      ? await withTimeout(
+          browseJikanAnime({ page: 1, genre: fallbackGenre, sort: "discovery", seed: 21 }),
+          emptyBrowseResult(),
+          1200,
+        )
+      : media.type === "game"
+        ? await withTimeout(
+            browseIgdbGames({ page: 1, genre: fallbackGenre, sort: "discovery", seed: 21 }),
+            emptyBrowseResult(),
+            1200,
+          )
+        : await withTimeout(
+            browseTmdbCatalog({ type: media.type, page: 1, genre: fallbackGenre, sort: "discovery", seed: 21 }),
+            emptyBrowseResult(),
+            1200,
+          );
+
+  return dedupeItems(sourceFallback.items)
+    .filter((candidate) => `${candidate.source}-${candidate.sourceId}` !== `${media.source}-${media.sourceId}`)
+    .slice(0, 12);
 }
 
 export default async function MediaDetailPage({
