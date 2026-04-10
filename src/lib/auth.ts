@@ -54,15 +54,6 @@ if (googleConfigured) {
     Google({
       clientId: process.env.AUTH_GOOGLE_ID!,
       clientSecret: process.env.AUTH_GOOGLE_SECRET!,
-      // Limit the scopes to reduce token size
-      authorization: {
-        params: {
-          prompt: "consent",
-          access_type: "offline",
-          response_type: "code",
-          scope: "openid email profile",
-        },
-      },
     }),
   );
 }
@@ -71,53 +62,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: {
     strategy: "jwt",
-    // Reduce session max age to 30 days (instead of default 30 days)
-    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   providers,
   pages: {
     signIn: "/sign-in",
   },
-  cookies: {
-    sessionToken: {
-      name: `${process.env.NODE_ENV === "production" ? "__Secure-" : ""}next-auth.session-token`,
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: process.env.NODE_ENV === "production",
-        // Split cookies if they get too large
-        domain: process.env.NODE_ENV === "production" 
-          ? process.env.NEXTAUTH_URL?.includes("vercel.app") 
-            ? ".vercel.app" 
-            : undefined
-          : undefined,
-      },
-    },
-  },
   callbacks: {
-    async jwt({ token, user, account, profile }) {
-      // Only store essential user data in the token to keep it small
-      if (user) {
-        token.id = user.id;
-      }
-      
-      // Don't store the entire account/profile object - it's too large
-      // Only store what you actually need
-      if (account) {
-        token.provider = account.provider;
-      }
-      
-      return token;
-    },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string;
+        session.user.id = token.sub ?? "";
       }
 
       return session;
     },
   },
-  // Enable debug in development
-  debug: process.env.NODE_ENV === "development",
 });
