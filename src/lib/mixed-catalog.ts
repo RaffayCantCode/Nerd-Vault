@@ -278,7 +278,7 @@ export async function browseMixedCatalog({
   }
 
   const needsBroaderPool = Boolean((genre && genre !== "all") || safeQuery);
-  const sourcePageSpan = Math.min(3, Math.max(1, Math.ceil(safePageSize / 16)));
+  const sourcePageSpan = safeQuery ? 2 : genre && genre !== "all" ? 2 : 1;
   const sourcePages = Array.from(
     { length: needsBroaderPool ? Math.max(2, sourcePageSpan) : sourcePageSpan },
     (_, index) => page + index,
@@ -413,6 +413,27 @@ export async function browseMixedCatalog({
 
     if (guaranteedGames.length) {
       finalItems = dedupeBySource([...guaranteedGames, ...finalItems]).slice(0, safePageSize);
+    }
+  }
+
+  if (!safeQuery && !needsBroaderPool && page > 1) {
+    const seenAcrossPages = new Set<string>();
+
+    for (let previousPage = 1; previousPage < page; previousPage += 1) {
+      const previousCacheKey = JSON.stringify({
+        page: previousPage,
+        query: safeQuery,
+        genre,
+        sort,
+        seed,
+        pageSize: safePageSize,
+      });
+      const previousPayload = mixedCatalogCache.get(previousCacheKey)?.payload;
+      previousPayload?.items.forEach((item) => seenAcrossPages.add(`${item.source}-${item.sourceId}`));
+    }
+
+    if (seenAcrossPages.size) {
+      finalItems = finalItems.filter((item) => !seenAcrossPages.has(`${item.source}-${item.sourceId}`));
     }
   }
 

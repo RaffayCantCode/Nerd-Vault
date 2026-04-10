@@ -100,11 +100,10 @@ export function CatalogCard({
       ref={cardRef}
       href={href}
       className={`catalog-card ${isNavigating ? "is-navigating" : ""} ${isVisible ? "is-visible" : ""}`}
-      prefetch
+      prefetch={false}
       onClick={handleNavigate}
       onMouseEnter={warmRoute}
       onFocus={warmRoute}
-      onTouchStart={warmRoute}
     >
       <ResilientMediaImage
         item={item}
@@ -120,7 +119,9 @@ export function CatalogCard({
           <span className="pill">{item.rating.toFixed(1)}</span>
         </div>
         <h3 className="catalog-title">{item.title}</h3>
-        <p className="catalog-overview">{item.overview}</p>
+        <p className="catalog-genres">
+          {(item.genres.length ? item.genres : ["More details"]).slice(0, 3).join(" • ")}
+        </p>
       </div>
     </Link>
   );

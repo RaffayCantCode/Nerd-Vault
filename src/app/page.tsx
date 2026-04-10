@@ -38,6 +38,9 @@ export default async function HomePage() {
                     <Link href="/browse" className="button button-primary">
                       Go back to browse
                     </Link>
+                    <Link href="/support" className="button button-secondary">
+                      Support
+                    </Link>
                     <form action={signOutUser}>
                       <button type="submit" className="button button-secondary">
                         Sign out
@@ -51,6 +54,9 @@ export default async function HomePage() {
                     </Link>
                     <Link href="/browse" className="button button-secondary">
                       Try browse first
+                    </Link>
+                    <Link href="/support" className="button button-secondary">
+                      Support
                     </Link>
                   </>
                 )}

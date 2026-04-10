@@ -363,11 +363,9 @@ async function getTmdbMoviePage(page: number, query?: string, genre?: string) {
 }
 
 function getDiscoveryPage(page: number, seed = 1, windowSize = 48, salt = 0) {
-  // Use prime-based LCG for chaotic but deterministic page distribution
-  const a = 1664525;
-  const c = 1013904223;
-  const mixed = Math.abs((seed * a + c + salt * 22695477) | 0);
-  return (mixed % windowSize) + 1;
+  const offset = Math.abs((seed * 131 + salt * 17) % windowSize);
+  const stride = 37;
+  return ((offset + (page - 1) * stride) % windowSize) + 1;
 }
 
 function getDiscoverySort(seed = 1, salt = 0) {

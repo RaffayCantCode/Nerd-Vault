@@ -23,6 +23,9 @@ export async function SiteHeader() {
             <Link href="/browse" className="nav-link">
               Back to browse
             </Link>
+            <Link href="/support" className="nav-link">
+              Support
+            </Link>
             <Link href="/profile" className="nav-link">
               Profile
             </Link>
@@ -36,6 +39,9 @@ export async function SiteHeader() {
           <>
             <Link href="/browse" className="nav-link">
               Browse
+            </Link>
+            <Link href="/support" className="nav-link">
+              Support
             </Link>
             <Link href="/profile" className="nav-link">
               Profile

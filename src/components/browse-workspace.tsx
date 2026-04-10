@@ -24,11 +24,27 @@ const BROWSE_LAST_URL_KEY = "nerdvault-browse-last-url";
 const BROWSE_CACHE_TTL_MS = 1000 * 60 * 10;
 
 function getBrowsePageSize(viewportWidth: number) {
-  if (viewportWidth < 640) return 10;
-  if (viewportWidth < 960) return 18;
+  if (viewportWidth < 640) return 12;
+  if (viewportWidth < 960) return 20;
   if (viewportWidth < 1440) return 24;
   if (viewportWidth < 1800) return 30;
   return 36;
+}
+
+function scrollToElementWithOffset(element: HTMLElement | null, offset: number) {
+  if (!element) return;
+
+  const nextTop = Math.max(0, window.scrollY + element.getBoundingClientRect().top - offset);
+  window.scrollTo({ top: nextTop, behavior: "auto" });
+}
+
+function isSafeForSurfacing(item: MediaItem) {
+  const unsafeGenreTerms = ["ecchi", "erotica", "hentai", "adult", "softcore"];
+  const unsafeTextTerms = ["ecchi", "erotic", "sexual", "seductive", "lust", "bdsm"];
+  const haystack = [item.title, item.originalTitle ?? "", item.overview, ...item.genres].join(" ").toLowerCase();
+
+  return !unsafeGenreTerms.some((term) => item.genres.some((genre) => genre.toLowerCase().includes(term))) &&
+    !unsafeTextTerms.some((term) => haystack.includes(term));
 }
 
 function readBrowsePageCache() {
@@ -516,8 +532,14 @@ export function BrowseWorkspace({
   const heroBaseCatalog = useMemo(() => {
     const typeScoped = filterCatalog(catalog, filter, "");
     const genreScoped = typeScoped.filter((item) => itemMatchesGenre(item, genre));
+    const safeGenreScoped = genreScoped.filter(isSafeForSurfacing);
+    const safeTypeScoped = typeScoped.filter(isSafeForSurfacing);
 
-    return genreScoped.length ? genreScoped : typeScoped.length ? typeScoped : catalog;
+    if (safeGenreScoped.length) return safeGenreScoped;
+    if (safeTypeScoped.length) return safeTypeScoped;
+    if (genreScoped.length) return genreScoped;
+    if (typeScoped.length) return typeScoped;
+    return catalog.filter(isSafeForSurfacing).length ? catalog.filter(isSafeForSurfacing) : catalog;
   }, [catalog, filter, genre]);
 
   const sortedVisible = useMemo(() => {
@@ -567,7 +589,7 @@ export function BrowseWorkspace({
       return;
     }
 
-    toolbarRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    scrollToElementWithOffset(toolbarRef.current, 110);
     shouldScrollToToolbarRef.current = false;
   }, [activePage, isLoading]);
 
@@ -576,7 +598,7 @@ export function BrowseWorkspace({
       return;
     }
 
-    resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    scrollToElementWithOffset(resultsRef.current, 110);
     shouldScrollToResultsRef.current = false;
   }, [deferredQuery, isLoading, sortedVisible.length]);
 
@@ -592,7 +614,7 @@ export function BrowseWorkspace({
     }
 
     const timer = window.setTimeout(() => {
-      resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      scrollToElementWithOffset(resultsRef.current, 110);
     }, 900);
 
     return () => window.clearTimeout(timer);
@@ -660,9 +682,10 @@ export function BrowseWorkspace({
     void addMediaToWishlist(item);
   }
 
-  function handlePageChange(nextPage: number) {
+  function handlePageChange(nextPage: number, source: "top" | "bottom") {
     const clamped = Math.min(totalPages, Math.max(1, nextPage));
-    shouldScrollToToolbarRef.current = true;
+    shouldScrollToToolbarRef.current = false;
+    shouldScrollToResultsRef.current = source === "top";
     setPage(clamped);
   }
 
@@ -670,7 +693,7 @@ export function BrowseWorkspace({
     window.sessionStorage.setItem(BROWSE_SCROLL_KEY, String(window.scrollY));
   }
 
-  function renderPager() {
+  function renderPager(source: "top" | "bottom") {
     if (!supportsRemotePaging) return null;
 
     return (
@@ -685,7 +708,7 @@ export function BrowseWorkspace({
           <button
             type="button"
             className="chip"
-            onClick={() => handlePageChange(activePage - 1)}
+            onClick={() => handlePageChange(activePage - 1, source)}
             disabled={activePage <= 1}
           >
             Previous page
@@ -698,7 +721,7 @@ export function BrowseWorkspace({
           <button
             type="button"
             className="chip is-active"
-            onClick={() => handlePageChange(activePage + 1)}
+            onClick={() => handlePageChange(activePage + 1, source)}
             disabled={activePage >= totalPages}
           >
             Next page
@@ -899,7 +922,7 @@ export function BrowseWorkspace({
           </div>
         </div>
 
-        {renderPager()}
+        {renderPager("top")}
 
         <div className="section-header browse-status" style={{ alignItems: "center" }} ref={resultsRef}>
           <p className="copy browse-status-copy">
@@ -920,11 +943,11 @@ export function BrowseWorkspace({
 
         <div className={`catalog-grid ${isLoading ? "catalog-grid-loading" : ""}`} key={`${filter}-${activePage}-${sort}-${genre}`}>
           {visibleGridItems.map((item, index) => (
-            <CatalogCard key={item.id} item={item} priority={index < 12} onBeforeNavigate={persistBrowseSnapshot} />
+            <CatalogCard key={item.id} item={item} priority={index < 6} onBeforeNavigate={persistBrowseSnapshot} />
           ))}
         </div>
 
-        {renderPager()}
+        {renderPager("bottom")}
       </section>
     </div>
   );

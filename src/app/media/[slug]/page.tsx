@@ -185,7 +185,14 @@ function matchesSlugCandidate(item: MediaItem, slug: string) {
   });
 }
 
-async function findRemoteMediaBySlug(slug: string, preferredSource?: string, preferredType?: string) {
+function matchesIdentityCandidate(item: MediaItem, preferredSource?: string, preferredSourceId?: string, preferredType?: string) {
+  if (preferredSource && item.source !== preferredSource) return false;
+  if (preferredSourceId && item.sourceId !== preferredSourceId) return false;
+  if (preferredType && item.type !== preferredType) return false;
+  return true;
+}
+
+async function findRemoteMediaBySlug(slug: string, preferredSource?: string, preferredType?: string, preferredSourceId?: string) {
   const queryVariants = buildQueryVariants(slug.replace(/-/g, " "));
   const searchPages = [1, 2, 3, 4, 5];
 
@@ -217,7 +224,12 @@ async function findRemoteMediaBySlug(slug: string, preferredSource?: string, pre
         ...(preferredType ? [] : gameCatalog?.items ?? []),
       ];
 
-      const match = matchPool.find((item) => matchesSlugCandidate(item, slug));
+      const exactIdentityMatch =
+        preferredSourceId
+          ? matchPool.find((item) => matchesIdentityCandidate(item, preferredSource, preferredSourceId, preferredType))
+          : undefined;
+      const slugMatch = matchPool.find((item) => matchesSlugCandidate(item, slug));
+      const match = exactIdentityMatch ?? slugMatch;
 
       if (!match) {
         continue;
@@ -753,7 +765,7 @@ export default async function MediaDetailPage({
 
   if (!media) {
     try {
-      const resolved = await findRemoteMediaBySlug(slug, source, type);
+      const resolved = await findRemoteMediaBySlug(slug, source, type, sourceId);
       media = resolved.media;
       animeFranchise = resolved.animeFranchise;
     } catch {
@@ -1038,6 +1050,10 @@ export default async function MediaDetailPage({
               </div>
             </div>
             <RelatedMediaSection items={related} />
+          </section>
+
+          <section className="detail-return-row">
+            <DetailBackButton />
           </section>
         </main>
       </div>

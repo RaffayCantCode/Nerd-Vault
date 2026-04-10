@@ -4769,3 +4769,366 @@ body {
     max-height: 300px;
   }
 }
+
+/* Batch 1 fixes: support page, browse return flow, hero fit, and mobile pacing */
+
+.support-page {
+  position: relative;
+  overflow: hidden;
+  border-radius: 34px;
+  padding: clamp(24px, 4vw, 42px);
+}
+
+.support-page::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at top right, rgba(3, 252, 190, 0.12), transparent 30%),
+    radial-gradient(circle at bottom left, rgba(158, 135, 255, 0.12), transparent 34%);
+}
+
+.support-page-copy {
+  position: relative;
+  z-index: 1;
+  max-width: 74ch;
+  display: grid;
+  gap: 16px;
+}
+
+.support-title {
+  font-size: clamp(2.6rem, 6vw, 4.8rem);
+  line-height: 0.92;
+  max-width: 11ch;
+}
+
+.support-lead {
+  color: rgba(246, 247, 251, 0.88);
+  font-size: 1.04rem;
+}
+
+.support-email {
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.topbar-support-link {
+  white-space: nowrap;
+}
+
+.detail-return-row {
+  display: flex;
+  justify-content: flex-start;
+  padding-bottom: 10px;
+}
+
+.workspace-hero {
+  min-height: clamp(420px, 52vw, 560px);
+}
+
+.workspace-hero-grid {
+  grid-template-columns: minmax(0, 1.08fr) minmax(280px, 0.72fr);
+  gap: 0;
+}
+
+.workspace-copy-browse {
+  padding: clamp(26px, 3vw, 40px);
+  max-width: none;
+  min-width: 0;
+  gap: 14px;
+}
+
+.hero-nav-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.hero-nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.surfacing-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.browse-hero-title {
+  font-size: clamp(2.1rem, 4vw, 4.2rem);
+  line-height: 0.9;
+  letter-spacing: 0.02em;
+  max-width: 13ch;
+  overflow: visible;
+  display: block;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+.workspace-hero-copy {
+  max-width: 62ch;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.hero-meta-strip {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.hero-art {
+  min-height: 100%;
+  padding: clamp(20px, 3vw, 34px);
+  align-items: center;
+  justify-content: center;
+  border-left: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.hero-art::before {
+  background:
+    linear-gradient(90deg, rgba(5, 8, 13, 0.82) 0%, rgba(5, 8, 13, 0.22) 18%, rgba(5, 8, 13, 0) 38%),
+    radial-gradient(circle at left center, rgba(5, 8, 13, 0.46), transparent 58%);
+}
+
+.hero-art-image {
+  width: min(100%, 360px);
+  height: auto;
+  max-height: calc(100% - 12px);
+  aspect-ratio: 2 / 3;
+  object-fit: contain;
+  object-position: center;
+  filter: drop-shadow(0 26px 40px rgba(0, 0, 0, 0.34));
+}
+
+.browse-toolbar {
+  scroll-margin-top: 96px;
+}
+
+.bottom-pager {
+  scroll-margin-top: 96px;
+}
+
+.catalog-grid {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.catalog-card,
+.catalog-grid .catalog-card {
+  animation-duration: 0.2s;
+}
+
+.catalog-card img,
+.hero-art-image,
+.workspace-hero .hero-media img {
+  transition-duration: 120ms !important;
+}
+
+.catalog-copy {
+  gap: 10px;
+}
+
+@media (max-width: 1080px) {
+  .workspace-hero-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(250px, 0.7fr);
+  }
+
+  .browse-hero-title {
+    max-width: 12ch;
+  }
+}
+
+@media (max-width: 900px) {
+  .workspace-hero {
+    min-height: 0;
+  }
+
+  .workspace-hero-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-art {
+    order: -1;
+    min-height: 0;
+    padding: 26px 26px 12px;
+    border-left: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .hero-art::before {
+    background:
+      linear-gradient(180deg, rgba(5, 8, 13, 0.24) 0%, rgba(5, 8, 13, 0) 30%),
+      radial-gradient(circle at center, rgba(5, 8, 13, 0.18), transparent 62%);
+  }
+
+  .hero-art-image {
+    width: min(100%, 320px);
+    max-height: 420px;
+  }
+
+  .workspace-copy-browse {
+    padding-top: 18px;
+  }
+
+  .browse-hero-title {
+    max-width: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .support-title {
+    max-width: none;
+  }
+
+  .hero-nav-row,
+  .hero-nav-controls {
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+
+  .workspace-copy-browse {
+    padding: 20px 18px 22px;
+  }
+
+  .workspace-hero-copy {
+    -webkit-line-clamp: 5;
+  }
+
+  .catalog-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .catalog-card {
+    min-height: 290px;
+  }
+}
+
+@media (max-width: 520px) {
+  .hero-art {
+    padding-inline: 18px;
+  }
+
+  .hero-art-image {
+    width: min(100%, 270px);
+    max-height: 360px;
+  }
+
+  .browse-hero-title {
+    font-size: clamp(1.8rem, 9vw, 2.7rem);
+  }
+
+  .catalog-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .catalog-card {
+    min-height: 270px;
+  }
+
+  .catalog-title {
+    font-size: 1rem;
+  }
+}
+
+/* Batch 2 fixes: calmer paging, lighter motion, cleaner cards */
+
+html {
+  scroll-behavior: auto;
+}
+
+.workspace,
+.workspace-copy,
+.browse-toolbar,
+.bottom-pager,
+.catalog-card,
+.catalog-grid .catalog-card,
+.workspace-hero .hero-media img,
+.hero-art .hero-art-image,
+.hero-nav-arrow,
+.surfacing-pill,
+.button-row,
+.hero-meta-strip,
+.browse-hero-title,
+.workspace-hero-copy {
+  animation: none !important;
+}
+
+.catalog-card img,
+.workspace-hero .hero-media img,
+.hero-art-image {
+  opacity: 1 !important;
+  transition:
+    transform 140ms ease,
+    filter 140ms ease !important;
+}
+
+.catalog-card {
+  transform: none !important;
+}
+
+.catalog-card:hover {
+  transform: translateY(-2px) !important;
+}
+
+.catalog-copy {
+  gap: 8px;
+}
+
+.catalog-overview {
+  display: none !important;
+}
+
+.catalog-genres {
+  margin: 0;
+  color: rgba(246, 247, 251, 0.78);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+}
+
+.catalog-title {
+  font-size: 1.08rem;
+  line-height: 1.14;
+}
+
+.catalog-card img {
+  object-position: center top;
+}
+
+.workspace-hero .hero-media img {
+  filter: saturate(0.9) contrast(0.92) brightness(0.72);
+}
+
+.bottom-pager {
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.chip,
+.hero-nav-arrow,
+.surfacing-pill {
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease,
+    transform 120ms ease;
+}
+
+@media (max-width: 720px) {
+  .catalog-genres {
+    font-size: 0.78rem;
+  }
+
+  .catalog-card {
+    min-height: 282px;
+  }
+}

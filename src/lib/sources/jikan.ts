@@ -184,7 +184,9 @@ function slugify(input: string) {
 }
 
 function getDiscoveryPage(page: number, seed = 1, windowSize = 250, salt = 0) {
-  return ((page + seed * 5 + salt - 1) % windowSize) + 1;
+  const offset = Math.abs((seed * 29 + salt * 11) % windowSize);
+  const stride = 43;
+  return ((offset + (page - 1) * stride) % windowSize) + 1;
 }
 
 function cleanWhitespace(input: string) {

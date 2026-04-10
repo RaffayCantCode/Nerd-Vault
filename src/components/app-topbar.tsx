@@ -293,6 +293,10 @@ export function AppTopBar({
         </form>
 
         <div className="topbar-action-group">
+          <Link href="/support" className="topbar-chip topbar-support-link">
+            Support
+          </Link>
+
           <div className="topbar-inbox-shell">
             <button
               type="button"

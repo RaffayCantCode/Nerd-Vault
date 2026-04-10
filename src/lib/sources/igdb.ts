@@ -236,7 +236,7 @@ export async function browseIgdbGames(params: {
   const discoverySeed = params.seed ?? 1;
   const requestPage =
     !queryText && sort === "discovery"
-      ? Math.max(1, page + (Math.abs(Math.sin(discoverySeed * 9301 + 49297) * 1000) | 0) % 18)
+      ? ((Math.abs((discoverySeed * 17) % 18) + (page - 1) * 5) % 18) + 1
       : page;
   const offset = (requestPage - 1) * 24;
   const escapedQuery = queryText?.replace(/"/g, '\\"');
