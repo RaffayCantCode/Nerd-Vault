@@ -569,6 +569,10 @@ async function withTimeout<T>(work: Promise<T>, fallback: T, timeoutMs = 1200) {
   }
 }
 
+function emptyBrowseResult() {
+  return { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] };
+}
+
 async function getRelatedMediaRail(media: MediaItem) {
   const primaryGenre = media.genres[0];
   const secondaryGenre = media.genres[1];
@@ -582,30 +586,30 @@ async function getRelatedMediaRail(media: MediaItem) {
     const results = await Promise.allSettled([
       withTimeout(
         browseTmdbCatalog({ type: mediaType, page: 1, genre: primaryGenre, sort: "rating" }),
-        { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
-      ),
-      withTimeout(
-        browseTmdbCatalog({ type: mediaType, page: 2, genre: primaryGenre, sort: "discovery", seed: 7 }),
-        { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
+        emptyBrowseResult(),
+        700,
       ),
       ...(secondaryGenre
         ? [
             withTimeout(
               browseTmdbCatalog({ type: mediaType, page: 1, genre: secondaryGenre, sort: "discovery", seed: 9 }),
-              { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
+              emptyBrowseResult(),
+              650,
             ),
           ]
         : []),
-      ...franchiseSignals.map((query, index) =>
+      ...franchiseSignals.slice(0, 1).map((query, index) =>
         withTimeout(
           browseTmdbCatalog({ type: mediaType, page: 1, query, sort: "rating", seed: 13 + index }),
-          { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
+          emptyBrowseResult(),
+          650,
         ),
       ),
-      ...queries.slice(0, 2).map((query, index) =>
+      ...queries.slice(0, 1).map((query, index) =>
         withTimeout(
           browseTmdbCatalog({ type: mediaType, page: 1, query, sort: "discovery", seed: 5 + index }),
-          { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
+          emptyBrowseResult(),
+          650,
         ),
       ),
     ]);
@@ -621,30 +625,30 @@ async function getRelatedMediaRail(media: MediaItem) {
     const results = await Promise.allSettled([
       withTimeout(
         browseJikanAnime({ page: 1, genre: primaryGenre, sort: "rating" }),
-        { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
-      ),
-      withTimeout(
-        browseJikanAnime({ page: 2, genre: primaryGenre, sort: "discovery", seed: 7 }),
-        { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
+        emptyBrowseResult(),
+        700,
       ),
       ...(secondaryGenre
         ? [
             withTimeout(
               browseJikanAnime({ page: 1, genre: secondaryGenre, sort: "discovery", seed: 9 }),
-              { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
+              emptyBrowseResult(),
+              650,
             ),
           ]
         : []),
-      ...franchiseSignals.map((query, index) =>
+      ...franchiseSignals.slice(0, 1).map((query, index) =>
         withTimeout(
           browseJikanAnime({ page: 1, query, sort: "rating", seed: 13 + index }),
-          { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
+          emptyBrowseResult(),
+          650,
         ),
       ),
-      ...queries.slice(0, 2).map((query, index) =>
+      ...queries.slice(0, 1).map((query, index) =>
         withTimeout(
           browseJikanAnime({ page: 1, query, sort: "discovery", seed: 5 + index }),
-          { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
+          emptyBrowseResult(),
+          650,
         ),
       ),
     ]);
@@ -660,17 +664,15 @@ async function getRelatedMediaRail(media: MediaItem) {
     const results = await Promise.allSettled([
       withTimeout(
         browseIgdbGames({ page: 1, genre: primaryGenre, sort: "rating" }),
-        { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
-      ),
-      withTimeout(
-        browseIgdbGames({ page: 2, genre: primaryGenre, sort: "discovery", seed: 7 }),
-        { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
+        emptyBrowseResult(),
+        700,
       ),
       ...(secondaryGenre
         ? [
             withTimeout(
               browseIgdbGames({ page: 1, genre: secondaryGenre, sort: "discovery", seed: 9 }),
-              { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
+              emptyBrowseResult(),
+              650,
             ),
           ]
         : []),
@@ -678,20 +680,23 @@ async function getRelatedMediaRail(media: MediaItem) {
         ? [
             withTimeout(
               browseIgdbGames({ page: 1, genre: tertiaryGenre, sort: "discovery", seed: 11 }),
-              { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
+              emptyBrowseResult(),
+              650,
             ),
           ]
         : []),
-      ...franchiseSignals.map((query, index) =>
+      ...franchiseSignals.slice(0, 1).map((query, index) =>
         withTimeout(
           browseIgdbGames({ page: 1, query, sort: "rating", seed: 13 + index }),
-          { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
+          emptyBrowseResult(),
+          650,
         ),
       ),
-      ...queries.slice(0, 2).map((query, index) =>
+      ...queries.slice(0, 1).map((query, index) =>
         withTimeout(
           browseIgdbGames({ page: 1, query, sort: "discovery", seed: 5 + index }),
-          { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
+          emptyBrowseResult(),
+          650,
         ),
       ),
     ]);

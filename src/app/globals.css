@@ -5132,3 +5132,86 @@ html {
     min-height: 282px;
   }
 }
+
+/* Motion restoration: keep it alive, keep it light */
+
+@keyframes cardFloatInLite {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.992);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes heroSoftFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes heroImageSoftIn {
+  from {
+    opacity: 0;
+    transform: scale(1.02);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.workspace-copy {
+  animation: heroSoftFadeIn 220ms ease-out both !important;
+}
+
+.workspace-hero .hero-media img,
+.hero-art .hero-art-image {
+  animation: heroImageSoftIn 260ms ease-out both !important;
+}
+
+.catalog-grid .catalog-card {
+  animation: cardFloatInLite 180ms ease-out both !important;
+  animation-play-state: paused;
+}
+
+.catalog-grid .catalog-card.is-visible {
+  animation-play-state: running;
+}
+
+.catalog-card:nth-child(1)  { animation-delay: 0ms; }
+.catalog-card:nth-child(2)  { animation-delay: 20ms; }
+.catalog-card:nth-child(3)  { animation-delay: 40ms; }
+.catalog-card:nth-child(4)  { animation-delay: 60ms; }
+.catalog-card:nth-child(5)  { animation-delay: 80ms; }
+.catalog-card:nth-child(6)  { animation-delay: 100ms; }
+.catalog-card:nth-child(n+7) { animation-delay: 120ms; }
+
+.catalog-card,
+.hero-nav-arrow,
+.surfacing-pill,
+.button,
+.chip {
+  transition:
+    transform 140ms ease,
+    background 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    color 140ms ease;
+}
+
+.catalog-card img,
+.workspace-hero .hero-media img,
+.hero-art-image {
+  transition:
+    opacity 120ms ease,
+    transform 180ms ease,
+    filter 180ms ease !important;
+}

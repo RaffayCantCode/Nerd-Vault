@@ -972,7 +972,7 @@ export function BrowseWorkspace({
 
         <div className={`catalog-grid ${isLoading ? "catalog-grid-loading" : ""}`} key={`${filter}-${activePage}-${sort}-${genre}`}>
           {visibleGridItems.map((item, index) => (
-            <CatalogCard key={item.id} item={item} priority={index < 6} onBeforeNavigate={persistBrowseSnapshot} />
+            <CatalogCard key={item.id} item={item} priority={index < 10} onBeforeNavigate={persistBrowseSnapshot} />
           ))}
         </div>
 
