@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Bebas_Neue, Manrope } from "next/font/google";
+import { AuthCookieReset } from "@/components/auth-cookie-reset";
 import "./globals.css";
 
 const display = Bebas_Neue({
@@ -24,7 +25,10 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${display.variable} ${sans.variable}`}>{children}</body>
+      <body className={`${display.variable} ${sans.variable}`}>
+        <AuthCookieReset />
+        {children}
+      </body>
     </html>
   );
 }

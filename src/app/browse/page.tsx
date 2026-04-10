@@ -4,7 +4,6 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopBar } from "@/components/app-topbar";
 import { BrowseWorkspace } from "@/components/browse-workspace";
 import { browseMixedCatalog } from "@/lib/mixed-catalog";
-import { getVaultProfilePayload } from "@/lib/vault-server";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -30,9 +29,6 @@ export default async function BrowsePage() {
   const viewerName = session?.user?.name || "Guest vault";
   const viewerId = session?.user?.id || "guest-vault";
   const viewerAvatar = session?.user?.image || undefined;
-  const initialSocial = session?.user?.id
-    ? await getVaultProfilePayload(session.user.id, session.user.id).catch(() => null)
-    : null;
 
   return (
     <div className="page-shell">
@@ -43,8 +39,6 @@ export default async function BrowsePage() {
             viewerId={viewerId}
             viewerName={viewerName}
             viewerAvatar={viewerAvatar}
-            initialProfile={initialSocial?.viewerProfile ?? null}
-            initialFriends={initialSocial?.friends ?? []}
           />
           <BrowseWorkspace
             catalog={initialBrowse.items}

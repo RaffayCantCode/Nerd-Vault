@@ -162,6 +162,7 @@ export function SidebarFolders({ initialFolders = [] }: { initialFolders?: Store
             prefetch
           >
             <span className="sidebar-folder-art" style={getFolderArtStyle(folder.coverUrl)} />
+            <span className="sidebar-folder-tooltip">{folder.name}</span>
           </Link>
         ))}
       </div>

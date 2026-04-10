@@ -3,11 +3,9 @@ const LEGACY_AUTH_COOKIE_PREFIXES = [
   "__Secure-next-auth.",
 ];
 
-const SESSION_COOKIE_PREFIXES = [
-  "authjs.session-token.",
-  "__Secure-authjs.session-token.",
-  "next-auth.session-token.",
-  "__Secure-next-auth.session-token.",
+export const LEGACY_AUTH_COOKIE_NAMES = [
+  "next-auth.session-token",
+  "__Secure-next-auth.session-token",
 ];
 
 export const OAUTH_TRANSIENT_COOKIE_NAMES = [
@@ -33,16 +31,21 @@ export const OAUTH_TRANSIENT_COOKIE_NAMES = [
   "__Secure-next-auth.pkce.code_verifier",
 ];
 
+export const CLIENT_AUTH_RESET_COOKIE_NAMES = [
+  ...LEGACY_AUTH_COOKIE_NAMES,
+  ...OAUTH_TRANSIENT_COOKIE_NAMES,
+];
+
 export function getAuthCookiesToDelete(cookieNames: Iterable<string>) {
   const deletions = new Set<string>();
 
   for (const cookieName of cookieNames) {
-    if (LEGACY_AUTH_COOKIE_PREFIXES.some((prefix) => cookieName.startsWith(prefix))) {
+    if (LEGACY_AUTH_COOKIE_NAMES.includes(cookieName) || OAUTH_TRANSIENT_COOKIE_NAMES.includes(cookieName)) {
       deletions.add(cookieName);
       continue;
     }
 
-    if (SESSION_COOKIE_PREFIXES.some((prefix) => cookieName.startsWith(prefix))) {
+    if (LEGACY_AUTH_COOKIE_PREFIXES.some((prefix) => cookieName.startsWith(prefix))) {
       deletions.add(cookieName);
     }
   }

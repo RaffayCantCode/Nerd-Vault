@@ -387,7 +387,12 @@ export function BrowseWorkspace({
         return;
       }
 
-      setIsLoading(true);
+      const targetKey = buildCacheKey(filter, page, genre, deferredQuery, sort, sessionSeedRef.current);
+      const hasCachedPage = Boolean(prefetchedPagesRef.current[targetKey]);
+
+      if (!hasCachedPage) {
+        setIsLoading(true);
+      }
 
       try {
         await fetchPage(page);
@@ -672,7 +677,7 @@ export function BrowseWorkspace({
   return (
     <div className="workspace">
       {featured ? (
-        <section className="workspace-hero glass">
+      <section className="workspace-hero glass">
           {/* Full-bleed backdrop */}
           <div className="hero-media" key={`bg-${featuredKey}`}>
             <img
@@ -687,7 +692,7 @@ export function BrowseWorkspace({
 
           <div className="workspace-hero-grid">
             {/* ── Left: content ── */}
-            <div className="workspace-copy" key={featuredKey}>
+            <div className="workspace-copy workspace-copy-browse" key={featuredKey}>
 
               {/* Row: eyebrow + arrow nav + type pills */}
               <div className="hero-nav-row">
@@ -879,7 +884,7 @@ export function BrowseWorkspace({
           <div className={`refresh-pulse ${isLoading ? "is-active" : ""}`} />
         </div>
 
-        <div className="catalog-grid" key={`${filter}-${activePage}-${sort}-${genre}`}>
+        <div className={`catalog-grid ${isLoading ? "catalog-grid-loading" : ""}`} key={`${filter}-${activePage}-${sort}-${genre}`}>
           {visibleGridItems.map((item, index) => (
             <CatalogCard key={item.id} item={item} priority={index < 12} onBeforeNavigate={persistBrowseSnapshot} />
           ))}

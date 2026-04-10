@@ -610,10 +610,16 @@ export function ProfileWorkspace({
             </div>
           ) : null}
 
-          <div className="profile-jump-row profile-jump-row-outside">
-            <a href="#profile-watched" className="button button-secondary profile-jump-button">Watched</a>
-            <a href="#profile-wishlist" className="button button-secondary profile-jump-button">Wishlist</a>
-            <a href="#profile-folders" className="button button-secondary profile-jump-button">Folders</a>
+          <div className="profile-jump-section">
+            <div className="profile-jump-copy">
+              <p className="eyebrow">Quick shortcuts</p>
+              <p className="copy">Here's the quick shortcut to where you wanna go.</p>
+            </div>
+            <div className="profile-jump-row profile-jump-row-outside">
+              <a href="#profile-watched" className="button button-secondary profile-jump-button">Watched</a>
+              <a href="#profile-wishlist" className="button button-secondary profile-jump-button">Wishlist</a>
+              <a href="#profile-folders" className="button button-secondary profile-jump-button">Folders</a>
+            </div>
           </div>
         </section>
       ) : null}
