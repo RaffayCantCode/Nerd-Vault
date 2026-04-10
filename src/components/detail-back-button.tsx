@@ -14,13 +14,13 @@ export function DetailBackButton() {
       onClick={() => {
         const lastBrowseUrl = window.sessionStorage.getItem(BROWSE_LAST_URL_KEY);
 
-        if (window.history.length > 1) {
-          window.history.back();
+        if (lastBrowseUrl) {
+          router.push(lastBrowseUrl);
           return;
         }
 
-        if (lastBrowseUrl) {
-          router.push(lastBrowseUrl);
+        if (window.history.length > 1) {
+          window.history.back();
           return;
         }
 

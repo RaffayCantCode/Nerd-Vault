@@ -19,6 +19,7 @@ export function CatalogCard({
   const cardRef = useRef<HTMLAnchorElement>(null);
   const [isNavigating, setIsNavigating] = useState(false);
   const [isVisible, setIsVisible] = useState(priority);
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
   const href = useMemo(
     () => ({
       pathname: `/media/${item.slug}`,
@@ -99,7 +100,7 @@ export function CatalogCard({
     <Link
       ref={cardRef}
       href={href}
-      className={`catalog-card ${isNavigating ? "is-navigating" : ""} ${isVisible ? "is-visible" : ""}`}
+      className={`catalog-card ${isNavigating ? "is-navigating" : ""} ${isVisible ? "is-visible" : ""} ${isImageLoaded ? "has-media-loaded" : ""}`}
       prefetch={false}
       onClick={handleNavigate}
       onMouseEnter={warmRoute}
@@ -110,6 +111,7 @@ export function CatalogCard({
         loading={priority ? "eager" : "lazy"}
         fetchPriority={priority ? "high" : "auto"}
         decoding="async"
+        onLoadStateChange={setIsImageLoaded}
       />
       <div className="catalog-sheen" />
       <div className="catalog-copy">

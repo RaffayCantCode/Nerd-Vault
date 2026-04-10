@@ -213,6 +213,7 @@ export function BrowseWorkspace({
   const searchParams = useSearchParams();
   const queryFromUrl = searchParams.get("query") ?? "";
   const mediaTypeFromUrl = searchParams.get("mediaType");
+  const pageFromUrl = Number(searchParams.get("page") || "");
   const initialState =
     typeof window !== "undefined"
       ? (() => {
@@ -258,7 +259,12 @@ export function BrowseWorkspace({
       : "discovery",
   );
   const [remoteCatalog, setRemoteCatalog] = useState<MediaItem[]>(catalog);
-  const initialPage = Number.isFinite(initialState?.page) && (initialState?.page ?? 1) > 0 ? (initialState?.page as number) : 1;
+  const initialPage =
+    Number.isFinite(pageFromUrl) && pageFromUrl > 0
+      ? pageFromUrl
+      : Number.isFinite(initialState?.page) && (initialState?.page ?? 1) > 0
+        ? (initialState?.page as number)
+        : 1;
   const [page, setPage] = useState(initialPage);
   const [activePage, setActivePage] = useState(initialPage);
   const [totalPages, setTotalPages] = useState(Math.max(1, initialTotalPages));
@@ -279,6 +285,7 @@ export function BrowseWorkspace({
   const pageScrollOffsetRef = useRef(110);
   const didRestoreScrollRef = useRef(false);
   const didInitBrowseStateRef = useRef(false);
+  const didSyncUrlStateRef = useRef(false);
 
   const supportsRemotePaging =
     filter === "all" ||
@@ -321,6 +328,14 @@ export function BrowseWorkspace({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    const lastBrowseParams = new URLSearchParams(window.location.search);
+    lastBrowseParams.set("page", String(activePage));
+    if (filter !== "all") {
+      lastBrowseParams.set("mediaType", filter);
+    }
+    if (query.trim()) {
+      lastBrowseParams.set("query", query.trim());
+    }
     window.sessionStorage.setItem(
       BROWSE_STATE_KEY,
       JSON.stringify({
@@ -331,10 +346,14 @@ export function BrowseWorkspace({
         page: activePage,
       }),
     );
-    window.sessionStorage.setItem(BROWSE_LAST_URL_KEY, `${window.location.pathname}${window.location.search}`);
+    window.sessionStorage.setItem(BROWSE_LAST_URL_KEY, `${window.location.pathname}?${lastBrowseParams.toString()}`);
   }, [activePage, filter, genre, query, sort]);
 
   useEffect(() => {
+    if (!didSyncUrlStateRef.current) {
+      didSyncUrlStateRef.current = true;
+      return;
+    }
     const nextFilter =
       mediaTypeFromUrl === "movie" ||
       mediaTypeFromUrl === "show" ||
@@ -345,9 +364,9 @@ export function BrowseWorkspace({
         : "all";
     setFilter(nextFilter);
     setQuery(queryFromUrl);
-    setPage(1);
+    setPage(Number.isFinite(pageFromUrl) && pageFromUrl > 0 ? pageFromUrl : 1);
     setHeroIndex(0);
-  }, [mediaTypeFromUrl, queryFromUrl]);
+  }, [mediaTypeFromUrl, pageFromUrl, queryFromUrl]);
 
   useEffect(() => {
     function syncWishlist() {

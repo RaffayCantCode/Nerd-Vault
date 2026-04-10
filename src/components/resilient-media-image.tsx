@@ -11,6 +11,7 @@ type ResilientMediaImageProps = {
   loading?: "eager" | "lazy";
   decoding?: "sync" | "async" | "auto";
   fetchPriority?: "high" | "low" | "auto";
+  onLoadStateChange?: (loaded: boolean) => void;
 };
 
 function proxiedImage(url?: string) {
@@ -32,6 +33,7 @@ export function ResilientMediaImage({
   loading = "lazy",
   decoding = "async",
   fetchPriority = "auto",
+  onLoadStateChange,
 }: ResilientMediaImageProps) {
   const fallback = proxiedImage(getMediaFallbackImage(item)) ?? getMediaFallbackImage(item);
   const primaryCover = proxiedImage(item.coverUrl) ?? item.coverUrl;
@@ -42,15 +44,17 @@ export function ResilientMediaImage({
 
   useEffect(() => {
     setLoaded(false);
+    onLoadStateChange?.(false);
     setSrc(primaryCover || secondaryBackdrop || fallback);
-  }, [fallback, primaryCover, secondaryBackdrop]);
+  }, [fallback, onLoadStateChange, primaryCover, secondaryBackdrop]);
 
   // If the browser already has the image cached, naturalWidth is set immediately
   useEffect(() => {
     if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
       setLoaded(true);
+      onLoadStateChange?.(true);
     }
-  }, [src]);
+  }, [onLoadStateChange, src]);
 
   const combinedClass = [className, "img-loaded-wrapper", loaded ? "img-loaded" : ""].filter(Boolean).join(" ");
 
@@ -65,7 +69,10 @@ export function ResilientMediaImage({
       fetchPriority={fetchPriority}
       draggable={false}
       style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)), #0b1018" }}
-      onLoad={() => setLoaded(true)}
+      onLoad={() => {
+        setLoaded(true);
+        onLoadStateChange?.(true);
+      }}
       onError={() => {
         if (src !== secondaryBackdrop && secondaryBackdrop) {
           setSrc(secondaryBackdrop);
