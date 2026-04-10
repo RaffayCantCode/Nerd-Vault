@@ -22,6 +22,14 @@ const BROWSE_STATE_KEY = "nerdvault-browse-state";
 const BROWSE_PAGE_CACHE_KEY = "nerdvault-browse-page-cache-v1";
 const BROWSE_CACHE_TTL_MS = 1000 * 60 * 10;
 
+function getBrowsePageSize(viewportWidth: number) {
+  if (viewportWidth < 640) return 10;
+  if (viewportWidth < 960) return 18;
+  if (viewportWidth < 1440) return 24;
+  if (viewportWidth < 1800) return 30;
+  return 36;
+}
+
 function readBrowsePageCache() {
   if (typeof window === "undefined") {
     return {};
@@ -55,8 +63,8 @@ function writeBrowsePageCache(cache: Record<string, CachedPage>) {
   }
 }
 
-function buildCacheKey(filter: MediaType | "all", page: number, genre: string, query: string, sort: SortMode, seed: number) {
-  return `${filter}-${page}-${genre}-${query.trim().toLowerCase()}-${sort}-${seed}`;
+function buildCacheKey(filter: MediaType | "all", page: number, genre: string, query: string, sort: SortMode, seed: number, pageSize: number) {
+  return `${filter}-${page}-${genre}-${query.trim().toLowerCase()}-${sort}-${seed}-${pageSize}`;
 }
 
 function hashString(input: string) {
@@ -238,6 +246,9 @@ export function BrowseWorkspace({
   const [activePage, setActivePage] = useState(initialPage);
   const [totalPages, setTotalPages] = useState(Math.max(1, initialTotalPages));
   const [isLoading, setIsLoading] = useState(false);
+  const [pageSize, setPageSize] = useState(
+    typeof window === "undefined" ? 24 : getBrowsePageSize(window.innerWidth),
+  );
   const [heroIndex, setHeroIndex] = useState(0);
   const [wishlistedKeys, setWishlistedKeys] = useState<string[]>([]);
   const prefetchedPagesRef = useRef<Record<string, CachedPage>>(
@@ -247,6 +258,7 @@ export function BrowseWorkspace({
   const toolbarRef = useRef<HTMLDivElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const shouldScrollToResultsRef = useRef(false);
+  const shouldScrollToToolbarRef = useRef(false);
   const didRestoreScrollRef = useRef(false);
   const didInitBrowseStateRef = useRef(false);
 
@@ -258,7 +270,17 @@ export function BrowseWorkspace({
     filter === "game";
 
   useEffect(() => {
-    const initialKey = buildCacheKey("all", 1, "all", "", "discovery", sessionSeedRef.current);
+    function syncPageSize() {
+      setPageSize(getBrowsePageSize(window.innerWidth));
+    }
+
+    syncPageSize();
+    window.addEventListener("resize", syncPageSize);
+    return () => window.removeEventListener("resize", syncPageSize);
+  }, []);
+
+  useEffect(() => {
+    const initialKey = buildCacheKey("all", 1, "all", "", "discovery", sessionSeedRef.current, 24);
     if (!prefetchedPagesRef.current[initialKey] && catalog.length) {
       prefetchedPagesRef.current[initialKey] = {
         items: catalog,
@@ -323,7 +345,7 @@ export function BrowseWorkspace({
     const controller = new AbortController();
 
     async function fetchPage(targetPage: number, cacheOnly = false) {
-      const targetKey = buildCacheKey(filter, targetPage, genre, deferredQuery, sort, sessionSeedRef.current);
+      const targetKey = buildCacheKey(filter, targetPage, genre, deferredQuery, sort, sessionSeedRef.current, pageSize);
       if (prefetchedPagesRef.current[targetKey]) {
         if (!cacheOnly) {
           setRemoteCatalog(prefetchedPagesRef.current[targetKey].items);
@@ -338,6 +360,7 @@ export function BrowseWorkspace({
         page: String(targetPage),
         sort,
         seed: String(sessionSeedRef.current),
+        pageSize: String(pageSize),
       });
 
       if (deferredQuery.trim()) {
@@ -387,7 +410,7 @@ export function BrowseWorkspace({
         return;
       }
 
-      const targetKey = buildCacheKey(filter, page, genre, deferredQuery, sort, sessionSeedRef.current);
+      const targetKey = buildCacheKey(filter, page, genre, deferredQuery, sort, sessionSeedRef.current, pageSize);
       const hasCachedPage = Boolean(prefetchedPagesRef.current[targetKey]);
 
       if (!hasCachedPage) {
@@ -411,7 +434,7 @@ export function BrowseWorkspace({
 
     void loadCatalog();
     return () => controller.abort();
-  }, [catalog, deferredQuery, discoverySeed, filter, genre, initialTotalPages, page, sort, supportsRemotePaging]);
+  }, [catalog, deferredQuery, discoverySeed, filter, genre, initialTotalPages, page, pageSize, sort, supportsRemotePaging]);
 
   const baseCatalog = supportsRemotePaging ? remoteCatalog : catalog;
   const typedVisible = filterCatalog(
@@ -538,6 +561,15 @@ export function BrowseWorkspace({
   }, [activePage, filter, genre, heroBaseCatalog, sort]);
 
   useEffect(() => {
+    if (!shouldScrollToToolbarRef.current || isLoading) {
+      return;
+    }
+
+    toolbarRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    shouldScrollToToolbarRef.current = false;
+  }, [activePage, isLoading]);
+
+  useEffect(() => {
     if (!shouldScrollToResultsRef.current || isLoading) {
       return;
     }
@@ -628,8 +660,8 @@ export function BrowseWorkspace({
 
   function handlePageChange(nextPage: number) {
     const clamped = Math.min(totalPages, Math.max(1, nextPage));
+    shouldScrollToToolbarRef.current = true;
     setPage(clamped);
-    toolbarRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function persistBrowseSnapshot() {

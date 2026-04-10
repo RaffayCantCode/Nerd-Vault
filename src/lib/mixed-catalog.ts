@@ -235,6 +235,7 @@ async function getGuaranteedGameSlice(params: {
   query: string;
   sort: "discovery" | "newest" | "rating" | "title";
   seed: number;
+  pageSize: number;
 }) {
   const gamePayload = await withTimeout(
     browseIgdbGames({
@@ -248,7 +249,8 @@ async function getGuaranteedGameSlice(params: {
     params.query ? 7000 : 12000,
   );
 
-  return gamePayload.items.slice(0, params.query ? 8 : 10);
+  const target = params.query ? Math.max(8, Math.ceil(params.pageSize / 4)) : Math.max(10, Math.ceil(params.pageSize / 3));
+  return gamePayload.items.slice(0, target);
 }
 
 export async function browseMixedCatalog({
@@ -257,15 +259,18 @@ export async function browseMixedCatalog({
   genre,
   sort,
   seed,
+  pageSize = 24,
 }: {
   page: number;
   query: string;
   genre: string;
   sort: "discovery" | "newest" | "rating" | "title";
   seed: number;
+  pageSize?: number;
 }) {
+  const safePageSize = Math.min(36, Math.max(10, pageSize));
   const safeQuery = query.trim();
-  const cacheKey = JSON.stringify({ page, query: safeQuery, genre, sort, seed });
+  const cacheKey = JSON.stringify({ page, query: safeQuery, genre, sort, seed, pageSize: safePageSize });
   const cached = mixedCatalogCache.get(cacheKey);
 
   if (cached && cached.expiresAt > Date.now()) {
@@ -273,7 +278,11 @@ export async function browseMixedCatalog({
   }
 
   const needsBroaderPool = Boolean((genre && genre !== "all") || safeQuery);
-  const sourcePages = needsBroaderPool ? [page, page + 1] : [page];
+  const sourcePageSpan = Math.min(3, Math.max(1, Math.ceil(safePageSize / 16)));
+  const sourcePages = Array.from(
+    { length: needsBroaderPool ? Math.max(2, sourcePageSpan) : sourcePageSpan },
+    (_, index) => page + index,
+  );
 
   const pageResults = await Promise.all(
     sourcePages.map(async (sourcePage, index) => {
@@ -358,7 +367,7 @@ export async function browseMixedCatalog({
 
   const seededBuckets = pageResults.flatMap(({ movieEntry, showEntry, animeEntry, gameEntry }, index) => {
     const bucketSeed = seed + page + index;
-    const bucketSize = needsBroaderPool ? 18 : 14;
+    const bucketSize = Math.max(14, Math.ceil(safePageSize / 2));
     const useDiscoveryBlend = !safeQuery && sort === "discovery";
 
     return [
@@ -378,17 +387,17 @@ export async function browseMixedCatalog({
   });
 
   const mixed = dedupeBySource(
-    safeQuery ? searchPool : takeBalancedBuckets(seededBuckets, 7, 28),
+    safeQuery ? searchPool : takeBalancedBuckets(seededBuckets, Math.max(7, Math.ceil(safePageSize / 4)), safePageSize + 6),
   ).filter((item): item is MediaItem => Boolean(item));
 
   const filteredMixed =
     genre && genre !== "all" ? mixed.filter((item) => itemMatchesGenre(item, genre)) : mixed;
 
   const rankedMixed = safeQuery
-    ? rankSearchItems(filteredMixed, safeQuery).slice(0, 24)
+    ? rankSearchItems(filteredMixed, safeQuery).slice(0, safePageSize)
     : interleaveTypePriority(
         rotateBuckets(shuffleBySeed(filteredMixed, seed + page), seed * 7 + page * 5),
-        24,
+        safePageSize,
       );
 
   let finalItems = rankedMixed;
@@ -399,10 +408,11 @@ export async function browseMixedCatalog({
       query: safeQuery,
       sort,
       seed: seed + 41,
+      pageSize: safePageSize,
     });
 
     if (guaranteedGames.length) {
-      finalItems = dedupeBySource([...guaranteedGames, ...finalItems]).slice(0, 24);
+      finalItems = dedupeBySource([...guaranteedGames, ...finalItems]).slice(0, safePageSize);
     }
   }
 

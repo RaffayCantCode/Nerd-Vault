@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
   const genre = searchParams.get("genre") || "";
   const sortParam = searchParams.get("sort") || "discovery";
   const seedParam = Number(searchParams.get("seed") || "1");
+  const pageSizeParam = Number(searchParams.get("pageSize") || "24");
   const sort =
     sortParam === "discovery" ||
     sortParam === "newest" ||
@@ -23,6 +24,7 @@ export async function GET(request: NextRequest) {
       ? sortParam
       : "discovery";
   const seed = Number.isFinite(seedParam) ? seedParam : 1;
+  const pageSize = Number.isFinite(pageSizeParam) ? Math.min(36, Math.max(10, pageSizeParam)) : 24;
 
   const type =
     typeParam === "movie" ||
@@ -59,6 +61,7 @@ export async function GET(request: NextRequest) {
               genre,
               sort,
               seed,
+              pageSize,
             })
           : await browseTmdbCatalog({
               type,

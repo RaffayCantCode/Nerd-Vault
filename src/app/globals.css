@@ -4457,6 +4457,11 @@ body {
 
 /* Final overrides for auth cleanup UX, sidebar polish, and quicker browse feel */
 
+.sidebar.sidebar-rail {
+  overflow-y: auto;
+  overflow-x: visible;
+}
+
 .sidebar-folder-stack {
   gap: 14px;
 }
@@ -4474,6 +4479,7 @@ body {
   width: 100%;
   height: 100%;
   border-radius: 18px;
+  filter: saturate(1.08) contrast(1.04);
   box-shadow: 0 16px 30px rgba(0, 0, 0, 0.28);
 }
 
@@ -4515,20 +4521,71 @@ body {
 }
 
 .hero-nav-row {
-  margin-top: -16px;
-  margin-bottom: 18px;
+  margin-top: 0;
+  margin-bottom: 14px;
 }
 
 .workspace-copy-browse {
-  padding-top: 24px;
+  min-height: auto;
+  align-content: center;
+  padding: 30px 32px;
+}
+
+.workspace-hero {
+  min-height: 380px;
+}
+
+.workspace-hero-grid {
+  grid-template-columns: minmax(0, 1.06fr) minmax(220px, 0.52fr);
 }
 
 .browse-hero-title {
   margin-top: 0;
+  font-size: clamp(1.95rem, 3.5vw, 3.35rem);
+  line-height: 0.94;
+  max-width: 11ch;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-wrap: pretty;
+  padding-bottom: 0;
+}
+
+.workspace-hero .display {
+  min-height: auto;
+}
+
+.workspace-hero-copy {
+  max-width: 56ch;
+  margin-top: 14px;
+  min-height: 0;
+  -webkit-line-clamp: 3;
+}
+
+.hero-meta-strip {
+  margin: 12px 0 0;
+}
+
+.hero-art {
+  min-height: 380px;
+  padding: 16px 16px 16px 0;
+}
+
+.hero-art::after {
+  inset: 16px 16px 16px 0;
+}
+
+.hero-art-image {
+  min-height: 320px;
+  max-height: 396px;
+  object-fit: contain;
+  object-position: center right;
 }
 
 .catalog-grid {
   --stagger-base: 22ms;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
 }
 
 .catalog-card,
@@ -4568,9 +4625,53 @@ body {
   justify-content: center;
 }
 
+.profile-avatar,
+.folder-row-avatar,
+.topbar-user-avatar {
+  border: 2px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 18px 38px rgba(0, 0, 0, 0.3),
+    0 0 0 6px rgba(255, 255, 255, 0.035);
+  filter: saturate(1.08) contrast(1.03);
+}
+
+.profile-avatar-large {
+  box-shadow:
+    0 24px 54px rgba(0, 0, 0, 0.34),
+    0 0 0 8px rgba(3, 252, 190, 0.08);
+}
+
+.folder-showcase-art,
+.folder-showcase-art-compact,
+.folder-hero-cover-card {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 18px 42px rgba(0, 0, 0, 0.28);
+  filter: saturate(1.08) contrast(1.03);
+}
+
 @media (max-width: 900px) {
   .sidebar-folder-tooltip {
     display: none;
+  }
+
+  .workspace-hero,
+  .hero-art {
+    min-height: 0;
+  }
+
+  .workspace-hero-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-copy-browse {
+    padding: 26px 24px;
+    align-content: end;
+  }
+
+  .browse-hero-title {
+    max-width: none;
   }
 
   .profile-jump-section {
