@@ -186,16 +186,25 @@ async function findRemoteMediaBySlug(slug: string, preferredSource?: string, pre
 function scoreRelatedCandidate(base: MediaItem, candidate: MediaItem) {
   let score = 0;
   const sharedGenres = candidate.genres.filter((genre) => base.genres.includes(genre)).length;
+  const primaryGenre = base.genres[0];
+  const secondaryGenre = base.genres[1];
 
-  if (candidate.type === base.type) score += 12;
-  if (candidate.source === base.source) score += 3;
-  score += sharedGenres * 8;
+  if (candidate.type === base.type) score += 14;
+  if (candidate.source === base.source) score += 2;
+  score += sharedGenres * 10;
+  if (primaryGenre && candidate.genres.includes(primaryGenre)) score += 8;
+  if (secondaryGenre && candidate.genres.includes(secondaryGenre)) score += 4;
 
   const yearDistance = Math.abs((candidate.year || 0) - (base.year || 0));
-  if (yearDistance <= 1) score += 4;
+  if (yearDistance <= 1) score += 5;
   else if (yearDistance <= 4) score += 2;
+  else if (yearDistance >= 15) score -= 4;
 
   score += Math.max(0, 5 - Math.abs(candidate.rating - base.rating));
+
+  if (sharedGenres === 0 && candidate.type === base.type) {
+    score -= 8;
+  }
 
   return score;
 }
@@ -526,6 +535,7 @@ async function getRelatedMediaRail(media: MediaItem) {
       candidate,
       score: scoreRelatedCandidate(media, candidate),
     }))
+    .filter((entry) => entry.score >= 18)
     .sort((left, right) => right.score - left.score)
     .map((entry) => entry.candidate)
     .slice(0, 6);

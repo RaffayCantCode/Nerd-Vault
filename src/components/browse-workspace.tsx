@@ -551,8 +551,8 @@ export function BrowseWorkspace({
       return sortedItems;
     }
 
-    return takeBalancedTypeMix(sortedItems, Math.min(24, sortedItems.length));
-  }, [activePage, deferredQuery, filter, queryVisible, sort]);
+    return takeBalancedTypeMix(sortedItems, Math.min(pageSize, sortedItems.length));
+  }, [activePage, deferredQuery, filter, pageSize, queryVisible, sort]);
 
   const featuredDeck = useMemo(() => {
     const source = heroBaseCatalog;

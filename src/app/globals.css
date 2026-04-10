@@ -4458,7 +4458,8 @@ body {
 /* Final overrides for auth cleanup UX, sidebar polish, and quicker browse feel */
 
 .sidebar.sidebar-rail {
-  overflow-y: auto;
+  max-height: none;
+  overflow-y: visible;
   overflow-x: visible;
 }
 
@@ -4536,7 +4537,7 @@ body {
 }
 
 .workspace-hero-grid {
-  grid-template-columns: minmax(0, 1.06fr) minmax(220px, 0.52fr);
+  grid-template-columns: minmax(0, 1.12fr) minmax(180px, 0.4fr);
 }
 
 .browse-hero-title {
@@ -4568,19 +4569,24 @@ body {
 }
 
 .hero-art {
-  min-height: 380px;
-  padding: 16px 16px 16px 0;
+  min-height: 0;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 12px 20px 12px 0;
 }
 
 .hero-art::after {
-  inset: 16px 16px 16px 0;
+  inset: 12px 20px 12px 48px;
 }
 
 .hero-art-image {
-  min-height: 320px;
-  max-height: 396px;
-  object-fit: contain;
-  object-position: center right;
+  width: min(100%, 280px);
+  min-height: 0;
+  max-height: 340px;
+  height: auto;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  object-position: center;
 }
 
 .catalog-grid {
