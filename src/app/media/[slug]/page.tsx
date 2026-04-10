@@ -94,6 +94,66 @@ function buildQueryVariants(title: string) {
   return Array.from(new Set([cleaned, short, words.slice(0, 2).join(" ")].filter((value) => value.length >= 2)));
 }
 
+function buildFranchiseSignals(media: MediaItem) {
+  const haystack = [
+    media.title,
+    media.originalTitle ?? "",
+    media.details.collectionTitle ?? "",
+    media.details.studio ?? "",
+    media.overview,
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  const signals = new Set<string>();
+
+  const keywordMap: Array<{ query: string; matches: string[] }> = [
+    { query: "star wars", matches: ["star wars", "jedi", "sith", "lightsaber", "galaxy far far away", "lucasfilm", "mandalorian", "thrawn", "ahsoka"] },
+    { query: "marvel", matches: ["marvel", "avengers", "x-men", "mcu", "shield"] },
+    { query: "dc", matches: ["dc", "gotham", "metropolis", "justice league", "wayne enterprises"] },
+    { query: "red dead", matches: ["red dead", "rockstar games", "outlaw", "frontier"] },
+    { query: "grand theft auto", matches: ["grand theft auto", "gta", "rockstar games"] },
+    { query: "lord of the rings", matches: ["middle-earth", "lord of the rings", "tolkien", "gondor"] },
+    { query: "harry potter", matches: ["hogwarts", "wizarding world", "harry potter"] },
+    { query: "pokemon", matches: ["pokemon", "pokémon"] },
+    { query: "dragon ball", matches: ["dragon ball", "saiyan"] },
+    { query: "naruto", matches: ["naruto", "shinobi", "hokage"] },
+    { query: "zelda", matches: ["hyrule", "zelda", "link"] },
+    { query: "mario", matches: ["mario", "bowser", "mushroom kingdom"] },
+  ];
+
+  for (const entry of keywordMap) {
+    if (entry.matches.some((match) => haystack.includes(match))) {
+      signals.add(entry.query);
+    }
+  }
+
+  const cleanedTitle = media.title.toLowerCase();
+  if (cleanedTitle.includes(":")) {
+    signals.add(cleanedTitle.split(":")[0].trim());
+  }
+
+  return Array.from(signals).filter((signal) => signal.length >= 3).slice(0, 3);
+}
+
+function candidateMatchesSignal(candidate: MediaItem, signals: string[]) {
+  if (!signals.length) {
+    return false;
+  }
+
+  const haystack = [
+    candidate.title,
+    candidate.originalTitle ?? "",
+    candidate.details.collectionTitle ?? "",
+    candidate.details.studio ?? "",
+    candidate.overview,
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return signals.some((signal) => haystack.includes(signal.toLowerCase()));
+}
+
 function normalizeSlugValue(value: string) {
   return value
     .toLowerCase()
@@ -466,6 +526,7 @@ async function getRelatedMediaRail(media: MediaItem) {
   const secondaryGenre = media.genres[1];
   const tertiaryGenre = media.genres[2];
   const queries = buildQueryVariants(media.title);
+  const franchiseSignals = buildFranchiseSignals(media);
   const collected: MediaItem[] = [];
 
   if (media.type === "movie" || media.type === "show") {
@@ -487,6 +548,12 @@ async function getRelatedMediaRail(media: MediaItem) {
             ),
           ]
         : []),
+      ...franchiseSignals.map((query, index) =>
+        withTimeout(
+          browseTmdbCatalog({ type: mediaType, page: 1, query, sort: "rating", seed: 13 + index }),
+          { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
+        ),
+      ),
       ...queries.slice(0, 2).map((query, index) =>
         withTimeout(
           browseTmdbCatalog({ type: mediaType, page: 1, query, sort: "discovery", seed: 5 + index }),
@@ -520,6 +587,12 @@ async function getRelatedMediaRail(media: MediaItem) {
             ),
           ]
         : []),
+      ...franchiseSignals.map((query, index) =>
+        withTimeout(
+          browseJikanAnime({ page: 1, query, sort: "rating", seed: 13 + index }),
+          { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
+        ),
+      ),
       ...queries.slice(0, 2).map((query, index) =>
         withTimeout(
           browseJikanAnime({ page: 1, query, sort: "discovery", seed: 5 + index }),
@@ -561,6 +634,12 @@ async function getRelatedMediaRail(media: MediaItem) {
             ),
           ]
         : []),
+      ...franchiseSignals.map((query, index) =>
+        withTimeout(
+          browseIgdbGames({ page: 1, query, sort: "rating", seed: 13 + index }),
+          { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] },
+        ),
+      ),
       ...queries.slice(0, 2).map((query, index) =>
         withTimeout(
           browseIgdbGames({ page: 1, query, sort: "discovery", seed: 5 + index }),
@@ -580,9 +659,9 @@ async function getRelatedMediaRail(media: MediaItem) {
     .filter((candidate) => `${candidate.source}-${candidate.sourceId}` !== `${media.source}-${media.sourceId}`)
     .map((candidate) => ({
       candidate,
-      score: scoreRelatedCandidate(media, candidate),
+      score: scoreRelatedCandidate(media, candidate) + (candidateMatchesSignal(candidate, franchiseSignals) ? 18 : 0),
     }))
-    .filter((entry) => entry.score >= 16)
+    .filter((entry) => (franchiseSignals.length ? candidateMatchesSignal(entry.candidate, franchiseSignals) || entry.score >= 28 : entry.score >= 16))
     .sort((left, right) => right.score - left.score)
     .map((entry) => entry.candidate)
     .slice(0, 18);

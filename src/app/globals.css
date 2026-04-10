@@ -2115,7 +2115,7 @@ input {
 }
 
 .page-shell {
-  overflow-x: clip;
+  overflow-x: visible;
 }
 
 .app-shell-layout {
@@ -4470,6 +4470,9 @@ body {
   max-height: none;
   overflow-y: visible;
   overflow-x: visible;
+  position: relative;
+  z-index: 120;
+  isolation: isolate;
 }
 
 .sidebar-folder-stack {
@@ -4546,7 +4549,7 @@ body {
 }
 
 .workspace-hero-grid {
-  grid-template-columns: minmax(0, 1.12fr) minmax(180px, 0.4fr);
+  grid-template-columns: minmax(0, 1.04fr) minmax(260px, 0.56fr);
 }
 
 .browse-hero-title {
@@ -4580,19 +4583,19 @@ body {
 .hero-art {
   min-height: 0;
   align-items: center;
-  justify-content: flex-end;
-  padding: 12px 20px 12px 0;
+  justify-content: stretch;
+  padding: 8px 12px 8px 0;
 }
 
 .hero-art::after {
-  inset: 12px 20px 12px 48px;
+  inset: 8px 12px 8px 18px;
 }
 
 .hero-art-image {
-  width: min(100%, 280px);
+  width: 100%;
   min-height: 0;
-  max-height: 340px;
-  height: auto;
+  max-height: 420px;
+  height: 100%;
   aspect-ratio: 2 / 3;
   object-fit: cover;
   object-position: center;
@@ -4735,6 +4738,8 @@ body {
   display: flex;
   justify-content: center;
   margin-top: 18px;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 @media (min-width: 1680px) {
