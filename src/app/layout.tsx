@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Bebas_Neue, Manrope } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { AuthCookieReset } from "@/components/auth-cookie-reset";
 import "./globals.css";
 
@@ -28,6 +29,7 @@ export default function RootLayout({
       <body className={`${display.variable} ${sans.variable}`}>
         <AuthCookieReset />
         {children}
+        <Analytics />
       </body>
     </html>
   );
