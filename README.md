@@ -58,7 +58,7 @@ NerdVault (NV) is a sleek, modern web platform that allows users to track, organ
 
 ---
 
-<img width="1800" height="923" alt="1" src="https://github.com/user-attachments/assets/eae16dc1-9b41-4160-a4b7-3c267f702208" />
+<img width="1805" height="924" alt="4" src="https://github.com/user-attachments/assets/f727ab05-6bbb-4d1e-b173-063fd36a1c3d" />
 
 
 **Main Pages / Screens:**
