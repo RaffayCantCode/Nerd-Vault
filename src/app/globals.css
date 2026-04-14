@@ -6029,3 +6029,440 @@ html {
     font-size: 0.82rem;
   }
 }
+
+/* Batch 6 fixes: smarter sidebar, cleaner profile/folder heroes, richer detail gallery */
+
+.sidebar.sidebar-rail {
+  width: 96px;
+  padding-inline: 12px;
+  overflow-y: auto;
+  overflow-x: visible;
+  transition: width 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.sidebar.sidebar-rail:hover,
+.sidebar.sidebar-rail:focus-within {
+  width: 212px;
+}
+
+.brand.brand-rail {
+  width: 100%;
+  justify-content: center;
+}
+
+.sidebar-rail-nav,
+.sidebar-rail-stack,
+.sidebar-folder-stack,
+.sidebar-signout-form {
+  justify-items: stretch;
+}
+
+.sidebar-nav-button,
+.sidebar-folder-tile,
+.sidebar-icon-button {
+  width: 100%;
+}
+
+.sidebar-nav-button {
+  min-width: 0;
+  grid-template-columns: 40px minmax(0, 1fr);
+  grid-template-rows: none;
+  justify-items: start;
+  justify-content: start;
+  gap: 12px;
+  padding-inline: 14px;
+  overflow: visible;
+}
+
+.sidebar-nav-label {
+  position: static;
+  opacity: 0;
+  transform: translateX(-8px);
+  pointer-events: none;
+  white-space: nowrap;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.sidebar.sidebar-rail:hover .sidebar-nav-label,
+.sidebar.sidebar-rail:focus-within .sidebar-nav-label {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.sidebar-folder-stack {
+  gap: 12px;
+}
+
+.sidebar-folder-tile,
+.sidebar-icon-button {
+  height: 60px;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 60px minmax(0, 1fr);
+  align-items: center;
+  justify-items: start;
+  gap: 12px;
+  padding-right: 14px;
+  overflow: visible;
+}
+
+.sidebar-folder-art {
+  width: 48px;
+  height: 48px;
+}
+
+.sidebar-folder-tooltip {
+  position: static;
+  transform: none;
+  opacity: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(246, 247, 251, 0.9);
+  box-shadow: none;
+  pointer-events: none;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.sidebar.sidebar-rail:hover .sidebar-folder-tooltip,
+.sidebar.sidebar-rail:focus-within .sidebar-folder-tooltip,
+.sidebar-folder-tile:focus-visible .sidebar-folder-tooltip {
+  opacity: 1;
+}
+
+.folder-hero {
+  min-height: 420px;
+}
+
+.folder-hero .workspace-copy {
+  align-content: center;
+}
+
+.folder-hero-title-group {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 28px;
+}
+
+.folder-hero-cover-card {
+  width: 220px;
+  min-width: 220px;
+  aspect-ratio: 1 / 1;
+}
+
+.folder-hero-copy {
+  padding-top: 8px;
+}
+
+.folder-hero-subcopy {
+  margin-top: 8px;
+}
+
+.folder-hero-actions {
+  position: static;
+  display: grid;
+  gap: 12px;
+  justify-items: stretch;
+  align-self: start;
+  min-width: 190px;
+}
+
+.folder-hero-actions .button {
+  width: 100%;
+  min-height: 52px;
+}
+
+.profile-avatar {
+  width: 88px;
+  height: 88px;
+  border-radius: 26px;
+}
+
+.profile-avatar-large {
+  width: 80px;
+  height: 80px;
+}
+
+.profile-avatar-stack {
+  width: 164px;
+}
+
+.profile-identity {
+  align-items: center;
+}
+
+.detail-favorite-note {
+  margin-top: 18px;
+  padding: 16px 18px;
+  border-radius: 24px;
+  border-color: var(--detail-edge);
+  background:
+    radial-gradient(circle at top right, var(--detail-glow), transparent 48%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
+    rgba(7, 10, 17, 0.52);
+}
+
+.detail-favorite-title {
+  margin-top: 6px;
+  margin-bottom: 8px;
+}
+
+.detail-gallery-shell {
+  border-color: var(--detail-edge);
+  background:
+    radial-gradient(circle at top right, var(--detail-glow), transparent 48%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
+    rgba(8, 11, 17, 0.54);
+}
+
+.detail-gallery-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: start;
+}
+
+.detail-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.detail-gallery-tile {
+  position: relative;
+  overflow: hidden;
+  min-height: 180px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(10, 14, 21, 0.72);
+  cursor: pointer;
+  padding: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  display: block;
+  transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.detail-gallery-tile.is-featured {
+  grid-column: span 2;
+  grid-row: span 2;
+  min-height: 374px;
+}
+
+.detail-gallery-tile:hover,
+.detail-gallery-tile:focus-visible {
+  transform: translateY(-2px);
+  border-color: var(--detail-edge);
+  box-shadow: 0 22px 42px rgba(0, 0, 0, 0.3);
+}
+
+.detail-gallery-tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.detail-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.06), transparent 28%),
+    rgba(3, 5, 9, 0.92);
+  backdrop-filter: blur(18px);
+}
+
+.detail-lightbox-stage {
+  position: relative;
+  width: min(100%, 1320px);
+  max-height: calc(100svh - 64px);
+}
+
+.detail-lightbox-stage img {
+  width: 100%;
+  max-height: calc(100svh - 64px);
+  border-radius: 28px;
+  object-fit: contain;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.42);
+}
+
+.detail-lightbox-close,
+.detail-lightbox-nav {
+  position: fixed;
+  z-index: 2;
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(7, 10, 17, 0.88);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.detail-lightbox-close {
+  top: 24px;
+  right: 24px;
+}
+
+.detail-lightbox-nav {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.detail-lightbox-nav.is-left {
+  left: 24px;
+}
+
+.detail-lightbox-nav.is-right {
+  right: 24px;
+}
+
+.detail-lightbox-meta {
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  padding: 0.72rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(7, 10, 17, 0.84);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(246, 247, 251, 0.9);
+}
+
+.related-media-actions {
+  align-items: stretch;
+}
+
+.related-media-actions .button,
+.related-media-actions .detail-back-button {
+  flex: 1 1 220px;
+  min-width: 220px;
+  min-height: 58px;
+}
+
+.detail-theme-naruto .detail-hero::before,
+.detail-theme-shippuden .detail-hero::before,
+.detail-theme-thrones .detail-hero::before,
+.detail-theme-interstellar .detail-hero::before,
+.detail-theme-skyrim .detail-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at top right, var(--detail-glow), transparent 42%);
+}
+
+@media (max-width: 900px) {
+  .sidebar.sidebar-rail {
+    width: auto;
+    padding: 10px 12px 12px;
+    height: auto;
+    min-height: 78px;
+  }
+
+  .sidebar.sidebar-rail:hover,
+  .sidebar.sidebar-rail:focus-within {
+    width: auto;
+  }
+
+  .sidebar-rail-nav,
+  .sidebar-rail-stack,
+  .sidebar-signout-form {
+    flex-wrap: wrap;
+  }
+
+  .sidebar-rail-stack {
+    overflow: visible;
+    padding-inline: 0;
+  }
+
+  .sidebar-folder-stack {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .sidebar-nav-button,
+  .sidebar-folder-tile,
+  .sidebar-icon-button {
+    width: 52px;
+    height: 52px;
+    min-width: 52px;
+    grid-template-columns: 1fr;
+    justify-items: center;
+    padding: 0;
+  }
+
+  .sidebar-nav-label,
+  .sidebar-folder-tooltip {
+    display: none;
+  }
+
+  .folder-hero-title-group,
+  .profile-identity {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .folder-hero-actions {
+    min-width: 0;
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .detail-gallery-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .detail-gallery-tile.is-featured {
+    grid-column: span 2;
+    min-height: 280px;
+  }
+}
+
+@media (max-width: 640px) {
+  .detail-gallery-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-gallery-tile,
+  .detail-gallery-tile.is-featured {
+    grid-column: span 1;
+    grid-row: span 1;
+    min-height: 220px;
+  }
+
+  .detail-lightbox {
+    padding: 12px;
+  }
+
+  .detail-lightbox-close {
+    top: 12px;
+    right: 12px;
+  }
+
+  .detail-lightbox-nav.is-left {
+    left: 12px;
+  }
+
+  .detail-lightbox-nav.is-right {
+    right: 12px;
+  }
+
+  .related-media-actions .button,
+  .related-media-actions .detail-back-button {
+    min-width: 0;
+    width: 100%;
+  }
+}

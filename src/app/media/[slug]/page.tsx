@@ -5,6 +5,7 @@ import { AppTopBar } from "@/components/app-topbar";
 import { BrowseResetLink } from "@/components/browse-reset-link";
 import { CatalogCard } from "@/components/catalog-card";
 import { DetailBackButton } from "@/components/detail-back-button";
+import { DetailGallery } from "@/components/detail-gallery";
 import { DetailViewEffects } from "@/components/detail-view-effects";
 import { MediaActions } from "@/components/media-actions";
 import { RelatedMediaSection } from "@/components/related-media-section";
@@ -19,7 +20,15 @@ import { MediaItem } from "@/lib/types";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const DETAIL_PALETTES = [
+type DetailPalette = {
+  accent: string;
+  accentSoft: string;
+  glow: string;
+  edge: string;
+  haze: string;
+};
+
+const DETAIL_PALETTES: DetailPalette[] = [
   { accent: "#03fcbe", accentSoft: "rgba(3, 252, 190, 0.18)", glow: "rgba(3, 252, 190, 0.24)", edge: "rgba(3, 252, 190, 0.34)", haze: "rgba(158, 135, 255, 0.16)" },
   { accent: "#ff8a7a", accentSoft: "rgba(255, 138, 122, 0.18)", glow: "rgba(255, 138, 122, 0.24)", edge: "rgba(255, 138, 122, 0.34)", haze: "rgba(255, 205, 126, 0.16)" },
   { accent: "#75caff", accentSoft: "rgba(117, 202, 255, 0.18)", glow: "rgba(117, 202, 255, 0.22)", edge: "rgba(117, 202, 255, 0.34)", haze: "rgba(125, 142, 255, 0.16)" },
@@ -31,6 +40,62 @@ const DETAIL_PALETTES = [
   { accent: "#71f0d4", accentSoft: "rgba(113, 240, 212, 0.18)", glow: "rgba(113, 240, 212, 0.22)", edge: "rgba(113, 240, 212, 0.34)", haze: "rgba(117, 202, 255, 0.14)" },
   { accent: "#ffdc78", accentSoft: "rgba(255, 220, 120, 0.18)", glow: "rgba(255, 220, 120, 0.2)", edge: "rgba(255, 220, 120, 0.32)", haze: "rgba(198, 164, 255, 0.16)" },
 ] as const;
+
+const DETAIL_EASTER_EGGS: Array<{
+  key: string;
+  matches: string[];
+  palette: DetailPalette;
+  className: string;
+  kicker: string;
+  title: string;
+  copy: string;
+}> = [
+  {
+    key: "naruto",
+    matches: ["naruto"],
+    palette: { accent: "#ff8d2b", accentSoft: "rgba(255, 141, 43, 0.18)", glow: "rgba(255, 141, 43, 0.24)", edge: "rgba(255, 141, 43, 0.34)", haze: "rgba(88, 144, 255, 0.16)" },
+    className: "detail-theme-naruto",
+    kicker: "Vault favorite",
+    title: "Hidden leaf energy",
+    copy: "This page gets a warmer, louder treatment with ember orange, electric blue, and stronger framing around the stills.",
+  },
+  {
+    key: "naruto-shippuden",
+    matches: ["naruto shippuden", "naruto: shippuden"],
+    palette: { accent: "#ff6e36", accentSoft: "rgba(255, 110, 54, 0.18)", glow: "rgba(255, 110, 54, 0.24)", edge: "rgba(255, 110, 54, 0.34)", haze: "rgba(52, 116, 255, 0.18)" },
+    className: "detail-theme-shippuden",
+    kicker: "Vault favorite",
+    title: "Battle-scarred glow",
+    copy: "Shippuden gets a hotter palette, darker haze, and a little more drama in the hero and gallery surfaces.",
+  },
+  {
+    key: "game-of-thrones",
+    matches: ["game of thrones"],
+    palette: { accent: "#d8b36a", accentSoft: "rgba(216, 179, 106, 0.18)", glow: "rgba(216, 179, 106, 0.22)", edge: "rgba(216, 179, 106, 0.34)", haze: "rgba(124, 55, 23, 0.18)" },
+    className: "detail-theme-thrones",
+    kicker: "Vault favorite",
+    title: "Cold steel, warm fire",
+    copy: "This one leans into iron, ash, and throne-room gold so the page feels heavier and more ceremonial.",
+  },
+  {
+    key: "interstellar",
+    matches: ["interstellar"],
+    palette: { accent: "#9ed6ff", accentSoft: "rgba(158, 214, 255, 0.18)", glow: "rgba(158, 214, 255, 0.2)", edge: "rgba(158, 214, 255, 0.3)", haze: "rgba(255, 255, 255, 0.1)" },
+    className: "detail-theme-interstellar",
+    kicker: "Vault favorite",
+    title: "Orbital quiet",
+    copy: "Interstellar gets a cleaner, colder palette with softer bloom so the page feels vast instead of just dark.",
+  },
+  {
+    key: "skyrim",
+    matches: ["skyrim", "the elder scrolls v skyrim", "the elder scrolls 5 skyrim"],
+    palette: { accent: "#d6dde8", accentSoft: "rgba(214, 221, 232, 0.16)", glow: "rgba(214, 221, 232, 0.18)", edge: "rgba(214, 221, 232, 0.28)", haze: "rgba(111, 146, 196, 0.16)" },
+    className: "detail-theme-skyrim",
+    kicker: "Vault favorite",
+    title: "Frost and iron",
+    copy: "Skyrim gets a colder Nordic treatment with pale steel highlights and a deeper mountain-night backdrop.",
+  },
+];
 
 function cleanNarrativeText(input?: string) {
   const text = (input ?? "").replace(/\[[^\]]+\]/g, "").replace(/\s+/g, " ").trim();
@@ -128,6 +193,48 @@ function buildQueryVariants(title: string) {
   return Array.from(new Set([cleaned, short, words.slice(0, 2).join(" ")].filter((value) => value.length >= 2)));
 }
 
+function normalizeTitleSignal(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^\w\s]+/g, " ")
+    .replace(/\b(edition|remastered|definitive|complete|collection|season|part|chapter|episode)\b/g, " ")
+    .replace(/\b(ii|iii|iv|v|vi|vii|viii|ix|x)\b/g, " ")
+    .replace(/\b\d+\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildTitleRoots(media: MediaItem) {
+  const candidates = [
+    media.title,
+    media.originalTitle ?? "",
+    media.details.collectionTitle ?? "",
+  ]
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const roots = new Set<string>();
+
+  for (const candidate of candidates) {
+    const normalized = normalizeTitleSignal(candidate);
+    if (normalized.length >= 4) {
+      roots.add(normalized);
+    }
+
+    const beforeSubtitle = normalized.split(/\s+(?:and|the)\s+/).join(" ");
+    if (beforeSubtitle.length >= 4) {
+      roots.add(beforeSubtitle);
+    }
+
+    const prefix = normalized.split(/\s+/).slice(0, 3).join(" ");
+    if (prefix.length >= 4) {
+      roots.add(prefix);
+    }
+  }
+
+  return Array.from(roots).slice(0, 4);
+}
+
 function buildFranchiseSignals(media: MediaItem) {
   const haystack = [
     media.title,
@@ -166,6 +273,10 @@ function buildFranchiseSignals(media: MediaItem) {
   const cleanedTitle = media.title.toLowerCase();
   if (cleanedTitle.includes(":")) {
     signals.add(cleanedTitle.split(":")[0].trim());
+  }
+
+  for (const titleRoot of buildTitleRoots(media)) {
+    signals.add(titleRoot);
   }
 
   return Array.from(signals).filter((signal) => signal.length >= 3).slice(0, 3);
@@ -303,6 +414,15 @@ function scoreRelatedCandidate(base: MediaItem, candidate: MediaItem) {
   const candidateCollection = normalizeSlugValue(candidate.details.collectionTitle ?? candidate.title);
   const baseCreditNames = new Set(base.credits.map((credit) => credit.name.trim().toLowerCase()).filter(Boolean));
   const sharedCredits = candidate.credits.filter((credit) => baseCreditNames.has(credit.name.trim().toLowerCase())).length;
+  const baseTitleRoots = buildTitleRoots(base);
+  const candidateSignals = [
+    candidate.title,
+    candidate.originalTitle ?? "",
+    candidate.details.collectionTitle ?? "",
+  ]
+    .map((value) => normalizeTitleSignal(value))
+    .filter(Boolean);
+  const sharesTitleRoot = baseTitleRoots.some((root) => candidateSignals.some((signal) => signal.includes(root) || root.includes(signal)));
 
   if (candidate.type === base.type) score += 18;
   else score -= 40;
@@ -316,6 +436,7 @@ function scoreRelatedCandidate(base: MediaItem, candidate: MediaItem) {
   if (baseCollection && candidateCollection && (candidateCollection.includes(baseCollection) || baseCollection.includes(candidateCollection))) {
     score += 20;
   }
+  if (sharesTitleRoot) score += 42;
 
   const yearDistance = Math.abs((candidate.year || 0) - (base.year || 0));
   if (yearDistance <= 1) score += 5;
@@ -481,6 +602,40 @@ function uniqueGalleryImages(media: MediaItem) {
   const gallery: string[] = [];
   const prefersSourceArt = media.type === "anime" || media.type === "game";
 
+  function createFallbackFrame(index: number) {
+    const title = encodeURIComponent(media.title.toUpperCase());
+    const genre = encodeURIComponent((media.genres[index % Math.max(1, media.genres.length)] ?? media.type).toUpperCase());
+    const hue = (hashPaletteKey(`${media.id}-${index}`) * 13) % 360;
+    const secondaryHue = (hue + 46) % 360;
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900">
+        <defs>
+          <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="hsl(${hue} 55% 18%)" />
+            <stop offset="100%" stop-color="hsl(${secondaryHue} 62% 9%)" />
+          </linearGradient>
+          <radialGradient id="glow" cx="0.78" cy="0.18" r="0.72">
+            <stop offset="0%" stop-color="hsla(${secondaryHue} 90% 68% / 0.42)" />
+            <stop offset="100%" stop-color="hsla(${secondaryHue} 90% 68% / 0)" />
+          </radialGradient>
+        </defs>
+        <rect width="1600" height="900" fill="url(#bg)" />
+        <rect width="1600" height="900" fill="url(#glow)" />
+        <g opacity="0.14">
+          <circle cx="260" cy="180" r="180" fill="white" />
+          <circle cx="1370" cy="720" r="230" fill="white" />
+        </g>
+        <g fill="none" stroke="rgba(255,255,255,0.18)">
+          <path d="M0 730 C300 640 520 840 830 710 S1320 520 1600 640" stroke-width="2"/>
+          <path d="M0 800 C280 700 560 900 900 780 S1320 580 1600 700" stroke-width="1.5"/>
+        </g>
+        <text x="92" y="122" fill="rgba(255,255,255,0.7)" font-size="28" font-family="Arial, sans-serif" letter-spacing="8">${genre}</text>
+        <text x="92" y="764" fill="white" font-size="120" font-family="Arial Black, Arial, sans-serif">${title}</text>
+        <text x="92" y="828" fill="rgba(255,255,255,0.74)" font-size="34" font-family="Arial, sans-serif">Vault still fallback ${index + 1}</text>
+      </svg>`,
+    )}`;
+  }
+
   function push(image?: string) {
     if (!image) return;
     const signature = imageSignature(image);
@@ -505,6 +660,10 @@ function uniqueGalleryImages(media: MediaItem) {
     push(media.coverUrl);
   }
 
+  for (let index = 0; gallery.length < 6 && index < 6; index += 1) {
+    push(createFallbackFrame(index));
+  }
+
   return gallery;
 }
 
@@ -516,8 +675,18 @@ function buildStoryGallery(gallery: string[], fallback: string) {
   return Array.from(new Set([...gallery, fallback].filter(Boolean))).slice(0, 5);
 }
 
-function buildImmersionScenes(media: MediaItem, gallery: string[], deepDiveCards: ReturnType<typeof buildDeepDiveCards>) {
-  const storyGallery = buildStoryGallery(gallery, media.backdropUrl || media.coverUrl);
+function buildAtlasGallery(gallery: string[], usedImages: string[]) {
+  const used = new Set(usedImages.map((image) => imageSignature(image)));
+  const fresh = gallery.filter((image) => !used.has(imageSignature(image)));
+
+  if (fresh.length >= 4) {
+    return fresh;
+  }
+
+  return Array.from(new Set([...fresh, ...gallery])).slice(0, 8);
+}
+
+function buildImmersionScenes(media: MediaItem, storyGallery: string[], deepDiveCards: ReturnType<typeof buildDeepDiveCards>) {
   const genreBlend = media.genres.slice(0, 3).join(" / ") || "Atmosphere-first";
   const creditLead = media.credits[0]?.name ?? media.details.studio ?? "The creative team";
 
@@ -923,10 +1092,14 @@ export default async function MediaDetailPage({
   const deepDiveCards = buildDeepDiveCards(media, animeFranchise);
   const spotlightCredits = media.credits.slice(0, 6);
   const gallery = uniqueGalleryImages(media).slice(0, 8);
+  const storyGallery = buildStoryGallery(gallery, media.backdropUrl || media.coverUrl);
   const moodLine = buildMoodLine(media);
-  const immersionScenes = buildImmersionScenes(media, gallery, deepDiveCards);
-  const showAtlas = gallery.length >= 4;
-  const palette = DETAIL_PALETTES[hashPaletteKey(`${media.id}-${Date.now()}`) % DETAIL_PALETTES.length];
+  const immersionScenes = buildImmersionScenes(media, storyGallery, deepDiveCards);
+  const atlasGallery = buildAtlasGallery(gallery, storyGallery);
+  const showAtlas = atlasGallery.length >= 4;
+  const detailIdentity = normalizeTitleSignal([media.title, media.originalTitle ?? "", media.details.collectionTitle ?? ""].join(" "));
+  const easterEgg = DETAIL_EASTER_EGGS.find((entry) => entry.matches.some((match) => detailIdentity.includes(normalizeTitleSignal(match))));
+  const palette = easterEgg?.palette ?? DETAIL_PALETTES[hashPaletteKey(`${media.id}-${media.title}`) % DETAIL_PALETTES.length];
   const detailPaletteStyle = {
     "--detail-accent": palette.accent,
     "--detail-accent-soft": palette.accentSoft,
@@ -940,7 +1113,7 @@ export default async function MediaDetailPage({
       <div className="app-shell-layout">
         <AppSidebar active="browse" />
 
-        <main className="workspace detail-layout" style={detailPaletteStyle}>
+        <main className={`workspace detail-layout ${easterEgg?.className ?? ""}`} style={detailPaletteStyle}>
           <DetailViewEffects />
           <AppTopBar viewerId={viewerId} viewerName={viewerName} viewerAvatar={viewerAvatar} />
           <section className="detail-hero glass">
@@ -955,6 +1128,13 @@ export default async function MediaDetailPage({
                   <h1 className="display detail-display">{media.title}</h1>
                   <p className="detail-lead">{moodLine}</p>
                   <p className="copy detail-overview-copy">{media.overview}</p>
+                  {easterEgg ? (
+                    <div className="detail-favorite-note glass">
+                      <p className="eyebrow">{easterEgg.kicker}</p>
+                      <h2 className="headline detail-favorite-title">{easterEgg.title}</h2>
+                      <p className="copy">{easterEgg.copy}</p>
+                    </div>
+                  ) : null}
                   <div style={{ marginTop: 22 }}>
                     <MediaActions item={media} viewerId={viewerId} />
                   </div>
@@ -1077,24 +1257,7 @@ export default async function MediaDetailPage({
               ))}
             </div>
 
-            {showAtlas ? (
-              <div className="detail-atlas-strip glass">
-                <div className="detail-atlas-copy">
-                  <p className="eyebrow">Atlas</p>
-                  <h3 className="headline">More stills from this title</h3>
-                  <p className="copy">
-                    Extra screenshots and stills collected in one strip so you can scan the visual style at a glance.
-                  </p>
-                </div>
-                <div className="detail-atlas-track">
-                  {gallery.slice(0, 5).map((image, index) => (
-                    <div key={`${image}-${index}`} className="detail-atlas-tile">
-                      <img src={image} alt={`${media.title} atlas ${index + 1}`} loading="lazy" decoding="async" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
+            {showAtlas ? <DetailGallery title={media.title} images={atlasGallery} /> : null}
           </section>
 
           <section className="section-stack detail-deep-dive" style={{ paddingTop: 0 }}>

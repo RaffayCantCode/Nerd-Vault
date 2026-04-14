@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { CatalogCard } from "@/components/catalog-card";
 import { ImageAdjusterModal } from "@/components/image-adjuster-modal";
 import { MediaItem } from "@/lib/types";
@@ -294,13 +294,17 @@ export function ProfileWorkspace({
       : "Your profile, folders, and social activity now stay saved between visits."
     : viewedProfile.bio || "A friend profile inside NerdVault.";
 
+  const deferredWatchedSearch = useDeferredValue(watchedSearch);
+  const deferredWishlistSearch = useDeferredValue(wishlistSearch);
+  const deferredFolderSearch = useDeferredValue(folderSearch);
+
   const sortedWatched = useMemo(
-    () => sortMediaItems(filterMediaItems(watched, watchedMediaFilter, watchedSearch), watchedSort),
-    [watched, watchedMediaFilter, watchedSearch, watchedSort],
+    () => sortMediaItems(filterMediaItems(watched, watchedMediaFilter, deferredWatchedSearch), watchedSort),
+    [deferredWatchedSearch, watched, watchedMediaFilter, watchedSort],
   );
   const sortedWishlist = useMemo(
-    () => sortMediaItems(filterMediaItems(wishlist, wishlistMediaFilter, wishlistSearch), wishlistSort),
-    [wishlist, wishlistMediaFilter, wishlistSearch, wishlistSort],
+    () => sortMediaItems(filterMediaItems(wishlist, wishlistMediaFilter, deferredWishlistSearch), wishlistSort),
+    [deferredWishlistSearch, wishlist, wishlistMediaFilter, wishlistSort],
   );
   const watchedTotalPages = Math.max(1, Math.ceil(sortedWatched.length / PROFILE_MEDIA_PAGE_SIZE));
   const wishlistTotalPages = Math.max(1, Math.ceil(sortedWishlist.length / PROFILE_MEDIA_PAGE_SIZE));
@@ -315,9 +319,9 @@ export function ProfileWorkspace({
   const visibleFolders = useMemo(
     () =>
       folders.filter((folder) =>
-        `${folder.name} ${folder.description ?? ""} ${folder.items.map((item) => item.title).join(" ")}`.toLowerCase().includes(folderSearch.trim().toLowerCase()),
+        `${folder.name} ${folder.description ?? ""} ${folder.items.map((item) => item.title).join(" ")}`.toLowerCase().includes(deferredFolderSearch.trim().toLowerCase()),
       ),
-    [folderSearch, folders],
+    [deferredFolderSearch, folders],
   );
   const filteredFolderItems = useMemo(
     () => (selectedFolder ? filterMediaItems(selectedFolder.items, folderMediaFilter, "") : []),
@@ -363,19 +367,7 @@ export function ProfileWorkspace({
             <div className="workspace-copy">
               <div className="folder-hero-topbar">
                 <div className="folder-hero-title-group">
-                  <div className="folder-hero-cover-stack">
-                    <div className="folder-hero-cover-card" style={getFolderBackdropStyle(selectedFolder.coverUrl)} />
-                    {viewingOwnProfile ? (
-                      <div className="folder-hero-actions">
-                        <button type="button" className="button button-secondary folder-edit-button" onClick={() => setIsEditingFolder((current) => !current)}>
-                          {isEditingFolder ? "Close edit" : "Edit folder"}
-                        </button>
-                        <button type="button" className="button button-secondary folder-delete-button" onClick={() => setShowDeleteConfirm(true)}>
-                          Delete folder
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
+                  <div className="folder-hero-cover-card" style={getFolderBackdropStyle(selectedFolder.coverUrl)} />
                   <div className="folder-hero-copy">
                     <p className="eyebrow">Folder view</p>
                     <h1 className="display" style={{ fontSize: "clamp(3rem, 7vw, 5.4rem)" }}>
@@ -385,6 +377,16 @@ export function ProfileWorkspace({
                       {selectedFolder.items.length} saved picks
                     </p>
                   </div>
+                  {viewingOwnProfile ? (
+                    <div className="folder-hero-actions">
+                      <button type="button" className="button button-secondary folder-edit-button" onClick={() => setIsEditingFolder((current) => !current)}>
+                        {isEditingFolder ? "Close edit" : "Edit folder"}
+                      </button>
+                      <button type="button" className="button button-secondary folder-delete-button" onClick={() => setShowDeleteConfirm(true)}>
+                        Delete folder
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               </div>
 

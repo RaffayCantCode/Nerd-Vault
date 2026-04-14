@@ -850,7 +850,8 @@ export function BrowseWorkspace({
   const featuredKey = featured ? `${featured.source}-${featured.sourceId}` : "";
   const featuredWishlisted = featured ? wishlistedKeys.includes(featuredKey) : false;
   const isPagePending = supportsRemotePaging && page !== activePage;
-  const showGridSkeletons = isLoading || isPagePending;
+  const showPendingState = isLoading || isPagePending;
+  const showGridSkeletons = showPendingState && !remoteCatalog.length;
   const cachedAdjacentItems = useMemo(() => {
     const items: MediaItem[] = [];
     const seen = new Set<string>();
@@ -1117,11 +1118,11 @@ export function BrowseWorkspace({
                 <span>Genre</span>
                 <strong>{genreLabel}</strong>
               </div>
-            <div className="toolbar-stat">
-              <span>Results</span>
-              <strong>{showGridSkeletons ? "Loading next page..." : resultLabel}</strong>
+              <div className="toolbar-stat">
+                <span>Results</span>
+                <strong>{showPendingState ? "Refreshing results..." : resultLabel}</strong>
+              </div>
             </div>
-          </div>
           </div>
 
             <div className="browse-toolbar-row">
@@ -1212,7 +1213,7 @@ export function BrowseWorkspace({
                 ? `Search results for "${activeSearchLabel}"${supportsRemotePaging ? ` on page ${activePage}${totalPages > 1 ? ` of ${totalPages}` : ""}` : ""}.`
                 : `Showing ${sortedVisible.length} titles on page ${activePage}${supportsRemotePaging ? ` of ${totalPages}` : ""}.`}
           </p>
-          <div className={`refresh-pulse ${showGridSkeletons ? "is-active" : ""}`} />
+          <div className={`refresh-pulse ${showPendingState ? "is-active" : ""}`} />
         </div>
 
         {showGridSkeletons ? (
@@ -1221,7 +1222,7 @@ export function BrowseWorkspace({
           </div>
         ) : null}
 
-        <div className={`catalog-grid ${showGridSkeletons ? "catalog-grid-loading" : ""}`} key={`${filter}-${activePage}-${sort}-${genre}`}>
+        <div className={`catalog-grid ${showPendingState ? "catalog-grid-loading" : ""}`} key={`${filter}-${activePage}-${sort}-${genre}`}>
           {!showGridSkeletons && visibleGridItems.length
             ? visibleGridItems.map((item, index) => (
                 <CatalogCard key={item.id} item={item} priority={index < 10} onBeforeNavigate={persistBrowseSnapshot} />
