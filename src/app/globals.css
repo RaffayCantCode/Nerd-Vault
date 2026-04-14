@@ -6226,14 +6226,14 @@ html {
 .detail-gallery-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
 }
 
 .detail-gallery-tile {
   position: relative;
   overflow: hidden;
-  min-height: 180px;
-  border-radius: 22px;
+  min-height: 128px;
+  border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(10, 14, 21, 0.72);
   cursor: pointer;
@@ -6243,12 +6243,6 @@ html {
   width: 100%;
   display: block;
   transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
-}
-
-.detail-gallery-tile.is-featured {
-  grid-column: span 2;
-  grid-row: span 2;
-  min-height: 374px;
 }
 
 .detail-gallery-tile:hover,
@@ -6424,11 +6418,6 @@ html {
   .detail-gallery-grid {
     grid-template-columns: 1fr 1fr;
   }
-
-  .detail-gallery-tile.is-featured {
-    grid-column: span 2;
-    min-height: 280px;
-  }
 }
 
 @media (max-width: 640px) {
@@ -6440,7 +6429,7 @@ html {
   .detail-gallery-tile.is-featured {
     grid-column: span 1;
     grid-row: span 1;
-    min-height: 220px;
+    min-height: 160px;
   }
 
   .detail-lightbox {
@@ -6464,5 +6453,237 @@ html {
   .related-media-actions .detail-back-button {
     min-width: 0;
     width: 100%;
+  }
+}
+
+/* Batch 7 fixes: mobile dock and lighter phone UI */
+
+@media (max-width: 720px) {
+  .page-shell {
+    padding-bottom: 84px;
+  }
+
+  .app-shell-layout {
+    width: min(calc(100% - 12px), 100%);
+    padding: 10px 6px 92px;
+  }
+
+  .sidebar.sidebar-rail {
+    position: fixed;
+    inset: auto 8px 8px 8px;
+    width: auto;
+    height: 64px;
+    min-height: 64px;
+    max-height: 64px;
+    padding: 8px 10px;
+    border-radius: 22px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    overflow: hidden;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
+      rgba(6, 9, 15, 0.94);
+    box-shadow: 0 22px 48px rgba(0, 0, 0, 0.38);
+  }
+
+  .sidebar.sidebar-rail:hover,
+  .sidebar.sidebar-rail:focus-within {
+    width: auto;
+  }
+
+  .brand.brand-rail,
+  .sidebar-rail-divider {
+    display: none;
+  }
+
+  .sidebar-rail-nav {
+    display: grid;
+    grid-template-columns: repeat(2, 48px);
+    gap: 8px;
+    width: auto;
+    flex: 0 0 auto;
+  }
+
+  .sidebar-rail-stack {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-inline: 2px;
+    scrollbar-width: none;
+  }
+
+  .sidebar-rail-stack::-webkit-scrollbar {
+    display: none;
+  }
+
+  .sidebar-folder-stack {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    width: auto;
+  }
+
+  .sidebar-signout-form {
+    width: auto;
+    flex: 0 0 auto;
+  }
+
+  .sidebar-nav-button,
+  .sidebar-folder-tile,
+  .sidebar-icon-button,
+  .sidebar-signout-button {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    min-height: 48px;
+    border-radius: 18px;
+    display: grid;
+    place-items: center;
+    grid-template-columns: 1fr;
+    padding: 0;
+  }
+
+  .sidebar-nav-glyph {
+    width: 28px;
+    height: 28px;
+    font-size: 0.78rem;
+  }
+
+  .sidebar-nav-label,
+  .sidebar-folder-tooltip {
+    display: none !important;
+  }
+
+  .app-topbar {
+    padding: 14px;
+    gap: 12px;
+    border-radius: 20px;
+  }
+
+  .app-topbar-meta {
+    gap: 6px;
+    max-width: none;
+    padding-top: 0;
+  }
+
+  .app-topbar-summary {
+    font-size: 0.84rem;
+    line-height: 1.45;
+  }
+
+  .app-topbar-actions {
+    width: 100%;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .topbar-people-search {
+    min-width: 100%;
+  }
+
+  .topbar-search-input-centered {
+    min-height: 52px;
+    padding-inline: 1rem;
+    font-size: 0.96rem;
+  }
+
+  .topbar-action-group {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+  }
+
+  .topbar-inbox-shell,
+  .topbar-profile-shell {
+    min-width: 0;
+  }
+
+  .topbar-chip,
+  .topbar-user-button {
+    width: 100%;
+    min-height: 48px;
+    justify-content: center;
+    padding: 0.72rem 0.8rem;
+    border-radius: 16px;
+    font-size: 0.92rem;
+  }
+
+  .topbar-user {
+    padding-inline: 0.7rem;
+    gap: 8px;
+  }
+
+  .topbar-user-avatar {
+    width: 34px;
+    height: 34px;
+  }
+
+  .topbar-user-copy strong {
+    font-size: 0.82rem;
+  }
+
+  .topbar-user-copy span {
+    font-size: 0.72rem;
+  }
+
+  .topbar-panel,
+  .inbox-panel,
+  .profile-menu-panel {
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    top: auto;
+    bottom: 80px;
+    width: auto;
+    max-height: min(58vh, 460px);
+    overflow: auto;
+    border-radius: 18px;
+  }
+
+  .workspace {
+    gap: 12px;
+  }
+
+  .workspace-hero,
+  .browse-toolbar,
+  .bottom-pager,
+  .info-panel,
+  .folder-empty,
+  .folder-showcase-card,
+  .folder-row,
+  .detail-gallery-shell {
+    border-radius: 18px;
+  }
+
+  .workspace-copy,
+  .browse-toolbar,
+  .info-panel,
+  .detail-content {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .section-header {
+    gap: 10px;
+  }
+
+  .display {
+    letter-spacing: 0.03em;
+  }
+
+  .copy,
+  .detail-lead,
+  .detail-overview-copy {
+    font-size: 0.95rem;
+    line-height: 1.55;
   }
 }

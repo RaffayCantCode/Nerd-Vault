@@ -479,81 +479,39 @@ function buildDeepDiveCards(
       }
     | undefined,
 ) {
-  const topGenres = media.genres.slice(0, 3).join(" • ") || "Genre blend still loading";
-  const castLead = media.credits[0]?.name ?? "Unknown lead";
-  const secondCredit = media.credits[1]?.name ?? media.details.studio ?? "No second anchor yet";
+  const topGenres = media.genres.slice(0, 3).join(" / ") || "Genre blend still loading";
   const balancedOverview = cleanNarrativeText(media.overview);
-  const runtimeRead = media.details.runtime ?? media.details.releaseInfo ?? media.details.platform ?? "Runtime details are still sparse.";
-  const scoreRead = `${media.rating.toFixed(1)} / 10`;
-
-  if (media.type === "anime") {
-    const animeAudienceLens = getAnimeAudienceLens(media.genres);
-    return dedupeDeepDiveCards([
-      {
-        eyebrow: "Anime lane",
-        title: animeAudienceLens.length ? animeAudienceLens.join(" • ") : topGenres,
-        body: clampCardBody(balancedOverview, "This anime is still waiting on a cleaner synopsis."),
-      },
-      {
-        eyebrow: "Character pull",
-        title: castLead,
-        body: clampCardBody(media.credits.length
-          ? `${castLead} is the first name to watch here, and ${secondCredit} helps define the tone around them.`
-          : "Character data is lighter here, so the genre mix and franchise shape carry more of the appeal.", ""),
-      },
-      {
-        eyebrow: "Arc footprint",
-        title: animeFranchise?.seasonCount ? `${animeFranchise.seasonCount} seasons released` : animeFranchise?.entries.length ? `${animeFranchise.entries.length} connected entries` : "Single entry focus",
-        body: clampCardBody(animeFranchise?.seasonCount
-          ? `This franchise currently reads as ${animeFranchise.seasonCount} main seasons, so the page can point you toward the actual long-form run instead of mixing every side entry together.`
-          : animeFranchise?.entries.length
-            ? `This franchise spans ${animeFranchise.entries.length} connected entries, which means there is more here than a single season drop.`
-          : `This entry is carrying the core pitch right now, with ${runtimeRead.toLowerCase()} and ${scoreRead} helping fill in the quick read.`, ""),
-      },
-    ], media);
-  }
-
-  if (media.type === "game") {
-    const genreRead = media.genres[0] ?? topGenres;
-    const platformRead = media.details.platform ?? "Platform lineup still coming together";
-    const releaseRead = media.details.releaseInfo ?? media.details.status ?? `${media.year || "Unknown"} release`;
-
-    return dedupeDeepDiveCards([
-      {
-        eyebrow: "Play energy",
-        title: topGenres,
-        body: clampCardBody(`The hook is ${topGenres.toLowerCase()}, with ${balancedOverview.toLowerCase()}`, ""),
-      },
-      {
-        eyebrow: "How it plays",
-        title: genreRead,
-        body: clampCardBody(`Built for ${genreRead.toLowerCase()} players, with ${platformRead.toLowerCase()} and ${releaseRead.toLowerCase()} setting the quick expectation.`, ""),
-      },
-      {
-        eyebrow: "Studio signal",
-        title: media.details.studio ?? "Unknown studio",
-        body: clampCardBody(`${media.details.studio ?? "The studio"} is the clearest creative anchor here, with ${secondCredit} giving the page a second useful production signal.`, ""),
-      },
-    ], media);
-  }
+  const runtimeRead = media.details.runtime ?? media.details.releaseInfo ?? media.details.platform ?? "Unknown";
+  const studioRead = media.details.studio ?? media.credits[0]?.name ?? "Unknown";
+  const footprintRead =
+    media.type === "anime"
+      ? animeFranchise?.seasonCount
+        ? `${animeFranchise.seasonCount} seasons`
+        : animeFranchise?.entries.length
+          ? `${animeFranchise.entries.length} connected entries`
+          : "Single entry"
+      : media.details.collectionTitle ?? "Standalone title";
 
   return dedupeDeepDiveCards([
     {
-      eyebrow: "Story hook",
+      eyebrow: "Genre mix",
       title: topGenres,
-      body: clampCardBody(balancedOverview, "The story summary is still being cleaned up."),
+      body: clampCardBody(balancedOverview, "The summary is still being cleaned up."),
     },
     {
-      eyebrow: "Creative signal",
-      title: castLead,
-      body: clampCardBody(media.credits.length
-        ? `${castLead} leads the pull here, with ${secondCredit} helping shape how this one lands.`
-        : `${media.details.studio ?? "The production team"} is the clearest creative signal on this title.`, ""),
+      eyebrow: media.type === "game" ? "Studio / publisher" : "Studio / network",
+      title: studioRead,
+      body: clampCardBody(`${studioRead} is the clearest production credit attached to this title right now.`, ""),
     },
     {
-      eyebrow: "Release read",
-      title: `${media.year || "Unknown year"} • ${scoreRead}`,
-      body: clampCardBody(`Between ${topGenres.toLowerCase()}, ${runtimeRead.toLowerCase()}, and a ${media.year || "current"} release footprint, this reads like a stronger lean-in watch than background viewing.`, ""),
+      eyebrow: media.type === "anime" ? "Series footprint" : "Release read",
+      title: media.type === "anime" ? footprintRead : `${media.year || "Unknown year"} / ${media.rating.toFixed(1)} / 10`,
+      body: clampCardBody(
+        media.type === "anime"
+          ? `${footprintRead} currently surfaced for this title, with ${runtimeRead.toLowerCase()} as the quickest format read.`
+          : `${runtimeRead} and ${footprintRead.toLowerCase()} are the quickest reliable signals on this page.`,
+        "",
+      ),
     },
   ], media);
 }
@@ -598,70 +556,18 @@ function imageSignature(image: string) {
 
 function uniqueGalleryImages(media: MediaItem) {
   const seen = new Set<string>();
-  const lead = media.backdropUrl || media.coverUrl;
   const gallery: string[] = [];
-  const prefersSourceArt = media.type === "anime" || media.type === "game";
-
-  function createFallbackFrame(index: number) {
-    const title = encodeURIComponent(media.title.toUpperCase());
-    const genre = encodeURIComponent((media.genres[index % Math.max(1, media.genres.length)] ?? media.type).toUpperCase());
-    const hue = (hashPaletteKey(`${media.id}-${index}`) * 13) % 360;
-    const secondaryHue = (hue + 46) % 360;
-    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
-      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900">
-        <defs>
-          <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="hsl(${hue} 55% 18%)" />
-            <stop offset="100%" stop-color="hsl(${secondaryHue} 62% 9%)" />
-          </linearGradient>
-          <radialGradient id="glow" cx="0.78" cy="0.18" r="0.72">
-            <stop offset="0%" stop-color="hsla(${secondaryHue} 90% 68% / 0.42)" />
-            <stop offset="100%" stop-color="hsla(${secondaryHue} 90% 68% / 0)" />
-          </radialGradient>
-        </defs>
-        <rect width="1600" height="900" fill="url(#bg)" />
-        <rect width="1600" height="900" fill="url(#glow)" />
-        <g opacity="0.14">
-          <circle cx="260" cy="180" r="180" fill="white" />
-          <circle cx="1370" cy="720" r="230" fill="white" />
-        </g>
-        <g fill="none" stroke="rgba(255,255,255,0.18)">
-          <path d="M0 730 C300 640 520 840 830 710 S1320 520 1600 640" stroke-width="2"/>
-          <path d="M0 800 C280 700 560 900 900 780 S1320 580 1600 700" stroke-width="1.5"/>
-        </g>
-        <text x="92" y="122" fill="rgba(255,255,255,0.7)" font-size="28" font-family="Arial, sans-serif" letter-spacing="8">${genre}</text>
-        <text x="92" y="764" fill="white" font-size="120" font-family="Arial Black, Arial, sans-serif">${title}</text>
-        <text x="92" y="828" fill="rgba(255,255,255,0.74)" font-size="34" font-family="Arial, sans-serif">Vault still fallback ${index + 1}</text>
-      </svg>`,
-    )}`;
-  }
 
   function push(image?: string) {
-    if (!image) return;
+    if (!image || image.startsWith("data:image")) return;
     const signature = imageSignature(image);
     if (!signature || seen.has(signature)) return;
     seen.add(signature);
     gallery.push(image);
   }
 
-  if (!prefersSourceArt) {
-    push(lead);
-  }
-
   for (const image of media.screenshots ?? []) {
     push(image);
-  }
-
-  if (gallery.length < 3) {
-    push(lead);
-  }
-
-  if (gallery.length < 4 && media.type !== "anime") {
-    push(media.coverUrl);
-  }
-
-  for (let index = 0; gallery.length < 6 && index < 6; index += 1) {
-    push(createFallbackFrame(index));
   }
 
   return gallery;
@@ -679,51 +585,32 @@ function buildAtlasGallery(gallery: string[], usedImages: string[]) {
   const used = new Set(usedImages.map((image) => imageSignature(image)));
   const fresh = gallery.filter((image) => !used.has(imageSignature(image)));
 
-  if (fresh.length >= 4) {
+  if (fresh.length >= 3) {
     return fresh;
   }
 
-  return Array.from(new Set([...fresh, ...gallery])).slice(0, 8);
+  return Array.from(new Set([...fresh, ...gallery])).slice(0, 6);
 }
 
 function buildImmersionScenes(media: MediaItem, storyGallery: string[], deepDiveCards: ReturnType<typeof buildDeepDiveCards>) {
   const genreBlend = media.genres.slice(0, 3).join(" / ") || "Atmosphere-first";
-  const creditLead = media.credits[0]?.name ?? media.details.studio ?? "The creative team";
+  const factualCards = [
+    {
+      eyebrow: "Overview",
+      title: `${media.year || "Unknown year"} / ${genreBlend}`,
+      body: cleanNarrativeText(media.overview),
+    },
+    ...deepDiveCards,
+  ].slice(0, Math.min(3, storyGallery.length));
 
-  return [
-    {
-      eyebrow: "Opening frame",
-      title: "Step into the mood first",
-      body: buildMoodLine(media),
-      image: storyGallery[0],
-    },
-    {
-      eyebrow: deepDiveCards[0]?.eyebrow ?? "World",
-      title: deepDiveCards[0]?.title ?? genreBlend,
-      body: deepDiveCards[0]?.body ?? media.overview,
-      image: storyGallery[1],
-    },
-    {
-      eyebrow: "Texture",
-      title: `${media.year || "Unknown year"} · ${genreBlend}`,
-      body: `Every frame here points back to ${genreBlend.toLowerCase()}, with the overall pull coming from ${creditLead} and a world built to be looked at, not just skimmed.`,
-      image: storyGallery[2],
-    },
-    {
-      eyebrow: deepDiveCards[1]?.eyebrow ?? "Creative signal",
-      title: deepDiveCards[1]?.title ?? creditLead,
-      body: deepDiveCards[1]?.body ?? `${creditLead} is one of the clearest signals for how this media lands.`,
-      image: storyGallery[3],
-    },
-    {
-      eyebrow: deepDiveCards[2]?.eyebrow ?? "Why it lands",
-      title: deepDiveCards[2]?.title ?? `${media.rating.toFixed(1)} / 10`,
-      body:
-        deepDiveCards[2]?.body ??
-        `The final read is simple: ${media.rating.toFixed(1)} rated, ${media.year || "year unknown"}, and carrying enough visual identity to feel like a place you can stay in for a while.`,
-      image: storyGallery[4],
-    },
-  ].filter((scene) => Boolean(scene.image));
+  return factualCards
+    .map((card, index) => ({
+      eyebrow: card.eyebrow,
+      title: card.title,
+      body: card.body,
+      image: storyGallery[index],
+    }))
+    .filter((scene) => Boolean(scene.image));
 }
 
 async function withTimeout<T>(work: Promise<T>, fallback: T, timeoutMs = 1200) {
@@ -1091,12 +978,12 @@ export default async function MediaDetailPage({
   const statusValue = media.details.status ?? media.details.releaseInfo ?? "Unknown";
   const deepDiveCards = buildDeepDiveCards(media, animeFranchise);
   const spotlightCredits = media.credits.slice(0, 6);
-  const gallery = uniqueGalleryImages(media).slice(0, 8);
+  const gallery = uniqueGalleryImages(media).slice(0, 6);
   const storyGallery = buildStoryGallery(gallery, media.backdropUrl || media.coverUrl);
   const moodLine = buildMoodLine(media);
   const immersionScenes = buildImmersionScenes(media, storyGallery, deepDiveCards);
   const atlasGallery = buildAtlasGallery(gallery, storyGallery);
-  const showAtlas = atlasGallery.length >= 4;
+  const showAtlas = atlasGallery.length >= 3;
   const detailIdentity = normalizeTitleSignal([media.title, media.originalTitle ?? "", media.details.collectionTitle ?? ""].join(" "));
   const easterEgg = DETAIL_EASTER_EGGS.find((entry) => entry.matches.some((match) => detailIdentity.includes(normalizeTitleSignal(match))));
   const palette = easterEgg?.palette ?? DETAIL_PALETTES[hashPaletteKey(`${media.id}-${media.title}`) % DETAIL_PALETTES.length];
@@ -1234,10 +1121,10 @@ export default async function MediaDetailPage({
           <section className="section-stack detail-world-stage" style={{ paddingTop: 0 }}>
             <div className="section-header">
               <div>
-                <p className="eyebrow">Immersion</p>
-                <h2 className="headline">A quick visual read of the world and tone</h2>
+                <p className="eyebrow">Visuals</p>
+                <h2 className="headline">Real stills and quick facts</h2>
                 <p className="copy" style={{ maxWidth: 700, marginTop: 10 }}>
-                  Key stills and scene beats make it easier to judge the look, mood, and scale before you commit.
+                  This section now sticks to actual images we have for the title instead of dressing weak data up as something it is not.
                 </p>
               </div>
             </div>
@@ -1257,7 +1144,14 @@ export default async function MediaDetailPage({
               ))}
             </div>
 
-            {showAtlas ? <DetailGallery title={media.title} images={atlasGallery} /> : null}
+            {showAtlas ? (
+              <DetailGallery title={media.title} images={atlasGallery} />
+            ) : (
+              <div className="folder-empty glass">
+                <p className="headline">Not enough distinct stills yet.</p>
+                <p className="copy">This title only has one or two usable images right now, so the extra stills panel stays hidden until we have a proper set.</p>
+              </div>
+            )}
           </section>
 
           <section className="section-stack detail-deep-dive" style={{ paddingTop: 0 }}>
