@@ -27,14 +27,16 @@ export async function AppSidebar({ active }: AppSidebarProps) {
           aria-label="Profile"
           title="Profile"
         >
-          <span>Profile</span>
+          <strong className="sidebar-nav-glyph">P</strong>
+          <span className="sidebar-nav-label">Profile</span>
         </Link>
         <BrowseResetLink
           className={`sidebar-nav-button ${active === "browse" ? "is-active" : ""}`}
           aria-label="Browse"
           title="Browse"
         >
-          <span>Browse</span>
+          <strong className="sidebar-nav-glyph">B</strong>
+          <span className="sidebar-nav-label">Browse</span>
         </BrowseResetLink>
       </nav>
 
@@ -50,7 +52,8 @@ export async function AppSidebar({ active }: AppSidebarProps) {
             aria-label="Sign in to save"
             title="Sign in to save"
           >
-            <span>Sign in</span>
+            <strong className="sidebar-nav-glyph">S</strong>
+            <span className="sidebar-nav-label">Sign in</span>
           </Link>
         )}
       </div>
@@ -58,7 +61,8 @@ export async function AppSidebar({ active }: AppSidebarProps) {
       {shouldShowSignOut ? (
         <form action={signOutUser} className="sidebar-signout-form">
           <button className="sidebar-nav-button sidebar-signout-button" type="submit" aria-label="Sign out" title="Sign out">
-            <span>Sign out</span>
+            <strong className="sidebar-nav-glyph">X</strong>
+            <span className="sidebar-nav-label">Sign out</span>
           </button>
         </form>
       ) : null}

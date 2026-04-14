@@ -304,8 +304,9 @@ function scoreRelatedCandidate(base: MediaItem, candidate: MediaItem) {
   const baseCreditNames = new Set(base.credits.map((credit) => credit.name.trim().toLowerCase()).filter(Boolean));
   const sharedCredits = candidate.credits.filter((credit) => baseCreditNames.has(credit.name.trim().toLowerCase())).length;
 
-  if (candidate.type === base.type) score += 14;
-  if (candidate.source === base.source) score += 2;
+  if (candidate.type === base.type) score += 18;
+  else score -= 40;
+  if (candidate.source === base.source) score += 4;
   score += sharedGenres * 10;
   if (primaryGenre && candidate.genres.includes(primaryGenre)) score += 8;
   if (secondaryGenre && candidate.genres.includes(secondaryGenre)) score += 4;
@@ -324,7 +325,7 @@ function scoreRelatedCandidate(base: MediaItem, candidate: MediaItem) {
   score += Math.max(0, 5 - Math.abs(candidate.rating - base.rating));
 
   if (sharedGenres === 0 && candidate.type === base.type) {
-    score -= 8;
+    score -= 16;
   }
 
   return score;
@@ -608,7 +609,6 @@ async function getRelatedMediaRail(media: MediaItem) {
   const primaryGenre = media.genres[0];
   const secondaryGenre = media.genres[1];
   const tertiaryGenre = media.genres[2];
-  const queries = buildQueryVariants(media.title);
   const franchiseSignals = buildFranchiseSignals(media);
   const collected: MediaItem[] = [];
 
@@ -632,13 +632,6 @@ async function getRelatedMediaRail(media: MediaItem) {
       ...franchiseSignals.slice(0, 1).map((query, index) =>
         withTimeout(
           browseTmdbCatalog({ type: mediaType, page: 1, query, sort: "rating", seed: 13 + index }),
-          emptyBrowseResult(),
-          650,
-        ),
-      ),
-      ...queries.slice(0, 1).map((query, index) =>
-        withTimeout(
-          browseTmdbCatalog({ type: mediaType, page: 1, query, sort: "discovery", seed: 5 + index }),
           emptyBrowseResult(),
           650,
         ),
@@ -671,13 +664,6 @@ async function getRelatedMediaRail(media: MediaItem) {
       ...franchiseSignals.slice(0, 1).map((query, index) =>
         withTimeout(
           browseJikanAnime({ page: 1, query, sort: "rating", seed: 13 + index }),
-          emptyBrowseResult(),
-          650,
-        ),
-      ),
-      ...queries.slice(0, 1).map((query, index) =>
-        withTimeout(
-          browseJikanAnime({ page: 1, query, sort: "discovery", seed: 5 + index }),
           emptyBrowseResult(),
           650,
         ),
@@ -723,13 +709,6 @@ async function getRelatedMediaRail(media: MediaItem) {
           650,
         ),
       ),
-      ...queries.slice(0, 1).map((query, index) =>
-        withTimeout(
-          browseIgdbGames({ page: 1, query, sort: "discovery", seed: 5 + index }),
-          emptyBrowseResult(),
-          650,
-        ),
-      ),
     ]);
 
     results.forEach((result) => {
@@ -741,13 +720,19 @@ async function getRelatedMediaRail(media: MediaItem) {
 
   const scored = dedupeItems(collected)
     .filter((candidate) => `${candidate.source}-${candidate.sourceId}` !== `${media.source}-${media.sourceId}`)
+    .filter((candidate) => candidate.type === media.type)
     .map((candidate) => ({
       candidate,
       score: scoreRelatedCandidate(media, candidate) + (candidateMatchesSignal(candidate, franchiseSignals) ? 18 : 0),
     }));
 
   const strictMatches = scored
-    .filter((entry) => (franchiseSignals.length ? candidateMatchesSignal(entry.candidate, franchiseSignals) || entry.score >= 28 : entry.score >= 16))
+    .filter((entry) => {
+      const sharedGenres = entry.candidate.genres.filter((genre) => media.genres.includes(genre)).length;
+      return franchiseSignals.length
+        ? candidateMatchesSignal(entry.candidate, franchiseSignals) || (entry.score >= 30 && sharedGenres > 0)
+        : entry.score >= 18 && sharedGenres > 0;
+    })
     .sort((left, right) => right.score - left.score)
     .map((entry) => entry.candidate)
     .slice(0, 18);
@@ -757,7 +742,10 @@ async function getRelatedMediaRail(media: MediaItem) {
   }
 
   const fallbackMatches = scored
-    .filter((entry) => entry.candidate.type === media.type || entry.score >= 10 || candidateMatchesSignal(entry.candidate, franchiseSignals))
+    .filter((entry) => {
+      const sharedGenres = entry.candidate.genres.filter((genre) => media.genres.includes(genre)).length;
+      return candidateMatchesSignal(entry.candidate, franchiseSignals) || entry.score >= 12 || sharedGenres > 0;
+    })
     .sort((left, right) => right.score - left.score)
     .map((entry) => entry.candidate)
     .slice(0, 12);
@@ -1067,9 +1055,9 @@ export default async function MediaDetailPage({
             <div className="section-header">
               <div>
                 <p className="eyebrow">Immersion</p>
-                <h2 className="headline">Scroll through the world, not just the facts</h2>
+                <h2 className="headline">A quick visual read of the world and tone</h2>
                 <p className="copy" style={{ maxWidth: 700, marginTop: 10 }}>
-                  Five visual beats, tuned smaller so the page feels cinematic without becoming a chore to get through.
+                  Key stills and scene beats make it easier to judge the look, mood, and scale before you commit.
                 </p>
               </div>
             </div>
@@ -1093,9 +1081,9 @@ export default async function MediaDetailPage({
               <div className="detail-atlas-strip glass">
                 <div className="detail-atlas-copy">
                   <p className="eyebrow">Atlas</p>
-                  <h3 className="headline">A cleaner visual anchor for this page</h3>
+                  <h3 className="headline">More stills from this title</h3>
                   <p className="copy">
-                    The detail page only shows this strip when the source actually has enough distinct images, so it feels curated instead of repeated.
+                    Extra screenshots and stills collected in one strip so you can scan the visual style at a glance.
                   </p>
                 </div>
                 <div className="detail-atlas-track">

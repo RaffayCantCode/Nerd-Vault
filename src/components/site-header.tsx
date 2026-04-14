@@ -2,6 +2,7 @@ import Link from "next/link";
 import { signOutUser } from "@/app/sign-in/sign-out-action";
 import { auth } from "@/lib/auth";
 import { BrandLogo } from "@/components/brand-logo";
+import { BrowseResetLink } from "@/components/browse-reset-link";
 
 export async function SiteHeader() {
   const session = await auth();
@@ -20,9 +21,9 @@ export async function SiteHeader() {
       <nav className="nav">
         {isSignedIn ? (
           <>
-            <Link href="/browse" className="nav-link">
+            <BrowseResetLink className="nav-link">
               Back to browse
-            </Link>
+            </BrowseResetLink>
             <Link href="/support" className="nav-link">
               Support
             </Link>
@@ -37,9 +38,9 @@ export async function SiteHeader() {
           </>
         ) : (
           <>
-            <Link href="/browse" className="nav-link">
+            <BrowseResetLink className="nav-link">
               Browse
-            </Link>
+            </BrowseResetLink>
             <Link href="/support" className="nav-link">
               Support
             </Link>

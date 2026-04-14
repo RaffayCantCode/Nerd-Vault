@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { signOutUser } from "@/app/sign-in/sign-out-action";
 import {
   acceptFriend,
@@ -13,7 +12,6 @@ import {
   requestFriend,
   subscribeVaultChanges,
 } from "@/lib/vault-client";
-import { MediaType } from "@/lib/types";
 import { SocialProfile } from "@/lib/vault-types";
 
 type AppTopBarProps = {
@@ -22,20 +20,6 @@ type AppTopBarProps = {
   viewerAvatar?: string;
   initialProfile?: SocialProfile | null;
   initialFriends?: SocialProfile[];
-};
-
-type SearchScope = "media" | "users";
-
-const mediaSearchTypes: Array<{ value: MediaType | "all"; label: string }> = [
-  { value: "all", label: "All media" },
-  { value: "movie", label: "Movies" },
-  { value: "show", label: "Shows" },
-  { value: "anime", label: "Anime" },
-  { value: "game", label: "Games" },
-];
-
-function mediaTypeLabel(value: MediaType | "all") {
-  return mediaSearchTypes.find((option) => option.value === value)?.label ?? "All media";
 }
 
 export function AppTopBar({
@@ -45,12 +29,8 @@ export function AppTopBar({
   initialProfile = null,
   initialFriends = [],
 }: AppTopBarProps) {
-  const router = useRouter();
   const isGuest = viewerId === "guest-vault";
   const [query, setQuery] = useState("");
-  const [scope, setScope] = useState<SearchScope>("media");
-  const [mediaType, setMediaType] = useState<MediaType | "all">("all");
-  const [showMediaTypes, setShowMediaTypes] = useState(false);
   const [inboxOpen, setInboxOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [viewerProfile, setViewerProfile] = useState<SocialProfile | null>(initialProfile);
@@ -83,7 +63,7 @@ export function AppTopBar({
   }, [initialFriends, initialProfile, isGuest]);
 
   useEffect(() => {
-    if (scope !== "users" || !query.trim() || isGuest) {
+    if (!query.trim() || isGuest) {
       setUserResults([]);
       return;
     }
@@ -99,19 +79,12 @@ export function AppTopBar({
     }, 240);
 
     return () => window.clearTimeout(timer);
-  }, [isGuest, query, scope]);
+  }, [isGuest, query]);
 
   const topbarAvatar = viewerProfile?.avatarUrl || viewerAvatar;
   const topbarName = viewerProfile?.name || viewerName;
   const inbox = viewerProfile?.inbox ?? [];
   const unreadCount = inbox.filter((notification) => notification.status === "unread").length;
-  const searchSummary = useMemo(() => {
-    if (scope === "users") {
-      return query.trim() ? `Search users for "${query}"` : "Search users";
-    }
-
-    return query.trim() ? `${mediaTypeLabel(mediaType)} for "${query}"` : `Search ${mediaTypeLabel(mediaType).toLowerCase()}`;
-  }, [mediaType, query, scope]);
 
   function closeOverlays() {
     setInboxOpen(false);
@@ -142,23 +115,6 @@ export function AppTopBar({
     setProfileMenuOpen(true);
   }
 
-  function submitSearch(event: FormEvent) {
-    event.preventDefault();
-
-    if (scope === "users") {
-      return;
-    }
-
-    const params = new URLSearchParams();
-    if (query.trim()) {
-      params.set("query", query.trim());
-    }
-    params.set("mediaType", mediaType);
-    setShowMediaTypes(false);
-    closeOverlays();
-    router.push(`/browse?${params.toString()}`);
-  }
-
   async function ensureSocialLoaded() {
     if (isGuest || hasLoadedSocial) return;
     const payload = await fetchProfilePayload();
@@ -170,127 +126,73 @@ export function AppTopBar({
   return (
     <section className={`app-topbar glass ${(inboxOpen || profileMenuOpen) ? "is-layered" : ""}`}>
       <div className="app-topbar-meta">
-        <p className="eyebrow">Vault search</p>
-        <p className="app-topbar-summary">One place for media, people, and inbox.</p>
+        <p className="eyebrow">Vault hub</p>
+        <p className="app-topbar-summary">Friends, inbox, and your account stay within reach.</p>
       </div>
 
       <div className="app-topbar-actions">
-        <form className="topbar-search topbar-search-unified" onSubmit={submitSearch}>
-          <div className={`topbar-search-stack ${scope === "media" && showMediaTypes ? "has-popout" : ""}`}>
-            <div className="topbar-search-header">
-              <div className="picker-grid topbar-search-scopes">
-                <button
-                  type="button"
-                  className={`picker-chip ${scope === "media" ? "is-active" : ""}`}
-                  onClick={() => {
-                    setScope("media");
-                    setShowMediaTypes((current) => !current);
-                  }}
-                >
-                  {scope === "media" ? `Media: ${mediaTypeLabel(mediaType)}` : "Media"}
-                </button>
-                <button
-                  type="button"
-                  className={`picker-chip ${scope === "users" ? "is-active" : ""}`}
-                  onClick={() => {
-                    setScope("users");
-                    setShowMediaTypes(false);
-                  }}
-                >
-                  Users
-                </button>
+        <div className="topbar-search topbar-people-search">
+          <input
+            className="topbar-search-input topbar-search-input-centered"
+            type="search"
+            placeholder="Search people..."
+            value={query}
+            onFocus={() => closeOverlays()}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+
+          {query.trim() ? (
+            <div className="topbar-panel glass topbar-search-results is-inline">
+              <div className="topbar-panel-header">
+                <strong>People</strong>
               </div>
-
-              <input
-                className="topbar-search-input topbar-search-input-centered"
-                type="search"
-                placeholder={scope === "media" ? "Search for media by title or keywords..." : "Search users..."}
-                value={query}
-                onFocus={() => closeOverlays()}
-                onChange={(event) => setQuery(event.target.value)}
-              />
-            </div>
-
-            {scope === "media" && showMediaTypes ? (
-              <div className="topbar-media-type-popout glass">
-                {mediaSearchTypes.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className={`picker-chip topbar-media-type-chip ${mediaType === option.value ? "is-active" : ""}`}
-                    onClick={() => {
-                      setMediaType(option.value);
-                      setShowMediaTypes(false);
-                    }}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-
-            <div className="topbar-search-footer">
-              <p className="copy topbar-search-summary">{searchSummary}</p>
-              {scope === "media" ? (
-                <button type="submit" className="button button-primary topbar-search-submit">
-                  Search {mediaType !== "all" ? mediaTypeLabel(mediaType) : ""}
-                </button>
-              ) : null}
-            </div>
-
-            {scope === "users" && query.trim() ? (
-              <div className="topbar-panel glass topbar-search-results is-inline">
-                <div className="topbar-panel-header">
-                  <strong>Users</strong>
-                </div>
-                {isGuest ? (
-                  <p className="copy">Sign in to search people, add friends, and use the inbox.</p>
-                ) : searchingUsers ? (
-                  <p className="copy">Searching...</p>
-                ) : userResults.length ? (
-                  <div className="topbar-user-results">
-                    {userResults.map((profile) => (
-                      <div key={profile.id} className="topbar-user-result">
-                        <Link href={`/profile?user=${profile.id}`} className="topbar-user-result-main">
-                          {profile.avatarUrl ? (
-                            <img src={profile.avatarUrl} alt={profile.name} className="topbar-user-avatar" />
-                          ) : (
-                            <span className="topbar-user-avatar topbar-user-avatar-fallback">
-                              {profile.name.charAt(0).toUpperCase()}
-                            </span>
-                          )}
-                          <div className="topbar-user-copy">
-                            <strong>{profile.name}</strong>
-                            <span>{profile.handle}</span>
-                          </div>
-                        </Link>
-                        {profile.relationship === "friend" ? (
-                          <button type="button" className="button button-secondary button-accent" disabled>
-                            Friends
-                          </button>
-                        ) : profile.relationship === "outgoing" ? (
-                          <button type="button" className="button button-secondary" disabled>
-                            Sent
-                          </button>
-                        ) : profile.relationship === "incoming" ? (
-                          <button type="button" className="button button-primary" onClick={() => void acceptFriend(profile.id)}>
-                            Accept
-                          </button>
+              {isGuest ? (
+                <p className="copy">Sign in to search people, add friends, and use the inbox.</p>
+              ) : searchingUsers ? (
+                <p className="copy">Searching...</p>
+              ) : userResults.length ? (
+                <div className="topbar-user-results">
+                  {userResults.map((profile) => (
+                    <div key={profile.id} className="topbar-user-result">
+                      <Link href={`/profile?user=${profile.id}`} className="topbar-user-result-main">
+                        {profile.avatarUrl ? (
+                          <img src={profile.avatarUrl} alt={profile.name} className="topbar-user-avatar" />
                         ) : (
-                          <button type="button" className="button button-secondary" onClick={() => void requestFriend(profile.id)}>
-                            Add
-                          </button>
+                          <span className="topbar-user-avatar topbar-user-avatar-fallback">
+                            {profile.name.charAt(0).toUpperCase()}
+                          </span>
                         )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="copy">No users found.</p>
-                )}
-              </div>
-            ) : null}
-          </div>
-        </form>
+                        <div className="topbar-user-copy">
+                          <strong>{profile.name}</strong>
+                          <span>{profile.handle}</span>
+                        </div>
+                      </Link>
+                      {profile.relationship === "friend" ? (
+                        <button type="button" className="button button-secondary button-accent" disabled>
+                          Friends
+                        </button>
+                      ) : profile.relationship === "outgoing" ? (
+                        <button type="button" className="button button-secondary" disabled>
+                          Sent
+                        </button>
+                      ) : profile.relationship === "incoming" ? (
+                        <button type="button" className="button button-primary" onClick={() => void acceptFriend(profile.id)}>
+                          Accept
+                        </button>
+                      ) : (
+                        <button type="button" className="button button-secondary" onClick={() => void requestFriend(profile.id)}>
+                          Add
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="copy">No users found.</p>
+              )}
+            </div>
+          ) : null}
+        </div>
 
         <div className="topbar-action-group">
           <Link href="/support" className="topbar-chip topbar-support-link">

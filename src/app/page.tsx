@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { signOutUser } from "@/app/sign-in/sign-out-action";
+import { BrowseResetLink } from "@/components/browse-reset-link";
 import { LandingAuthCard } from "@/components/landing-auth-card";
 import { SiteHeader } from "@/components/site-header";
 import { auth } from "@/lib/auth";
@@ -35,9 +36,9 @@ export default async function HomePage() {
               <div className="button-row" style={{ marginTop: 24 }}>
                 {isSignedIn ? (
                   <>
-                    <Link href="/browse" className="button button-primary">
+                    <BrowseResetLink className="button button-primary">
                       Go back to browse
-                    </Link>
+                    </BrowseResetLink>
                     <Link href="/support" className="button button-secondary">
                       Support
                     </Link>
@@ -52,9 +53,9 @@ export default async function HomePage() {
                     <Link href="/sign-in" className="button button-primary">
                       Sign in and start saving
                     </Link>
-                    <Link href="/browse" className="button button-secondary">
+                    <BrowseResetLink className="button button-secondary">
                       Try browse first
-                    </Link>
+                    </BrowseResetLink>
                     <Link href="/support" className="button button-secondary">
                       Support
                     </Link>

@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { startTransition, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { FormEvent, startTransition, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { CatalogCard } from "@/components/catalog-card";
 import { FilterChipBar } from "@/components/filter-chip-bar";
+import { NVLoader } from "@/components/nv-loader";
 import { filterCatalog, itemGenreLabels, itemMatchesGenre } from "@/lib/catalog-utils";
 import { itemMatchesSearch, searchScore } from "@/lib/search-utils";
 import { MediaItem, MediaType } from "@/lib/types";
@@ -22,13 +23,13 @@ const BROWSE_STATE_KEY = "nerdvault-browse-state";
 const BROWSE_PAGE_CACHE_KEY = "nerdvault-browse-page-cache-v1";
 const BROWSE_LAST_URL_KEY = "nerdvault-browse-last-url";
 const BROWSE_BOOTSTRAP_CACHE_KEY = "nerdvault-browse-bootstrap-v1";
+const BROWSE_SEED_KEY = "nerdvault-browse-seed-v1";
 const BROWSE_CACHE_TTL_MS = 1000 * 60 * 10;
 
 function getBrowsePageSize(viewportWidth: number) {
-  if (viewportWidth < 768) return 17;
-  if (viewportWidth < 1280) return 26;
-  if (viewportWidth < 1680) return 30;
-  return 36;
+  if (viewportWidth < 768) return 24;
+  if (viewportWidth < 1680) return 36;
+  return 40;
 }
 
 function scrollToElementWithOffset(element: HTMLElement | null, offset: number, behavior: ScrollBehavior = "auto") {
@@ -216,10 +217,12 @@ export function BrowseWorkspace({
   initialBootstrapPageSize?: number;
   initialTotalPages: number;
 }) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const queryFromUrl = searchParams.get("query") ?? "";
   const mediaTypeFromUrl = searchParams.get("mediaType");
+  const genreFromUrl = searchParams.get("genre") ?? "";
+  const sortFromUrl = searchParams.get("sort");
+  const seedFromUrl = Number(searchParams.get("seed") || "");
   const pageFromUrl = Number(searchParams.get("page") || "");
   const initialState =
     typeof window !== "undefined"
@@ -256,9 +259,14 @@ export function BrowseWorkspace({
   );
   const [query, setQuery] = useState(queryFromUrl || initialState?.query || "");
   const deferredQuery = useDeferredValue(query);
-  const [genre, setGenre] = useState(initialState?.genre ?? "all");
+  const [genre, setGenre] = useState(genreFromUrl || initialState?.genre || "all");
   const [sort, setSort] = useState<SortMode>(
-    initialState?.sort === "newest" ||
+    sortFromUrl === "newest" ||
+      sortFromUrl === "rating" ||
+      sortFromUrl === "title" ||
+      sortFromUrl === "discovery"
+      ? sortFromUrl
+      : initialState?.sort === "newest" ||
       initialState?.sort === "rating" ||
       initialState?.sort === "title" ||
       initialState?.sort === "discovery"
@@ -301,7 +309,13 @@ export function BrowseWorkspace({
   const prefetchedPagesRef = useRef<Record<string, CachedPage>>(
     typeof window !== "undefined" ? readBrowsePageCache() : {},
   );
-  const sessionSeedRef = useRef(discoverySeed);
+  const sessionSeedRef = useRef(
+    Number.isFinite(seedFromUrl) && seedFromUrl > 0
+      ? seedFromUrl
+      : typeof window !== "undefined"
+        ? Number(window.sessionStorage.getItem(BROWSE_SEED_KEY) || "") || discoverySeed
+        : discoverySeed,
+  );
   const toolbarRef = useRef<HTMLDivElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const shouldScrollToResultsRef = useRef(false);
@@ -389,14 +403,24 @@ export function BrowseWorkspace({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const lastBrowseParams = new URLSearchParams(window.location.search);
-    lastBrowseParams.set("page", String(activePage));
+    const lastBrowseParams = new URLSearchParams();
+    if (activePage > 1) {
+      lastBrowseParams.set("page", String(activePage));
+    }
     if (filter !== "all") {
       lastBrowseParams.set("mediaType", filter);
+    }
+    if (genre !== "all") {
+      lastBrowseParams.set("genre", genre);
+    }
+    if (sort !== "discovery") {
+      lastBrowseParams.set("sort", sort);
     }
     if (query.trim()) {
       lastBrowseParams.set("query", query.trim());
     }
+    lastBrowseParams.set("seed", String(sessionSeedRef.current));
+    const nextUrl = lastBrowseParams.toString() ? `/browse?${lastBrowseParams.toString()}` : "/browse";
     window.sessionStorage.setItem(
       BROWSE_STATE_KEY,
       JSON.stringify({
@@ -407,7 +431,11 @@ export function BrowseWorkspace({
         page: activePage,
       }),
     );
-    window.sessionStorage.setItem(BROWSE_LAST_URL_KEY, `${window.location.pathname}?${lastBrowseParams.toString()}`);
+    window.sessionStorage.setItem(BROWSE_LAST_URL_KEY, nextUrl);
+    window.sessionStorage.setItem(BROWSE_SEED_KEY, String(sessionSeedRef.current));
+    if (`${window.location.pathname}${window.location.search}` !== nextUrl) {
+      window.history.replaceState(null, "", nextUrl);
+    }
   }, [activePage, filter, genre, query, sort]);
 
   useEffect(() => {
@@ -425,9 +453,22 @@ export function BrowseWorkspace({
         : "all";
     setFilter(nextFilter);
     setQuery(queryFromUrl);
+    setGenre(genreFromUrl || "all");
+    setSort(
+      sortFromUrl === "newest" ||
+        sortFromUrl === "rating" ||
+        sortFromUrl === "title" ||
+        sortFromUrl === "discovery"
+        ? sortFromUrl
+        : "discovery",
+    );
+    if (Number.isFinite(seedFromUrl) && seedFromUrl > 0) {
+      sessionSeedRef.current = seedFromUrl;
+      window.sessionStorage.setItem(BROWSE_SEED_KEY, String(seedFromUrl));
+    }
     setPage(Number.isFinite(pageFromUrl) && pageFromUrl > 0 ? pageFromUrl : 1);
     setHeroIndex(0);
-  }, [mediaTypeFromUrl, pageFromUrl, queryFromUrl]);
+  }, [genreFromUrl, mediaTypeFromUrl, pageFromUrl, queryFromUrl, seedFromUrl, sortFromUrl]);
 
   useEffect(() => {
     function syncWishlist() {
@@ -565,23 +606,34 @@ export function BrowseWorkspace({
     });
   }, [bootstrapCatalog, catalog, deferredQuery, filter, remoteCatalog, typedVisible]);
 
-  const availableGenres = useMemo(() => {
-    const genreSource =
-      filter === "all"
-        ? [...bootstrapCatalog, ...catalog, ...remoteCatalog]
-        : typedVisible;
+  const knownGenreCatalog = useMemo(() => {
+    const seen = new Set<string>();
 
-    return Array.from(
-      new Set(
-        genreSource.flatMap((item) =>
-          filter === "all" ? itemGenreLabels(item) : item.genres,
-        ),
-      ),
-    )
-      .filter(Boolean)
-      .sort((left, right) => left.localeCompare(right))
+    return [...bootstrapCatalog, ...catalog, ...remoteCatalog].filter((item) => {
+      const key = `${item.source}-${item.sourceId}`;
+      if (seen.has(key)) {
+        return false;
+      }
+
+      seen.add(key);
+      return filter === "all" || item.type === filter;
+    });
+  }, [bootstrapCatalog, catalog, filter, remoteCatalog]);
+
+  const availableGenres = useMemo(() => {
+    const counts = new Map<string, number>();
+
+    for (const item of knownGenreCatalog) {
+      for (const label of itemGenreLabels(item, filter)) {
+        counts.set(label, (counts.get(label) ?? 0) + 1);
+      }
+    }
+
+    return [...counts.entries()]
+      .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+      .map(([label]) => label)
       .slice(0, 18);
-  }, [bootstrapCatalog, catalog, filter, remoteCatalog, typedVisible]);
+  }, [filter, knownGenreCatalog]);
 
   useEffect(() => {
     if (genre !== "all" && !availableGenres.includes(genre)) {
@@ -703,8 +755,33 @@ export function BrowseWorkspace({
   const featuredDeck = useMemo(() => {
     const source = heroBaseCatalog;
     const deckSeed = sessionSeedRef.current + hashString(`${filter}-${genre}-${sort}-${activePage}`);
-    return buildSurfacingDeck(source, deckSeed, filter);
-  }, [activePage, filter, genre, heroBaseCatalog, sort]);
+    const deck = buildSurfacingDeck(source, deckSeed, filter);
+
+    if (filter !== "all" || deck.length === 4) {
+      return deck;
+    }
+
+    const fallbackPool = (() => {
+      const seen = new Set<string>();
+      return [...knownGenreCatalog, ...bootstrapCatalog].filter((item) => {
+        const key = `${item.source}-${item.sourceId}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    })();
+
+    const supplement = buildSurfacingDeck(fallbackPool, deckSeed + 97, "all");
+    const merged = [...deck, ...supplement];
+    const seen = new Set<string>();
+
+    return merged.filter((item) => {
+      const key = `${item.source}-${item.sourceId}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, 4);
+  }, [activePage, bootstrapCatalog, filter, genre, heroBaseCatalog, knownGenreCatalog, sort]);
 
   useEffect(() => {
     if (!shouldScrollToToolbarRef.current || isLoading) {
@@ -723,24 +800,6 @@ export function BrowseWorkspace({
     scrollToElementWithOffset(resultsRef.current, pageScrollOffsetRef.current);
     shouldScrollToResultsRef.current = false;
   }, [deferredQuery, isLoading, sortedVisible.length]);
-
-  useEffect(() => {
-    const trimmedQuery = deferredQuery.trim();
-    if (!trimmedQuery || isLoading) {
-      return;
-    }
-
-    const shouldAssistScroll = trimmedQuery.length >= 8 || trimmedQuery.includes(" ");
-    if (!shouldAssistScroll) {
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      scrollToElementWithOffset(resultsRef.current, 110);
-    }, 900);
-
-    return () => window.clearTimeout(timer);
-  }, [deferredQuery, filter, genre, isLoading, sort]);
 
   useEffect(() => {
     if (!didInitSurfacingRef.current) {
@@ -785,6 +844,7 @@ export function BrowseWorkspace({
             : "Games";
   const genreLabel = genre === "all" ? "All genres" : genre;
   const resultLabel = `${sortedVisible.length} visible now`;
+  const activeSearchLabel = deferredQuery.trim();
   const featured =
     featuredDeck[heroIndex] ?? sortedVisible[0] ?? typedVisible[0] ?? baseCatalog[0] ?? bootstrapCatalog[0] ?? catalog[0];
   const featuredKey = featured ? `${featured.source}-${featured.sourceId}` : "";
@@ -842,11 +902,6 @@ export function BrowseWorkspace({
     return baseItems;
   }, [bootstrapCatalog, cachedAdjacentItems, catalog, featured, featuredKey, filter, genre, pageSize, queryVisible, remoteCatalog, sortedVisible, typedVisible]);
 
-  useEffect(() => {
-    if (!featured) return;
-    router.prefetch(`/media/${featured.slug}?source=${featured.source}&sourceId=${featured.sourceId}&type=${featured.type}`);
-  }, [featured, router]);
-
   function toggleWishlist(item: MediaItem) {
     const key = `${item.source}-${item.sourceId}`;
 
@@ -865,14 +920,25 @@ export function BrowseWorkspace({
     }
 
     shouldScrollToToolbarRef.current = false;
-    shouldScrollToResultsRef.current = false;
-    pageScrollOffsetRef.current = source === "top" ? 110 : 44;
-    scrollToElementWithOffset(resultsRef.current, pageScrollOffsetRef.current, "smooth");
-    setPage(clamped);
+    shouldScrollToResultsRef.current = true;
+    pageScrollOffsetRef.current = window.innerWidth < 900 ? 110 : source === "top" ? 110 : 44;
+    startTransition(() => {
+      setPage(clamped);
+    });
   }
 
   function persistBrowseSnapshot() {
     window.sessionStorage.setItem(BROWSE_SCROLL_KEY, String(window.scrollY));
+  }
+
+  function handleSearchJump(event?: FormEvent) {
+    event?.preventDefault();
+    shouldScrollToResultsRef.current = true;
+    pageScrollOffsetRef.current = 110;
+
+    if (!isLoading) {
+      scrollToElementWithOffset(resultsRef.current, 110, "smooth");
+    }
   }
 
   function renderPager(source: "top" | "bottom") {
@@ -1027,9 +1093,7 @@ export function BrowseWorkspace({
         </section>
       ) : (
         <section className="workspace-hero glass route-loading">
-          <div className="route-loading-badge" />
-          <div className="route-loading-title" />
-          <div className="route-loading-copy" />
+          <NVLoader compact label="Loading browse..." />
         </section>
       )}
 
@@ -1037,10 +1101,10 @@ export function BrowseWorkspace({
         <div className="browse-toolbar glass" ref={toolbarRef}>
           <div className="browse-toolbar-grid">
             <div className="browse-toolbar-copy">
-              <p className="eyebrow">Browse</p>
-              <h2 className="headline">A calmer vault for everything you play and watch.</h2>
+              <p className="eyebrow">Search and browse</p>
+              <h2 className="headline">Find something worth watching or playing without losing your place.</h2>
               <p className="copy">
-                Discovery keeps it fresh, newest keeps it current, and the surfacing rail rotates on each visit.
+                Search updates as you type, filters stay in view, and the current query stays attached to these results.
               </p>
             </div>
 
@@ -1061,6 +1125,31 @@ export function BrowseWorkspace({
           </div>
 
             <div className="browse-toolbar-row">
+              <form className="browse-live-search" onSubmit={handleSearchJump}>
+                <label className="sort-label" htmlFor="browse-live-search">Search</label>
+                <div className="browse-live-search-row">
+                  <input
+                    id="browse-live-search"
+                    className="search-input browse-live-search-input"
+                    type="search"
+                    placeholder="Search titles, genres, or keywords..."
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                  />
+                  <button type="submit" className="button button-primary browse-search-submit">
+                    Search
+                  </button>
+                  {query.trim() ? (
+                    <button type="button" className="button button-secondary browse-search-clear" onClick={() => setQuery("")}>
+                      Clear
+                    </button>
+                  ) : null}
+                </div>
+                <p className="copy browse-live-search-copy">
+                  {activeSearchLabel ? `Searching for "${activeSearchLabel}"` : "Start typing and the browse results update here."}
+                </p>
+              </form>
+
               <div className="search-cluster">
                 <div className="sort-chip-block">
                   <p className="sort-label">Sort</p>
@@ -1117,12 +1206,20 @@ export function BrowseWorkspace({
                       ? "game"
                       : filter === "all"
                       ? "catalog"
-                      : "TMDB"
+                      : "browse"
                 } results...`
-              : `Showing ${sortedVisible.length} titles on page ${activePage}${supportsRemotePaging ? ` of ${totalPages}` : ""}.`}
+              : activeSearchLabel
+                ? `Search results for "${activeSearchLabel}"${supportsRemotePaging ? ` on page ${activePage}${totalPages > 1 ? ` of ${totalPages}` : ""}` : ""}.`
+                : `Showing ${sortedVisible.length} titles on page ${activePage}${supportsRemotePaging ? ` of ${totalPages}` : ""}.`}
           </p>
           <div className={`refresh-pulse ${showGridSkeletons ? "is-active" : ""}`} />
         </div>
+
+        {showGridSkeletons ? (
+          <div className="glass browse-loader-panel">
+            <NVLoader compact label={activeSearchLabel ? `Updating "${activeSearchLabel}"...` : "Loading fresh picks..."} />
+          </div>
+        ) : null}
 
         <div className={`catalog-grid ${showGridSkeletons ? "catalog-grid-loading" : ""}`} key={`${filter}-${activePage}-${sort}-${genre}`}>
           {!showGridSkeletons && visibleGridItems.length

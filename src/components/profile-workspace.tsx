@@ -11,6 +11,7 @@ import { PrivacyLevel, SocialProfile, StoredFolder, VaultProfilePayload } from "
 
 type LibrarySortMode = "recent" | "title" | "rating";
 type MediaFilterMode = "all" | "movie" | "show" | "anime" | "game";
+const PROFILE_MEDIA_PAGE_SIZE = 12;
 
 function sortMediaItems(items: MediaItem[], mode: LibrarySortMode) {
   const sorted = [...items];
@@ -149,6 +150,8 @@ export function ProfileWorkspace({
   const [watchedSearch, setWatchedSearch] = useState("");
   const [wishlistSearch, setWishlistSearch] = useState("");
   const [folderSearch, setFolderSearch] = useState("");
+  const [watchedPage, setWatchedPage] = useState(1);
+  const [wishlistPage, setWishlistPage] = useState(1);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const profileSettingsRef = useRef<HTMLDivElement | null>(null);
   const profileAvatarActionsRef = useRef<HTMLDivElement | null>(null);
@@ -202,6 +205,14 @@ export function ProfileWorkspace({
     const timeout = window.setTimeout(() => setProfileMessage(""), 2200);
     return () => window.clearTimeout(timeout);
   }, [profileMessage]);
+
+  useEffect(() => {
+    setWatchedPage(1);
+  }, [viewedUserId, watchedMediaFilter, watchedSearch, watchedSort]);
+
+  useEffect(() => {
+    setWishlistPage(1);
+  }, [viewedUserId, wishlistMediaFilter, wishlistSearch, wishlistSort]);
 
   useEffect(() => {
     if (!showProfileSettings) return;
@@ -291,6 +302,16 @@ export function ProfileWorkspace({
     () => sortMediaItems(filterMediaItems(wishlist, wishlistMediaFilter, wishlistSearch), wishlistSort),
     [wishlist, wishlistMediaFilter, wishlistSearch, wishlistSort],
   );
+  const watchedTotalPages = Math.max(1, Math.ceil(sortedWatched.length / PROFILE_MEDIA_PAGE_SIZE));
+  const wishlistTotalPages = Math.max(1, Math.ceil(sortedWishlist.length / PROFILE_MEDIA_PAGE_SIZE));
+  const pagedWatched = useMemo(
+    () => sortedWatched.slice((watchedPage - 1) * PROFILE_MEDIA_PAGE_SIZE, watchedPage * PROFILE_MEDIA_PAGE_SIZE),
+    [sortedWatched, watchedPage],
+  );
+  const pagedWishlist = useMemo(
+    () => sortedWishlist.slice((wishlistPage - 1) * PROFILE_MEDIA_PAGE_SIZE, wishlistPage * PROFILE_MEDIA_PAGE_SIZE),
+    [sortedWishlist, wishlistPage],
+  );
   const visibleFolders = useMemo(
     () =>
       folders.filter((folder) =>
@@ -302,6 +323,36 @@ export function ProfileWorkspace({
     () => (selectedFolder ? filterMediaItems(selectedFolder.items, folderMediaFilter, "") : []),
     [folderMediaFilter, selectedFolder],
   );
+
+  function renderMediaPager(currentPage: number, totalPages: number, onChange: (nextPage: number) => void, label: string) {
+    if (totalPages <= 1) {
+      return null;
+    }
+
+    return (
+      <div className="bottom-pager glass profile-section-pager">
+        <div className="pager-copy">
+          <p className="eyebrow">Page flow</p>
+          <p className="copy">
+            {label} page {currentPage} of {totalPages}.
+          </p>
+        </div>
+        <div className="pager-actions">
+          <button type="button" className="chip" disabled={currentPage <= 1} onClick={() => onChange(Math.max(1, currentPage - 1))}>
+            Previous page
+          </button>
+          <div className="page-indicator">
+            <span>{currentPage}</span>
+            <span>/</span>
+            <span>{totalPages}</span>
+          </div>
+          <button type="button" className="chip is-active" disabled={currentPage >= totalPages} onClick={() => onChange(Math.min(totalPages, currentPage + 1))}>
+            Next page
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (selectedFolder) {
     return (
@@ -338,7 +389,7 @@ export function ProfileWorkspace({
               </div>
 
               <p className="copy">
-                {selectedFolder.description?.trim() ? selectedFolder.description : "This folder is ready for the titles you want to revisit later."}
+                {selectedFolder.description?.trim() ? selectedFolder.description : "No description added for this folder yet."}
               </p>
 
               {isEditingFolder ? (
@@ -705,11 +756,14 @@ export function ProfileWorkspace({
         </div>
         {canSeeWatched || viewingOwnProfile ? (
           sortedWatched.length ? (
-            <div className="catalog-grid">
-              {sortedWatched.map((item, index) => (
-                <CatalogCard key={item.id} item={item} priority={index < 8} />
-              ))}
-            </div>
+            <>
+              <div className="catalog-grid profile-media-grid">
+                {pagedWatched.map((item, index) => (
+                  <CatalogCard key={item.id} item={item} priority={index < 8} />
+                ))}
+              </div>
+              {renderMediaPager(watchedPage, watchedTotalPages, setWatchedPage, "Watched")}
+            </>
           ) : (
             <div className="folder-empty glass">
               <p className="headline">Nothing logged in this view yet.</p>
@@ -771,11 +825,14 @@ export function ProfileWorkspace({
         </div>
         {canSeeWishlist || viewingOwnProfile ? (
           sortedWishlist.length ? (
-            <div className="catalog-grid">
-              {sortedWishlist.map((item, index) => (
-                <CatalogCard key={item.id} item={item} priority={index < 8} />
-              ))}
-            </div>
+            <>
+              <div className="catalog-grid profile-media-grid">
+                {pagedWishlist.map((item, index) => (
+                  <CatalogCard key={item.id} item={item} priority={index < 8} />
+                ))}
+              </div>
+              {renderMediaPager(wishlistPage, wishlistTotalPages, setWishlistPage, "Wishlist")}
+            </>
           ) : (
             <div className="folder-empty glass">
               <p className="headline">Nothing in wishlist for this view.</p>
