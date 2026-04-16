@@ -20,12 +20,16 @@ export function FranchiseRelatedSection({
   title,
   summary,
   entries,
+  secondaryTitle,
+  secondaryEntries = [],
 }: {
   title: string;
   summary: string;
   entries: FranchiseEntry[];
+  secondaryTitle?: string;
+  secondaryEntries?: FranchiseEntry[];
 }) {
-  if (entries.length < 2) {
+  if (entries.length < 2 && secondaryEntries.length < 1) {
     return null;
   }
 
@@ -40,23 +44,51 @@ export function FranchiseRelatedSection({
           </p>
         </div>
       </div>
+      {entries.length ? (
+        <div className="franchise-grid">
+          {entries.map((entry, index) => (
+            <Link
+              key={entry.id}
+              href={entry.href}
+              className={`glass franchise-card ${entry.isActive ? "is-active" : ""}`}
+            >
+              <div className="franchise-card-topline">
+                <span className="eyebrow">Entry {index + 1}</span>
+                <span className="franchise-badge">{entry.isActive ? "You are here" : entry.badge ?? "Open"}</span>
+              </div>
+              <h3 className="headline franchise-card-title">{entry.title}</h3>
+              <p className="copy franchise-card-meta">{entry.meta}</p>
+            </Link>
+          ))}
+        </div>
+      ) : null}
 
-      <div className="franchise-grid">
-        {entries.map((entry, index) => (
-          <Link
-            key={entry.id}
-            href={entry.href}
-            className={`glass franchise-card ${entry.isActive ? "is-active" : ""}`}
-          >
-            <div className="franchise-card-topline">
-              <span className="eyebrow">Entry {index + 1}</span>
-              <span className="franchise-badge">{entry.isActive ? "You are here" : entry.badge ?? "Open"}</span>
+      {secondaryEntries.length ? (
+        <>
+          <div className="section-header" style={{ marginTop: 12 }}>
+            <div>
+              <p className="eyebrow">Movies</p>
+              <h3 className="headline" style={{ margin: 0 }}>{secondaryTitle ?? "Franchise movies"}</h3>
             </div>
-            <h3 className="headline franchise-card-title">{entry.title}</h3>
-            <p className="copy franchise-card-meta">{entry.meta}</p>
-          </Link>
-        ))}
-      </div>
+          </div>
+          <div className="franchise-grid">
+            {secondaryEntries.map((entry, index) => (
+              <Link
+                key={entry.id}
+                href={entry.href}
+                className={`glass franchise-card ${entry.isActive ? "is-active" : ""}`}
+              >
+                <div className="franchise-card-topline">
+                  <span className="eyebrow">Movie {index + 1}</span>
+                  <span className="franchise-badge">{entry.isActive ? "You are here" : entry.badge ?? "Open"}</span>
+                </div>
+                <h3 className="headline franchise-card-title">{entry.title}</h3>
+                <p className="copy franchise-card-meta">{entry.meta}</p>
+              </Link>
+            ))}
+          </div>
+        </>
+      ) : null}
     </section>
   );
 }

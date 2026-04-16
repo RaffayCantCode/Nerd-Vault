@@ -615,13 +615,25 @@ export async function getJikanAnimeFranchise(id: number) {
       };
     }),
   );
-  const seasonEntries = entries.filter((entry) => entry.seasonKey && !isSupplementalAnimeEntry(entry));
-  const seasonCount = new Set(seasonEntries.map((entry) => entry.seasonKey)).size;
+  const seasonEntries = entries.filter((entry) => {
+    const type = cleanWhitespace(entry.type ?? "").toLowerCase();
+    return ["tv"].includes(type) && !isSupplementalAnimeEntry(entry);
+  });
+  const movieEntries = entries.filter((entry) => {
+    const type = cleanWhitespace(entry.type ?? "").toLowerCase();
+    const title = cleanWhitespace(entry.title).toLowerCase();
+    return (
+      type === "movie" &&
+      !/\b(recap|compilation|summary|digest)\b/i.test(title)
+    );
+  });
+  const seasonCount = seasonEntries.length;
 
   return {
     title: primaryTitle,
     entries,
     seasonEntries,
+    movieEntries,
     seasonCount,
   };
 }
