@@ -483,6 +483,10 @@ html {
 }
 
 @media (max-width: 900px) {
+  .sidebar.sidebar-rail {
+    z-index: 130;
+  }
+
   .sidebar-shell.is-mobile-open .sidebar.sidebar-rail {
     width: min(78vw, 286px) !important;
     display: flex !important;

@@ -20,8 +20,8 @@ export function RelatedMediaSection({
   if (!items.length) {
     return (
       <div className="folder-empty glass">
-        <p className="headline">No close matches yet.</p>
-        <p className="copy">We could not find a strong related mix for this title yet. Jump back to browse and keep the trail moving.</p>
+        <p className="headline">No related titles found.</p>
+        <p className="copy">This entry does not have a strong enough related match right now, so we are leaving the rail empty instead of filling it with bad guesses.</p>
         <div className="related-media-actions">
           <DetailBackButton />
         </div>

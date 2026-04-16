@@ -1,10 +1,11 @@
 import Link from "next/link";
+import { signInWithCredentials, signInWithGoogle } from "@/app/sign-in/actions";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopBar } from "@/components/app-topbar";
 import { HomeWorkspace } from "@/components/home-workspace";
 import { auth } from "@/lib/auth";
 import { buildHomeFeed } from "@/lib/home-feed";
-import { ensureCurrentUserRecord, getLibraryStateForUser } from "@/lib/vault-server";
+import { ensureCurrentUserRecord, getLibraryStateForUser, getViewerShellData } from "@/lib/vault-server";
 
 export default async function HomeHubPage() {
   const session = await auth();
@@ -13,25 +14,64 @@ export default async function HomeHubPage() {
   const viewerAvatar = session?.user?.image || undefined;
 
   if (!session?.user?.id) {
+    const googleReady = Boolean(
+      process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET && process.env.AUTH_SECRET,
+    );
+
     return (
       <div className="page-shell">
         <div className="app-shell-layout">
           <AppSidebar active="home" />
           <main className="workspace">
             <AppTopBar viewerId={viewerId} viewerName={viewerName} viewerAvatar={viewerAvatar} />
-            <section className="feature-block glass">
-              <p className="eyebrow">Home hub</p>
-              <h1 className="headline">Sign in to unlock your personal home page.</h1>
-              <p className="copy">
-                Home is built around your watched list, wishlist, and folders, so it needs your vault data before it can recommend anything useful.
-              </p>
-              <div className="button-row" style={{ marginTop: 18 }}>
-                <Link href="/sign-in" className="button button-primary">
-                  Sign in
-                </Link>
-                <Link href="/browse" className="button button-secondary">
-                  Back to browse
-                </Link>
+            <section className="auth-screen">
+              <div className="auth-screen-card glass" style={{ width: "min(100%, 1040px)" }}>
+                <div className="auth-screen-copy">
+                  <p className="eyebrow">Home hub</p>
+                  <h1 className="headline">You can only open Home when you are logged in.</h1>
+                  <p className="copy">
+                    Guest mode can browse the catalog, but Home depends on your watched list, wishlist, folders, and profile data.
+                  </p>
+                  <p className="copy">
+                    Log in below to unlock your personal upcoming lane, recommendations, and saved vault activity.
+                  </p>
+                  <div className="button-row" style={{ marginTop: 18 }}>
+                    <Link href="/browse" className="button button-secondary">
+                      Back to browse
+                    </Link>
+                    <Link href="/sign-in?mode=signup" className="button button-primary">
+                      Create account
+                    </Link>
+                  </div>
+                </div>
+                <div className="auth-screen-panel glass">
+                  <div className="auth-panel-header">
+                    <p className="eyebrow">Log in</p>
+                    <h2 className="headline" style={{ margin: 0 }}>Open your vault</h2>
+                  </div>
+                  <form action={signInWithCredentials} className="auth-form">
+                    <input type="hidden" name="redirectTo" value="/home" />
+                    <div className="auth-field">
+                      <label htmlFor="home-login-email">Email</label>
+                      <input id="home-login-email" name="email" type="email" placeholder="you@example.com" required />
+                    </div>
+                    <div className="auth-field">
+                      <label htmlFor="home-login-password">Password</label>
+                      <input id="home-login-password" name="password" type="password" placeholder="Your password" required minLength={8} />
+                    </div>
+                    <button type="submit" className="button button-primary auth-submit-button">
+                      Log in
+                    </button>
+                  </form>
+                  <div className="auth-divider">
+                    <span>or</span>
+                  </div>
+                  <form action={signInWithGoogle}>
+                    <button type="submit" className="button button-secondary auth-google-button" disabled={!googleReady}>
+                      Continue with Google
+                    </button>
+                  </form>
+                </div>
               </div>
             </section>
           </main>
@@ -41,15 +81,22 @@ export default async function HomeHubPage() {
   }
 
   const user = await ensureCurrentUserRecord();
+  const shellData = await getViewerShellData(user.id);
   const library = await getLibraryStateForUser(user.id);
   const feed = await buildHomeFeed(library);
 
   return (
     <div className="page-shell">
       <div className="app-shell-layout">
-        <AppSidebar active="home" />
+        <AppSidebar active="home" initialFolders={shellData.folders} />
         <main className="workspace">
-          <AppTopBar viewerId={viewerId} viewerName={viewerName} viewerAvatar={viewerAvatar} />
+          <AppTopBar
+            viewerId={viewerId}
+            viewerName={viewerName}
+            viewerAvatar={viewerAvatar}
+            initialProfile={shellData.viewerProfile}
+            initialFriends={shellData.friends}
+          />
           <HomeWorkspace viewerName={viewerName} feed={feed} />
         </main>
       </div>

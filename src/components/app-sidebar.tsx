@@ -5,12 +5,14 @@ import { BrandLogo } from "@/components/brand-logo";
 import { SidebarFolders } from "@/components/sidebar-folders";
 import { BrowseResetLink } from "@/components/browse-reset-link";
 import { SidebarShell } from "@/components/sidebar-shell";
+import { StoredFolder } from "@/lib/vault-types";
 
 type AppSidebarProps = {
   active: "home" | "browse" | "profile";
+  initialFolders?: StoredFolder[];
 };
 
-export async function AppSidebar({ active }: AppSidebarProps) {
+export async function AppSidebar({ active, initialFolders = [] }: AppSidebarProps) {
   const session = await auth();
   const userName = session?.user?.name || null;
   const shouldShowSignOut = Boolean(userName);
@@ -55,7 +57,7 @@ export async function AppSidebar({ active }: AppSidebarProps) {
 
         <div className="sidebar-rail-stack" aria-label="Folders">
           {shouldShowSignOut ? (
-            <SidebarFolders />
+            <SidebarFolders initialFolders={initialFolders} />
           ) : (
             <Link
               href="/sign-in"

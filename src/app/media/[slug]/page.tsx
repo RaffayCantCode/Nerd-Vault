@@ -344,7 +344,100 @@ function candidateMatchesSignal(candidate: MediaItem, signals: string[]) {
     .join(" ")
     .toLowerCase();
 
-  return signals.some((signal) => haystack.includes(signal.toLowerCase()));
+  return signals.some((signal) => {
+    const normalizedSignal = normalizeTitleSignal(signal);
+    if (!normalizedSignal) return false;
+    return haystack.includes(normalizedSignal);
+  });
+}
+
+function normalizeComparableFranchiseTitle(title: string, type: MediaItem["type"]) {
+  return normalizeTitleSignal(title)
+    .replace(/\b(documentary|behind the scenes|making of|fan film|discussion|interview|recap|special|short)\b/g, " ")
+    .replace(type === "game" ? /\b(remaster(?:ed)?|definitive|deluxe|complete|game of the year|goty|hd|ultimate|collector s|anniversary|director s cut)\b/g : /$^/, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isSupplementalFranchiseCandidate(base: MediaItem, candidate: MediaItem) {
+  if (candidate.type !== base.type) {
+    return true;
+  }
+
+  const title = `${candidate.title} ${candidate.originalTitle ?? ""}`.toLowerCase();
+  const overview = candidate.overview.toLowerCase();
+  const bannedGenres = new Set(["Documentary", "News", "Talk", "Reality", "Soap"]);
+
+  if (candidate.genres.some((genre) => bannedGenres.has(genre))) {
+    return true;
+  }
+
+  if (base.type === "anime") {
+    return /\b(ova|ona|special|recap|compilation|picture drama|music video|live action)\b/i.test(title);
+  }
+
+  if (base.type === "movie" || base.type === "show") {
+    return /\b(documentary|behind the scenes|making of|fan film|discussion|interview|recap|short|special)\b/i.test(
+      `${title} ${overview}`,
+    );
+  }
+
+  if (base.type === "game") {
+    return /\b(demo|soundtrack|art book|expansion pass)\b/i.test(title);
+  }
+
+  return false;
+}
+
+function hasStrongFranchiseConnection(base: MediaItem, candidate: MediaItem, signals: string[]) {
+  const baseRoots = buildTitleRoots(base);
+  const candidateRoots = buildTitleRoots(candidate);
+  const comparableBase = normalizeComparableFranchiseTitle(base.details.collectionTitle ?? base.title, base.type);
+  const comparableCandidate = normalizeComparableFranchiseTitle(
+    candidate.details.collectionTitle ?? candidate.title,
+    candidate.type,
+  );
+  const sharesTitleRoot = baseRoots.some((root) =>
+    candidateRoots.some((candidateRoot) => candidateRoot.includes(root) || root.includes(candidateRoot)),
+  );
+
+  if (sharesTitleRoot) {
+    return true;
+  }
+
+  if (
+    comparableBase &&
+    comparableCandidate &&
+    (comparableCandidate.includes(comparableBase) || comparableBase.includes(comparableCandidate))
+  ) {
+    return true;
+  }
+
+  return candidateMatchesSignal(candidate, signals);
+}
+
+function dedupeComparableEntries(items: MediaItem[]) {
+  const bestByKey = new Map<string, MediaItem>();
+
+  for (const item of items) {
+    const key = normalizeComparableFranchiseTitle(item.details.collectionTitle ?? item.title, item.type) || item.id;
+    const existing = bestByKey.get(key);
+    if (!existing) {
+      bestByKey.set(key, item);
+      continue;
+    }
+
+    const shouldReplace =
+      item.year < existing.year ||
+      (item.year === existing.year && item.rating > existing.rating) ||
+      (!existing.year && Boolean(item.year));
+
+    if (shouldReplace) {
+      bestByKey.set(key, item);
+    }
+  }
+
+  return Array.from(bestByKey.values());
 }
 
 function slugifyRouteValue(value: string) {
@@ -472,13 +565,14 @@ async function buildFranchiseSection(media: MediaItem, animeFranchise?: AnimeFra
 
   const signals = buildFranchiseSignals(media);
   const pooled = await getFranchiseFallback(media, signals);
-  const candidates = dedupeItems([media, ...pooled])
+  const candidates = dedupeComparableEntries(dedupeItems([media, ...pooled]))
     .filter((candidate) => candidate.type === media.type)
+    .filter((candidate) => !isSupplementalFranchiseCandidate(media, candidate))
     .map((candidate) => ({
       candidate,
       score: rankFranchiseCandidate(media, candidate, signals),
     }))
-    .filter((entry) => entry.candidate.id === media.id || entry.score >= 44)
+    .filter((entry) => entry.candidate.id === media.id || (entry.score >= 52 && hasStrongFranchiseConnection(media, entry.candidate, signals)))
     .sort((left, right) => right.score - left.score)
     .map((entry) => entry.candidate);
 
@@ -489,10 +583,14 @@ async function buildFranchiseSection(media: MediaItem, animeFranchise?: AnimeFra
   const ordered = [...candidates].sort((left, right) => {
     const leftOrder = parseInstallmentOrder(left.title);
     const rightOrder = parseInstallmentOrder(right.title);
-    if (leftOrder !== null || rightOrder !== null) {
-      return (leftOrder ?? Number.MAX_SAFE_INTEGER) - (rightOrder ?? Number.MAX_SAFE_INTEGER) || left.year - right.year;
+    const yearGap = (left.year || Number.MAX_SAFE_INTEGER) - (right.year || Number.MAX_SAFE_INTEGER);
+    if (yearGap !== 0) {
+      return yearGap;
     }
-    return left.year - right.year || left.title.localeCompare(right.title);
+    if (leftOrder !== null || rightOrder !== null) {
+      return (leftOrder ?? Number.MAX_SAFE_INTEGER) - (rightOrder ?? Number.MAX_SAFE_INTEGER);
+    }
+    return left.title.localeCompare(right.title);
   });
 
   const activeIndex = Math.max(0, ordered.findIndex((candidate) => candidate.id === media.id));
@@ -989,6 +1087,7 @@ async function getRelatedMediaRail(media: MediaItem) {
   const scored = dedupeItems(collected)
     .filter((candidate) => `${candidate.source}-${candidate.sourceId}` !== `${media.source}-${media.sourceId}`)
     .filter((candidate) => candidate.type === media.type)
+    .filter((candidate) => !isSupplementalFranchiseCandidate(media, candidate))
     .map((candidate) => ({
       candidate,
       score: scoreRelatedCandidate(media, candidate) + (candidateMatchesSignal(candidate, franchiseSignals) ? 18 : 0),
@@ -997,55 +1096,18 @@ async function getRelatedMediaRail(media: MediaItem) {
   const strictMatches = scored
     .filter((entry) => {
       const sharedGenres = entry.candidate.genres.filter((genre) => media.genres.includes(genre)).length;
-      return franchiseSignals.length
-        ? candidateMatchesSignal(entry.candidate, franchiseSignals) || (entry.score >= 30 && sharedGenres > 0)
-        : entry.score >= 18 && sharedGenres > 0;
+      const hasStrongIdentity = hasStrongFranchiseConnection(media, entry.candidate, franchiseSignals);
+      return hasStrongIdentity ? entry.score >= 34 : entry.score >= 46 && sharedGenres >= 2;
     })
     .sort((left, right) => right.score - left.score)
     .map((entry) => entry.candidate)
-    .slice(0, 18);
+    .slice(0, 12);
 
   if (strictMatches.length) {
-    return strictMatches;
+    return dedupeComparableEntries(strictMatches);
   }
 
-  const fallbackMatches = scored
-    .filter((entry) => {
-      const sharedGenres = entry.candidate.genres.filter((genre) => media.genres.includes(genre)).length;
-      return candidateMatchesSignal(entry.candidate, franchiseSignals) || entry.score >= 12 || sharedGenres > 0;
-    })
-    .sort((left, right) => right.score - left.score)
-    .map((entry) => entry.candidate)
-    .slice(0, 12);
-
-  if (fallbackMatches.length) {
-    return fallbackMatches;
-  }
-
-  const fallbackGenre = primaryGenre || secondaryGenre || tertiaryGenre || "";
-  const franchiseFallback = await getFranchiseFallback(media, franchiseSignals);
-  const sourceFallback =
-    media.type === "anime"
-      ? await withTimeout(
-          browseJikanAnime({ page: 1, genre: fallbackGenre, sort: "discovery", seed: 21 }),
-          emptyBrowseResult(),
-          1200,
-        )
-      : media.type === "game"
-        ? await withTimeout(
-            browseIgdbGames({ page: 1, genre: fallbackGenre, sort: "discovery", seed: 21 }),
-            emptyBrowseResult(),
-            1200,
-          )
-        : await withTimeout(
-            browseTmdbCatalog({ type: media.type, page: 1, genre: fallbackGenre, sort: "discovery", seed: 21 }),
-            emptyBrowseResult(),
-            1200,
-          );
-
-  return dedupeItems([...franchiseFallback, ...sourceFallback.items])
-    .filter((candidate) => `${candidate.source}-${candidate.sourceId}` !== `${media.source}-${media.sourceId}`)
-    .slice(0, 12);
+  return [];
 }
 
 export default async function MediaDetailPage({

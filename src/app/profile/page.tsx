@@ -3,6 +3,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopBar } from "@/components/app-topbar";
 import { ProfileWorkspace } from "@/components/profile-workspace";
 import { auth } from "@/lib/auth";
+import { ensureCurrentUserRecord, getVaultProfilePayload, getViewerShellData } from "@/lib/vault-server";
 
 export default async function ProfilePage({
   searchParams,
@@ -51,21 +52,29 @@ export default async function ProfilePage({
     );
   }
 
+  const shellData = session?.user?.id ? await getViewerShellData(session.user.id) : null;
+  const initialPayload = session?.user?.id
+    ? await getVaultProfilePayload((await ensureCurrentUserRecord()).id, requestedUser ?? session.user.id)
+    : undefined;
+
   return (
     <div className="page-shell">
       <div className="app-shell-layout">
-        <AppSidebar active="profile" />
+        <AppSidebar active="profile" initialFolders={shellData?.folders ?? []} />
         <main className="workspace">
           <AppTopBar
             viewerId={viewerId}
             viewerName={userName}
             viewerAvatar={viewerAvatar}
+            initialProfile={shellData?.viewerProfile ?? null}
+            initialFriends={shellData?.friends ?? []}
           />
           <ProfileWorkspace
             userName={userName}
             viewerId={viewerId}
             viewerAvatar={viewerAvatar}
             isDemo={isDemo}
+            initialPayload={initialPayload}
           />
         </main>
       </div>

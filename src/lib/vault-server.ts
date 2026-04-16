@@ -371,6 +371,46 @@ export async function getFoldersForUser(userId: string): Promise<StoredFolder[]>
   return folders.map(serializeFolder);
 }
 
+export async function getViewerShellData(userId: string) {
+  const [viewer, friendIds, folders] = await Promise.all([
+    prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      include: {
+        notifications: {
+          orderBy: { createdAt: "desc" },
+          include: {
+            fromUser: true,
+            media: {
+              include: {
+                genres: {
+                  include: {
+                    genre: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    }),
+    getFriendIds(userId),
+    getFoldersForUser(userId),
+  ]);
+
+  const friends = friendIds.length
+    ? await prisma.user.findMany({
+        where: { id: { in: friendIds } },
+        orderBy: { name: "asc" },
+      })
+    : [];
+
+  return {
+    folders,
+    viewerProfile: serializeProfile(viewer, friendIds),
+    friends: friends.map((friend) => serializeProfile(friend, [])),
+  };
+}
+
 export async function getVaultProfilePayload(viewerId: string, viewedUserId: string): Promise<VaultProfilePayload> {
   const [viewer, viewed, viewerFriendIds, viewedFriendIds] = await Promise.all([
     prisma.user.findUniqueOrThrow({

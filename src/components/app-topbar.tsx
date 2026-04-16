@@ -40,6 +40,12 @@ export function AppTopBar({
   const [hasLoadedSocial, setHasLoadedSocial] = useState(Boolean(initialProfile));
 
   useEffect(() => {
+    setViewerProfile(initialProfile);
+    setFriends(initialFriends);
+    setHasLoadedSocial(Boolean(initialProfile));
+  }, [initialFriends, initialProfile]);
+
+  useEffect(() => {
     if (isGuest) return;
 
     function sync() {
@@ -53,7 +59,7 @@ export function AppTopBar({
     }
 
     const unsubscribe = subscribeVaultChanges(sync);
-    if (initialProfile) {
+    if (!initialProfile) {
       void sync();
     }
 

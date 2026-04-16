@@ -38,17 +38,24 @@ export function SidebarFolders({ initialFolders = [] }: { initialFolders?: Store
   const activeFolder = searchParams.get("folder");
 
   useEffect(() => {
+    setFolders(initialFolders);
+    setLoadingFolders(false);
+  }, [initialFolders]);
+
+  useEffect(() => {
     function sync() {
-      setLoadingFolders(true);
+      setLoadingFolders((current) => current && folders.length === 0);
       fetchLibraryState()
         .then((library) => setFolders(library.folders))
         .catch(() => setFolders([]))
         .finally(() => setLoadingFolders(false));
     }
 
-    sync();
+    if (!initialFolders.length) {
+      void sync();
+    }
     return subscribeVaultChanges(sync);
-  }, [initialFolders]);
+  }, [folders.length, initialFolders.length]);
 
   useEffect(() => {
     setIsMounted(true);

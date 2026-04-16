@@ -70,11 +70,16 @@ export async function signInWithCredentials(formData: FormData) {
     redirect(`/sign-in?mode=login&error=${message}`);
   }
 
+  const redirectTo =
+    typeof formData.get("redirectTo") === "string" && formData.get("redirectTo")?.toString().startsWith("/")
+      ? formData.get("redirectTo")!.toString()
+      : "/browse";
+
   try {
     await signIn("credentials", {
       email: normalizeEmail(parsed.data.email),
       password: parsed.data.password,
-      redirectTo: "/browse",
+      redirectTo,
     });
   } catch (error) {
     if (error instanceof AuthError) {

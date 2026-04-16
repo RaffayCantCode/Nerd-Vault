@@ -2,6 +2,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopBar } from "@/components/app-topbar";
 import { SiteHeader } from "@/components/site-header";
 import { auth } from "@/lib/auth";
+import { getViewerShellData } from "@/lib/vault-server";
 
 export default async function SupportPage() {
   const session = await auth();
@@ -9,6 +10,7 @@ export default async function SupportPage() {
   const viewerName = session?.user?.name || "Guest vault";
   const viewerId = session?.user?.id || "guest-vault";
   const viewerAvatar = session?.user?.image || undefined;
+  const shellData = session?.user?.id ? await getViewerShellData(session.user.id) : null;
 
   const content = (
     <section className="support-page glass">
@@ -48,9 +50,15 @@ export default async function SupportPage() {
   return (
     <div className="page-shell">
       <div className="app-shell-layout">
-        <AppSidebar active="browse" />
+        <AppSidebar active="browse" initialFolders={shellData?.folders ?? []} />
         <main className="workspace">
-          <AppTopBar viewerId={viewerId} viewerName={viewerName} viewerAvatar={viewerAvatar} />
+          <AppTopBar
+            viewerId={viewerId}
+            viewerName={viewerName}
+            viewerAvatar={viewerAvatar}
+            initialProfile={shellData?.viewerProfile ?? null}
+            initialFriends={shellData?.friends ?? []}
+          />
           {content}
         </main>
       </div>

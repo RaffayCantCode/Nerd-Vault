@@ -1,6 +1,6 @@
 import { browseIgdbGames } from "@/lib/sources/igdb";
 import { browseJikanAnime, getJikanAnimeFranchise } from "@/lib/sources/jikan";
-import { browseTmdbCatalog } from "@/lib/sources/tmdb";
+import { browseTmdbCatalog, getTmdbMediaDetails } from "@/lib/sources/tmdb";
 import { MediaItem, MediaType } from "@/lib/types";
 import { LibraryState } from "@/lib/vault-types";
 
@@ -225,7 +225,7 @@ async function buildRecommendationsForType(type: MediaType, libraryItems: MediaI
   const seedItems = libraryItems.filter((item) => item.type === type);
   if (!seedItems.length) return [] as MediaItem[];
 
-  const candidates = await gatherCandidates(type, topGenres(libraryItems, type), topSignals(libraryItems, type));
+  const candidates = await gatherCandidates(type, topGenres(libraryItems, type), topSignals(libraryItems, type)).catch(() => []);
   return candidates
     .map((candidate) => ({
       candidate,
@@ -292,6 +292,30 @@ async function findUpcomingForAnime(base: MediaItem, ownedKeys: Set<string>) {
 
 async function findUpcomingForShow(base: MediaItem, ownedKeys: Set<string>) {
   const today = new Date().toISOString().slice(0, 10);
+
+  if (base.source === "tmdb") {
+    const currentShow = await getTmdbMediaDetails(Number(base.sourceId), "tv").catch(() => null);
+    const nextEpisodeDate = currentShow?.details.nextEpisodeDate;
+    const status = currentShow?.details.status?.toLowerCase() ?? "";
+
+    if (
+      currentShow &&
+      nextEpisodeDate &&
+      nextEpisodeDate >= today &&
+      !status.includes("ended") &&
+      !status.includes("cancelled")
+    ) {
+      return {
+        base,
+        continuation: currentShow,
+        label: "Currently airing",
+        dateLabel: formatDate(nextEpisodeDate),
+        sortDate: nextEpisodeDate,
+        reason: `${currentShow.title} still has weekly episodes scheduled, so it stays in your upcoming lane until the run finishes.`,
+      } satisfies HomeContinuation;
+    }
+  }
+
   const signals = buildSignals(base);
   const results = await Promise.all(
     signals.slice(0, 2).map((query, index) =>
@@ -371,11 +395,11 @@ export async function buildHomeFeed(library: LibraryState): Promise<HomeFeed> {
   const ownedKeys = new Set(libraryItems.map((item) => `${item.source}-${item.sourceId}`));
 
   const [movies, shows, anime, games, upcoming] = await Promise.all([
-    buildRecommendationsForType("movie", libraryItems, ownedKeys),
-    buildRecommendationsForType("show", libraryItems, ownedKeys),
-    buildRecommendationsForType("anime", libraryItems, ownedKeys),
-    buildRecommendationsForType("game", libraryItems, ownedKeys),
-    buildUpcomingContinuations(library),
+    buildRecommendationsForType("movie", libraryItems, ownedKeys).catch(() => []),
+    buildRecommendationsForType("show", libraryItems, ownedKeys).catch(() => []),
+    buildRecommendationsForType("anime", libraryItems, ownedKeys).catch(() => []),
+    buildRecommendationsForType("game", libraryItems, ownedKeys).catch(() => []),
+    buildUpcomingContinuations(library).catch(() => []),
   ]);
 
   return {

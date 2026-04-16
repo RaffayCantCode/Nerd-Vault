@@ -70,7 +70,7 @@ export function HomeWorkspace({
           <div className="home-upcoming-grid">
             {feed.upcoming.map((entry) => (
               <Link
-                key={`${entry.base.id}-${entry.continuation.id}`}
+                key={`${entry.base.id}-${entry.continuation.id}-${entry.label}`}
                 href={{
                   pathname: `/media/${entry.continuation.slug}`,
                   query: {
@@ -84,7 +84,11 @@ export function HomeWorkspace({
                 <p className="eyebrow">{entry.label}</p>
                 <h3 className="headline home-upcoming-title">{entry.continuation.title}</h3>
                 <p className="copy home-upcoming-copy">
-                  Because you watched <strong>{entry.base.title}</strong>, this continuation stood out.
+                  {entry.base.id === entry.continuation.id ? (
+                    <>You already added <strong>{entry.base.title}</strong>, and it still has episodes rolling out.</>
+                  ) : (
+                    <>Because you watched <strong>{entry.base.title}</strong>, this continuation stood out.</>
+                  )}
                 </p>
                 <div className="home-upcoming-meta">
                   <span className="detail-pill">{entry.dateLabel}</span>

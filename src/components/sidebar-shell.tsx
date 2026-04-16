@@ -7,10 +7,11 @@ export function SidebarShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const searchKey = searchParams.toString();
 
   useEffect(() => {
     setIsMobileOpen(false);
-  }, [pathname, searchParams]);
+  }, [pathname, searchKey]);
 
   useEffect(() => {
     function handleResize() {
@@ -21,6 +22,17 @@ export function SidebarShell({ children }: { children: ReactNode }) {
 
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsMobileOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   return (

@@ -31,6 +31,16 @@ type TmdbListItem = {
   number_of_seasons?: number;
   number_of_episodes?: number;
   status?: string;
+  next_episode_to_air?: {
+    air_date?: string;
+  } | null;
+  last_episode_to_air?: {
+    air_date?: string;
+  } | null;
+  belongs_to_collection?: {
+    id: number;
+    name: string;
+  } | null;
   production_companies?: Array<{ name: string }>;
   networks?: Array<{ name: string }>;
 };
@@ -261,10 +271,13 @@ function mapMovieOrShow(
       runtime,
       status: item.status || "Released",
       releaseDate: cleanReleaseDate(type === "movie" ? item.release_date : item.first_air_date),
+      nextEpisodeDate: cleanReleaseDate(item.next_episode_to_air?.air_date),
+      lastEpisodeDate: cleanReleaseDate(item.last_episode_to_air?.air_date),
       studio,
       releaseInfo,
       seasonCount,
       episodeCount,
+      collectionTitle: type === "movie" ? item.belongs_to_collection?.name ?? undefined : undefined,
     },
   };
 }
