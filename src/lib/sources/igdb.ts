@@ -1,4 +1,5 @@
 import { MediaItem } from "@/lib/types";
+import { itemMatchesSearch, searchScore } from "@/lib/search-utils";
 
 const IGDB_BASE_URL = "https://api.igdb.com/v4";
 const IGDB_IMAGE_BASE_URL = "https://images.igdb.com/igdb/image/upload/t_1080p";
@@ -53,6 +54,13 @@ type IgdbGame = {
 
 type IgdbCountResponse = {
   count: number;
+};
+
+type BrowsePayload = {
+  page: number;
+  totalPages: number;
+  totalResults: number;
+  items: MediaItem[];
 };
 
 let cachedToken: { value: string; expiresAt: number } | null = null;
@@ -223,13 +231,23 @@ function isUsefulGame(game: MediaItem) {
   return game.year >= 1980 && game.rating >= 6;
 }
 
+function rankLocalSearchResults(items: MediaItem[], query: string) {
+  return items
+    .filter((item) => itemMatchesSearch(item, query))
+    .sort((left, right) => {
+      const scoreGap = searchScore(right, query) - searchScore(left, query);
+      if (scoreGap !== 0) return scoreGap;
+      return right.rating - left.rating || right.year - left.year;
+    });
+}
+
 export async function browseIgdbGames(params: {
   page?: number;
   query?: string;
   genre?: string;
   sort?: "discovery" | "newest" | "rating" | "title";
   seed?: number;
-}) {
+}): Promise<BrowsePayload> {
   const page = Math.max(1, params.page ?? 1);
   const queryText = params.query?.trim();
   const sort = params.sort ?? "discovery";
@@ -288,6 +306,25 @@ export async function browseIgdbGames(params: {
     : `fields ${fields}; where ${whereParts.join(" & ")}; ${sortClause} limit 24; offset ${offset};`;
   const games = await igdbFetch<IgdbGame[]>(query);
   const items = games.map(mapGame).filter(isUsefulGame);
+
+  if (queryText && !items.length) {
+    const fallbackPages = await Promise.all([
+      browseIgdbGames({ page: 1, genre: params.genre, sort: "discovery", seed: discoverySeed + 51 }),
+      browseIgdbGames({ page: 2, genre: params.genre, sort: "discovery", seed: discoverySeed + 57 }),
+    ]);
+    const fallbackItems = rankLocalSearchResults(
+      fallbackPages.flatMap((entry) => entry.items),
+      queryText,
+    ).slice(0, 24);
+
+    return {
+      page,
+      totalPages: 1,
+      totalResults: fallbackItems.length,
+      items: fallbackItems,
+    };
+  }
+
   const countQuery = escapedQuery
     ? `search "${escapedQuery}"; where ${whereParts.join(" & ")};`
     : `where ${whereParts.join(" & ")};`;

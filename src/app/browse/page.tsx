@@ -1,5 +1,6 @@
 import { unstable_noStore as noStore } from "next/cache";
 import { auth } from "@/lib/auth";
+import { getBrowseBootstrapCatalog } from "@/lib/browse-bootstrap";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopBar } from "@/components/app-topbar";
 import { BrowseWorkspace } from "@/components/browse-workspace";
@@ -10,6 +11,7 @@ export const revalidate = 0;
 export default async function BrowsePage() {
   noStore();
   const discoverySeed = Date.now() + Math.floor(Math.random() * 10_000);
+  const bootstrapCatalog = await getBrowseBootstrapCatalog(discoverySeed);
   const session = await auth();
   const viewerName = session?.user?.name || "Guest vault";
   const viewerId = session?.user?.id || "guest-vault";
@@ -26,9 +28,9 @@ export default async function BrowsePage() {
             viewerAvatar={viewerAvatar}
           />
           <BrowseWorkspace
-            catalog={[]}
+            catalog={bootstrapCatalog}
             discoverySeed={discoverySeed}
-            initialBootstrapPageSize={12}
+            initialBootstrapPageSize={bootstrapCatalog.length || 12}
             initialTotalPages={30}
           />
         </main>

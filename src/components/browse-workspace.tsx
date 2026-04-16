@@ -321,6 +321,7 @@ export function BrowseWorkspace({
   const shouldScrollToResultsRef = useRef(false);
   const shouldScrollToToolbarRef = useRef(false);
   const pageScrollOffsetRef = useRef(110);
+  const scrollBehaviorRef = useRef<ScrollBehavior>("auto");
   const didRestoreScrollRef = useRef(false);
   const didInitBrowseStateRef = useRef(false);
   const didSyncUrlStateRef = useRef(false);
@@ -551,12 +552,7 @@ export function BrowseWorkspace({
         return;
       }
 
-      const targetKey = buildCacheKey(filter, page, genre, deferredQuery, sort, sessionSeedRef.current, pageSize);
-      const hasCachedPage = Boolean(prefetchedPagesRef.current[targetKey]);
-
-      if (!hasCachedPage) {
-        setIsLoading(true);
-      }
+      setIsLoading(true);
 
       try {
         const primaryItems = await fetchPage(page);
@@ -797,9 +793,12 @@ export function BrowseWorkspace({
       return;
     }
 
-    scrollToElementWithOffset(resultsRef.current, pageScrollOffsetRef.current);
-    shouldScrollToResultsRef.current = false;
-  }, [deferredQuery, isLoading, sortedVisible.length]);
+    window.requestAnimationFrame(() => {
+      scrollToElementWithOffset(resultsRef.current, pageScrollOffsetRef.current, scrollBehaviorRef.current);
+      shouldScrollToResultsRef.current = false;
+      scrollBehaviorRef.current = "auto";
+    });
+  }, [activePage, deferredQuery, isLoading, sortedVisible.length]);
 
   useEffect(() => {
     if (!didInitSurfacingRef.current) {
@@ -852,56 +851,11 @@ export function BrowseWorkspace({
   const isPagePending = supportsRemotePaging && page !== activePage;
   const showPendingState = isLoading || isPagePending;
   const showGridSkeletons = showPendingState && !remoteCatalog.length;
-  const cachedAdjacentItems = useMemo(() => {
-    const items: MediaItem[] = [];
-    const seen = new Set<string>();
-    const targetPages = Array.from(new Set([activePage, page, page + 1, page + 2, page + 3])).filter((value) => value > 0);
-
-    for (const targetPage of targetPages) {
-      const key = buildCacheKey(filter, targetPage, genre, deferredQuery, sort, sessionSeedRef.current, pageSize);
-      const cachedPage = prefetchedPagesRef.current[key];
-      if (!cachedPage) continue;
-
-      for (const item of cachedPage.items) {
-        const itemKey = `${item.source}-${item.sourceId}`;
-        if (seen.has(itemKey)) continue;
-        seen.add(itemKey);
-        items.push(item);
-      }
-    }
-
-    return items;
-  }, [activePage, cacheVersion, deferredQuery, filter, genre, page, pageSize, sort]);
   const visibleGridItems = useMemo(() => {
-    const baseItems = featured
+    return featured
       ? sortedVisible.filter((item) => `${item.source}-${item.sourceId}` !== featuredKey)
       : [...sortedVisible];
-    const targetMinimum = Math.max(12, pageSize - (featured ? 1 : 0));
-
-    if (baseItems.length >= targetMinimum) {
-      return baseItems;
-    }
-
-    const mergedFallbacks = [...queryVisible, ...typedVisible, ...cachedAdjacentItems, ...remoteCatalog, ...bootstrapCatalog, ...catalog];
-    const seen = new Set(baseItems.map((item) => `${item.source}-${item.sourceId}`));
-
-    if (featured && !seen.has(featuredKey)) {
-      baseItems.push(featured);
-      seen.add(featuredKey);
-    }
-
-    for (const item of mergedFallbacks) {
-      const key = `${item.source}-${item.sourceId}`;
-      if (seen.has(key)) continue;
-      if (!itemMatchesGenre(item, genre)) continue;
-      if (filter !== "all" && item.type !== filter) continue;
-      baseItems.push(item);
-      seen.add(key);
-      if (baseItems.length >= targetMinimum) break;
-    }
-
-    return baseItems;
-  }, [bootstrapCatalog, cachedAdjacentItems, catalog, featured, featuredKey, filter, genre, pageSize, queryVisible, remoteCatalog, sortedVisible, typedVisible]);
+  }, [featured, featuredKey, sortedVisible]);
 
   function toggleWishlist(item: MediaItem) {
     const key = `${item.source}-${item.sourceId}`;
@@ -922,7 +876,8 @@ export function BrowseWorkspace({
 
     shouldScrollToToolbarRef.current = false;
     shouldScrollToResultsRef.current = true;
-    pageScrollOffsetRef.current = window.innerWidth < 900 ? 110 : source === "top" ? 110 : 44;
+    scrollBehaviorRef.current = "smooth";
+    pageScrollOffsetRef.current = window.innerWidth < 900 ? 94 : source === "top" ? 92 : 28;
     startTransition(() => {
       setPage(clamped);
     });
@@ -935,10 +890,11 @@ export function BrowseWorkspace({
   function handleSearchJump(event?: FormEvent) {
     event?.preventDefault();
     shouldScrollToResultsRef.current = true;
-    pageScrollOffsetRef.current = 110;
+    scrollBehaviorRef.current = "smooth";
+    pageScrollOffsetRef.current = window.innerWidth < 900 ? 96 : 92;
 
     if (!isLoading) {
-      scrollToElementWithOffset(resultsRef.current, 110, "smooth");
+      scrollToElementWithOffset(resultsRef.current, pageScrollOffsetRef.current, "smooth");
     }
   }
 
@@ -1216,7 +1172,7 @@ export function BrowseWorkspace({
           <div className={`refresh-pulse ${showPendingState ? "is-active" : ""}`} />
         </div>
 
-        {showGridSkeletons ? (
+        {showPendingState ? (
           <div className="glass browse-loader-panel">
             <NVLoader compact label={activeSearchLabel ? `Updating "${activeSearchLabel}"...` : "Loading fresh picks..."} />
           </div>
