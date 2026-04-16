@@ -7,7 +7,7 @@ import { BrowseResetLink } from "@/components/browse-reset-link";
 import { SidebarShell } from "@/components/sidebar-shell";
 
 type AppSidebarProps = {
-  active: "browse" | "profile";
+  active: "home" | "browse" | "profile";
 };
 
 export async function AppSidebar({ active }: AppSidebarProps) {
@@ -23,6 +23,15 @@ export async function AppSidebar({ active }: AppSidebarProps) {
         </Link>
 
         <nav className="sidebar-rail-nav" aria-label="Primary navigation">
+          <Link
+            href="/home"
+            className={`sidebar-nav-button ${active === "home" ? "is-active" : ""}`}
+            aria-label="Home"
+            title="Home"
+          >
+            <strong className="sidebar-nav-glyph">H</strong>
+            <span className="sidebar-nav-label">Home</span>
+          </Link>
           <Link
             href="/profile"
             className={`sidebar-nav-button ${active === "profile" ? "is-active" : ""}`}

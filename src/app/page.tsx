@@ -36,6 +36,9 @@ export default async function HomePage() {
               <div className="button-row" style={{ marginTop: 24 }}>
                 {isSignedIn ? (
                   <>
+                    <Link href="/home" className="button button-primary">
+                      Open your home hub
+                    </Link>
                     <BrowseResetLink className="button button-primary">
                       Go back to browse
                     </BrowseResetLink>
@@ -50,6 +53,9 @@ export default async function HomePage() {
                   </>
                 ) : (
                   <>
+                    <Link href="/home" className="button button-secondary">
+                      Preview the home hub
+                    </Link>
                     <Link href="/sign-in" className="button button-primary">
                       Sign in and start saving
                     </Link>

@@ -902,7 +902,7 @@ export function BrowseWorkspace({
     if (!supportsRemotePaging) return null;
 
     return (
-      <div className="bottom-pager glass">
+      <div className={`bottom-pager bottom-pager-${source} glass`}>
           <div className="pager-copy">
             <p className="eyebrow">Page flow</p>
             <p className="copy">

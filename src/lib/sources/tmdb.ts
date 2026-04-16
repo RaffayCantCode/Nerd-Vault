@@ -122,6 +122,10 @@ function yearFromDate(value?: string) {
   return value ? Number(value.slice(0, 4)) : 0;
 }
 
+function cleanReleaseDate(value?: string) {
+  return value?.trim() ? value.slice(0, 10) : undefined;
+}
+
 function normalizeTitle(input?: string) {
   return (input ?? "")
     .toLowerCase()
@@ -256,6 +260,7 @@ function mapMovieOrShow(
     details: {
       runtime,
       status: item.status || "Released",
+      releaseDate: cleanReleaseDate(type === "movie" ? item.release_date : item.first_air_date),
       studio,
       releaseInfo,
       seasonCount,

@@ -61,6 +61,7 @@ type JikanAnime = {
   studios?: Array<{ name: string }>;
   title_japanese?: string | null;
   aired?: {
+    from?: string | null;
     prop?: {
       from?: {
         year?: number | null;
@@ -142,6 +143,7 @@ export type AnimeFranchiseEntry = {
   episodes?: number;
   type?: string;
   seasonKey?: string;
+  releaseDate?: string;
 };
 
 async function jikanFetch<T>(path: string) {
@@ -346,6 +348,7 @@ function mapAnime(
       runtime: item.episodes ? `${item.episodes} episodes` : undefined,
       studio: item.studios?.map((studio) => studio.name).join(", ") || undefined,
       status: item.status || "Unknown",
+      releaseDate: item.aired?.from?.slice(0, 10) || undefined,
       episodeCount: item.episodes ?? undefined,
       collectionTitle: canonicalTitle,
       entryCount: overrides?.entryCount,
@@ -374,6 +377,7 @@ function toFranchiseEntry(item: JikanAnime): AnimeFranchiseEntry {
     status: item.status || undefined,
     episodes: item.episodes ?? undefined,
     type: item.type ?? undefined,
+    releaseDate: item.aired?.from?.slice(0, 10) || undefined,
   };
 }
 

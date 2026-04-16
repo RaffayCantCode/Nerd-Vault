@@ -74,6 +74,10 @@ function yearFromTimestamp(timestamp?: number) {
   return timestamp ? new Date(timestamp * 1000).getUTCFullYear() : 0;
 }
 
+function isoDateFromTimestamp(timestamp?: number) {
+  return timestamp ? new Date(timestamp * 1000).toISOString().slice(0, 10) : undefined;
+}
+
 function mapIgdbStatus(status?: number, releaseYear?: number) {
   if (status === 0) return "Released";
   if (status === 2) return "Alpha";
@@ -221,6 +225,7 @@ function mapGame(game: IgdbGame): MediaItem {
     details: {
       platform: platformNames.length ? platformNames.slice(0, 3).join(" · ") : "Platform data unavailable",
       status: mapIgdbStatus(game.status, releaseYear),
+      releaseDate: isoDateFromTimestamp(game.first_release_date),
       releaseInfo: releaseYear ? `${releaseYear} release` : undefined,
       studio: developers[0]?.name,
     },

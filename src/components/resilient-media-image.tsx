@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { getMediaFallbackImage } from "@/lib/media-fallbacks";
+import { optimizeMediaImageUrl } from "@/lib/media-image";
 import { MediaItem } from "@/lib/types";
 
 type ResilientMediaImageProps = {
@@ -37,9 +38,12 @@ export function ResilientMediaImage({
   onLoadStateChange,
   useProxy = false,
 }: ResilientMediaImageProps) {
-  const fallback = useProxy ? proxiedImage(getMediaFallbackImage(item)) ?? getMediaFallbackImage(item) : getMediaFallbackImage(item);
-  const primaryCover = useProxy ? proxiedImage(item.coverUrl) ?? item.coverUrl : item.coverUrl;
-  const secondaryBackdrop = useProxy ? proxiedImage(item.backdropUrl) ?? item.backdropUrl : item.backdropUrl;
+  const rawFallback = useProxy ? proxiedImage(getMediaFallbackImage(item)) ?? getMediaFallbackImage(item) : getMediaFallbackImage(item);
+  const rawPrimaryCover = useProxy ? proxiedImage(item.coverUrl) ?? item.coverUrl : item.coverUrl;
+  const rawSecondaryBackdrop = useProxy ? proxiedImage(item.backdropUrl) ?? item.backdropUrl : item.backdropUrl;
+  const fallback = optimizeMediaImageUrl(rawFallback, "cover");
+  const primaryCover = optimizeMediaImageUrl(rawPrimaryCover, loading === "eager" ? "cover" : "thumb");
+  const secondaryBackdrop = optimizeMediaImageUrl(rawSecondaryBackdrop, "backdrop");
   const [src, setSrc] = useState(primaryCover || secondaryBackdrop || fallback);
   const [loaded, setLoaded] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);

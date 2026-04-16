@@ -2,6 +2,7 @@
 
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useState } from "react";
+import { optimizeMediaImageUrl } from "@/lib/media-image";
 
 export function DetailGallery({
   title,
@@ -10,7 +11,10 @@ export function DetailGallery({
   title: string;
   images: string[];
 }) {
-  const galleryImages = useMemo(() => images.filter(Boolean), [images]);
+  const galleryImages = useMemo(
+    () => images.filter(Boolean).map((image) => optimizeMediaImageUrl(image, "gallery") ?? image),
+    [images],
+  );
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -134,7 +138,12 @@ export function DetailGallery({
               ) : null}
 
               <div className="detail-lightbox-stage" onClick={(event) => event.stopPropagation()}>
-                <img src={openImage} alt={`${title} fullscreen still ${(activeIndex ?? 0) + 1}`} loading="eager" decoding="async" />
+                <img
+                  src={optimizeMediaImageUrl(openImage, "lightbox") ?? openImage}
+                  alt={`${title} fullscreen still ${(activeIndex ?? 0) + 1}`}
+                  loading="eager"
+                  decoding="async"
+                />
                 <div className="detail-lightbox-meta">
                   <span>{(activeIndex ?? 0) + 1}</span>
                   <span>/</span>

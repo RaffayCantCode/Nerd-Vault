@@ -28,6 +28,7 @@ export type MediaItem = {
     studio?: string;
     platform?: string;
     status?: string;
+    releaseDate?: string;
     releaseInfo?: string;
     seasonCount?: number;
     episodeCount?: number;

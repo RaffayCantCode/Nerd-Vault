@@ -68,6 +68,7 @@ function serializeMedia(media: MediaRecord): MediaItem {
     details: {
       runtime: media.runtime ? `${media.runtime} min` : undefined,
       status: media.status ?? undefined,
+      releaseDate: undefined,
     },
   };
 }
