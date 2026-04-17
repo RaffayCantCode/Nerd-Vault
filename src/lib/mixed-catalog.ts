@@ -6,6 +6,7 @@ import { itemMatchesSearch, searchScore } from "@/lib/search-utils";
 import { MediaItem } from "@/lib/types";
 
 const MIXED_CACHE_TTL_MS = 1000 * 60 * 10;
+const MIXED_TOTAL_PAGE_CAP = 60;
 const mixedCatalogCache = new Map<
   string,
   {
@@ -123,7 +124,7 @@ function interleaveTypePriority(items: MediaItem[], totalTarget: number) {
     ...buckets.movie.splice(0, 3),
     ...buckets.show.splice(0, 3),
     ...buckets.anime.splice(0, 3),
-    ...buckets.game.splice(0, 5),
+    ...buckets.game.splice(0, 3),
   ];
 
   const overflow = interleaveBuckets(buckets.movie, buckets.show, buckets.anime, buckets.game);
@@ -228,29 +229,6 @@ async function withTimeout<T>(work: Promise<T>, fallback: T, timeoutMs = 1800) {
   } finally {
     if (timer) clearTimeout(timer);
   }
-}
-
-async function getGuaranteedGameSlice(params: {
-  page: number;
-  query: string;
-  sort: "discovery" | "newest" | "rating" | "title";
-  seed: number;
-  pageSize: number;
-}) {
-  const gamePayload = await withTimeout(
-    browseIgdbGames({
-      page: params.page,
-      query: params.query,
-      genre: "",
-      sort: params.sort === "title" ? "rating" : params.sort,
-      seed: params.seed,
-    }).catch(() => emptyPayload(params.page)),
-    emptyPayload(params.page),
-    params.query ? 7000 : 12000,
-  );
-
-  const target = params.query ? Math.max(8, Math.ceil(params.pageSize / 4)) : Math.max(10, Math.ceil(params.pageSize / 3));
-  return gamePayload.items.slice(0, target);
 }
 
 export async function browseMixedCatalog({
@@ -402,20 +380,6 @@ export async function browseMixedCatalog({
 
   let finalItems = rankedMixed;
 
-  if (!finalItems.some((item) => item.type === "game")) {
-    const guaranteedGames = await getGuaranteedGameSlice({
-      page,
-      query: safeQuery,
-      sort,
-      seed: seed + 41,
-      pageSize: safePageSize,
-    });
-
-    if (guaranteedGames.length) {
-      finalItems = dedupeBySource([...guaranteedGames, ...finalItems]).slice(0, safePageSize);
-    }
-  }
-
   if (!safeQuery && !needsBroaderPool && page > 1) {
     const seenAcrossPages = new Set<string>();
 
@@ -449,7 +413,7 @@ export async function browseMixedCatalog({
 
   const payload = {
     page,
-    totalPages: Math.max(1, maxSourcePages),
+    totalPages: Math.max(1, Math.min(maxSourcePages, MIXED_TOTAL_PAGE_CAP)),
     totalResults: finalItems.length,
     items: finalItems,
   };

@@ -35,7 +35,7 @@ export default async function BrowsePage() {
             catalog={bootstrapCatalog}
             discoverySeed={discoverySeed}
             initialBootstrapPageSize={bootstrapCatalog.length || 12}
-            initialTotalPages={30}
+            initialTotalPages={24}
           />
         </main>
       </div>

@@ -327,6 +327,7 @@ export function BrowseWorkspace({
   const didSyncUrlStateRef = useRef(false);
   const hasUnlockedLiveSurfacingRef = useRef(false);
   const didInitSurfacingRef = useRef(false);
+  const previousQueryRef = useRef(queryFromUrl.trim());
 
   const supportsRemotePaging =
     filter === "all" ||
@@ -398,9 +399,27 @@ export function BrowseWorkspace({
       return;
     }
     setPage(1);
-    setGenre("all");
     setHeroIndex(0);
-  }, [filter, query, sort]);
+  }, [filter, sort]);
+
+  useEffect(() => {
+    const normalizedQuery = query.trim();
+    if (!didInitBrowseStateRef.current) {
+      previousQueryRef.current = normalizedQuery;
+      return;
+    }
+
+    if (normalizedQuery === previousQueryRef.current) {
+      return;
+    }
+
+    previousQueryRef.current = normalizedQuery;
+    setFilter("all");
+    setGenre("all");
+    setSort("discovery");
+    setPage(1);
+    setHeroIndex(0);
+  }, [query]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -651,7 +670,7 @@ export function BrowseWorkspace({
       return visible;
     }
 
-    const merged = [...remoteCatalog, ...catalog];
+    const merged = [...remoteCatalog, ...bootstrapCatalog, ...catalog];
     const seen = new Set<string>();
 
     return merged.filter((item) => {
@@ -662,7 +681,7 @@ export function BrowseWorkspace({
       seen.add(key);
       return (filter === "all" || item.type === filter) && itemMatchesSearch(item, deferredQuery) && itemMatchesGenre(item, genre);
     });
-  }, [catalog, deferredQuery, filter, genre, remoteCatalog, visible]);
+  }, [bootstrapCatalog, catalog, deferredQuery, filter, genre, remoteCatalog, visible]);
 
   const bootstrapHeroBaseCatalog = useMemo(() => {
     const typeScoped = filterCatalog(bootstrapCatalog, filter, "");
@@ -876,7 +895,7 @@ export function BrowseWorkspace({
 
     shouldScrollToToolbarRef.current = false;
     shouldScrollToResultsRef.current = true;
-    scrollBehaviorRef.current = "smooth";
+    scrollBehaviorRef.current = "auto";
     pageScrollOffsetRef.current = window.innerWidth < 900 ? 94 : source === "top" ? 92 : 28;
     startTransition(() => {
       setPage(clamped);
@@ -890,11 +909,11 @@ export function BrowseWorkspace({
   function handleSearchJump(event?: FormEvent) {
     event?.preventDefault();
     shouldScrollToResultsRef.current = true;
-    scrollBehaviorRef.current = "smooth";
+    scrollBehaviorRef.current = "auto";
     pageScrollOffsetRef.current = window.innerWidth < 900 ? 96 : 92;
 
     if (!isLoading) {
-      scrollToElementWithOffset(resultsRef.current, pageScrollOffsetRef.current, "smooth");
+      scrollToElementWithOffset(resultsRef.current, pageScrollOffsetRef.current, "auto");
     }
   }
 

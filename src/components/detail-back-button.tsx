@@ -1,11 +1,18 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 const BROWSE_LAST_URL_KEY = "nerdvault-browse-last-url";
 
 export function DetailBackButton() {
   const router = useRouter();
+  const fallbackBrowseUrl =
+    typeof window !== "undefined" ? window.sessionStorage.getItem(BROWSE_LAST_URL_KEY) || "/browse" : "/browse";
+
+  useEffect(() => {
+    router.prefetch(fallbackBrowseUrl);
+  }, [fallbackBrowseUrl, router]);
 
   return (
     <button
@@ -13,18 +20,7 @@ export function DetailBackButton() {
       className="button button-secondary detail-back-button"
       onClick={() => {
         const lastBrowseUrl = window.sessionStorage.getItem(BROWSE_LAST_URL_KEY);
-
-        if (lastBrowseUrl) {
-          router.push(lastBrowseUrl);
-          return;
-        }
-
-        if (window.history.length > 1) {
-          window.history.back();
-          return;
-        }
-
-        router.push("/browse");
+        router.push(lastBrowseUrl || "/browse");
       }}
     >
       Back to browse

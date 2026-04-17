@@ -5,6 +5,7 @@ const IGDB_BASE_URL = "https://api.igdb.com/v4";
 const IGDB_IMAGE_BASE_URL = "https://images.igdb.com/igdb/image/upload/t_1080p";
 const TWITCH_TOKEN_URL = "https://id.twitch.tv/oauth2/token";
 const IGDB_CACHE_TTL_MS = 1000 * 60 * 30;
+const IGDB_BROWSE_PAGE_CAP = 60;
 
 type IgdbCover = {
   image_id: string;
@@ -338,7 +339,7 @@ export async function browseIgdbGames(params: {
 
   return {
     page,
-    totalPages,
+    totalPages: Math.min(totalPages, IGDB_BROWSE_PAGE_CAP),
     totalResults: items.length,
     items,
   };

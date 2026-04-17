@@ -37,7 +37,7 @@ export function FranchiseRelatedSection({
     <section className="section-stack" style={{ paddingTop: 0 }}>
       <div className="section-header">
         <div>
-          <p className="eyebrow">Franchise Related</p>
+          <p className="eyebrow">Franchise / Storyline</p>
           <h2 className="headline">{title}</h2>
           <p className="copy" style={{ maxWidth: 760, marginTop: 10 }}>
             {summary}
@@ -67,7 +67,7 @@ export function FranchiseRelatedSection({
         <>
           <div className="section-header" style={{ marginTop: 12 }}>
             <div>
-              <p className="eyebrow">Movies</p>
+              <p className="eyebrow">Separate list</p>
               <h3 className="headline" style={{ margin: 0 }}>{secondaryTitle ?? "Franchise movies"}</h3>
             </div>
           </div>

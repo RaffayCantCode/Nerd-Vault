@@ -4,7 +4,7 @@ import { itemMatchesSearch, searchScore } from "@/lib/search-utils";
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/original";
 const TMDB_CACHE_TTL_MS = 1000 * 60 * 30;
-const TMDB_BROWSE_PAGE_CAP = 500;
+const TMDB_BROWSE_PAGE_CAP = 60;
 
 type TmdbGenre = {
   id: number;

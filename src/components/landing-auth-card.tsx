@@ -1,3 +1,4 @@
+import { signInWithCredentials, signInWithGoogle } from "@/app/sign-in/actions";
 import { LandingFeatureCarousel } from "@/components/landing-feature-carousel";
 
 export function LandingAuthCard({ isSignedIn }: { isSignedIn: boolean }) {
@@ -21,6 +22,27 @@ export function LandingAuthCard({ isSignedIn }: { isSignedIn: boolean }) {
         <p className="copy">
           Guest mode is best for a quick look around. Signing in is for the full version where your avatar, folders, social inbox, and saved history actually stay with you.
         </p>
+        <form action={signInWithCredentials} className="auth-form" style={{ marginTop: 20 }}>
+          <input type="hidden" name="redirectTo" value="/home" />
+          <div className="auth-field">
+            <label htmlFor="landing-login-email">Email</label>
+            <input id="landing-login-email" name="email" type="email" placeholder="you@example.com" required />
+          </div>
+          <div className="auth-field">
+            <label htmlFor="landing-login-password">Password</label>
+            <input id="landing-login-password" name="password" type="password" placeholder="Your password" required minLength={8} />
+          </div>
+          <div className="button-row" style={{ marginTop: 18 }}>
+            <button type="submit" className="button button-primary">
+              Log in from home
+            </button>
+          </div>
+        </form>
+        <form action={signInWithGoogle} style={{ marginTop: 12 }}>
+          <button type="submit" className="button button-secondary">
+            Continue with Google
+          </button>
+        </form>
         <LandingFeatureCarousel isSignedIn={false} />
       </div>
   );

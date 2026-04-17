@@ -308,16 +308,61 @@ function buildTitleRoots(media: MediaItem) {
   return Array.from(roots).slice(0, 4);
 }
 
+const FRANCHISE_SIGNAL_RULES: Array<{ signal: string; matches: string[] }> = [
+  { signal: "game of thrones", matches: ["game of thrones", "house of the dragon", "westeros", "targaryen", "iron throne", "seven kingdoms"] },
+  { signal: "daredevil", matches: ["daredevil", "matt murdock", "born again", "hell s kitchen", "wilson fisk", "kingpin"] },
+  { signal: "star wars", matches: ["star wars", "jedi", "sith", "lightsaber", "galaxy far far away", "lucasfilm", "mandalorian", "thrawn", "ahsoka"] },
+  { signal: "red dead", matches: ["red dead", "rockstar games", "outlaw", "frontier"] },
+  { signal: "grand theft auto", matches: ["grand theft auto", "gta", "vice city", "san andreas", "los santos"] },
+  { signal: "lord of the rings", matches: ["middle earth", "lord of the rings", "tolkien", "gondor", "rohan"] },
+  { signal: "harry potter", matches: ["hogwarts", "wizarding world", "harry potter", "fantastic beasts"] },
+  { signal: "pokemon", matches: ["pokemon", "pok mon", "pikachu", "ash ketchum"] },
+  { signal: "dragon ball", matches: ["dragon ball", "saiyan", "kamehameha"] },
+  { signal: "naruto", matches: ["naruto", "shinobi", "hokage", "konoha"] },
+  { signal: "resident evil", matches: ["resident evil", "biohazard", "umbrella", "raccoon city"] },
+  { signal: "zelda", matches: ["hyrule", "zelda", "link", "master sword"] },
+  { signal: "mario", matches: ["mario", "bowser", "mushroom kingdom", "princess peach"] },
+];
+
+const TOPIC_STOP_WORDS = new Set([
+  "about",
+  "after",
+  "again",
+  "also",
+  "amid",
+  "among",
+  "before",
+  "between",
+  "from",
+  "have",
+  "into",
+  "like",
+  "make",
+  "over",
+  "that",
+  "their",
+  "them",
+  "then",
+  "they",
+  "this",
+  "through",
+  "under",
+  "when",
+  "with",
+  "without",
+  "your",
+]);
+
 function buildFranchiseSignals(media: MediaItem) {
-  const haystack = [
-    media.title,
-    media.originalTitle ?? "",
-    media.details.collectionTitle ?? "",
-    media.details.studio ?? "",
-    media.overview,
-  ]
-    .join(" ")
-    .toLowerCase();
+  const haystack = normalizeTitleSignal(
+    [
+      media.title,
+      media.originalTitle ?? "",
+      media.details.collectionTitle ?? "",
+      media.details.studio ?? "",
+      media.overview,
+    ].join(" "),
+  );
 
   const signals = new Set<string>();
 
@@ -343,7 +388,16 @@ function buildFranchiseSignals(media: MediaItem) {
     }
   }
 
-  const cleanedTitle = media.title.toLowerCase();
+  signals.delete("marvel");
+  signals.delete("dc");
+
+  for (const entry of FRANCHISE_SIGNAL_RULES) {
+    if (entry.matches.some((match) => haystack.includes(normalizeTitleSignal(match)))) {
+      signals.add(entry.signal);
+    }
+  }
+
+  const cleanedTitle = normalizeTitleSignal(media.title);
   if (cleanedTitle.includes(":")) {
     signals.add(cleanedTitle.split(":")[0].trim());
   }
@@ -355,20 +409,66 @@ function buildFranchiseSignals(media: MediaItem) {
   return Array.from(signals).filter((signal) => signal.length >= 3).slice(0, 3);
 }
 
+function buildTopicTokens(media: MediaItem) {
+  const text = normalizeTitleSignal(
+    [
+      media.title,
+      media.originalTitle ?? "",
+      media.overview,
+      media.details.collectionTitle ?? "",
+      media.details.studio ?? "",
+      media.genres.join(" "),
+    ].join(" "),
+  );
+
+  return new Set(
+    text
+      .split(" ")
+      .map((token) => token.trim())
+      .filter((token) => token.length >= 4 && !TOPIC_STOP_WORDS.has(token)),
+  );
+}
+
+function sharedTopicTokenCount(base: MediaItem, candidate: MediaItem) {
+  const baseTokens = buildTopicTokens(base);
+  const candidateTokens = buildTopicTokens(candidate);
+  let total = 0;
+
+  for (const token of baseTokens) {
+    if (candidateTokens.has(token)) {
+      total += 1;
+    }
+  }
+
+  return total;
+}
+
+function isCompatibleSimilarityType(base: MediaItem, candidate: MediaItem) {
+  if (base.type === "anime") {
+    return candidate.type === "anime";
+  }
+
+  if (base.type === "game") {
+    return candidate.type === "game";
+  }
+
+  return candidate.type === "movie" || candidate.type === "show";
+}
+
 function candidateMatchesSignal(candidate: MediaItem, signals: string[]) {
   if (!signals.length) {
     return false;
   }
 
-  const haystack = [
-    candidate.title,
-    candidate.originalTitle ?? "",
-    candidate.details.collectionTitle ?? "",
-    candidate.details.studio ?? "",
-    candidate.overview,
-  ]
-    .join(" ")
-    .toLowerCase();
+  const haystack = normalizeTitleSignal(
+    [
+      candidate.title,
+      candidate.originalTitle ?? "",
+      candidate.details.collectionTitle ?? "",
+      candidate.details.studio ?? "",
+      candidate.overview,
+    ].join(" "),
+  );
 
   return signals.some((signal) => {
     const normalizedSignal = normalizeTitleSignal(signal);
@@ -629,7 +729,7 @@ async function buildFranchiseSection(media: MediaItem, animeFranchise?: AnimeFra
       candidate,
       score: rankFranchiseCandidate(media, candidate, signals),
     }))
-    .filter((entry) => entry.candidate.id === media.id || ((entry.score >= 52 || isExplicitSequelTitle(media, entry.candidate)) && hasStrongFranchiseConnection(media, entry.candidate, signals)))
+    .filter((entry) => entry.candidate.id === media.id || ((entry.score >= 58 || isExplicitSequelTitle(media, entry.candidate)) && hasStrongFranchiseConnection(media, entry.candidate, signals)))
     .sort((left, right) => right.score - left.score)
     .map((entry) => entry.candidate);
 
@@ -814,6 +914,39 @@ function scoreRelatedCandidate(base: MediaItem, candidate: MediaItem) {
 
   if (sharedGenres === 0 && candidate.type === base.type) {
     score -= 16;
+  }
+
+  return score;
+}
+
+function scoreMoreLikeThisCandidate(base: MediaItem, candidate: MediaItem) {
+  let score = 0;
+  const sharedGenres = candidate.genres.filter((genre) => base.genres.includes(genre)).length;
+  const sharedTopics = sharedTopicTokenCount(base, candidate);
+  const sharedCredits = candidate.credits.filter((credit) =>
+    base.credits.some((baseCredit) => baseCredit.name.trim().toLowerCase() === credit.name.trim().toLowerCase()),
+  ).length;
+  const yearDistance = Math.abs((candidate.year || 0) - (base.year || 0));
+
+  if (candidate.type === base.type) score += 18;
+  else if (isCompatibleSimilarityType(base, candidate)) score += 10;
+  else score -= 30;
+
+  score += sharedGenres * 14;
+  score += sharedTopics * 8;
+  score += sharedCredits * 6;
+
+  if (base.details.studio && candidate.details.studio && base.details.studio === candidate.details.studio) {
+    score += 8;
+  }
+
+  if (yearDistance <= 3) score += 6;
+  else if (yearDistance <= 8) score += 3;
+
+  score += Math.max(0, 4 - Math.abs(candidate.rating - base.rating));
+
+  if (!sharedGenres && sharedTopics < 2) {
+    score -= 24;
   }
 
   return score;
@@ -1067,30 +1200,31 @@ async function getRelatedMediaRail(media: MediaItem) {
   const collected: MediaItem[] = [];
 
   if (media.type === "movie" || media.type === "show") {
-    const mediaType = media.type;
-    const results = await Promise.allSettled([
-      withTimeout(
-        browseTmdbCatalog({ type: mediaType, page: 1, genre: primaryGenre, sort: "rating" }),
-        emptyBrowseResult(),
-        700,
-      ),
-      ...(secondaryGenre
-        ? [
-            withTimeout(
-              browseTmdbCatalog({ type: mediaType, page: 1, genre: secondaryGenre, sort: "discovery", seed: 9 }),
-              emptyBrowseResult(),
-              650,
-            ),
-          ]
-        : []),
-      ...franchiseSignals.slice(0, 1).map((query, index) =>
+    const results = await Promise.allSettled(
+      (["movie", "show"] as const).flatMap((mediaType, mediaTypeIndex) => [
         withTimeout(
-          browseTmdbCatalog({ type: mediaType, page: 1, query, sort: "rating", seed: 13 + index }),
+          browseTmdbCatalog({ type: mediaType, page: 1, genre: primaryGenre, sort: "rating", seed: 5 + mediaTypeIndex }),
           emptyBrowseResult(),
-          650,
+          700,
         ),
-      ),
-    ]);
+        ...(secondaryGenre
+          ? [
+              withTimeout(
+                browseTmdbCatalog({ type: mediaType, page: 1, genre: secondaryGenre, sort: "discovery", seed: 9 + mediaTypeIndex }),
+                emptyBrowseResult(),
+                650,
+              ),
+            ]
+          : []),
+        ...franchiseSignals.slice(0, 1).map((query, index) =>
+          withTimeout(
+            browseTmdbCatalog({ type: mediaType, page: 1, query, sort: "rating", seed: 13 + mediaTypeIndex + index }),
+            emptyBrowseResult(),
+            650,
+          ),
+        ),
+      ]),
+    );
 
     results.forEach((result) => {
       if (result.status === "fulfilled") {
@@ -1174,22 +1308,23 @@ async function getRelatedMediaRail(media: MediaItem) {
 
   const scored = dedupeItems(collected)
     .filter((candidate) => `${candidate.source}-${candidate.sourceId}` !== `${media.source}-${media.sourceId}`)
-    .filter((candidate) => candidate.type === media.type)
+    .filter((candidate) => isCompatibleSimilarityType(media, candidate))
     .filter((candidate) => !isSupplementalFranchiseCandidate(media, candidate))
+    .filter((candidate) => !hasStrongFranchiseConnection(media, candidate, franchiseSignals))
     .map((candidate) => ({
       candidate,
-      score: scoreRelatedCandidate(media, candidate) + (candidateMatchesSignal(candidate, franchiseSignals) ? 18 : 0),
+      score: scoreMoreLikeThisCandidate(media, candidate),
     }));
 
   const strictMatches = scored
     .filter((entry) => {
       const sharedGenres = entry.candidate.genres.filter((genre) => media.genres.includes(genre)).length;
-      const hasStrongIdentity = hasStrongFranchiseConnection(media, entry.candidate, franchiseSignals);
-      return hasStrongIdentity ? entry.score >= 34 : entry.score >= 46 && sharedGenres >= 2;
+      const sharedTopics = sharedTopicTokenCount(media, entry.candidate);
+      return entry.score >= 42 && (sharedGenres >= 1 || sharedTopics >= 2);
     })
     .sort((left, right) => right.score - left.score)
     .map((entry) => entry.candidate)
-    .slice(0, 12);
+    .slice(0, 18);
 
   if (strictMatches.length) {
     return dedupeComparableEntries(strictMatches);
