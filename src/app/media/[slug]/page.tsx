@@ -353,6 +353,21 @@ const TOPIC_STOP_WORDS = new Set([
   "your",
 ]);
 
+const SIMILARITY_THEME_RULES: Array<{ tag: string; matches: string[] }> = [
+  { tag: "medieval", matches: ["medieval", "kingdom", "throne", "castle", "dragon", "sword", "feudal", "westeros"] },
+  { tag: "political", matches: ["political", "dynasty", "court", "alliance", "succession", "betrayal"] },
+  { tag: "space", matches: ["space", "galaxy", "planet", "starship", "orbital", "cosmic", "astronaut"] },
+  { tag: "cyberpunk", matches: ["cyberpunk", "neon", "android", "ai", "megacity", "hacker"] },
+  { tag: "post-apocalypse", matches: ["post apocalyptic", "wasteland", "ruins", "survival", "infected", "collapse"] },
+  { tag: "supernatural", matches: ["supernatural", "ghost", "curse", "occult", "spirit", "demon"] },
+  { tag: "school-life", matches: ["school", "academy", "classroom", "student council", "high school"] },
+  { tag: "psychological", matches: ["psychological", "mind game", "trauma", "identity", "obsession"] },
+  { tag: "indie", matches: ["indie", "independent", "solo developer", "small studio"] },
+  { tag: "metroidvania", matches: ["metroidvania", "platformer", "side scrolling", "ability gated", "interconnected world"] },
+  { tag: "soulslike", matches: ["soulslike", "punishing", "boss rush", "stamina", "dark fantasy"] },
+  { tag: "cozy", matches: ["cozy", "slice of life", "gentle", "comfort", "wholesome"] },
+];
+
 function buildFranchiseSignals(media: MediaItem) {
   const haystack = normalizeTitleSignal(
     [
@@ -444,15 +459,40 @@ function sharedTopicTokenCount(base: MediaItem, candidate: MediaItem) {
 }
 
 function isCompatibleSimilarityType(base: MediaItem, candidate: MediaItem) {
-  if (base.type === "anime") {
-    return candidate.type === "anime";
+  return candidate.type === base.type;
+}
+
+function buildSimilarityTags(media: MediaItem) {
+  const haystack = normalizeTitleSignal(
+    [
+      media.title,
+      media.originalTitle ?? "",
+      media.overview,
+      media.details.collectionTitle ?? "",
+      media.details.studio ?? "",
+      media.genres.join(" "),
+    ].join(" "),
+  );
+
+  return new Set(
+    SIMILARITY_THEME_RULES
+      .filter((rule) => rule.matches.some((match) => haystack.includes(normalizeTitleSignal(match))))
+      .map((rule) => rule.tag),
+  );
+}
+
+function sharedSimilarityTagCount(base: MediaItem, candidate: MediaItem) {
+  const baseTags = buildSimilarityTags(base);
+  const candidateTags = buildSimilarityTags(candidate);
+  let total = 0;
+
+  for (const tag of baseTags) {
+    if (candidateTags.has(tag)) {
+      total += 1;
+    }
   }
 
-  if (base.type === "game") {
-    return candidate.type === "game";
-  }
-
-  return candidate.type === "movie" || candidate.type === "show";
+  return total;
 }
 
 function candidateMatchesSignal(candidate: MediaItem, signals: string[]) {
@@ -920,20 +960,23 @@ function scoreRelatedCandidate(base: MediaItem, candidate: MediaItem) {
 }
 
 function scoreMoreLikeThisCandidate(base: MediaItem, candidate: MediaItem) {
+  if (candidate.type !== base.type) {
+    return -100;
+  }
+
   let score = 0;
   const sharedGenres = candidate.genres.filter((genre) => base.genres.includes(genre)).length;
   const sharedTopics = sharedTopicTokenCount(base, candidate);
+  const sharedTags = sharedSimilarityTagCount(base, candidate);
   const sharedCredits = candidate.credits.filter((credit) =>
     base.credits.some((baseCredit) => baseCredit.name.trim().toLowerCase() === credit.name.trim().toLowerCase()),
   ).length;
   const yearDistance = Math.abs((candidate.year || 0) - (base.year || 0));
 
-  if (candidate.type === base.type) score += 18;
-  else if (isCompatibleSimilarityType(base, candidate)) score += 10;
-  else score -= 30;
-
+  score += 22;
   score += sharedGenres * 14;
-  score += sharedTopics * 8;
+  score += sharedTags * 16;
+  score += Math.min(sharedTopics, 4) * 5;
   score += sharedCredits * 6;
 
   if (base.details.studio && candidate.details.studio && base.details.studio === candidate.details.studio) {
@@ -945,8 +988,16 @@ function scoreMoreLikeThisCandidate(base: MediaItem, candidate: MediaItem) {
 
   score += Math.max(0, 4 - Math.abs(candidate.rating - base.rating));
 
-  if (!sharedGenres && sharedTopics < 2) {
-    score -= 24;
+  if (sharedGenres === 0) {
+    score -= 28;
+  }
+
+  if (sharedTags === 0) {
+    score -= 20;
+  }
+
+  if (sharedGenres === 1 && sharedTags === 0 && sharedTopics < 2) {
+    score -= 18;
   }
 
   return score;
@@ -1161,10 +1212,10 @@ async function getFranchiseFallback(media: MediaItem, signals: string[]) {
 
     if (media.type === "anime") {
       const pages = await Promise.all([
-        withTimeout(browseJikanAnime({ page: 1, query: signal, sort: "rating", seed: 31 }), emptyBrowseResult(), 1400),
-        withTimeout(browseJikanAnime({ page: 2, query: signal, sort: "rating", seed: 32 }), emptyBrowseResult(), 1400),
+        withTimeout(browseJikanAnime({ page: 1, query: signal, sort: "rating", seed: 31 }).catch(() => emptyBrowseResult()), emptyBrowseResult(), 1400),
+        withTimeout(browseJikanAnime({ page: 2, query: signal, sort: "rating", seed: 32 }).catch(() => emptyBrowseResult()), emptyBrowseResult(), 1400),
         ...(backupSignal
-          ? [withTimeout(browseJikanAnime({ page: 1, query: backupSignal, sort: "newest", seed: 33 }), emptyBrowseResult(), 1400)]
+          ? [withTimeout(browseJikanAnime({ page: 1, query: backupSignal, sort: "newest", seed: 33 }).catch(() => emptyBrowseResult()), emptyBrowseResult(), 1400)]
           : []),
       ]);
       return dedupeItems(pages.flatMap((page) => page.items));
@@ -1172,21 +1223,21 @@ async function getFranchiseFallback(media: MediaItem, signals: string[]) {
 
   if (media.type === "game") {
       const pages = await Promise.all([
-        withTimeout(browseIgdbGames({ page: 1, query: signal, sort: "rating", seed: 31 }), emptyBrowseResult(), 1800),
-        withTimeout(browseIgdbGames({ page: 2, query: signal, sort: "rating", seed: 32 }), emptyBrowseResult(), 1800),
+        withTimeout(browseIgdbGames({ page: 1, query: signal, sort: "rating", seed: 31 }).catch(() => emptyBrowseResult()), emptyBrowseResult(), 1800),
+        withTimeout(browseIgdbGames({ page: 2, query: signal, sort: "rating", seed: 32 }).catch(() => emptyBrowseResult()), emptyBrowseResult(), 1800),
         ...(backupSignal
-          ? [withTimeout(browseIgdbGames({ page: 1, query: backupSignal, sort: "newest", seed: 33 }), emptyBrowseResult(), 1800)]
+          ? [withTimeout(browseIgdbGames({ page: 1, query: backupSignal, sort: "newest", seed: 33 }).catch(() => emptyBrowseResult()), emptyBrowseResult(), 1800)]
           : []),
       ]);
       return dedupeItems(pages.flatMap((page) => page.items));
     }
 
     const pages = await Promise.all([
-      withTimeout(browseTmdbCatalog({ type: media.type, page: 1, query: signal, sort: "rating", seed: 31 }), emptyBrowseResult(), 1400),
-      withTimeout(browseTmdbCatalog({ type: media.type, page: 2, query: signal, sort: "rating", seed: 32 }), emptyBrowseResult(), 1400),
-      withTimeout(browseTmdbCatalog({ type: media.type, page: 1, query: signal, sort: "newest", seed: 34 }), emptyBrowseResult(), 1400),
+      withTimeout(browseTmdbCatalog({ type: media.type, page: 1, query: signal, sort: "rating", seed: 31 }).catch(() => emptyBrowseResult()), emptyBrowseResult(), 1400),
+      withTimeout(browseTmdbCatalog({ type: media.type, page: 2, query: signal, sort: "rating", seed: 32 }).catch(() => emptyBrowseResult()), emptyBrowseResult(), 1400),
+      withTimeout(browseTmdbCatalog({ type: media.type, page: 1, query: signal, sort: "newest", seed: 34 }).catch(() => emptyBrowseResult()), emptyBrowseResult(), 1400),
       ...(backupSignal
-        ? [withTimeout(browseTmdbCatalog({ type: media.type, page: 1, query: backupSignal, sort: "newest", seed: 35 }), emptyBrowseResult(), 1400)]
+        ? [withTimeout(browseTmdbCatalog({ type: media.type, page: 1, query: backupSignal, sort: "newest", seed: 35 }).catch(() => emptyBrowseResult()), emptyBrowseResult(), 1400)]
         : []),
     ]);
     return dedupeItems(pages.flatMap((page) => page.items));
@@ -1201,7 +1252,7 @@ async function getRelatedMediaRail(media: MediaItem) {
 
   if (media.type === "movie" || media.type === "show") {
     const results = await Promise.allSettled(
-      (["movie", "show"] as const).flatMap((mediaType, mediaTypeIndex) => [
+      [media.type].flatMap((mediaType, mediaTypeIndex) => [
         withTimeout(
           browseTmdbCatalog({ type: mediaType, page: 1, genre: primaryGenre, sort: "rating", seed: 5 + mediaTypeIndex }),
           emptyBrowseResult(),
@@ -1320,7 +1371,8 @@ async function getRelatedMediaRail(media: MediaItem) {
     .filter((entry) => {
       const sharedGenres = entry.candidate.genres.filter((genre) => media.genres.includes(genre)).length;
       const sharedTopics = sharedTopicTokenCount(media, entry.candidate);
-      return entry.score >= 42 && (sharedGenres >= 1 || sharedTopics >= 2);
+      const sharedTags = sharedSimilarityTagCount(media, entry.candidate);
+      return entry.score >= 40 && (sharedGenres >= 2 || (sharedGenres >= 1 && sharedTags >= 1) || sharedTags >= 2 || sharedTopics >= 3);
     })
     .sort((left, right) => right.score - left.score)
     .map((entry) => entry.candidate)
@@ -1423,8 +1475,8 @@ export default async function MediaDetailPage({
     );
   }
 
-  const related = await getRelatedMediaRail(media);
-  const franchiseSection = await buildFranchiseSection(media, animeFranchise);
+  const related = await getRelatedMediaRail(media).catch(() => []);
+  const franchiseSection = await buildFranchiseSection(media, animeFranchise).catch(() => null);
   const runtimeLabel =
     media.type === "game"
       ? "Platforms"
@@ -1550,10 +1602,6 @@ export default async function MediaDetailPage({
                 <div className="credit-row">
                   <span className="muted">{runtimeLabel}</span>
                   <strong>{runtimeValue}</strong>
-                </div>
-                <div className="credit-row">
-                  <span className="muted">{studioLabel}</span>
-                  <strong>{studioValue}</strong>
                 </div>
                 <div className="credit-row">
                   <span className="muted">Status</span>

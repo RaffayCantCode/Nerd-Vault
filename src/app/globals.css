@@ -7588,3 +7588,120 @@ html {
     width: 100%;
   }
 }
+.detail-error-shell {
+  min-height: 100svh;
+  align-content: center;
+  padding: 24px;
+}
+
+.detail-error-card {
+  max-width: 720px;
+  margin: 0 auto;
+  display: grid;
+  gap: 18px;
+  padding: 32px;
+  border-radius: 30px;
+}
+
+.related-media-back-row {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.franchise-card.is-active {
+  box-shadow: 0 0 0 1px var(--detail-edge, rgba(255, 255, 255, 0.16)), 0 20px 42px rgba(0, 0, 0, 0.26);
+}
+
+.franchise-card.is-active .franchise-badge {
+  background: var(--detail-accent-soft, rgba(255, 255, 255, 0.1));
+  border-color: var(--detail-edge, rgba(255, 255, 255, 0.18));
+  color: var(--text);
+}
+
+.browse-toolbar,
+.bottom-pager,
+.workspace-hero,
+.detail-hero,
+.info-panel,
+.catalog-card,
+.sidebar.sidebar-rail,
+.franchise-card {
+  border-radius: 28px;
+}
+
+.browse-toolbar {
+  padding: 28px;
+  background:
+    radial-gradient(circle at top right, rgba(3, 252, 190, 0.08), transparent 26%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.025)),
+    rgba(8, 11, 17, 0.56);
+}
+
+.browse-live-search-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.browse-live-search-input,
+.search-input {
+  min-height: 62px;
+  padding: 1rem 1.2rem;
+  border-radius: 20px;
+  border-color: rgba(255, 255, 255, 0.12);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
+    rgba(7, 11, 18, 0.92);
+  font-size: 1rem;
+}
+
+.browse-live-search-input:focus,
+.search-input:focus {
+  border-color: rgba(3, 252, 190, 0.4);
+  box-shadow: 0 0 0 4px rgba(3, 252, 190, 0.12);
+}
+
+.sidebar.sidebar-rail {
+  padding: 18px 14px;
+}
+
+.sidebar-nav-button,
+.sidebar-folder-tile,
+.sidebar-icon-button {
+  min-height: 56px;
+  border-radius: 18px;
+}
+
+.sidebar-nav-button {
+  gap: 6px;
+  padding: 10px 8px;
+}
+
+.sidebar-nav-glyph {
+  width: 32px;
+  height: 32px;
+  border-radius: 12px;
+  font-size: 0.82rem;
+}
+
+.sidebar-folder-art {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+}
+
+.chip,
+.page-indicator {
+  border-radius: 16px;
+}
+
+.related-media-actions {
+  align-items: center;
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .browse-live-search-row {
+    grid-template-columns: 1fr;
+  }
+}

@@ -475,36 +475,44 @@ export async function browseJikanAnime(params: JikanBrowseParams) {
   const genreParam = await buildGenreParam(params.genre);
   const sort = params.sort ?? "discovery";
   const discoverySeed = params.seed ?? 1;
-  const discoveryOrder = ["members", "score", "favorites"][discoverySeed % 3];
-  const requestPage = !query && sort === "discovery" ? getDiscoveryPage(page, discoverySeed, 180, 17) : page;
 
-  const path = query
-    ? `/anime?q=${encodeURIComponent(query)}&page=${page}&limit=25&sfw=true&order_by=${sort === "newest" ? "start_date" : "score"}&sort=desc`
-    : sort === "newest"
-      ? `/anime?page=${page}&limit=25&sfw=true&order_by=start_date&sort=desc${genreParam}`
-      : `/anime?page=${requestPage}&limit=25&sfw=true&order_by=${discoveryOrder}&sort=desc${genreParam}`;
-
-  const payload = await jikanFetch<JikanListResponse>(path);
-  const items = collapseAnimeFranchises(payload.data);
-
-  if (query && !items.length) {
-    const emptyPagination = { current_page: 1, last_visible_page: 1 };
+  if (query) {
     const fallbackResponses = await Promise.all([
-      jikanFetch<JikanListResponse>(`/anime?page=1&limit=25&sfw=true&order_by=${discoveryOrder}&sort=desc${genreParam}`).catch(() => ({ data: [], pagination: emptyPagination })),
-      jikanFetch<JikanListResponse>(`/anime?page=2&limit=25&sfw=true&order_by=${discoveryOrder}&sort=desc${genreParam}`).catch(() => ({ data: [], pagination: emptyPagination })),
+      jikanFetch<JikanListResponse>(`/anime?page=1&limit=25&sfw=true&order_by=members&sort=desc${genreParam}`).catch(() => ({
+        data: [],
+        pagination: { current_page: 1, last_visible_page: 1 },
+      })),
+      jikanFetch<JikanListResponse>(`/anime?page=2&limit=25&sfw=true&order_by=score&sort=desc${genreParam}`).catch(() => ({
+        data: [],
+        pagination: { current_page: 1, last_visible_page: 1 },
+      })),
+      jikanFetch<JikanListResponse>(`/anime?page=3&limit=25&sfw=true&order_by=favorites&sort=desc${genreParam}`).catch(() => ({
+        data: [],
+        pagination: { current_page: 1, last_visible_page: 1 },
+      })),
     ]);
     const fallbackItems = rankLocalSearchResults(
       fallbackResponses.flatMap((entry) => collapseAnimeFranchises(entry.data)),
       query,
-    ).slice(0, 25);
+    ).slice(0, 72);
 
     return {
-      page,
+      page: 1,
       totalPages: 1,
       totalResults: fallbackItems.length,
       items: fallbackItems,
     };
   }
+
+  const discoveryOrder = ["members", "score", "favorites"][discoverySeed % 3];
+  const requestPage = !query && sort === "discovery" ? getDiscoveryPage(page, discoverySeed, 180, 17) : page;
+
+  const path = sort === "newest"
+    ? `/anime?page=${page}&limit=25&sfw=true&order_by=start_date&sort=desc${genreParam}`
+    : `/anime?page=${requestPage}&limit=25&sfw=true&order_by=${discoveryOrder}&sort=desc${genreParam}`;
+
+  const payload = await jikanFetch<JikanListResponse>(path);
+  const items = collapseAnimeFranchises(payload.data);
 
   return {
     page,

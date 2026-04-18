@@ -6,7 +6,6 @@ import { itemMatchesSearch, searchScore } from "@/lib/search-utils";
 import { MediaItem } from "@/lib/types";
 
 const MIXED_CACHE_TTL_MS = 1000 * 60 * 10;
-const MIXED_TOTAL_PAGE_CAP = 60;
 const mixedCatalogCache = new Map<
   string,
   {
@@ -248,6 +247,7 @@ export async function browseMixedCatalog({
 }) {
   const safePageSize = Math.min(36, Math.max(10, pageSize));
   const safeQuery = query.trim();
+  const isSearch = Boolean(safeQuery);
   const cacheKey = JSON.stringify({ page, query: safeQuery, genre, sort, seed, pageSize: safePageSize });
   const cached = mixedCatalogCache.get(cacheKey);
 
@@ -256,11 +256,13 @@ export async function browseMixedCatalog({
   }
 
   const needsBroaderPool = Boolean((genre && genre !== "all") || safeQuery);
-  const sourcePageSpan = safeQuery ? 2 : genre && genre !== "all" ? 2 : 1;
-  const sourcePages = Array.from(
-    { length: needsBroaderPool ? Math.max(2, sourcePageSpan) : sourcePageSpan },
-    (_, index) => page + index,
-  );
+  const sourcePageSpan = isSearch ? 3 : genre && genre !== "all" ? 2 : 1;
+  const sourcePages = isSearch
+    ? Array.from({ length: sourcePageSpan }, (_, index) => index + 1)
+    : Array.from(
+        { length: needsBroaderPool ? Math.max(2, sourcePageSpan) : sourcePageSpan },
+        (_, index) => page + index,
+      );
 
   const pageResults = await Promise.all(
     sourcePages.map(async (sourcePage, index) => {
@@ -372,7 +374,7 @@ export async function browseMixedCatalog({
     genre && genre !== "all" ? mixed.filter((item) => itemMatchesGenre(item, genre)) : mixed;
 
   const rankedMixed = safeQuery
-    ? rankSearchItems(filteredMixed, safeQuery).slice(0, safePageSize)
+    ? rankSearchItems(filteredMixed, safeQuery).slice(0, Math.max(safePageSize * 3, 72))
     : interleaveTypePriority(
         rotateBuckets(shuffleBySeed(filteredMixed, seed + page), seed * 7 + page * 5),
         safePageSize,
@@ -412,8 +414,8 @@ export async function browseMixedCatalog({
   }, 1);
 
   const payload = {
-    page,
-    totalPages: Math.max(1, Math.min(maxSourcePages, MIXED_TOTAL_PAGE_CAP)),
+    page: isSearch ? 1 : page,
+    totalPages: isSearch ? 1 : Math.max(1, maxSourcePages),
     totalResults: finalItems.length,
     items: finalItems,
   };

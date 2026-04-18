@@ -4,7 +4,6 @@ import { itemMatchesSearch, searchScore } from "@/lib/search-utils";
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/original";
 const TMDB_CACHE_TTL_MS = 1000 * 60 * 30;
-const TMDB_BROWSE_PAGE_CAP = 60;
 
 type TmdbGenre = {
   id: number;
@@ -425,6 +424,23 @@ async function getTmdbMoviePageWithMode(
   seed = 1,
 ): Promise<BrowsePayload> {
   const movieGenres = await getGenreMap("movie");
+  if (query) {
+    const pages = await Promise.all(
+      [1, 2, 3].map((targetPage) => getTmdbMoviePageWithMode(targetPage, "", genre, sort, seed + targetPage)),
+    );
+    const rankedItems = rankLocalSearchResults(
+      pages.flatMap((entry) => entry.items),
+      query,
+    ).slice(0, 72);
+
+    return {
+      page: 1,
+      totalPages: 1,
+      totalResults: rankedItems.length,
+      items: rankedItems,
+    };
+  }
+
   const genreId = findGenreId(movieGenres, genre);
   const sortBy = sort === "newest" ? "primary_release_date.desc" : sort === "discovery" ? getDiscoverySort(seed, 5) : "popularity.desc";
   const requestPage = !query && sort === "discovery" ? getDiscoveryPage(page, seed, 200, 5) : page;
@@ -435,33 +451,13 @@ async function getTmdbMoviePageWithMode(
         ? 80   // was 350 — allow niche films with strong ratings
         : 30   // was 120 — allow obscure titles
       : 80;
-  const path = query
-    ? `/search/movie?language=en-US&include_adult=false&page=${page}&query=${encodeURIComponent(query)}`
-    : `/discover/movie?language=en-US&include_adult=false&sort_by=${sortBy}&page=${requestPage}&vote_count.gte=${voteFloor}&with_original_language=en${genreId ? `&with_genres=${genreId}` : ""}`;
+  const path = `/discover/movie?language=en-US&include_adult=false&sort_by=${sortBy}&page=${requestPage}&vote_count.gte=${voteFloor}&with_original_language=en${genreId ? `&with_genres=${genreId}` : ""}`;
   const payload = await tmdbFetch<TmdbPagedResponse>(path);
   const primaryItems = payload.results.map((item) => mapMovieOrShow(item, "movie", movieGenres)).filter(isUsefulMovie);
 
-  if (query && !primaryItems.length) {
-    const fallbackPages = await Promise.all([
-      getTmdbMoviePageWithMode(1, "", genre, "discovery", seed + 91),
-      getTmdbMoviePageWithMode(2, "", genre, "discovery", seed + 97),
-    ]);
-    const fallbackItems = rankLocalSearchResults(
-      fallbackPages.flatMap((entry) => entry.items),
-      query,
-    ).slice(0, 24);
-
-    return {
-      page,
-      totalPages: 1,
-      totalResults: fallbackItems.length,
-      items: fallbackItems,
-    };
-  }
-
   return {
     page: payload.page,
-    totalPages: Math.max(1, Math.min(payload.total_pages, TMDB_BROWSE_PAGE_CAP)),
+    totalPages: Math.max(1, payload.total_pages),
     totalResults: payload.total_results,
     items: primaryItems,
   };
@@ -479,6 +475,23 @@ async function getTmdbShowPageWithMode(
   seed = 1,
 ): Promise<BrowsePayload> {
   const tvGenres = await getGenreMap("tv");
+  if (query) {
+    const pages = await Promise.all(
+      [1, 2, 3].map((targetPage) => getTmdbShowPageWithMode(targetPage, "", genre, sort, seed + targetPage)),
+    );
+    const rankedItems = rankLocalSearchResults(
+      pages.flatMap((entry) => entry.items),
+      query,
+    ).slice(0, 72);
+
+    return {
+      page: 1,
+      totalPages: 1,
+      totalResults: rankedItems.length,
+      items: rankedItems,
+    };
+  }
+
   const genreId = findGenreId(tvGenres, genre);
   const sortBy = sort === "newest" ? "first_air_date.desc" : sort === "discovery" ? getDiscoverySort(seed, 11) : "popularity.desc";
   const requestPage = !query && sort === "discovery" ? getDiscoveryPage(page, seed, 200, 11) : page;
@@ -488,33 +501,13 @@ async function getTmdbShowPageWithMode(
         ? 50   // was 220 — surface hidden gem shows
         : 20   // was 100
       : 50;
-  const path = query
-    ? `/search/tv?language=en-US&page=${page}&query=${encodeURIComponent(query)}`
-    : `/discover/tv?language=en-US&sort_by=${sortBy}&page=${requestPage}&vote_count.gte=${voteFloor}&with_original_language=en${genreId ? `&with_genres=${genreId}` : ""}`;
+  const path = `/discover/tv?language=en-US&sort_by=${sortBy}&page=${requestPage}&vote_count.gte=${voteFloor}&with_original_language=en${genreId ? `&with_genres=${genreId}` : ""}`;
   const payload = await tmdbFetch<TmdbPagedResponse>(path);
   const primaryItems = payload.results.map((item) => mapMovieOrShow(item, "show", tvGenres)).filter(isUsefulShow);
 
-  if (query && !primaryItems.length) {
-    const fallbackPages = await Promise.all([
-      getTmdbShowPageWithMode(1, "", genre, "discovery", seed + 101),
-      getTmdbShowPageWithMode(2, "", genre, "discovery", seed + 107),
-    ]);
-    const fallbackItems = rankLocalSearchResults(
-      fallbackPages.flatMap((entry) => entry.items),
-      query,
-    ).slice(0, 24);
-
-    return {
-      page,
-      totalPages: 1,
-      totalResults: fallbackItems.length,
-      items: fallbackItems,
-    };
-  }
-
   return {
     page: payload.page,
-    totalPages: Math.max(1, Math.min(payload.total_pages, TMDB_BROWSE_PAGE_CAP)),
+    totalPages: Math.max(1, payload.total_pages),
     totalResults: payload.total_results,
     items: primaryItems,
   };

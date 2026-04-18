@@ -20,6 +20,13 @@ export function DetailBackButton() {
       className="button button-secondary detail-back-button"
       onClick={() => {
         const lastBrowseUrl = window.sessionStorage.getItem(BROWSE_LAST_URL_KEY);
+        const previousUrl = document.referrer ? new URL(document.referrer).pathname : "";
+
+        if (previousUrl === "/browse") {
+          window.history.back();
+          return;
+        }
+
         router.push(lastBrowseUrl || "/browse");
       }}
     >

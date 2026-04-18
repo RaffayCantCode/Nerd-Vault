@@ -26,6 +26,16 @@ const BROWSE_BOOTSTRAP_CACHE_KEY = "nerdvault-browse-bootstrap-v1";
 const BROWSE_SEED_KEY = "nerdvault-browse-seed-v1";
 const BROWSE_CACHE_TTL_MS = 1000 * 60 * 10;
 
+function isReloadNavigation() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const navigationEntries = window.performance.getEntriesByType("navigation");
+  const firstEntry = navigationEntries[0] as PerformanceNavigationTiming | undefined;
+  return firstEntry?.type === "reload";
+}
+
 function getBrowsePageSize(viewportWidth: number) {
   if (viewportWidth < 768) return 24;
   if (viewportWidth < 1680) return 36;
@@ -218,6 +228,7 @@ export function BrowseWorkspace({
   initialTotalPages: number;
 }) {
   const searchParams = useSearchParams();
+  const shouldResetForReload = typeof window !== "undefined" && isReloadNavigation();
   const queryFromUrl = searchParams.get("query") ?? "";
   const mediaTypeFromUrl = searchParams.get("mediaType");
   const genreFromUrl = searchParams.get("genre") ?? "";
@@ -225,7 +236,7 @@ export function BrowseWorkspace({
   const seedFromUrl = Number(searchParams.get("seed") || "");
   const pageFromUrl = Number(searchParams.get("page") || "");
   const initialState =
-    typeof window !== "undefined"
+    typeof window !== "undefined" && !shouldResetForReload
       ? (() => {
           try {
             return JSON.parse(window.sessionStorage.getItem(BROWSE_STATE_KEY) || "null") as
@@ -243,7 +254,9 @@ export function BrowseWorkspace({
         })()
       : null;
   const [filter, setFilter] = useState<MediaType | "all">(
-    mediaTypeFromUrl === "movie" ||
+    shouldResetForReload
+      ? "all"
+      : mediaTypeFromUrl === "movie" ||
       mediaTypeFromUrl === "show" ||
       mediaTypeFromUrl === "anime" ||
       mediaTypeFromUrl === "game" ||
@@ -257,11 +270,13 @@ export function BrowseWorkspace({
         ? initialState.filter
       : "all",
   );
-  const [query, setQuery] = useState(queryFromUrl || initialState?.query || "");
+  const [query, setQuery] = useState(shouldResetForReload ? "" : queryFromUrl || initialState?.query || "");
   const deferredQuery = useDeferredValue(query);
-  const [genre, setGenre] = useState(genreFromUrl || initialState?.genre || "all");
+  const [genre, setGenre] = useState(shouldResetForReload ? "all" : genreFromUrl || initialState?.genre || "all");
   const [sort, setSort] = useState<SortMode>(
-    sortFromUrl === "newest" ||
+    shouldResetForReload
+      ? "discovery"
+      : sortFromUrl === "newest" ||
       sortFromUrl === "rating" ||
       sortFromUrl === "title" ||
       sortFromUrl === "discovery"
@@ -291,7 +306,9 @@ export function BrowseWorkspace({
   );
   const [remoteCatalog, setRemoteCatalog] = useState<MediaItem[]>(catalog);
   const initialPage =
-    Number.isFinite(pageFromUrl) && pageFromUrl > 0
+    shouldResetForReload
+      ? 1
+      : Number.isFinite(pageFromUrl) && pageFromUrl > 0
       ? pageFromUrl
       : Number.isFinite(initialState?.page) && (initialState?.page ?? 1) > 0
         ? (initialState?.page as number)
@@ -310,7 +327,9 @@ export function BrowseWorkspace({
     typeof window !== "undefined" ? readBrowsePageCache() : {},
   );
   const sessionSeedRef = useRef(
-    Number.isFinite(seedFromUrl) && seedFromUrl > 0
+    shouldResetForReload
+      ? discoverySeed
+      : Number.isFinite(seedFromUrl) && seedFromUrl > 0
       ? seedFromUrl
       : typeof window !== "undefined"
         ? Number(window.sessionStorage.getItem(BROWSE_SEED_KEY) || "") || discoverySeed
@@ -328,6 +347,7 @@ export function BrowseWorkspace({
   const hasUnlockedLiveSurfacingRef = useRef(false);
   const didInitSurfacingRef = useRef(false);
   const previousQueryRef = useRef(queryFromUrl.trim());
+  const hasActiveSearch = Boolean(deferredQuery.trim());
 
   const supportsRemotePaging =
     filter === "all" ||
@@ -335,6 +355,7 @@ export function BrowseWorkspace({
     filter === "show" ||
     filter === "anime" ||
     filter === "game";
+  const allowPaging = supportsRemotePaging && !hasActiveSearch;
 
   useEffect(() => {
     function syncPageSize() {
@@ -345,6 +366,28 @@ export function BrowseWorkspace({
     window.addEventListener("resize", syncPageSize);
     return () => window.removeEventListener("resize", syncPageSize);
   }, []);
+
+  useEffect(() => {
+    if (!shouldResetForReload || typeof window === "undefined") {
+      return;
+    }
+
+    setFilter("all");
+    setQuery("");
+    setGenre("all");
+    setSort("discovery");
+    setPage(1);
+    setActivePage(1);
+    setHeroIndex(0);
+    window.sessionStorage.removeItem(BROWSE_STATE_KEY);
+    window.sessionStorage.removeItem(BROWSE_SCROLL_KEY);
+    window.sessionStorage.setItem(BROWSE_LAST_URL_KEY, "/browse");
+    window.sessionStorage.setItem(BROWSE_SEED_KEY, String(discoverySeed));
+
+    if (window.location.pathname !== "/browse" || window.location.search) {
+      window.history.replaceState(null, "", "/browse");
+    }
+  }, [discoverySeed, shouldResetForReload]);
 
   useEffect(() => {
     const initialKey = buildCacheKey("all", 1, "all", "", "discovery", sessionSeedRef.current, initialBootstrapPageSize);
@@ -459,6 +502,10 @@ export function BrowseWorkspace({
   }, [activePage, filter, genre, query, sort]);
 
   useEffect(() => {
+    if (shouldResetForReload) {
+      return;
+    }
+
     if (!didSyncUrlStateRef.current) {
       didSyncUrlStateRef.current = true;
       return;
@@ -488,7 +535,7 @@ export function BrowseWorkspace({
     }
     setPage(Number.isFinite(pageFromUrl) && pageFromUrl > 0 ? pageFromUrl : 1);
     setHeroIndex(0);
-  }, [genreFromUrl, mediaTypeFromUrl, pageFromUrl, queryFromUrl, seedFromUrl, sortFromUrl]);
+  }, [genreFromUrl, mediaTypeFromUrl, pageFromUrl, queryFromUrl, seedFromUrl, shouldResetForReload, sortFromUrl]);
 
   useEffect(() => {
     function syncWishlist() {
@@ -523,7 +570,7 @@ export function BrowseWorkspace({
         pageSize: String(pageSize),
       });
 
-      if (deferredQuery.trim()) {
+      if (hasActiveSearch) {
         search.set("query", deferredQuery.trim());
       }
       if (genre !== "all") {
@@ -575,11 +622,13 @@ export function BrowseWorkspace({
 
       try {
         const primaryItems = await fetchPage(page);
-        const minimumVisible = Math.max(12, pageSize - 1);
-        const nextItems = await fetchPage(page + 1, true).catch(() => [] as MediaItem[]);
-        if (primaryItems.length + nextItems.length < minimumVisible) {
-          void fetchPage(page + 2, true).catch(() => undefined);
-          void fetchPage(page + 3, true).catch(() => undefined);
+        if (!hasActiveSearch) {
+          const minimumVisible = Math.max(12, pageSize - 1);
+          const nextItems = await fetchPage(page + 1, true).catch(() => [] as MediaItem[]);
+          if (primaryItems.length + nextItems.length < minimumVisible) {
+            void fetchPage(page + 2, true).catch(() => undefined);
+            void fetchPage(page + 3, true).catch(() => undefined);
+          }
         }
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
@@ -595,7 +644,8 @@ export function BrowseWorkspace({
 
     void loadCatalog();
     return () => controller.abort();
-  }, [bootstrapCatalog, catalog, deferredQuery, discoverySeed, filter, genre, initialTotalPages, page, pageSize, sort, supportsRemotePaging]);
+  }, [bootstrapCatalog, catalog, deferredQuery, discoverySeed, filter, genre, hasActiveSearch, initialTotalPages, page, pageSize, sort, supportsRemotePaging]);
+
 
   const baseCatalog = supportsRemotePaging ? remoteCatalog : bootstrapCatalog;
   const typedVisible = filterCatalog(
@@ -604,7 +654,7 @@ export function BrowseWorkspace({
     supportsRemotePaging ? "" : deferredQuery,
   );
   const immediateLocalMatches = useMemo(() => {
-    if (!deferredQuery.trim()) {
+    if (!hasActiveSearch) {
       return typedVisible;
     }
 
@@ -619,7 +669,7 @@ export function BrowseWorkspace({
       seen.add(key);
       return (filter === "all" || item.type === filter) && itemMatchesSearch(item, deferredQuery);
     });
-  }, [bootstrapCatalog, catalog, deferredQuery, filter, remoteCatalog, typedVisible]);
+  }, [bootstrapCatalog, catalog, deferredQuery, filter, hasActiveSearch, remoteCatalog, typedVisible]);
 
   const knownGenreCatalog = useMemo(() => {
     const seen = new Set<string>();
@@ -657,16 +707,16 @@ export function BrowseWorkspace({
   }, [availableGenres, genre]);
 
   const visibleSource =
-    deferredQuery.trim() && supportsRemotePaging
+    hasActiveSearch && supportsRemotePaging
       ? remoteCatalog.length
         ? typedVisible
         : immediateLocalMatches
-      : deferredQuery.trim()
+      : hasActiveSearch
         ? immediateLocalMatches
         : typedVisible;
   const visible = visibleSource.filter((item) => itemMatchesGenre(item, genre));
   const queryVisible = useMemo(() => {
-    if (!deferredQuery.trim()) {
+    if (!hasActiveSearch) {
       return visible;
     }
 
@@ -681,7 +731,7 @@ export function BrowseWorkspace({
       seen.add(key);
       return (filter === "all" || item.type === filter) && itemMatchesSearch(item, deferredQuery) && itemMatchesGenre(item, genre);
     });
-  }, [bootstrapCatalog, catalog, deferredQuery, filter, genre, remoteCatalog, visible]);
+  }, [bootstrapCatalog, catalog, deferredQuery, filter, genre, hasActiveSearch, remoteCatalog, visible]);
 
   const bootstrapHeroBaseCatalog = useMemo(() => {
     const typeScoped = filterCatalog(bootstrapCatalog, filter, "");
@@ -867,7 +917,7 @@ export function BrowseWorkspace({
     featuredDeck[heroIndex] ?? sortedVisible[0] ?? typedVisible[0] ?? baseCatalog[0] ?? bootstrapCatalog[0] ?? catalog[0];
   const featuredKey = featured ? `${featured.source}-${featured.sourceId}` : "";
   const featuredWishlisted = featured ? wishlistedKeys.includes(featuredKey) : false;
-  const isPagePending = supportsRemotePaging && page !== activePage;
+  const isPagePending = allowPaging && page !== activePage;
   const showPendingState = isLoading || isPagePending;
   const showGridSkeletons = showPendingState && !remoteCatalog.length;
   const visibleGridItems = useMemo(() => {
@@ -895,8 +945,8 @@ export function BrowseWorkspace({
 
     shouldScrollToToolbarRef.current = false;
     shouldScrollToResultsRef.current = true;
-    scrollBehaviorRef.current = "auto";
-    pageScrollOffsetRef.current = window.innerWidth < 900 ? 94 : source === "top" ? 92 : 28;
+    scrollBehaviorRef.current = "smooth";
+    pageScrollOffsetRef.current = window.innerWidth < 900 ? 96 : 104;
     startTransition(() => {
       setPage(clamped);
     });
@@ -904,6 +954,7 @@ export function BrowseWorkspace({
 
   function persistBrowseSnapshot() {
     window.sessionStorage.setItem(BROWSE_SCROLL_KEY, String(window.scrollY));
+    window.sessionStorage.setItem(BROWSE_LAST_URL_KEY, `${window.location.pathname}${window.location.search}`);
   }
 
   function handleSearchJump(event?: FormEvent) {
@@ -918,7 +969,7 @@ export function BrowseWorkspace({
   }
 
   function renderPager(source: "top" | "bottom") {
-    if (!supportsRemotePaging) return null;
+    if (!allowPaging) return null;
 
     return (
       <div className={`bottom-pager bottom-pager-${source} glass`}>
@@ -1185,8 +1236,8 @@ export function BrowseWorkspace({
                       : "browse"
                 } results...`
               : activeSearchLabel
-                ? `Search results for "${activeSearchLabel}"${supportsRemotePaging ? ` on page ${activePage}${totalPages > 1 ? ` of ${totalPages}` : ""}` : ""}.`
-                : `Showing ${sortedVisible.length} titles on page ${activePage}${supportsRemotePaging ? ` of ${totalPages}` : ""}.`}
+                ? `Search results for "${activeSearchLabel}" collected into one ranked list.`
+                : `Showing ${sortedVisible.length} titles on page ${activePage}${allowPaging ? ` of ${totalPages}` : ""}.`}
           </p>
           <div className={`refresh-pulse ${showPendingState ? "is-active" : ""}`} />
         </div>

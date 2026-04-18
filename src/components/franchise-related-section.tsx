@@ -51,6 +51,7 @@ export function FranchiseRelatedSection({
               key={entry.id}
               href={entry.href}
               className={`glass franchise-card ${entry.isActive ? "is-active" : ""}`}
+              aria-current={entry.isActive ? "page" : undefined}
             >
               <div className="franchise-card-topline">
                 <span className="eyebrow">Entry {index + 1}</span>
@@ -77,6 +78,7 @@ export function FranchiseRelatedSection({
                 key={entry.id}
                 href={entry.href}
                 className={`glass franchise-card ${entry.isActive ? "is-active" : ""}`}
+                aria-current={entry.isActive ? "page" : undefined}
               >
                 <div className="franchise-card-topline">
                   <span className="eyebrow">Movie {index + 1}</span>

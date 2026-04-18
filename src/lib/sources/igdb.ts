@@ -5,7 +5,6 @@ const IGDB_BASE_URL = "https://api.igdb.com/v4";
 const IGDB_IMAGE_BASE_URL = "https://images.igdb.com/igdb/image/upload/t_1080p";
 const TWITCH_TOKEN_URL = "https://id.twitch.tv/oauth2/token";
 const IGDB_CACHE_TTL_MS = 1000 * 60 * 30;
-const IGDB_BROWSE_PAGE_CAP = 60;
 
 type IgdbCover = {
   image_id: string;
@@ -258,6 +257,26 @@ export async function browseIgdbGames(params: {
   const queryText = params.query?.trim();
   const sort = params.sort ?? "discovery";
   const discoverySeed = params.seed ?? 1;
+
+  if (queryText) {
+    const fallbackPages = await Promise.all([
+      browseIgdbGames({ page: 1, genre: params.genre, sort: "discovery", seed: discoverySeed + 51 }),
+      browseIgdbGames({ page: 2, genre: params.genre, sort: "discovery", seed: discoverySeed + 57 }),
+      browseIgdbGames({ page: 3, genre: params.genre, sort: "discovery", seed: discoverySeed + 63 }),
+    ]);
+    const rankedItems = rankLocalSearchResults(
+      fallbackPages.flatMap((entry) => entry.items),
+      queryText,
+    ).slice(0, 72);
+
+    return {
+      page: 1,
+      totalPages: 1,
+      totalResults: rankedItems.length,
+      items: rankedItems,
+    };
+  }
+
   const requestPage =
     !queryText && sort === "discovery"
       ? ((Math.abs((discoverySeed * 17) % 18) + (page - 1) * 5) % 18) + 1
@@ -307,29 +326,9 @@ export async function browseIgdbGames(params: {
       : sort === "discovery"
         ? discoverySorts[discoverySeed % discoverySorts.length]
         : "sort total_rating_count desc;";
-  const query = escapedQuery
-    ? `search "${escapedQuery}"; fields ${fields}; where ${whereParts.join(" & ")}; limit 24; offset ${offset};`
-    : `fields ${fields}; where ${whereParts.join(" & ")}; ${sortClause} limit 24; offset ${offset};`;
+  const query = `fields ${fields}; where ${whereParts.join(" & ")}; ${sortClause} limit 24; offset ${offset};`;
   const games = await igdbFetch<IgdbGame[]>(query);
   const items = games.map(mapGame).filter(isUsefulGame);
-
-  if (queryText && !items.length) {
-    const fallbackPages = await Promise.all([
-      browseIgdbGames({ page: 1, genre: params.genre, sort: "discovery", seed: discoverySeed + 51 }),
-      browseIgdbGames({ page: 2, genre: params.genre, sort: "discovery", seed: discoverySeed + 57 }),
-    ]);
-    const fallbackItems = rankLocalSearchResults(
-      fallbackPages.flatMap((entry) => entry.items),
-      queryText,
-    ).slice(0, 24);
-
-    return {
-      page,
-      totalPages: 1,
-      totalResults: fallbackItems.length,
-      items: fallbackItems,
-    };
-  }
 
   const countQuery = escapedQuery
     ? `search "${escapedQuery}"; where ${whereParts.join(" & ")};`
@@ -339,7 +338,7 @@ export async function browseIgdbGames(params: {
 
   return {
     page,
-    totalPages: Math.min(totalPages, IGDB_BROWSE_PAGE_CAP),
+    totalPages,
     totalResults: items.length,
     items,
   };

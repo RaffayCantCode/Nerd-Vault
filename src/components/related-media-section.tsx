@@ -43,15 +43,18 @@ export function RelatedMediaSection({
       {canToggle ? (
         <div className="related-media-actions">
           <button type="button" className="button button-secondary" onClick={() => setExpanded((current) => !current)}>
-            {expanded ? "Show less" : "Show more"}
+            {expanded ? "Show less related" : `Show ${items.length - visibleItems.length} more related`}
           </button>
-          <DetailBackButton />
         </div>
       ) : (
         <div className="related-media-actions">
-          <DetailBackButton />
+          <p className="copy">That is the full related set for this title.</p>
         </div>
       )}
+
+      <div className="related-media-back-row">
+        <DetailBackButton />
+      </div>
     </div>
   );
 }
