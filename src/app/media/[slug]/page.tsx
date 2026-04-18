@@ -512,6 +512,30 @@ function sharedSimilarityTagCount(base: MediaItem, candidate: MediaItem) {
   return total;
 }
 
+function platformTokens(media: MediaItem) {
+  return new Set(
+    (media.details.platform ?? "")
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .map((token) => token.trim())
+      .filter((token) => token.length >= 2),
+  );
+}
+
+function sharedPlatformCount(base: MediaItem, candidate: MediaItem) {
+  const basePlatforms = platformTokens(base);
+  const candidatePlatforms = platformTokens(candidate);
+  let total = 0;
+
+  for (const token of basePlatforms) {
+    if (candidatePlatforms.has(token)) {
+      total += 1;
+    }
+  }
+
+  return total;
+}
+
 function candidateMatchesSignal(candidate: MediaItem, signals: string[]) {
   if (!signals.length) {
     return false;
@@ -985,6 +1009,7 @@ function scoreMoreLikeThisCandidate(base: MediaItem, candidate: MediaItem) {
   const sharedGenres = candidate.genres.filter((genre) => base.genres.includes(genre)).length;
   const sharedTopics = sharedTopicTokenCount(base, candidate);
   const sharedTags = sharedSimilarityTagCount(base, candidate);
+  const sharedPlatforms = sharedPlatformCount(base, candidate);
   const sharedCredits = candidate.credits.filter((credit) =>
     base.credits.some((baseCredit) => baseCredit.name.trim().toLowerCase() === credit.name.trim().toLowerCase()),
   ).length;
@@ -994,6 +1019,7 @@ function scoreMoreLikeThisCandidate(base: MediaItem, candidate: MediaItem) {
   score += sharedGenres * 14;
   score += sharedTags * 16;
   score += Math.min(sharedTopics, 4) * 5;
+  score += Math.min(sharedPlatforms, 3) * (base.type === "game" ? 6 : 2);
   score += sharedCredits * 6;
 
   if (base.details.studio && candidate.details.studio && base.details.studio === candidate.details.studio) {
@@ -1010,11 +1036,15 @@ function scoreMoreLikeThisCandidate(base: MediaItem, candidate: MediaItem) {
   }
 
   if (sharedTags === 0) {
-    score -= 20;
+    score -= base.type === "game" ? 12 : 20;
   }
 
   if (sharedGenres === 1 && sharedTags === 0 && sharedTopics < 2) {
     score -= 18;
+  }
+
+  if (base.type === "game" && sharedPlatforms === 0) {
+    score -= 6;
   }
 
   return score;
@@ -1345,6 +1375,11 @@ async function getRelatedMediaRail(media: MediaItem) {
         emptyBrowseResult(),
         700,
       ),
+      withTimeout(
+        browseIgdbGames({ page: 3, genre: primaryGenre, sort: "discovery", seed: 8 }),
+        emptyBrowseResult(),
+        700,
+      ),
       ...(secondaryGenre
         ? [
             withTimeout(
@@ -1354,6 +1389,11 @@ async function getRelatedMediaRail(media: MediaItem) {
             ),
             withTimeout(
               browseIgdbGames({ page: 2, genre: secondaryGenre, sort: "discovery", seed: 10 }),
+              emptyBrowseResult(),
+              650,
+            ),
+            withTimeout(
+              browseIgdbGames({ page: 3, genre: secondaryGenre, sort: "discovery", seed: 12 }),
               emptyBrowseResult(),
               650,
             ),
@@ -1368,6 +1408,16 @@ async function getRelatedMediaRail(media: MediaItem) {
             ),
           ]
         : []),
+      withTimeout(
+        browseIgdbGames({ page: 1, sort: "discovery", seed: 15 }),
+        emptyBrowseResult(),
+        700,
+      ),
+      withTimeout(
+        browseIgdbGames({ page: 2, sort: "discovery", seed: 16 }),
+        emptyBrowseResult(),
+        700,
+      ),
       ...franchiseSignals.slice(0, 1).map((query, index) =>
         withTimeout(
           browseIgdbGames({ page: 1, query, sort: "rating", seed: 13 + index }),
@@ -1399,11 +1449,15 @@ async function getRelatedMediaRail(media: MediaItem) {
       const sharedGenres = entry.candidate.genres.filter((genre) => media.genres.includes(genre)).length;
       const sharedTopics = sharedTopicTokenCount(media, entry.candidate);
       const sharedTags = sharedSimilarityTagCount(media, entry.candidate);
+      const sharedPlatforms = sharedPlatformCount(media, entry.candidate);
+      if (media.type === "game") {
+        return entry.score >= 22 && (sharedGenres >= 1 || sharedTags >= 1 || sharedPlatforms >= 1 || sharedTopics >= 2);
+      }
       return entry.score >= 34 && (sharedGenres >= 2 || (sharedGenres >= 1 && sharedTags >= 1) || sharedTags >= 2 || sharedTopics >= 3);
     })
     .sort((left, right) => right.score - left.score)
     .map((entry) => entry.candidate)
-    .slice(0, 8);
+    .slice(0, media.type === "game" ? 10 : 8);
 
   if (strictMatches.length) {
     return dedupeComparableEntries(strictMatches);
@@ -1413,11 +1467,15 @@ async function getRelatedMediaRail(media: MediaItem) {
     .filter((entry) => {
       const sharedGenres = entry.candidate.genres.filter((genre) => media.genres.includes(genre)).length;
       const sharedTags = sharedSimilarityTagCount(media, entry.candidate);
+      const sharedPlatforms = sharedPlatformCount(media, entry.candidate);
+      if (media.type === "game") {
+        return entry.score >= 16 && (sharedGenres >= 1 || sharedTags >= 1 || sharedPlatforms >= 1);
+      }
       return entry.score >= 28 && (sharedGenres >= 1 || sharedTags >= 1);
     })
     .sort((left, right) => right.score - left.score)
     .map((entry) => entry.candidate)
-    .slice(0, 6);
+    .slice(0, media.type === "game" ? 8 : 6);
 
   return dedupeComparableEntries(fallbackMatches);
 }
