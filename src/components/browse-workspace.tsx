@@ -918,9 +918,6 @@ export function BrowseWorkspace({
     featuredDeck[heroIndex] ?? sortedVisible[0] ?? typedVisible[0] ?? baseCatalog[0] ?? bootstrapCatalog[0] ?? catalog[0];
   const featuredKey = featured ? `${featured.source}-${featured.sourceId}` : "";
   const featuredWishlisted = featured ? wishlistedKeys.includes(featuredKey) : false;
-  const isPagePending = allowPaging && page !== activePage;
-  const showPendingState = isLoading || isPagePending;
-  const showGridSkeletons = showPendingState && !remoteCatalog.length;
   const visibleGridItems = useMemo(() => {
     const baseItems = featured
       ? sortedVisible.filter((item) => `${item.source}-${item.sourceId}` !== featuredKey)
@@ -955,6 +952,17 @@ export function BrowseWorkspace({
 
     return supplemented;
   }, [activePage, deferredQuery, featured, featuredKey, filter, genre, hasActiveSearch, pageSize, sort, sortedVisible]);
+  const isPagePending = allowPaging && page !== activePage;
+  const hasVisibleBrowseContent = visibleGridItems.length > 0 || Boolean(featured);
+  const suppressInitialPendingChrome =
+    isLoading &&
+    !isPagePending &&
+    activePage === 1 &&
+    page === 1 &&
+    !hasActiveSearch &&
+    hasVisibleBrowseContent;
+  const showPendingState = (isLoading && !suppressInitialPendingChrome) || isPagePending;
+  const showGridSkeletons = showPendingState && !remoteCatalog.length && !hasVisibleBrowseContent;
 
   useEffect(() => {
     const nextVisible = visibleGridItems.slice(0, Math.min(18, visibleGridItems.length));

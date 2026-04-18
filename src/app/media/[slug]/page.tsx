@@ -12,6 +12,7 @@ import { MediaActions } from "@/components/media-actions";
 import { RelatedMediaSection } from "@/components/related-media-section";
 import { ResilientMediaImage } from "@/components/resilient-media-image";
 import { auth } from "@/lib/auth";
+import { canonicalGenreLabels, sharedCanonicalGenreCount } from "@/lib/catalog-utils";
 import { optimizeMediaImageUrl } from "@/lib/media-image";
 import { getMediaBySlug, mockCatalog } from "@/lib/mock-catalog";
 import { browseIgdbGames, getIgdbGameDetails } from "@/lib/sources/igdb";
@@ -491,6 +492,7 @@ function isCompatibleSimilarityType(base: MediaItem, candidate: MediaItem) {
 }
 
 function buildSimilarityTags(media: MediaItem) {
+  const canonicalGenres = canonicalGenreLabels(media);
   const haystack = normalizeTitleSignal(
     [
       media.title,
@@ -499,6 +501,7 @@ function buildSimilarityTags(media: MediaItem) {
       media.details.collectionTitle ?? "",
       media.details.studio ?? "",
       media.genres.join(" "),
+      canonicalGenres.join(" "),
     ].join(" "),
   );
 
@@ -979,7 +982,7 @@ async function findRemoteMediaBySlug(slug: string, preferredSource?: string, pre
 
 function scoreRelatedCandidate(base: MediaItem, candidate: MediaItem) {
   let score = 0;
-  const sharedGenres = candidate.genres.filter((genre) => base.genres.includes(genre)).length;
+  const sharedGenres = sharedCanonicalGenreCount(base, candidate);
   const primaryGenre = base.genres[0];
   const secondaryGenre = base.genres[1];
   const tertiaryGenre = base.genres[2];
@@ -1033,7 +1036,7 @@ function scoreMoreLikeThisCandidate(base: MediaItem, candidate: MediaItem) {
   }
 
   let score = 0;
-  const sharedGenres = candidate.genres.filter((genre) => base.genres.includes(genre)).length;
+  const sharedGenres = sharedCanonicalGenreCount(base, candidate);
   const sharedTopics = sharedTopicTokenCount(base, candidate);
   const sharedTags = sharedSimilarityTagCount(base, candidate);
   const sharedPlatforms = sharedPlatformCount(base, candidate);
@@ -1493,7 +1496,7 @@ async function getRelatedMediaRail(media: MediaItem) {
 
   const strictMatches = scored
     .filter((entry) => {
-      const sharedGenres = entry.candidate.genres.filter((genre) => media.genres.includes(genre)).length;
+      const sharedGenres = sharedCanonicalGenreCount(media, entry.candidate);
       const sharedTopics = sharedTopicTokenCount(media, entry.candidate);
       const sharedTags = sharedSimilarityTagCount(media, entry.candidate);
       const sharedPlatforms = sharedPlatformCount(media, entry.candidate);
@@ -1512,7 +1515,7 @@ async function getRelatedMediaRail(media: MediaItem) {
 
   const fallbackMatches = scored
     .filter((entry) => {
-      const sharedGenres = entry.candidate.genres.filter((genre) => media.genres.includes(genre)).length;
+      const sharedGenres = sharedCanonicalGenreCount(media, entry.candidate);
       const sharedTags = sharedSimilarityTagCount(media, entry.candidate);
       const sharedPlatforms = sharedPlatformCount(media, entry.candidate);
       if (media.type === "game") {

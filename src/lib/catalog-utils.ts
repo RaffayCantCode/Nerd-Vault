@@ -11,64 +11,37 @@ function normalizeGenreValue(value: string) {
 
 type GenreGroup = {
   label: string;
-  types?: MediaType[];
   terms: string[];
 };
 
-const GENERAL_GENRE_GROUPS: GenreGroup[] = [
-  { label: "Action", terms: ["action", "action adventure", "hack and slash", "beat em up"] },
-  { label: "Adventure", terms: ["adventure", "exploration", "point and click"] },
-  { label: "Fantasy", terms: ["fantasy", "magic"] },
-  { label: "Humor", terms: ["comedy", "humor", "humorous", "parody", "party"] },
-  { label: "Drama", terms: ["drama"] },
-  { label: "Romance", terms: ["romance", "romantic"] },
-  { label: "Sci-Fi", terms: ["sci fi", "science fiction", "mecha", "cyberpunk", "space"] },
-  { label: "Horror", terms: ["horror", "survival horror"] },
-  { label: "Mystery & Thriller", terms: ["mystery", "thriller", "suspense", "psychological", "detective"] },
-  { label: "Family", terms: ["family", "kids"] },
-  { label: "Sports", terms: ["sports"] },
-  { label: "Crime", terms: ["crime", "gangster", "police"] },
+const CANONICAL_GENRE_GROUPS: GenreGroup[] = [
+  { label: "Action", terms: ["action", "action adventure", "beat em up", "hack and slash", "martial arts", "super power"] },
+  { label: "Adventure", terms: ["adventure", "exploration", "point and click", "journey"] },
+  { label: "Fantasy", terms: ["fantasy", "magic", "dark fantasy", "high fantasy", "sword and sorcery"] },
+  { label: "Humor", terms: ["comedy", "humor", "humorous", "parody", "satire", "party"] },
+  { label: "Drama", terms: ["drama", "melodrama"] },
+  { label: "Romance", terms: ["romance", "romantic", "dating sim"] },
+  { label: "Sci-Fi", terms: ["sci fi", "science fiction", "space", "cyberpunk", "mecha", "futuristic"] },
+  { label: "Horror", terms: ["horror", "survival horror", "gore"] },
+  { label: "Mystery & Thriller", terms: ["mystery", "thriller", "suspense", "psychological", "detective", "crime thriller"] },
+  { label: "Crime", terms: ["crime", "gangster", "mafia", "police", "heist"] },
+  { label: "Family", terms: ["family", "kids", "children"] },
+  { label: "Sports", terms: ["sports", "sport"] },
+  { label: "RPG", terms: ["role playing", "rpg", "jrpg", "action rpg", "crpg"] },
+  { label: "Shooter", terms: ["shooter", "first person shooter", "third person shooter", "hero shooter", "tactical shooter"] },
+  { label: "Strategy", terms: ["strategy", "tactical", "tactics", "turn based strategy", "real time strategy", "moba"] },
+  { label: "Simulation", terms: ["simulation", "simulator", "sandbox", "management", "life sim"] },
+  { label: "Racing", terms: ["racing", "vehicular combat"] },
+  { label: "Fighting", terms: ["fighting", "fighter"] },
+  { label: "Puzzle", terms: ["puzzle"] },
+  { label: "Platformer", terms: ["platform", "platformer", "metroidvania"] },
+  { label: "Slice of Life", terms: ["slice of life", "iyashikei", "cozy"] },
+  { label: "Shonen", terms: ["shounen", "shonen"] },
+  { label: "Seinen", terms: ["seinen"] },
+  { label: "Isekai", terms: ["isekai"] },
+  { label: "Mecha", terms: ["mecha"] },
+  { label: "Documentary", terms: ["documentary"] },
 ];
-
-const MOVIE_SHOW_GROUPS: GenreGroup[] = [
-  ...GENERAL_GENRE_GROUPS,
-  { label: "Documentary", types: ["movie", "show"], terms: ["documentary"] },
-];
-
-const ANIME_GROUPS: GenreGroup[] = [
-  { label: "Action", types: ["anime"], terms: ["action", "martial arts", "super power"] },
-  { label: "Adventure", types: ["anime"], terms: ["adventure"] },
-  { label: "Fantasy", types: ["anime"], terms: ["fantasy", "magic"] },
-  { label: "Humor", types: ["anime"], terms: ["comedy", "parody"] },
-  { label: "Drama", types: ["anime"], terms: ["drama"] },
-  { label: "Romance", types: ["anime"], terms: ["romance"] },
-  { label: "Sci-Fi", types: ["anime"], terms: ["sci fi", "science fiction", "space"] },
-  { label: "Horror", types: ["anime"], terms: ["horror", "gore"] },
-  { label: "Mystery & Thriller", types: ["anime"], terms: ["mystery", "thriller", "suspense", "psychological"] },
-  { label: "Slice of Life", types: ["anime"], terms: ["slice of life", "iyashikei"] },
-  { label: "Sports", types: ["anime"], terms: ["sports"] },
-  { label: "Shonen", types: ["anime"], terms: ["shounen", "shonen"] },
-  { label: "Seinen", types: ["anime"], terms: ["seinen"] },
-  { label: "Isekai", types: ["anime"], terms: ["isekai"] },
-  { label: "Mecha", types: ["anime"], terms: ["mecha"] },
-];
-
-const GAME_GROUPS: GenreGroup[] = [
-  { label: "Action", types: ["game"], terms: ["action", "hack and slash", "beat em up"] },
-  { label: "Adventure", types: ["game"], terms: ["adventure", "point and click", "visual novel"] },
-  { label: "RPG", types: ["game"], terms: ["role playing", "rpg", "action rpg", "jrpg"] },
-  { label: "Shooter", types: ["game"], terms: ["shooter"] },
-  { label: "Strategy", types: ["game"], terms: ["strategy", "tactical", "tactics", "turn based strategy", "real time strategy", "moba", "card and board game"] },
-  { label: "Simulation", types: ["game"], terms: ["simulator", "simulation", "sandbox", "management"] },
-  { label: "Horror", types: ["game"], terms: ["horror", "survival horror"] },
-  { label: "Racing", types: ["game"], terms: ["racing"] },
-  { label: "Sports", types: ["game"], terms: ["sport"] },
-  { label: "Fighting", types: ["game"], terms: ["fighting"] },
-  { label: "Puzzle", types: ["game"], terms: ["puzzle"] },
-  { label: "Platformer", types: ["game"], terms: ["platform"] },
-];
-
-const ALL_KNOWN_GROUPS = [...GENERAL_GENRE_GROUPS, ...MOVIE_SHOW_GROUPS, ...ANIME_GROUPS, ...GAME_GROUPS];
 
 function matchesTerm(value: string, term: string) {
   return value.includes(term) || term.includes(value);
@@ -78,34 +51,34 @@ function getItemSearchGenres(item: MediaItem) {
   return item.genres.map(normalizeGenreValue);
 }
 
-function genreGroupsForScope(scope: MediaType | "all") {
-  switch (scope) {
-    case "movie":
-    case "show":
-      return MOVIE_SHOW_GROUPS.filter((group) => !group.types || group.types.includes(scope));
-    case "anime":
-      return ANIME_GROUPS;
-    case "game":
-      return GAME_GROUPS;
-    default:
-      return GENERAL_GENRE_GROUPS;
-  }
-}
-
 function matchingGroup(item: MediaItem, group: GenreGroup) {
-  if (group.types && !group.types.includes(item.type)) {
-    return false;
-  }
-
   const itemGenres = getItemSearchGenres(item);
   return group.terms.some((term) => itemGenres.some((itemGenre) => matchesTerm(itemGenre, normalizeGenreValue(term))));
+}
+
+export function canonicalGenreLabels(item: MediaItem) {
+  return CANONICAL_GENRE_GROUPS.filter((group) => matchingGroup(item, group)).map((group) => group.label);
+}
+
+export function sharedCanonicalGenreCount(left: MediaItem, right: MediaItem) {
+  const leftLabels = new Set(canonicalGenreLabels(left));
+  const rightLabels = new Set(canonicalGenreLabels(right));
+  let total = 0;
+
+  for (const label of leftLabels) {
+    if (rightLabels.has(label)) {
+      total += 1;
+    }
+  }
+
+  return total;
 }
 
 export function itemMatchesGenre(item: MediaItem, genre: string) {
   if (!genre || genre === "all") return true;
 
   const normalizedGenre = normalizeGenreValue(genre);
-  const curatedMatch = ALL_KNOWN_GROUPS.find((group) => normalizeGenreValue(group.label) === normalizedGenre);
+  const curatedMatch = CANONICAL_GENRE_GROUPS.find((group) => normalizeGenreValue(group.label) === normalizedGenre);
 
   if (curatedMatch) {
     return matchingGroup(item, curatedMatch);
@@ -116,8 +89,26 @@ export function itemMatchesGenre(item: MediaItem, genre: string) {
 }
 
 export function itemGenreLabels(item: MediaItem, scope: MediaType | "all" = "all") {
-  const groups = genreGroupsForScope(scope);
-  return groups.filter((group) => matchingGroup(item, group)).map((group) => group.label);
+  const labels = canonicalGenreLabels(item);
+
+  if (scope === "all") {
+    return labels;
+  }
+
+  return labels.filter((label) => {
+    if (scope === "game") {
+      return true;
+    }
+
+    return label !== "RPG" &&
+      label !== "Shooter" &&
+      label !== "Strategy" &&
+      label !== "Simulation" &&
+      label !== "Racing" &&
+      label !== "Fighting" &&
+      label !== "Puzzle" &&
+      label !== "Platformer";
+  });
 }
 
 export function filterCatalog(
@@ -129,7 +120,7 @@ export function filterCatalog(
 
   return catalog.filter((item) => {
     const matchesType = type === "all" || item.type === type;
-    const haystack = `${item.title} ${item.originalTitle ?? ""} ${item.overview} ${item.genres.join(" ")}`.toLowerCase();
+    const haystack = `${item.title} ${item.originalTitle ?? ""} ${item.overview} ${item.genres.join(" ")} ${canonicalGenreLabels(item).join(" ")}`.toLowerCase();
     return matchesType && (!normalized || haystack.includes(normalized));
   });
 }
