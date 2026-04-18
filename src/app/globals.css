@@ -7620,6 +7620,14 @@ html {
   border-radius: 30px;
 }
 
+.media-loading-sidebar {
+  min-height: calc(100svh - 32px);
+  opacity: 0.52;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
+    rgba(8, 11, 17, 0.48);
+}
+
 .related-media-back-row {
   display: flex;
   justify-content: flex-start;

@@ -303,9 +303,14 @@ function buildTitleRoots(media: MediaItem) {
     if (prefix.length >= 4) {
       roots.add(prefix);
     }
+
+    const shortPrefix = normalized.split(/\s+/).slice(0, 2).join(" ");
+    if (shortPrefix.length >= 4) {
+      roots.add(shortPrefix);
+    }
   }
 
-  return Array.from(roots).slice(0, 4);
+  return Array.from(roots).slice(0, 6);
 }
 
 const FRANCHISE_SIGNAL_RULES: Array<{ signal: string; matches: string[] }> = [
@@ -322,6 +327,8 @@ const FRANCHISE_SIGNAL_RULES: Array<{ signal: string; matches: string[] }> = [
   { signal: "resident evil", matches: ["resident evil", "biohazard", "umbrella", "raccoon city"] },
   { signal: "zelda", matches: ["hyrule", "zelda", "link", "master sword"] },
   { signal: "mario", matches: ["mario", "bowser", "mushroom kingdom", "princess peach"] },
+  { signal: "batman arkham", matches: ["batman arkham", "arkham asylum", "arkham city", "arkham knight", "arkham origins", "rocksteady", "gotham"] },
+  { signal: "spider man", matches: ["spider man", "spider-man", "peter parker", "miles morales", "insomniac games", "marvel s spider man"] },
 ];
 
 const TOPIC_STOP_WORDS = new Set([
@@ -370,6 +377,10 @@ const SIMILARITY_THEME_RULES: Array<{ tag: string; matches: string[] }> = [
   { tag: "hero-shooter", matches: ["hero shooter", "agents", "heroes", "abilities", "ability based", "operator abilities"] },
   { tag: "competitive-pvp", matches: ["competitive", "ranked", "esports", "pvp", "versus", "multiplayer"] },
   { tag: "team-shooter", matches: ["team based", "squad", "objective based", "attackers", "defenders"] },
+  { tag: "superhero", matches: ["superhero", "comic book", "vigilante", "cape", "masked hero", "dc comics", "marvel"] },
+  { tag: "detective", matches: ["detective", "investigation", "forensics", "crime solving", "world s greatest detective"] },
+  { tag: "stealth-action", matches: ["stealth", "predator encounters", "silent takedowns", "gadget driven", "counter combat"] },
+  { tag: "open-world-action", matches: ["open world", "free roam", "city traversal", "sandbox action", "open city"] },
 ];
 
 function dedupeSpotlightCredits(credits: MediaItem["credits"]) {
@@ -810,7 +821,23 @@ async function buildFranchiseSection(media: MediaItem, animeFranchise?: AnimeFra
       candidate,
       score: rankFranchiseCandidate(media, candidate, signals),
     }))
-    .filter((entry) => entry.candidate.id === media.id || ((entry.score >= 58 || isExplicitSequelTitle(media, entry.candidate)) && hasStrongFranchiseConnection(media, entry.candidate, signals)))
+    .filter((entry) => {
+      if (entry.candidate.id === media.id) {
+        return true;
+      }
+
+      if (media.type === "game") {
+        return (
+          (entry.score >= 44 || isExplicitSequelTitle(media, entry.candidate) || candidateMatchesSignal(entry.candidate, signals)) &&
+          hasStrongFranchiseConnection(media, entry.candidate, signals)
+        );
+      }
+
+      return (
+        (entry.score >= 58 || isExplicitSequelTitle(media, entry.candidate)) &&
+        hasStrongFranchiseConnection(media, entry.candidate, signals)
+      );
+    })
     .sort((left, right) => right.score - left.score)
     .map((entry) => entry.candidate);
 
@@ -1269,13 +1296,33 @@ async function getFranchiseFallback(media: MediaItem, signals: string[]) {
     }
 
   if (media.type === "game") {
-      const pages = await Promise.all([
-        withTimeout(browseIgdbGames({ page: 1, query: signal, sort: "rating", seed: 31 }).catch(() => emptyBrowseResult()), emptyBrowseResult(), 1800),
-        withTimeout(browseIgdbGames({ page: 2, query: signal, sort: "rating", seed: 32 }).catch(() => emptyBrowseResult()), emptyBrowseResult(), 1800),
-        ...(backupSignal
-          ? [withTimeout(browseIgdbGames({ page: 1, query: backupSignal, sort: "newest", seed: 33 }).catch(() => emptyBrowseResult()), emptyBrowseResult(), 1800)]
-          : []),
-      ]);
+      const gameQueries = Array.from(
+        new Set([
+          signal,
+          backupSignal,
+          ...buildQueryVariants(media.title),
+          ...buildTitleRoots(media),
+        ].filter(Boolean)),
+      ).slice(0, 5);
+
+      const pages = await Promise.all(
+        gameQueries.flatMap((query, index) => [
+          withTimeout(
+            browseIgdbGames({ page: 1, query, sort: "rating", seed: 31 + index }).catch(() => emptyBrowseResult()),
+            emptyBrowseResult(),
+            1800,
+          ),
+          ...(index < 2
+            ? [
+                withTimeout(
+                  browseIgdbGames({ page: 2, query, sort: "rating", seed: 41 + index }).catch(() => emptyBrowseResult()),
+                  emptyBrowseResult(),
+                  1800,
+                ),
+              ]
+            : []),
+        ]),
+      );
       return dedupeItems(pages.flatMap((page) => page.items));
     }
 
