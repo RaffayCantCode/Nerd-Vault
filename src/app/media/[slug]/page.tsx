@@ -366,7 +366,24 @@ const SIMILARITY_THEME_RULES: Array<{ tag: string; matches: string[] }> = [
   { tag: "metroidvania", matches: ["metroidvania", "platformer", "side scrolling", "ability gated", "interconnected world"] },
   { tag: "soulslike", matches: ["soulslike", "punishing", "boss rush", "stamina", "dark fantasy"] },
   { tag: "cozy", matches: ["cozy", "slice of life", "gentle", "comfort", "wholesome"] },
+  { tag: "tactical-shooter", matches: ["tactical shooter", "tactical", "5v5", "defuse", "precise gunplay", "round based"] },
+  { tag: "hero-shooter", matches: ["hero shooter", "agents", "heroes", "abilities", "ability based", "operator abilities"] },
+  { tag: "competitive-pvp", matches: ["competitive", "ranked", "esports", "pvp", "versus", "multiplayer"] },
+  { tag: "team-shooter", matches: ["team based", "squad", "objective based", "attackers", "defenders"] },
 ];
+
+function dedupeSpotlightCredits(credits: MediaItem["credits"]) {
+  const seen = new Set<string>();
+
+  return credits.filter((credit) => {
+    const key = credit.name.trim().toLowerCase();
+    if (!key || seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
 
 function buildFranchiseSignals(media: MediaItem) {
   const haystack = normalizeTitleSignal(
@@ -1323,10 +1340,20 @@ async function getRelatedMediaRail(media: MediaItem) {
         emptyBrowseResult(),
         700,
       ),
+      withTimeout(
+        browseIgdbGames({ page: 2, genre: primaryGenre, sort: "discovery", seed: 7 }),
+        emptyBrowseResult(),
+        700,
+      ),
       ...(secondaryGenre
         ? [
             withTimeout(
               browseIgdbGames({ page: 1, genre: secondaryGenre, sort: "discovery", seed: 9 }),
+              emptyBrowseResult(),
+              650,
+            ),
+            withTimeout(
+              browseIgdbGames({ page: 2, genre: secondaryGenre, sort: "discovery", seed: 10 }),
               emptyBrowseResult(),
               650,
             ),
@@ -1372,17 +1399,27 @@ async function getRelatedMediaRail(media: MediaItem) {
       const sharedGenres = entry.candidate.genres.filter((genre) => media.genres.includes(genre)).length;
       const sharedTopics = sharedTopicTokenCount(media, entry.candidate);
       const sharedTags = sharedSimilarityTagCount(media, entry.candidate);
-      return entry.score >= 40 && (sharedGenres >= 2 || (sharedGenres >= 1 && sharedTags >= 1) || sharedTags >= 2 || sharedTopics >= 3);
+      return entry.score >= 34 && (sharedGenres >= 2 || (sharedGenres >= 1 && sharedTags >= 1) || sharedTags >= 2 || sharedTopics >= 3);
     })
     .sort((left, right) => right.score - left.score)
     .map((entry) => entry.candidate)
-    .slice(0, 18);
+    .slice(0, 8);
 
   if (strictMatches.length) {
     return dedupeComparableEntries(strictMatches);
   }
 
-  return [];
+  const fallbackMatches = scored
+    .filter((entry) => {
+      const sharedGenres = entry.candidate.genres.filter((genre) => media.genres.includes(genre)).length;
+      const sharedTags = sharedSimilarityTagCount(media, entry.candidate);
+      return entry.score >= 28 && (sharedGenres >= 1 || sharedTags >= 1);
+    })
+    .sort((left, right) => right.score - left.score)
+    .map((entry) => entry.candidate)
+    .slice(0, 6);
+
+  return dedupeComparableEntries(fallbackMatches);
 }
 
 export default async function MediaDetailPage({
@@ -1504,7 +1541,7 @@ export default async function MediaDetailPage({
   const studioValue = media.details.studio ?? media.details.platform ?? "Unknown";
   const statusValue = media.details.status ?? media.details.releaseInfo ?? "Unknown";
   const deepDiveCards = buildDeepDiveCards(media, animeFranchise);
-  const spotlightCredits = media.credits.slice(0, 6);
+  const spotlightCredits = dedupeSpotlightCredits(media.credits).slice(0, 6);
   const gallery = uniqueGalleryImages(media).slice(0, 6);
   const storyGallery = buildStoryGallery(gallery, media.backdropUrl || media.coverUrl);
   const moodLine = buildMoodLine(media);
