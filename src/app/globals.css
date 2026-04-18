@@ -1891,12 +1891,11 @@ input {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 18px;
-  transition: opacity 220ms ease, transform 220ms ease;
+  transition: opacity 180ms ease;
 }
 
 .catalog-grid-loading {
-  opacity: 0.72;
-  transform: translateY(10px) scale(0.992);
+  opacity: 0.88;
 }
 
 .catalog-card {
@@ -5878,6 +5877,24 @@ html {
   opacity: 0;
 }
 
+.catalog-card-loader {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background:
+    radial-gradient(circle at center, rgba(8, 11, 17, 0.88), rgba(8, 11, 17, 0.96)),
+    rgba(8, 11, 17, 0.92);
+  backdrop-filter: blur(10px);
+}
+
+.catalog-card.is-navigating .catalog-copy,
+.catalog-card.is-navigating .catalog-sheen {
+  opacity: 0.18;
+}
+
 .catalog-card-skeleton {
   min-height: 320px;
   overflow: hidden;
@@ -6017,16 +6034,16 @@ html {
 }
 
 .workspace-copy {
-  animation: heroSoftFadeIn 220ms ease-out both !important;
+  animation: heroSoftFadeIn 160ms ease-out both !important;
 }
 
 .workspace-hero .hero-media img,
 .hero-art .hero-art-image {
-  animation: heroImageSoftIn 260ms ease-out both !important;
+  animation: heroImageSoftIn 180ms ease-out both !important;
 }
 
 .catalog-grid .catalog-card {
-  animation: cardFloatInLite 180ms ease-out both !important;
+  animation: cardFloatInLite 140ms ease-out both !important;
   animation-play-state: paused;
 }
 
@@ -6035,12 +6052,12 @@ html {
 }
 
 .catalog-card:nth-child(1)  { animation-delay: 0ms; }
-.catalog-card:nth-child(2)  { animation-delay: 20ms; }
-.catalog-card:nth-child(3)  { animation-delay: 40ms; }
-.catalog-card:nth-child(4)  { animation-delay: 60ms; }
-.catalog-card:nth-child(5)  { animation-delay: 80ms; }
-.catalog-card:nth-child(6)  { animation-delay: 100ms; }
-.catalog-card:nth-child(n+7) { animation-delay: 120ms; }
+.catalog-card:nth-child(2)  { animation-delay: 14ms; }
+.catalog-card:nth-child(3)  { animation-delay: 28ms; }
+.catalog-card:nth-child(4)  { animation-delay: 42ms; }
+.catalog-card:nth-child(5)  { animation-delay: 56ms; }
+.catalog-card:nth-child(6)  { animation-delay: 70ms; }
+.catalog-card:nth-child(n+7) { animation-delay: 84ms; }
 
 .catalog-card,
 .hero-nav-arrow,

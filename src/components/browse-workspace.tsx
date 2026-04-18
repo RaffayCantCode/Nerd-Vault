@@ -354,8 +354,6 @@ export function BrowseWorkspace({
   const didRestoreScrollRef = useRef(false);
   const didInitBrowseStateRef = useRef(false);
   const didSyncUrlStateRef = useRef(false);
-  const hasUnlockedLiveSurfacingRef = useRef(false);
-  const didInitSurfacingRef = useRef(false);
   const previousQueryRef = useRef(queryFromUrl.trim());
   const hasActiveSearch = Boolean(deferredQuery.trim());
 
@@ -787,9 +785,7 @@ export function BrowseWorkspace({
     return mergedCatalog.length ? mergedCatalog : bootstrapCatalog;
   }, [bootstrapCatalog, catalog, filter, genre, remoteCatalog]);
 
-  const heroBaseCatalog = hasUnlockedLiveSurfacingRef.current
-    ? liveHeroBaseCatalog
-    : bootstrapHeroBaseCatalog;
+  const heroBaseCatalog = liveHeroBaseCatalog.length ? liveHeroBaseCatalog : bootstrapHeroBaseCatalog;
 
   const sortedVisible = useMemo(() => {
     const items = [...queryVisible];
@@ -880,11 +876,6 @@ export function BrowseWorkspace({
   }, [activePage, deferredQuery, isLoading, sortedVisible.length]);
 
   useEffect(() => {
-    if (!didInitSurfacingRef.current) {
-      didInitSurfacingRef.current = true;
-    } else {
-      hasUnlockedLiveSurfacingRef.current = true;
-    }
     setHeroIndex(0);
   }, [activePage, filter, genre, sort]);
 

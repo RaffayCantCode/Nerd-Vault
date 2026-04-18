@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { NVLoader } from "@/components/nv-loader";
 import { ResilientMediaImage } from "@/components/resilient-media-image";
 import { MediaItem } from "@/lib/types";
 
@@ -123,6 +124,11 @@ export function CatalogCard({
         onLoadStateChange={setIsImageLoaded}
       />
       <div className="catalog-sheen" />
+      {isNavigating ? (
+        <div className="catalog-card-loader" aria-hidden="true">
+          <NVLoader compact label="Opening..." />
+        </div>
+      ) : null}
       <div className="catalog-copy">
         <div className="meta-row">
           <span className="pill">{item.type}</span>
