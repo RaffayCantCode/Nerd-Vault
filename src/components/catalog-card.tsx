@@ -38,6 +38,15 @@ export function CatalogCard({
 
   function warmRoute() {
     router.prefetch(routeHref);
+    if (typeof window !== "undefined") {
+      const cover = new Image();
+      cover.decoding = "async";
+      cover.src = item.coverUrl;
+
+      const backdrop = new Image();
+      backdrop.decoding = "async";
+      backdrop.src = item.backdropUrl;
+    }
   }
 
   function handleNavigate() {

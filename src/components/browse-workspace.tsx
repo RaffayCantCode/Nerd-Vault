@@ -49,6 +49,16 @@ function scrollToElementWithOffset(element: HTMLElement | null, offset: number, 
   window.scrollTo({ top: nextTop, behavior });
 }
 
+function preloadImage(url?: string | null) {
+  if (typeof window === "undefined" || !url) {
+    return;
+  }
+
+  const image = new Image();
+  image.decoding = "async";
+  image.src = url;
+}
+
 function isSafeForSurfacing(item: MediaItem) {
   const unsafeGenreTerms = ["ecchi", "erotica", "hentai", "adult", "softcore"];
   const unsafeTextTerms = ["ecchi", "erotic", "sexual", "seductive", "lust", "bdsm"];
@@ -921,10 +931,47 @@ export function BrowseWorkspace({
   const showPendingState = isLoading || isPagePending;
   const showGridSkeletons = showPendingState && !remoteCatalog.length;
   const visibleGridItems = useMemo(() => {
-    return featured
+    const baseItems = featured
       ? sortedVisible.filter((item) => `${item.source}-${item.sourceId}` !== featuredKey)
       : [...sortedVisible];
-  }, [featured, featuredKey, sortedVisible]);
+
+    if (hasActiveSearch || baseItems.length >= pageSize) {
+      return baseItems;
+    }
+
+    const seen = new Set(baseItems.map((item) => `${item.source}-${item.sourceId}`));
+    const supplemented = [...baseItems];
+
+    for (let offset = 1; offset <= 3 && supplemented.length < pageSize; offset += 1) {
+      const cacheKey = buildCacheKey(filter, activePage + offset, genre, deferredQuery, sort, sessionSeedRef.current, pageSize);
+      const cachedPage = prefetchedPagesRef.current[cacheKey];
+      if (!cachedPage?.items?.length) {
+        continue;
+      }
+
+      for (const item of cachedPage.items) {
+        const key = `${item.source}-${item.sourceId}`;
+        if (seen.has(key) || key === featuredKey) {
+          continue;
+        }
+        seen.add(key);
+        supplemented.push(item);
+        if (supplemented.length >= pageSize) {
+          break;
+        }
+      }
+    }
+
+    return supplemented;
+  }, [activePage, deferredQuery, featured, featuredKey, filter, genre, hasActiveSearch, pageSize, sort, sortedVisible]);
+
+  useEffect(() => {
+    const nextVisible = visibleGridItems.slice(0, Math.min(18, visibleGridItems.length));
+    nextVisible.forEach((item) => {
+      preloadImage(item.coverUrl);
+      preloadImage(item.backdropUrl);
+    });
+  }, [visibleGridItems]);
 
   function toggleWishlist(item: MediaItem) {
     const key = `${item.source}-${item.sourceId}`;
@@ -945,7 +992,7 @@ export function BrowseWorkspace({
 
     shouldScrollToToolbarRef.current = false;
     shouldScrollToResultsRef.current = true;
-    scrollBehaviorRef.current = "smooth";
+    scrollBehaviorRef.current = "auto";
     pageScrollOffsetRef.current = window.innerWidth < 900 ? 96 : 104;
     startTransition(() => {
       setPage(clamped);
