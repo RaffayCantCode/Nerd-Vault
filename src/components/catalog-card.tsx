@@ -110,6 +110,7 @@ export function CatalogCard({
     <Link
       ref={cardRef}
       href={href}
+      title={`Open ${item.title}`}
       className={`catalog-card ${isNavigating ? "is-navigating" : ""} ${isVisible ? "is-visible" : ""} ${isImageLoaded ? "has-media-loaded" : ""}`}
       prefetch={false}
       onClick={handleNavigate}

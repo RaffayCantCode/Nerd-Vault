@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Bebas_Neue, Manrope } from "next/font/google";
 import { AuthCookieReset } from "@/components/auth-cookie-reset";
 import "./globals.css";
@@ -14,10 +14,42 @@ const sans = Manrope({
   variable: "--font-sans",
 });
 
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#060911" },
+    { media: "(prefers-color-scheme: light)", color: "#060911" },
+  ],
+  colorScheme: "dark",
+};
+
 export const metadata: Metadata = {
-  title: "NerdVault",
+  title: {
+    default: "NerdVault",
+    template: "%s · NerdVault",
+  },
   description:
-    "A cinematic media vault for games, movies, anime, and series. Track what you finish, discover what is next, and build smart folders like playlists.",
+    "Your vault for games, film, TV, and anime—track what lands, wishlist what’s next, smart folders like playlists, and discovery that feels curated.",
+  keywords: [
+    "media tracker",
+    "anime list",
+    "game backlog",
+    "movie watchlist",
+    "TV tracker",
+    "NerdVault",
+  ],
+  openGraph: {
+    title: "NerdVault",
+    description:
+      "One vault for everything you watch and play. Folders, detail pages, and browse tuned for taste—not noise.",
+    type: "website",
+    locale: "en_US",
+    siteName: "NerdVault",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "NerdVault",
+    description: "Log what hit. Save what calls next.",
+  },
 };
 
 export default function RootLayout({

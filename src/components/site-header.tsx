@@ -14,7 +14,7 @@ export async function SiteHeader() {
         <BrandLogo className="brand-mark brand-mark-logo" priority />
         <span className="brand-copy">
           <strong>NerdVault</strong>
-          <span>{isSignedIn ? "Back to browsing your vault." : "Log what wrecked you. Save what calls next."}</span>
+          <span>{isSignedIn ? "Pick up where you left off." : "Log what hit. Queue what calls next."}</span>
         </span>
       </Link>
 

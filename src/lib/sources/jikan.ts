@@ -416,7 +416,7 @@ function inferSeasonKey(entry: AnimeFranchiseEntry) {
   return undefined;
 }
 
-function collapseAnimeFranchises(items: JikanAnime[]) {
+function collapseAnimeFranchises(items: JikanAnime[]): MediaItem[] {
   const groups = new Map<string, JikanAnime[]>();
 
   for (const item of items) {
@@ -495,7 +495,7 @@ export async function browseJikanAnime(params: JikanBrowseParams) {
       })),
     ]);
     const fromTextSearch = [...textSearch1.data, ...textSearch2.data].map((entry) => mapAnime(entry));
-    const fromPopular = fallbackResponses.flatMap((entry) => collapseAnimeFranchises(entry.data)).map((entry) => mapAnime(entry));
+    const fromPopular = fallbackResponses.flatMap((response) => collapseAnimeFranchises(response.data));
     const fallbackItems = rankLocalSearchResults([...fromTextSearch, ...fromPopular], query).slice(0, 96);
 
     return {

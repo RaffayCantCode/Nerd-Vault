@@ -29,9 +29,9 @@ export default async function HomePage() {
           <div className="landing-stage-grid">
             <div className="landing-copy">
               <p className="eyebrow">NerdVault</p>
-              <h1 className="display">Log what hit. Save what calls next.</h1>
+              <h1 className="display">One vault for every world you love.</h1>
               <p className="copy landing-copy-body">
-                NerdVault is a cinematic media vault for games, films, series, and anime with playlist-like folders, sharper detail pages, and discovery that feels curated instead of noisy.
+                Track games, movies, series, and anime in one glass-dark hub. Smart folders, rich detail pages, and browse that ranks by your query—not just what’s trending.
               </p>
               <div className="button-row" style={{ marginTop: 24 }}>
                 {isSignedIn ? (
@@ -71,16 +71,16 @@ export default async function HomePage() {
 
               <div className="landing-metrics">
                 <div className="landing-metric glass">
-                  <span>Catalog</span>
-                  <strong>Movies, shows, anime, games</strong>
+                  <span>Surface</span>
+                  <strong>TMDB · Jikan · IGDB-backed cards</strong>
                 </div>
                 <div className="landing-metric glass">
-                  <span>Library</span>
-                  <strong>Watched, wishlist, folders</strong>
+                  <span>Your lane</span>
+                  <strong>Watched, wishlist, custom folders</strong>
                 </div>
                 <div className="landing-metric glass">
-                  <span>Next</span>
-                  <strong>Friends, inbox, recommendations</strong>
+                  <span>Social layer</span>
+                  <strong>Friends, inbox recs, profile hub</strong>
                 </div>
               </div>
             </div>
