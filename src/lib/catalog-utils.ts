@@ -1,4 +1,5 @@
 import { MediaItem, MediaType } from "@/lib/types";
+import { itemMatchesSearch } from "@/lib/search-utils";
 
 function normalizeGenreValue(value: string) {
   return value
@@ -116,12 +117,12 @@ export function filterCatalog(
   type: MediaType | "all",
   query: string,
 ) {
-  const normalized = query.trim().toLowerCase();
+  const trimmed = query.trim();
 
   return catalog.filter((item) => {
     const matchesType = type === "all" || item.type === type;
-    const haystack = `${item.title} ${item.originalTitle ?? ""} ${item.overview} ${item.genres.join(" ")} ${canonicalGenreLabels(item).join(" ")}`.toLowerCase();
-    return matchesType && (!normalized || haystack.includes(normalized));
+    if (!trimmed) return matchesType;
+    return matchesType && itemMatchesSearch(item, trimmed);
   });
 }
 

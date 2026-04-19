@@ -44,7 +44,7 @@ export function SidebarFolders({ initialFolders = [] }: { initialFolders?: Store
 
   useEffect(() => {
     function sync() {
-      setLoadingFolders((current) => current && folders.length === 0);
+      setLoadingFolders(true);
       fetchLibraryState()
         .then((library) => setFolders(library.folders))
         .catch(() => setFolders([]))
@@ -55,7 +55,7 @@ export function SidebarFolders({ initialFolders = [] }: { initialFolders?: Store
       void sync();
     }
     return subscribeVaultChanges(sync);
-  }, [folders.length, initialFolders.length]);
+  }, [initialFolders.length]);
 
   useEffect(() => {
     setIsMounted(true);

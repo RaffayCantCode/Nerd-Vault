@@ -1,5 +1,5 @@
 import { MediaItem } from "@/lib/types";
-import { itemMatchesSearch, searchScore } from "@/lib/search-utils";
+import { rankCandidatesForQuery } from "@/lib/search-utils";
 
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/original";
@@ -276,7 +276,8 @@ function mapMovieOrShow(
       releaseInfo,
       seasonCount,
       episodeCount,
-      collectionTitle: type === "movie" ? item.belongs_to_collection?.name ?? undefined : undefined,
+      collectionTitle: item.belongs_to_collection?.name ?? undefined,
+      collectionId: item.belongs_to_collection?.id,
     },
   };
 }
@@ -384,13 +385,7 @@ function dedupeBySource(items: MediaItem[]) {
 }
 
 function rankLocalSearchResults(items: MediaItem[], query: string) {
-  return dedupeBySource(items)
-    .filter((item) => itemMatchesSearch(item, query))
-    .sort((left, right) => {
-      const scoreGap = searchScore(right, query) - searchScore(left, query);
-      if (scoreGap !== 0) return scoreGap;
-      return right.rating - left.rating || right.year - left.year;
-    });
+  return rankCandidatesForQuery(dedupeBySource(items), query, { limit: 96, minRank: 8 });
 }
 
 async function getTmdbMoviePage(page: number, query?: string, genre?: string) {
@@ -425,13 +420,19 @@ async function getTmdbMoviePageWithMode(
 ): Promise<BrowsePayload> {
   const movieGenres = await getGenreMap("movie");
   if (query) {
-    const pages = await Promise.all(
-      [1, 2, 3].map((targetPage) => getTmdbMoviePageWithMode(targetPage, "", genre, sort, seed + targetPage)),
-    );
-    const rankedItems = rankLocalSearchResults(
-      pages.flatMap((entry) => entry.items),
-      query,
-    ).slice(0, 72);
+    const movieGenresForSearch = await getGenreMap("movie");
+    const [searchP1, searchP2, ...discoverPages] = await Promise.all([
+      tmdbFetch<TmdbPagedResponse>(
+        `/search/movie?language=en-US&include_adult=false&query=${encodeURIComponent(query)}&page=1`,
+      ).catch(() => ({ page: 1, total_pages: 0, total_results: 0, results: [] as TmdbListItem[] })),
+      tmdbFetch<TmdbPagedResponse>(
+        `/search/movie?language=en-US&include_adult=false&query=${encodeURIComponent(query)}&page=2`,
+      ).catch(() => ({ page: 1, total_pages: 0, total_results: 0, results: [] as TmdbListItem[] })),
+      ...[1, 2, 3].map((targetPage) => getTmdbMoviePageWithMode(targetPage, "", genre, sort, seed + targetPage)),
+    ]);
+    const fromSearch = [...searchP1.results, ...searchP2.results].map((item) => mapMovieOrShow(item, "movie", movieGenresForSearch));
+    const fromDiscover = discoverPages.flatMap((entry) => entry.items);
+    const rankedItems = rankLocalSearchResults([...fromSearch, ...fromDiscover], query).slice(0, 96);
 
     return {
       page: 1,
@@ -476,13 +477,25 @@ async function getTmdbShowPageWithMode(
 ): Promise<BrowsePayload> {
   const tvGenres = await getGenreMap("tv");
   if (query) {
-    const pages = await Promise.all(
-      [1, 2, 3].map((targetPage) => getTmdbShowPageWithMode(targetPage, "", genre, sort, seed + targetPage)),
-    );
-    const rankedItems = rankLocalSearchResults(
-      pages.flatMap((entry) => entry.items),
-      query,
-    ).slice(0, 72);
+    const tvGenresForSearch = await getGenreMap("tv");
+    const [searchP1, searchP2, ...discoverPages] = await Promise.all([
+      tmdbFetch<TmdbPagedResponse>(`/search/tv?language=en-US&query=${encodeURIComponent(query)}&page=1`).catch(() => ({
+        page: 1,
+        total_pages: 0,
+        total_results: 0,
+        results: [] as TmdbListItem[],
+      })),
+      tmdbFetch<TmdbPagedResponse>(`/search/tv?language=en-US&query=${encodeURIComponent(query)}&page=2`).catch(() => ({
+        page: 1,
+        total_pages: 0,
+        total_results: 0,
+        results: [] as TmdbListItem[],
+      })),
+      ...[1, 2, 3].map((targetPage) => getTmdbShowPageWithMode(targetPage, "", genre, sort, seed + targetPage)),
+    ]);
+    const fromSearch = [...searchP1.results, ...searchP2.results].map((item) => mapMovieOrShow(item, "show", tvGenresForSearch));
+    const fromDiscover = discoverPages.flatMap((entry) => entry.items);
+    const rankedItems = rankLocalSearchResults([...fromSearch, ...fromDiscover], query).slice(0, 96);
 
     return {
       page: 1,
@@ -567,6 +580,22 @@ export async function getTmdbMediaDetails(id: number, type: "movie" | "tv") {
   ]);
 
   return mapMovieOrShow(details, type === "movie" ? "movie" : "show", genres, credits, images);
+}
+
+type TmdbCollectionResponse = {
+  id: number;
+  name: string;
+  parts?: TmdbListItem[];
+};
+
+/** All movies in a TMDB collection (franchise pack / series). */
+export async function getTmdbCollectionItems(collectionId: number): Promise<MediaItem[]> {
+  const payload = await tmdbFetch<TmdbCollectionResponse>(`/collection/${collectionId}?language=en-US`);
+  const movieGenres = await getGenreMap("movie");
+  const parts = payload.parts ?? [];
+  return parts
+    .map((part) => mapMovieOrShow(part, "movie", movieGenres))
+    .filter((item) => item.year >= 1900 && item.rating >= 3.5 && !item.genres.some((g) => ["News", "Talk"].includes(g)));
 }
 
 export async function enrichAnimeImagesFromTmdb(params: {

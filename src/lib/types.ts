@@ -35,6 +35,8 @@ export type MediaItem = {
     seasonCount?: number;
     episodeCount?: number;
     collectionTitle?: string;
+    /** TMDB / IGDB collection id for franchise siblings */
+    collectionId?: number;
     entryCount?: number;
     entryLabel?: string;
   };

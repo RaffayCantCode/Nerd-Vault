@@ -1,6 +1,6 @@
 import { enrichAnimeImagesFromTmdb, TmdbAnimeImageEnrichment } from "@/lib/sources/tmdb";
 import { MediaItem } from "@/lib/types";
-import { itemMatchesSearch, searchScore } from "@/lib/search-utils";
+import { rankCandidatesForQuery } from "@/lib/search-utils";
 
 const JIKAN_BASE_URL = "https://api.jikan.moe/v4";
 const JIKAN_CACHE_TTL_MS = 1000 * 60 * 30;
@@ -249,13 +249,7 @@ function dedupeImages(images: Array<string | null | undefined>) {
 }
 
 function rankLocalSearchResults(items: MediaItem[], query: string) {
-  return items
-    .filter((item) => itemMatchesSearch(item, query))
-    .sort((left, right) => {
-      const scoreGap = searchScore(right, query) - searchScore(left, query);
-      if (scoreGap !== 0) return scoreGap;
-      return right.rating - left.rating || right.year - left.year;
-    });
+  return rankCandidatesForQuery(items, query, { limit: 96, minRank: 8 });
 }
 
 function animeMatchesFranchise(item: JikanAnime, franchiseKeys: Set<string>) {
@@ -477,7 +471,16 @@ export async function browseJikanAnime(params: JikanBrowseParams) {
   const discoverySeed = params.seed ?? 1;
 
   if (query) {
-    const fallbackResponses = await Promise.all([
+    const encoded = encodeURIComponent(query);
+    const [textSearch1, textSearch2, ...fallbackResponses] = await Promise.all([
+      jikanFetch<JikanListResponse>(`/anime?sfw=true&limit=25&page=1&q=${encoded}${genreParam}`).catch(() => ({
+        data: [] as JikanAnime[],
+        pagination: { current_page: 1, last_visible_page: 1 },
+      })),
+      jikanFetch<JikanListResponse>(`/anime?sfw=true&limit=25&page=2&q=${encoded}${genreParam}`).catch(() => ({
+        data: [] as JikanAnime[],
+        pagination: { current_page: 1, last_visible_page: 1 },
+      })),
       jikanFetch<JikanListResponse>(`/anime?page=1&limit=25&sfw=true&order_by=members&sort=desc${genreParam}`).catch(() => ({
         data: [],
         pagination: { current_page: 1, last_visible_page: 1 },
@@ -491,10 +494,9 @@ export async function browseJikanAnime(params: JikanBrowseParams) {
         pagination: { current_page: 1, last_visible_page: 1 },
       })),
     ]);
-    const fallbackItems = rankLocalSearchResults(
-      fallbackResponses.flatMap((entry) => collapseAnimeFranchises(entry.data)),
-      query,
-    ).slice(0, 72);
+    const fromTextSearch = [...textSearch1.data, ...textSearch2.data].map((entry) => mapAnime(entry));
+    const fromPopular = fallbackResponses.flatMap((entry) => collapseAnimeFranchises(entry.data)).map((entry) => mapAnime(entry));
+    const fallbackItems = rankLocalSearchResults([...fromTextSearch, ...fromPopular], query).slice(0, 96);
 
     return {
       page: 1,

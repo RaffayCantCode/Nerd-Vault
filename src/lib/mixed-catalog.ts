@@ -2,7 +2,7 @@ import { browseIgdbGames } from "@/lib/sources/igdb";
 import { browseJikanAnime } from "@/lib/sources/jikan";
 import { browseTmdbCatalog } from "@/lib/sources/tmdb";
 import { itemMatchesGenre } from "@/lib/catalog-utils";
-import { itemMatchesSearch, searchScore } from "@/lib/search-utils";
+import { rankCandidatesForQuery } from "@/lib/search-utils";
 import { MediaItem } from "@/lib/types";
 
 const MIXED_CACHE_TTL_MS = 1000 * 60 * 10;
@@ -43,15 +43,9 @@ const mixedSourceWarmCache = new Map<
   }
 >();
 
-function rankSearchItems(items: MediaItem[], query: string) {
+function rankSearchItems(items: MediaItem[], query: string, limit = 120) {
   if (!query.trim()) return items;
-  return [...items]
-    .filter((item) => itemMatchesSearch(item, query))
-    .sort((left, right) => {
-    const scoreGap = searchScore(right, query) - searchScore(left, query);
-    if (scoreGap !== 0) return scoreGap;
-    return right.rating - left.rating || right.year - left.year;
-  });
+  return rankCandidatesForQuery(items, query, { limit, minRank: 8 });
 }
 
 function interleaveBuckets(...buckets: MediaItem[][]) {
@@ -256,7 +250,7 @@ export async function browseMixedCatalog({
   }
 
   const needsBroaderPool = Boolean((genre && genre !== "all") || safeQuery);
-  const sourcePageSpan = isSearch ? 3 : genre && genre !== "all" ? 2 : 1;
+  const sourcePageSpan = isSearch ? 4 : genre && genre !== "all" ? 2 : 1;
   const sourcePages = isSearch
     ? Array.from({ length: sourcePageSpan }, (_, index) => index + 1)
     : Array.from(
@@ -374,7 +368,7 @@ export async function browseMixedCatalog({
     genre && genre !== "all" ? mixed.filter((item) => itemMatchesGenre(item, genre)) : mixed;
 
   const rankedMixed = safeQuery
-    ? rankSearchItems(filteredMixed, safeQuery).slice(0, Math.max(safePageSize * 3, 72))
+    ? rankSearchItems(filteredMixed, safeQuery, Math.max(safePageSize * 4, 120))
     : interleaveTypePriority(
         rotateBuckets(shuffleBySeed(filteredMixed, seed + page), seed * 7 + page * 5),
         safePageSize,

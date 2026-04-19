@@ -6141,6 +6141,7 @@ html {
 .browse-live-search-input {
   min-width: 0;
   flex: 1 1 320px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
 .browse-live-search-copy {
@@ -6156,6 +6157,20 @@ html {
   place-items: center;
   padding: 18px;
   border-radius: 26px;
+  animation: nv-soft-fade 0.35s ease;
+}
+
+@keyframes nv-soft-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.browse-toolbar.glass {
+  transition: box-shadow 0.22s ease, border-color 0.22s ease;
 }
 
 .nv-loader {
@@ -6347,7 +6362,7 @@ html {
 .app-shell-layout {
   width: min(calc(100% - 24px), 1600px);
   margin: 0 auto;
-  padding: 16px 16px 16px 124px;
+  padding: 16px 16px 16px 132px;
   grid-template-columns: minmax(0, 1fr);
 }
 
@@ -6355,7 +6370,7 @@ html {
   position: fixed;
   inset: 0 auto 0 0;
   top: 0;
-  width: 108px;
+  width: 116px;
   height: 100vh;
   max-height: none;
   padding: 18px 14px 22px;
@@ -6419,6 +6434,23 @@ html {
   color: var(--text);
   font-size: 0.92rem;
   line-height: 1;
+}
+
+.sidebar-nav-icon {
+  display: block;
+  width: 32px;
+  height: 32px;
+  padding: 5px;
+  box-sizing: border-box;
+  border-radius: 14px;
+  margin-inline: auto;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+}
+
+.sidebar-nav-button.is-active .sidebar-nav-icon {
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 .sidebar-nav-label {
@@ -6871,11 +6903,21 @@ html {
 }
 
 .detail-gallery-shell {
-  border-color: var(--detail-edge);
+  position: relative;
+  overflow: hidden;
+  padding: 22px 22px 24px;
+  display: grid;
+  gap: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 22px;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.45),
+    0 28px 72px rgba(0, 0, 0, 0.55);
   background:
-    radial-gradient(circle at top right, var(--detail-glow), transparent 48%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
-    rgba(8, 11, 17, 0.54);
+    linear-gradient(155deg, rgba(255, 255, 255, 0.075) 0%, transparent 42%),
+    radial-gradient(100% 70% at 100% 0%, var(--detail-glow), transparent 52%),
+    linear-gradient(180deg, #0e1016 0%, #06070b 100%);
+  backdrop-filter: blur(22px) saturate(1.15);
 }
 
 .detail-gallery-header {
@@ -6883,41 +6925,68 @@ html {
   justify-content: space-between;
   gap: 16px;
   align-items: start;
+  margin-bottom: 4px;
+}
+
+.detail-gallery-eyebrow {
+  letter-spacing: 0.16em;
+  font-weight: 650;
+  color: rgba(248, 250, 252, 0.52);
+}
+
+.detail-gallery-title {
+  margin-top: 6px;
+  color: #f8fafc;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.detail-gallery-lede {
+  margin-top: 8px;
+  max-width: 52ch;
+  color: rgba(226, 232, 240, 0.72);
+  line-height: 1.55;
 }
 
 .detail-gallery-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 14px;
 }
 
 .detail-gallery-tile {
   position: relative;
   overflow: hidden;
-  min-height: 128px;
-  border-radius: 18px;
+  min-height: 132px;
+  border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(10, 14, 21, 0.72);
+  background: rgba(4, 6, 10, 0.65);
   cursor: pointer;
   padding: 0;
   appearance: none;
   -webkit-appearance: none;
   width: 100%;
   display: block;
-  transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+  transition:
+    transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
 .detail-gallery-tile:hover,
 .detail-gallery-tile:focus-visible {
-  transform: translateY(-2px);
+  transform: translateY(-3px) scale(1.01);
   border-color: var(--detail-edge);
-  box-shadow: 0 22px 42px rgba(0, 0, 0, 0.3);
+  box-shadow:
+    0 0 0 1px var(--detail-accent-soft),
+    0 20px 48px rgba(0, 0, 0, 0.45);
 }
 
 .detail-gallery-tile img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  filter: saturate(1.06) contrast(1.03);
 }
 
 .detail-lightbox {
@@ -7130,6 +7199,11 @@ html {
     padding: 10px 6px 92px;
   }
 
+  .sidebar-mobile-toggle,
+  .sidebar-mobile-backdrop {
+    display: none !important;
+  }
+
   .sidebar.sidebar-rail {
     position: fixed;
     inset: auto 8px 8px 8px;
@@ -7217,6 +7291,13 @@ html {
     width: 28px;
     height: 28px;
     font-size: 0.78rem;
+  }
+
+  .sidebar-nav-icon {
+    width: 28px;
+    height: 28px;
+    padding: 4px;
+    border-radius: 12px;
   }
 
   .sidebar-nav-label,
@@ -7367,7 +7448,7 @@ html {
   .sidebar.sidebar-rail,
   .sidebar.sidebar-rail:hover,
   .sidebar.sidebar-rail:focus-within {
-    width: 108px;
+    width: 116px;
   }
 
   .sidebar-nav-button {

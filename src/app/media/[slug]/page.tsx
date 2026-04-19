@@ -12,12 +12,24 @@ import { MediaActions } from "@/components/media-actions";
 import { RelatedMediaSection } from "@/components/related-media-section";
 import { ResilientMediaImage } from "@/components/resilient-media-image";
 import { auth } from "@/lib/auth";
+import { getViewerShellData } from "@/lib/vault-server";
 import { canonicalGenreLabels, sharedCanonicalGenreCount } from "@/lib/catalog-utils";
+import { dedupeGalleryImageUrls, canonicalGalleryImageKey } from "@/lib/gallery-image-key";
 import { optimizeMediaImageUrl } from "@/lib/media-image";
 import { getMediaBySlug, mockCatalog } from "@/lib/mock-catalog";
-import { browseIgdbGames, getIgdbGameDetails } from "@/lib/sources/igdb";
+import {
+  browseIgdbGames,
+  getIgdbCollectionNeighbors,
+  getIgdbGameDetails,
+  getIgdbSimilarGamesForGame,
+} from "@/lib/sources/igdb";
 import { browseJikanAnime, getJikanAnimeDetails, getJikanAnimeFranchise } from "@/lib/sources/jikan";
-import { browseTmdbCatalog, getTmdbMediaDetails, getTmdbStarterCatalog } from "@/lib/sources/tmdb";
+import {
+  browseTmdbCatalog,
+  getTmdbCollectionItems,
+  getTmdbMediaDetails,
+  getTmdbStarterCatalog,
+} from "@/lib/sources/tmdb";
 import { MediaItem } from "@/lib/types";
 
 type AnimeFranchiseData =
@@ -637,6 +649,32 @@ function hasStrongFranchiseConnection(base: MediaItem, candidate: MediaItem, sig
   return candidateMatchesSignal(candidate, signals);
 }
 
+/**
+ * Same franchise "line" for more-like-this dedupe: TMDB collection, IGDB comparable title,
+ * or comparable anime/game title roots (sequels in one sub-series).
+ */
+function isSameFranchiseProductLine(base: MediaItem, candidate: MediaItem) {
+  if (base.type !== candidate.type) {
+    return false;
+  }
+
+  if ((base.type === "movie" || base.type === "show") && base.details.collectionId && candidate.details.collectionId) {
+    return base.details.collectionId === candidate.details.collectionId;
+  }
+
+  if (base.type !== "game" && base.type !== "anime") {
+    return false;
+  }
+
+  const baseKey = normalizeComparableFranchiseTitle(base.details.collectionTitle ?? base.title, base.type);
+  const candKey = normalizeComparableFranchiseTitle(candidate.details.collectionTitle ?? candidate.title, candidate.type);
+  if (!baseKey || !candKey || baseKey.length < 6 || candKey.length < 6) {
+    return false;
+  }
+
+  return baseKey === candKey;
+}
+
 function isExplicitSequelTitle(base: MediaItem, candidate: MediaItem) {
   const baseRoot = normalizeComparableFranchiseTitle(base.details.collectionTitle ?? base.title, base.type);
   const candidateRoot = normalizeComparableFranchiseTitle(candidate.title, candidate.type);
@@ -815,9 +853,51 @@ async function buildFranchiseSection(media: MediaItem, animeFranchise?: AnimeFra
     };
   }
 
+  if (media.type === "movie" && media.source === "tmdb" && media.details.collectionId) {
+    const parts = await getTmdbCollectionItems(media.details.collectionId).catch(() => [] as MediaItem[]);
+    const combined = dedupeItems([media, ...parts]).filter((candidate) => candidate.type === "movie");
+    if (combined.length >= 2) {
+      const ordered = [...combined].sort((left, right) => {
+        const yearGap = (left.year || 0) - (right.year || 0);
+        if (yearGap !== 0) {
+          return yearGap;
+        }
+        const leftOrder = parseInstallmentOrder(left.title);
+        const rightOrder = parseInstallmentOrder(right.title);
+        if (leftOrder !== null || rightOrder !== null) {
+          return (leftOrder ?? Number.MAX_SAFE_INTEGER) - (rightOrder ?? Number.MAX_SAFE_INTEGER);
+        }
+        return left.title.localeCompare(right.title);
+      });
+      const collectionName = media.details.collectionTitle ?? "Series collection";
+      const activeIndex = Math.max(0, ordered.findIndex((candidate) => candidate.id === media.id));
+
+      return {
+        title: collectionName.replace(/\b\w/g, (char) => char.toUpperCase()),
+        summary: buildFranchiseSummary(collectionName, activeIndex, ordered.length),
+        entries: ordered.map((entry) => ({
+          id: entry.id,
+          title: entry.title,
+          meta: [entry.year || "Year TBD", `${entry.rating.toFixed(1)} / 10`, entry.details.releaseInfo ?? entry.details.runtime ?? "Feature"].filter(Boolean).join(" / "),
+          href: buildMediaHref(entry),
+          badge: buildFranchiseBadge(entry.title, parseInstallmentOrder(entry.title)),
+          isActive: entry.id === media.id,
+        })),
+      };
+    }
+  }
+
   const signals = buildFranchiseSignals(media);
-  const pooled = await getFranchiseFallback(media, signals);
-  const candidates = dedupeComparableEntries(dedupeItems([media, ...pooled]))
+  const igdbSeries =
+    media.type === "game" && media.source === "igdb" && Number.isFinite(Number(media.sourceId))
+      ? await getIgdbCollectionNeighbors(Number(media.sourceId)).catch(() => [] as MediaItem[])
+      : [];
+  const hasIgdbFranchiseLine = igdbSeries.some((entry) => entry.sourceId !== media.sourceId);
+  const pooled =
+    media.type === "game" && media.source === "igdb" && hasIgdbFranchiseLine
+      ? ([] as MediaItem[])
+      : await getFranchiseFallback(media, signals);
+  const candidates = dedupeItems([media, ...igdbSeries, ...pooled])
     .filter((candidate) => candidate.type === media.type)
     .filter((candidate) => !isSupplementalFranchiseCandidate(media, candidate))
     .map((candidate) => ({
@@ -836,8 +916,15 @@ async function buildFranchiseSection(media: MediaItem, animeFranchise?: AnimeFra
         );
       }
 
+      if (media.type === "movie" || media.type === "show") {
+        return (
+          (entry.score >= 40 || isExplicitSequelTitle(media, entry.candidate) || candidateMatchesSignal(entry.candidate, signals)) &&
+          hasStrongFranchiseConnection(media, entry.candidate, signals)
+        );
+      }
+
       return (
-        (entry.score >= 58 || isExplicitSequelTitle(media, entry.candidate)) &&
+        (entry.score >= 46 || isExplicitSequelTitle(media, entry.candidate) || candidateMatchesSignal(entry.candidate, signals)) &&
         hasStrongFranchiseConnection(media, entry.candidate, signals)
       );
     })
@@ -917,8 +1004,81 @@ function matchesIdentityCandidate(item: MediaItem, preferredSource?: string, pre
 }
 
 async function findRemoteMediaBySlug(slug: string, preferredSource?: string, preferredType?: string, preferredSourceId?: string) {
-  const queryVariants = buildQueryVariants(slug.replace(/-/g, " "));
-  const searchPages = [1, 2, 3, 4, 5];
+  const slugWords = slug.replace(/-/g, " ").trim();
+
+  if (preferredSource === "igdb" && preferredSourceId && preferredType === "game") {
+    try {
+      const media = await getIgdbGameDetails(Number(preferredSourceId));
+      return { media, animeFranchise: undefined };
+    } catch {
+      /* continue with search */
+    }
+  }
+
+  if (preferredType === "game" && (!preferredSource || preferredSource === "igdb")) {
+    const quickGames = await withTimeout(
+      browseIgdbGames({ page: 1, query: slugWords || slug, sort: "rating", seed: 3 }).catch(() => emptyBrowseResult()),
+      emptyBrowseResult(),
+      2800,
+    );
+    const gameHit =
+      (preferredSourceId
+        ? quickGames.items.find((item) => matchesIdentityCandidate(item, preferredSource, preferredSourceId, preferredType))
+        : undefined) ?? quickGames.items.find((item) => matchesSlugCandidate(item, slug));
+    if (gameHit?.source === "igdb") {
+      try {
+        const media = await getIgdbGameDetails(Number(gameHit.sourceId));
+        return { media, animeFranchise: undefined };
+      } catch {
+        /* fall through */
+      }
+    }
+  }
+
+  if (preferredType === "anime" && (!preferredSource || preferredSource === "jikan")) {
+    const quickAnime = await withTimeout(
+      browseJikanAnime({ page: 1, query: slugWords || slug, sort: "rating", seed: 3 }).catch(() => emptyBrowseResult()),
+      emptyBrowseResult(),
+      2800,
+    );
+    const animeHit =
+      (preferredSourceId
+        ? quickAnime.items.find((item) => matchesIdentityCandidate(item, preferredSource, preferredSourceId, preferredType))
+        : undefined) ?? quickAnime.items.find((item) => matchesSlugCandidate(item, slug));
+    if (animeHit?.source === "jikan") {
+      try {
+        const media = await getJikanAnimeDetails(Number(animeHit.sourceId));
+        const animeFranchise = await getJikanAnimeFranchise(Number(animeHit.sourceId)).catch(() => undefined);
+        return { media, animeFranchise };
+      } catch {
+        /* fall through */
+      }
+    }
+  }
+
+  if ((preferredType === "movie" || preferredType === "show") && (!preferredSource || preferredSource === "tmdb")) {
+    const tmdbType = preferredType === "movie" ? "movie" : "show";
+    const quickTmdb = await withTimeout(
+      browseTmdbCatalog({ type: tmdbType, page: 1, query: slugWords || slug, sort: "rating", seed: 3 }).catch(() => emptyBrowseResult()),
+      emptyBrowseResult(),
+      2800,
+    );
+    const tmdbHit =
+      (preferredSourceId
+        ? quickTmdb.items.find((item) => matchesIdentityCandidate(item, preferredSource, preferredSourceId, preferredType))
+        : undefined) ?? quickTmdb.items.find((item) => matchesSlugCandidate(item, slug));
+    if (tmdbHit && (tmdbHit.type === "movie" || tmdbHit.type === "show")) {
+      try {
+        const media = await getTmdbMediaDetails(Number(tmdbHit.sourceId), tmdbHit.type === "movie" ? "movie" : "tv");
+        return { media, animeFranchise: undefined };
+      } catch {
+        /* fall through */
+      }
+    }
+  }
+
+  const queryVariants = buildQueryVariants(slugWords || slug);
+  const searchPages = [1, 2, 3];
 
   for (const query of queryVariants) {
     for (const searchPage of searchPages) {
@@ -1163,60 +1323,24 @@ function buildMoodLine(media: MediaItem) {
   return `A film with a ${genreBlend || "strong cinematic"} identity, the kind of pick you open because the whole vibe already has you sold.`;
 }
 
-function imageSignature(image: string) {
-  try {
-    const parsed = new URL(image, "https://dummy.local");
-    const nested = parsed.searchParams.get("url");
-    const targetUrl = nested ? new URL(nested, "https://dummy.local") : parsed;
-    const targetPath = targetUrl.pathname;
-    const parts = targetPath.split("/").filter(Boolean);
-    const fileName = parts[parts.length - 1] || targetPath;
-
-    return fileName
-      .toLowerCase()
-      .replace(/\.(jpg|jpeg|png|webp)$/i, "")
-      .replace(/\?.*$/, "")
-      .replace(/image\/upload\/[^/]+\//i, "")
-      .replace(/[-_](original|large|medium|small|thumb|t\d+x\d+|v\d+)$/i, "")
-      .replace(/[_-]\d{2,4}x\d{2,4}$/i, "")
-      .replace(/[_-](w|h)\d{2,4}$/i, "")
-      .replace(/[_-](crop|fit|fill)$/i, "");
-  } catch {
-    return image.toLowerCase();
-  }
-}
-
-function dedupeByImageSignature(images: string[]) {
-  const seen = new Set<string>();
-  const deduped: string[] = [];
-
-  for (const image of images) {
-    const signature = imageSignature(image);
-    if (!signature || seen.has(signature)) {
-      continue;
-    }
-    seen.add(signature);
-    deduped.push(image);
-  }
-
-  return deduped;
-}
-
 function uniqueGalleryImages(media: MediaItem) {
   const seen = new Set<string>();
   const gallery: string[] = [];
 
   function push(image?: string) {
     if (!image || image.startsWith("data:image")) return;
-    const signature = imageSignature(image);
-    if (!signature || seen.has(signature)) return;
-    seen.add(signature);
+    const key = canonicalGalleryImageKey(image);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
     gallery.push(image);
   }
 
   for (const image of media.screenshots ?? []) {
     push(image);
   }
+
+  push(media.backdropUrl);
+  push(media.coverUrl);
 
   return gallery;
 }
@@ -1226,18 +1350,18 @@ function buildStoryGallery(gallery: string[], fallback: string) {
     return [fallback];
   }
 
-  return dedupeByImageSignature([...gallery, fallback].filter(Boolean)).slice(0, 5);
+  return dedupeGalleryImageUrls([...gallery, fallback].filter(Boolean)).slice(0, 5);
 }
 
 function buildAtlasGallery(gallery: string[], usedImages: string[]) {
-  const used = new Set(usedImages.map((image) => imageSignature(image)));
-  const fresh = gallery.filter((image) => !used.has(imageSignature(image)));
+  const used = new Set(usedImages.map((image) => canonicalGalleryImageKey(image)));
+  const fresh = gallery.filter((image) => !used.has(canonicalGalleryImageKey(image)));
 
   if (fresh.length >= 3) {
-    return dedupeByImageSignature(fresh);
+    return dedupeGalleryImageUrls(fresh);
   }
 
-  return dedupeByImageSignature([...fresh, ...gallery]).slice(0, 6);
+  return dedupeGalleryImageUrls([...fresh, ...gallery]).slice(0, 8);
 }
 
 function buildImmersionScenes(media: MediaItem, storyGallery: string[], deepDiveCards: ReturnType<typeof buildDeepDiveCards>) {
@@ -1364,7 +1488,7 @@ async function getRelatedMediaRail(media: MediaItem) {
               ),
             ]
           : []),
-        ...franchiseSignals.slice(0, 1).map((query, index) =>
+        ...franchiseSignals.slice(0, 2).map((query, index) =>
           withTimeout(
             browseTmdbCatalog({ type: mediaType, page: 1, query, sort: "rating", seed: 13 + mediaTypeIndex + index }),
             emptyBrowseResult(),
@@ -1397,7 +1521,7 @@ async function getRelatedMediaRail(media: MediaItem) {
             ),
           ]
         : []),
-      ...franchiseSignals.slice(0, 1).map((query, index) =>
+      ...franchiseSignals.slice(0, 2).map((query, index) =>
         withTimeout(
           browseJikanAnime({ page: 1, query, sort: "rating", seed: 13 + index }),
           emptyBrowseResult(),
@@ -1414,6 +1538,15 @@ async function getRelatedMediaRail(media: MediaItem) {
   }
 
   if (media.type === "game") {
+    if (media.source === "igdb" && Number.isFinite(Number(media.sourceId))) {
+      const similarFromIgdb = await withTimeout(
+        getIgdbSimilarGamesForGame(Number(media.sourceId)),
+        [] as MediaItem[],
+        900,
+      );
+      collected.push(...similarFromIgdb);
+    }
+
     const results = await Promise.allSettled([
       withTimeout(
         browseIgdbGames({ page: 1, genre: primaryGenre, sort: "rating" }),
@@ -1468,7 +1601,7 @@ async function getRelatedMediaRail(media: MediaItem) {
         emptyBrowseResult(),
         700,
       ),
-      ...franchiseSignals.slice(0, 1).map((query, index) =>
+      ...franchiseSignals.slice(0, 2).map((query, index) =>
         withTimeout(
           browseIgdbGames({ page: 1, query, sort: "rating", seed: 13 + index }),
           emptyBrowseResult(),
@@ -1488,10 +1621,12 @@ async function getRelatedMediaRail(media: MediaItem) {
     .filter((candidate) => `${candidate.source}-${candidate.sourceId}` !== `${media.source}-${media.sourceId}`)
     .filter((candidate) => isCompatibleSimilarityType(media, candidate))
     .filter((candidate) => !isSupplementalFranchiseCandidate(media, candidate))
-    .filter((candidate) => !hasStrongFranchiseConnection(media, candidate, franchiseSignals))
+    .filter((candidate) => !isSameFranchiseProductLine(media, candidate))
     .map((candidate) => ({
       candidate,
-      score: scoreMoreLikeThisCandidate(media, candidate),
+      score:
+        scoreMoreLikeThisCandidate(media, candidate) +
+        (candidateMatchesSignal(candidate, franchiseSignals) ? 26 : 0),
     }));
 
   const strictMatches = scored
@@ -1503,14 +1638,17 @@ async function getRelatedMediaRail(media: MediaItem) {
       if (media.type === "game") {
         return entry.score >= 22 && (sharedGenres >= 1 || sharedTags >= 1 || sharedPlatforms >= 1 || sharedTopics >= 2);
       }
-      return entry.score >= 34 && (sharedGenres >= 2 || (sharedGenres >= 1 && sharedTags >= 1) || sharedTags >= 2 || sharedTopics >= 3);
+      if (media.type === "movie" || media.type === "show") {
+        return entry.score >= 20 && (sharedGenres >= 1 || sharedTags >= 1 || sharedTopics >= 2);
+      }
+      return entry.score >= 26 && (sharedGenres >= 1 || sharedTags >= 1 || sharedTopics >= 2);
     })
     .sort((left, right) => right.score - left.score)
     .map((entry) => entry.candidate)
-    .slice(0, media.type === "game" ? 10 : 8);
+    .slice(0, media.type === "game" ? 10 : 12);
 
   if (strictMatches.length) {
-    return dedupeComparableEntries(strictMatches);
+    return dedupeItems(strictMatches);
   }
 
   const fallbackMatches = scored
@@ -1518,16 +1656,20 @@ async function getRelatedMediaRail(media: MediaItem) {
       const sharedGenres = sharedCanonicalGenreCount(media, entry.candidate);
       const sharedTags = sharedSimilarityTagCount(media, entry.candidate);
       const sharedPlatforms = sharedPlatformCount(media, entry.candidate);
+      const sharedTopics = sharedTopicTokenCount(media, entry.candidate);
       if (media.type === "game") {
         return entry.score >= 16 && (sharedGenres >= 1 || sharedTags >= 1 || sharedPlatforms >= 1);
       }
-      return entry.score >= 28 && (sharedGenres >= 1 || sharedTags >= 1);
+      if (media.type === "movie" || media.type === "show") {
+        return entry.score >= 14 && (sharedGenres >= 1 || sharedTags >= 1 || sharedTopics >= 1);
+      }
+      return entry.score >= 18 && (sharedGenres >= 1 || sharedTags >= 1 || sharedTopics >= 1);
     })
     .sort((left, right) => right.score - left.score)
     .map((entry) => entry.candidate)
-    .slice(0, media.type === "game" ? 8 : 6);
+    .slice(0, media.type === "game" ? 8 : 10);
 
-  return dedupeComparableEntries(fallbackMatches);
+  return dedupeItems(fallbackMatches);
 }
 
 export default async function MediaDetailPage({
@@ -1542,6 +1684,7 @@ export default async function MediaDetailPage({
   const viewerName = session?.user?.name || "Guest vault";
   const viewerId = session?.user?.id || "guest-vault";
   const viewerAvatar = session?.user?.image || undefined;
+  const sidebarFolders = session?.user?.id ? (await getViewerShellData(session.user.id).catch(() => null))?.folders ?? [] : [];
   const { slug } = await params;
   const { source, sourceId, type } = await searchParams;
   let media: MediaItem | undefined = getMediaBySlug(slug);
@@ -1605,7 +1748,7 @@ export default async function MediaDetailPage({
     return (
       <div className="page-shell">
         <div className="app-shell-layout">
-          <AppSidebar active="browse" />
+          <AppSidebar active="browse" initialFolders={sidebarFolders} />
           <main className="workspace">
             <section className="feature-block">
               <p className="eyebrow">Missing</p>
@@ -1620,8 +1763,10 @@ export default async function MediaDetailPage({
     );
   }
 
-  const related = await getRelatedMediaRail(media).catch(() => []);
-  const franchiseSection = await buildFranchiseSection(media, animeFranchise).catch(() => null);
+  const [related, franchiseSection] = await Promise.all([
+    getRelatedMediaRail(media).catch(() => [] as MediaItem[]),
+    buildFranchiseSection(media, animeFranchise).catch(() => null),
+  ]);
   const runtimeLabel =
     media.type === "game"
       ? "Platforms"
@@ -1670,7 +1815,7 @@ export default async function MediaDetailPage({
   return (
     <div className="page-shell">
       <div className="app-shell-layout">
-        <AppSidebar active="browse" />
+        <AppSidebar active="browse" initialFolders={sidebarFolders} />
 
         <main className={`workspace detail-layout ${easterEgg?.className ?? ""}`} style={detailPaletteStyle}>
           <DetailViewEffects />

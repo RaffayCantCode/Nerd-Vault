@@ -1,5 +1,5 @@
 import { MediaItem } from "@/lib/types";
-import { itemMatchesSearch, searchScore } from "@/lib/search-utils";
+import { rankCandidatesForQuery } from "@/lib/search-utils";
 
 const IGDB_BASE_URL = "https://api.igdb.com/v4";
 const IGDB_IMAGE_BASE_URL = "https://images.igdb.com/igdb/image/upload/t_1080p";
@@ -34,6 +34,11 @@ type IgdbPlatform = {
   name: string;
 };
 
+type IgdbCollection = {
+  id: number;
+  name?: string;
+};
+
 type IgdbGame = {
   id: number;
   name: string;
@@ -50,6 +55,8 @@ type IgdbGame = {
   platforms?: IgdbPlatform[];
   involved_companies?: IgdbCompany[];
   status?: number;
+  collection?: IgdbCollection;
+  similar_games?: number[];
 };
 
 type IgdbCountResponse = {
@@ -228,6 +235,8 @@ function mapGame(game: IgdbGame): MediaItem {
       releaseDate: isoDateFromTimestamp(game.first_release_date),
       releaseInfo: releaseYear ? `${releaseYear} release` : undefined,
       studio: developers[0]?.name,
+      collectionTitle: game.collection?.name,
+      collectionId: game.collection?.id,
     },
   };
 }
@@ -237,13 +246,7 @@ function isUsefulGame(game: MediaItem) {
 }
 
 function rankLocalSearchResults(items: MediaItem[], query: string) {
-  return items
-    .filter((item) => itemMatchesSearch(item, query))
-    .sort((left, right) => {
-      const scoreGap = searchScore(right, query) - searchScore(left, query);
-      if (scoreGap !== 0) return scoreGap;
-      return right.rating - left.rating || right.year - left.year;
-    });
+  return rankCandidatesForQuery(items, query, { limit: 96, minRank: 8 });
 }
 
 export async function browseIgdbGames(params: {
@@ -257,32 +260,6 @@ export async function browseIgdbGames(params: {
   const queryText = params.query?.trim();
   const sort = params.sort ?? "discovery";
   const discoverySeed = params.seed ?? 1;
-
-  if (queryText) {
-    const fallbackPages = await Promise.all([
-      browseIgdbGames({ page: 1, genre: params.genre, sort: "discovery", seed: discoverySeed + 51 }),
-      browseIgdbGames({ page: 2, genre: params.genre, sort: "discovery", seed: discoverySeed + 57 }),
-      browseIgdbGames({ page: 3, genre: params.genre, sort: "discovery", seed: discoverySeed + 63 }),
-    ]);
-    const rankedItems = rankLocalSearchResults(
-      fallbackPages.flatMap((entry) => entry.items),
-      queryText,
-    ).slice(0, 72);
-
-    return {
-      page: 1,
-      totalPages: 1,
-      totalResults: rankedItems.length,
-      items: rankedItems,
-    };
-  }
-
-  const requestPage =
-    !queryText && sort === "discovery"
-      ? ((Math.abs((discoverySeed * 17) % 18) + (page - 1) * 5) % 18) + 1
-      : page;
-  const offset = (requestPage - 1) * 24;
-  const escapedQuery = queryText?.replace(/"/g, '\\"');
   const genreFilter = params.genre && params.genre !== "all" ? params.genre.replace(/"/g, '\\"') : null;
 
   const fields = [
@@ -302,6 +279,8 @@ export async function browseIgdbGames(params: {
     "involved_companies.developer",
     "involved_companies.publisher",
     "status",
+    "collection.id",
+    "collection.name",
   ].join(",");
 
   const whereParts = [
@@ -312,6 +291,38 @@ export async function browseIgdbGames(params: {
   if (genreFilter) {
     whereParts.push(`genres.name ~ *"${genreFilter}"*`);
   }
+
+  if (queryText) {
+    const escaped = queryText.replace(/"/g, '\\"');
+    const searchRows = await igdbFetch<IgdbGame[]>(
+      `search "${escaped}"; fields ${fields}; where ${whereParts.join(" & ")}; limit 45;`,
+    ).catch(() => [] as IgdbGame[]);
+    const fromSearch = searchRows.map(mapGame).filter((item) => (item.year || 0) >= 1970);
+
+    const fallbackPages = await Promise.all([
+      browseIgdbGames({ page: 1, genre: params.genre, sort: "discovery", seed: discoverySeed + 51 }),
+      browseIgdbGames({ page: 2, genre: params.genre, sort: "discovery", seed: discoverySeed + 57 }),
+      browseIgdbGames({ page: 3, genre: params.genre, sort: "discovery", seed: discoverySeed + 63 }),
+    ]);
+    const rankedItems = rankLocalSearchResults(
+      [...fromSearch, ...fallbackPages.flatMap((entry) => entry.items)],
+      queryText,
+    ).slice(0, 96);
+
+    return {
+      page: 1,
+      totalPages: 1,
+      totalResults: rankedItems.length,
+      items: rankedItems,
+    };
+  }
+
+  const requestPage =
+    !queryText && sort === "discovery"
+      ? ((Math.abs((discoverySeed * 17) % 18) + (page - 1) * 5) % 18) + 1
+      : page;
+  const offset = (requestPage - 1) * 24;
+  const escapedQuery = queryText?.replace(/"/g, '\\"');
 
   const discoverySorts = [
     "sort total_rating_count desc;",
@@ -344,29 +355,70 @@ export async function browseIgdbGames(params: {
   };
 }
 
-export async function getIgdbGameDetails(id: number) {
-  const fields = [
-    "name",
-    "slug",
-    "summary",
-    "storyline",
-    "total_rating",
-    "first_release_date",
-    "cover.image_id",
-    "screenshots.image_id",
-    "artworks.image_id",
-    "genres.name",
-    "platforms.name",
-    "involved_companies.company.name",
-    "involved_companies.developer",
-    "involved_companies.publisher",
-    "status",
-  ].join(",");
+const IGDB_GAME_DETAIL_FIELDS = [
+  "name",
+  "slug",
+  "summary",
+  "storyline",
+  "total_rating",
+  "first_release_date",
+  "cover.image_id",
+  "screenshots.image_id",
+  "artworks.image_id",
+  "genres.name",
+  "platforms.name",
+  "involved_companies.company.name",
+  "involved_companies.developer",
+  "involved_companies.publisher",
+  "status",
+  "collection.id",
+  "collection.name",
+  "similar_games",
+].join(",");
 
-  const games = await igdbFetch<IgdbGame[]>(`fields ${fields}; where id = ${id}; limit 1;`);
+export async function getIgdbGameDetails(id: number) {
+  const games = await igdbFetch<IgdbGame[]>(`fields ${IGDB_GAME_DETAIL_FIELDS}; where id = ${id}; limit 1;`);
   const game = games[0];
   if (!game) {
     throw new Error("Game not found in IGDB");
   }
   return mapGame(game);
+}
+
+/** Other games in the same IGDB collection (franchise / series entries). */
+export async function getIgdbCollectionNeighbors(gameId: number): Promise<MediaItem[]> {
+  const rows = await igdbFetch<Array<{ id: number; collection?: IgdbCollection }>>(
+    `fields id, collection.id; where id = ${gameId}; limit 1;`,
+  );
+  const collectionId = rows[0]?.collection?.id;
+  if (!collectionId) {
+    return [];
+  }
+
+  const games = await igdbFetch<IgdbGame[]>(
+    `fields ${IGDB_GAME_DETAIL_FIELDS}; where collection = ${collectionId} & version_parent = null; sort first_release_date asc; limit 40;`,
+  );
+  return games.map(mapGame).filter((item) => (item.year || 0) >= 1970);
+}
+
+/** Resolve IGDB similar_games ids into full cards (best-effort). */
+export async function getIgdbGamesByIds(ids: number[]): Promise<MediaItem[]> {
+  const unique = Array.from(new Set(ids.filter((id) => Number.isFinite(id) && id > 0))).slice(0, 24);
+  if (!unique.length) {
+    return [];
+  }
+
+  const games = await igdbFetch<IgdbGame[]>(
+    `fields ${IGDB_GAME_DETAIL_FIELDS}; where id = (${unique.join(",")}); limit ${unique.length};`,
+  );
+  return games.map(mapGame).filter((item) => (item.year || 0) >= 1970);
+}
+
+/** Games IGDB marks as similar to this one (often same universe or genre). */
+export async function getIgdbSimilarGamesForGame(gameId: number): Promise<MediaItem[]> {
+  const rows = await igdbFetch<Array<{ similar_games?: number[] }>>(
+    `fields similar_games; where id = ${gameId}; limit 1;`,
+  );
+  const ids = rows[0]?.similar_games ?? [];
+  return getIgdbGamesByIds(ids);
 }

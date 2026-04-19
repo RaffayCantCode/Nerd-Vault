@@ -2,6 +2,7 @@
 
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useState } from "react";
+import { canonicalGalleryImageKey, dedupeGalleryImageUrls } from "@/lib/gallery-image-key";
 import { optimizeMediaImageUrl } from "@/lib/media-image";
 
 export function DetailGallery({
@@ -11,10 +12,14 @@ export function DetailGallery({
   title: string;
   images: string[];
 }) {
-  const galleryImages = useMemo(
-    () => images.filter(Boolean).map((image) => optimizeMediaImageUrl(image, "gallery") ?? image),
-    [images],
-  );
+  const galleryImages = useMemo(() => {
+    const uniqueRaw = dedupeGalleryImageUrls(images.filter(Boolean));
+    return uniqueRaw.map((raw) => ({
+      key: canonicalGalleryImageKey(raw),
+      raw,
+      src: optimizeMediaImageUrl(raw, "gallery") ?? raw,
+    }));
+  }, [images]);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -63,35 +68,35 @@ export function DetailGallery({
     return null;
   }
 
-  const openImage = activeIndex === null ? null : galleryImages[activeIndex];
+  const openSlide = activeIndex === null ? null : galleryImages[activeIndex];
 
   return (
     <>
       <div className="detail-gallery-shell glass">
         <div className="detail-gallery-header">
           <div>
-            <p className="eyebrow">More stills</p>
-            <h3 className="headline">Tap in closer</h3>
-            <p className="copy">Open any frame for the full view, then move left or right through the gallery.</p>
+            <p className="eyebrow detail-gallery-eyebrow">More stills</p>
+            <h3 className="headline detail-gallery-title">Tap in closer</h3>
+            <p className="copy detail-gallery-lede">Open any frame for the full view, then move left or right through the gallery.</p>
           </div>
         </div>
 
         <div className="detail-gallery-grid">
-          {galleryImages.map((image, index) => (
+          {galleryImages.map((slide, index) => (
             <button
-              key={`${image}-${index}`}
+              key={slide.key || `${slide.src}-${index}`}
               type="button"
               className={`detail-gallery-tile ${index === 0 ? "is-featured" : ""}`}
               onClick={() => setActiveIndex(index)}
               aria-label={`Open ${title} image ${index + 1}`}
             >
-              <img src={image} alt={`${title} still ${index + 1}`} loading={index < 2 ? "eager" : "lazy"} decoding="async" />
+              <img src={slide.src} alt={`${title} still ${index + 1}`} loading={index < 2 ? "eager" : "lazy"} decoding="async" />
             </button>
           ))}
         </div>
       </div>
 
-      {openImage && isMounted
+      {openSlide && isMounted
         ? createPortal(
             <div className="detail-lightbox" role="dialog" aria-modal="true" aria-label={`${title} gallery`} onClick={() => setActiveIndex(null)}>
               <button
@@ -139,7 +144,7 @@ export function DetailGallery({
 
               <div className="detail-lightbox-stage" onClick={(event) => event.stopPropagation()}>
                 <img
-                  src={optimizeMediaImageUrl(openImage, "lightbox") ?? openImage}
+                  src={optimizeMediaImageUrl(openSlide.raw, "lightbox") ?? openSlide.src}
                   alt={`${title} fullscreen still ${(activeIndex ?? 0) + 1}`}
                   loading="eager"
                   decoding="async"

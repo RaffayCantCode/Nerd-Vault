@@ -7,7 +7,7 @@ import { CatalogCard } from "@/components/catalog-card";
 import { FilterChipBar } from "@/components/filter-chip-bar";
 import { NVLoader } from "@/components/nv-loader";
 import { filterCatalog, itemGenreLabels, itemMatchesGenre } from "@/lib/catalog-utils";
-import { itemMatchesSearch, searchScore } from "@/lib/search-utils";
+import { inclusiveSearchRank } from "@/lib/search-utils";
 import { MediaItem, MediaType } from "@/lib/types";
 import { addMediaToWishlist, fetchLibraryState, removeMediaFromWishlist, subscribeVaultChanges } from "@/lib/vault-client";
 
@@ -675,7 +675,7 @@ export function BrowseWorkspace({
         return false;
       }
       seen.add(key);
-      return (filter === "all" || item.type === filter) && itemMatchesSearch(item, deferredQuery);
+      return (filter === "all" || item.type === filter) && inclusiveSearchRank(item, deferredQuery) >= 10;
     });
   }, [bootstrapCatalog, catalog, deferredQuery, filter, hasActiveSearch, remoteCatalog, typedVisible]);
 
@@ -737,7 +737,11 @@ export function BrowseWorkspace({
         return false;
       }
       seen.add(key);
-      return (filter === "all" || item.type === filter) && itemMatchesSearch(item, deferredQuery) && itemMatchesGenre(item, genre);
+      return (
+        (filter === "all" || item.type === filter) &&
+        inclusiveSearchRank(item, deferredQuery) >= 10 &&
+        itemMatchesGenre(item, genre)
+      );
     });
   }, [bootstrapCatalog, catalog, deferredQuery, filter, genre, hasActiveSearch, remoteCatalog, visible]);
 
@@ -793,7 +797,7 @@ export function BrowseWorkspace({
 
     if (normalizedQuery) {
       return items.sort((left, right) => {
-        const scoreGap = searchScore(right, normalizedQuery) - searchScore(left, normalizedQuery);
+        const scoreGap = inclusiveSearchRank(right, normalizedQuery) - inclusiveSearchRank(left, normalizedQuery);
         if (scoreGap !== 0) return scoreGap;
         return right.rating - left.rating || right.year - left.year;
       });
