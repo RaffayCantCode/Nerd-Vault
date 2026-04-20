@@ -1,6 +1,8 @@
 @import './mobile-improvements.css';
 @import './premium-enhancements.css';
 @import './premium-browse.css';
+@import './performance-optimized.css';
+@import './landing-mobile-fixes.css';
 
 :root {
   --bg: #060911;

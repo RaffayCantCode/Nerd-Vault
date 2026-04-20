@@ -1,0 +1,232 @@
+/* Performance-Optimized CSS for Low-End Devices */
+/* Maintains premium feel while being lightweight */
+
+/* Reduce backdrop-filter usage (very heavy on GPU) */
+.page-shell.browse-page::before,
+.page-shell.home-page::before,
+.workspace.browse-workspace::before,
+.workspace.home-workspace::before,
+.workspace.profile-workspace::before,
+.workspace.support-workspace::before {
+  /* Replace complex gradients with simple overlays */
+  background: rgba(6, 9, 17, 0.4);
+  backdrop-filter: none; /* Remove heavy blur */
+}
+
+/* Simplified workspace backgrounds */
+.workspace.browse-workspace,
+.workspace.home-workspace,
+.workspace.profile-workspace,
+.workspace.support-workspace {
+  background: rgba(10, 14, 21, 0.6); /* Simple solid background */
+  backdrop-filter: none; /* Remove heavy blur */
+}
+
+/* Optimize toolbar and cards */
+.browse-toolbar,
+.catalog-card,
+.auth-screen-card {
+  backdrop-filter: none; /* Remove heavy blur */
+  background: rgba(10, 14, 21, 0.9); /* Use solid background instead */
+}
+
+/* Simplified gradients */
+.page-shell.browse-page,
+.page-shell.home-page,
+.page-shell.profile-page,
+.page-shell.support-page {
+  background: linear-gradient(180deg, #060911 0%, #0e1420 100%); /* Simple 2-color gradient */
+}
+
+/* Optimize animations for performance */
+.catalog-card,
+.filter-chip,
+.pager-button,
+.action-button {
+  /* Remove complex transitions */
+  transition: transform 0.2s ease, background-color 0.2s ease;
+  will-change: transform; /* Optimize for transforms */
+}
+
+/* Simplified hover effects */
+.catalog-card:hover {
+  transform: translateY(-4px); /* Reduced movement */
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); /* Simpler shadow */
+}
+
+.filter-chip:hover,
+.pager-button:hover,
+.action-button:hover {
+  transform: translateY(-1px); /* Minimal movement */
+}
+
+/* Remove heavy floating animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); } /* Reduced movement */
+}
+
+/* Optimize catalog grid animations */
+.catalog-card {
+  animation: fadeInUp 0.3s ease-out; /* Faster animation */
+  will-change: opacity, transform;
+}
+
+/* Simplified loading states */
+.browse-loading-spinner,
+.page-loading-spinner {
+  border: 2px solid rgba(255, 255, 255, 0.1); /* Thinner border */
+  border-top-color: var(--gold);
+  animation: spin 600ms linear infinite; /* Faster animation */
+}
+
+/* Optimize media details */
+.media-header {
+  backdrop-filter: none; /* Remove heavy blur */
+  background: linear-gradient(180deg, rgba(6, 9, 17, 0.8) 0%, rgba(6, 9, 17, 0.95) 100%);
+}
+
+/* Performance-focused image handling */
+.catalog-card-image {
+  will-change: transform;
+  transition: transform 0.3s ease;
+}
+
+.catalog-card:hover .catalog-card-image {
+  transform: scale(1.02); /* Reduced scale */
+}
+
+/* Simplified shadows (less GPU intensive) */
+.catalog-card,
+.browse-toolbar,
+.auth-screen-card {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); /* Simpler shadow */
+}
+
+/* Remove complex pseudo-elements */
+.catalog-card::before,
+.workspace-hero::before {
+  display: none; /* Remove heavy overlays */
+}
+
+/* Optimize text rendering */
+.catalog-card-title,
+.media-title,
+.workspace-hero-title {
+  text-rendering: optimizeSpeed; /* Faster text rendering */
+}
+
+/* Reduce GPU layers */
+.filter-chip.active,
+.rating-display {
+  transform: none; /* Remove unnecessary transforms */
+}
+
+/* Performance for mobile devices */
+@media (max-width: 768px) {
+  /* Disable animations on mobile for better performance */
+  .catalog-card,
+  .filter-chip,
+  .pager-button,
+  .action-button {
+    transition: none;
+    animation: none;
+  }
+  
+  /* Simplify hover states */
+  .catalog-card:hover {
+    transform: none;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Remove complex backgrounds on mobile */
+  .workspace.browse-workspace,
+  .workspace.home-workspace {
+    background: rgba(10, 14, 21, 0.8);
+  }
+}
+
+/* Ultra-low-end device optimization */
+@media (max-width: 480px) {
+  /* Minimal styling for performance */
+  .catalog-card {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  
+  /* Remove all animations */
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .catalog-card,
+  .filter-chip,
+  .pager-button,
+  .action-button,
+  .browse-loading-spinner,
+  .page-loading-spinner {
+    animation: none;
+    transition: none;
+  }
+  
+  .catalog-card:hover,
+  .filter-chip:hover,
+  .pager-button:hover,
+  .action-button:hover {
+    transform: none;
+  }
+}
+
+/* Optimize scroll performance */
+.workspace.browse-workspace,
+.workspace.home-workspace {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+}
+
+/* Simplify premium effects */
+.media-details-actions {
+  background: rgba(10, 14, 21, 0.6);
+  backdrop-filter: none;
+}
+
+/* Remove heavy particle effects */
+.landing-particles,
+.particle {
+  display: none; /* Remove particle animations */
+}
+
+/* Optimize form elements */
+.auth-form-group input,
+.browse-search-input {
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+  will-change: border-color, background-color;
+}
+
+/* Performance monitoring */
+.performance-mode {
+  /* Class that can be added dynamically for low-end devices */
+  transform: translateZ(0); /* Hardware acceleration hint */
+}
+
+.performance-mode .catalog-card,
+.performance-mode .browse-toolbar,
+.performance-mode .auth-screen-card {
+  backdrop-filter: none !important;
+  background: rgba(10, 14, 21, 0.95) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+.performance-mode * {
+  animation: none !important;
+  transition: none !important;
+}
+
+.performance-mode .catalog-card:hover {
+  transform: none !important;
+}

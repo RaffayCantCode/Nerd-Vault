@@ -151,6 +151,19 @@
   flex-direction: column;
 }
 
+/* Clean Rating Display */
+.catalog-card .pill.rating {
+  background: var(--gold);
+  color: #060911;
+  font-weight: 600;
+  border: none;
+}
+
+.catalog-card .pill.rating::before {
+  content: "";
+  display: none;
+}
+
 .catalog-card::before {
   content: '';
   position: absolute;
@@ -736,6 +749,54 @@
 
 .media-accent {
   font-weight: 600;
+}
+
+/* Media Details Actions */
+.media-details-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  flex-wrap: wrap;
+}
+
+.action-button {
+  padding: 0.875rem 2rem;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 150px;
+  font-size: 0.875rem;
+}
+
+.action-button-primary {
+  background: var(--gold);
+  color: #060911;
+  border: none;
+}
+
+.action-button-primary:hover {
+  background: #03d4a3;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(3, 252, 190, 0.3);
+}
+
+.action-button-secondary {
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.action-button-secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
 }
 
 /* Responsive Design for Premium Pages */

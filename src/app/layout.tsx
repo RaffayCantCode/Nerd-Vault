@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bebas_Neue, Manrope } from "next/font/google";
 import { AuthCookieReset } from "@/components/auth-cookie-reset";
+import { PerformanceOptimizer } from "@/components/performance-optimizer";
 import "./globals.css";
 
 const display = Bebas_Neue({
@@ -59,6 +60,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${display.variable} ${sans.variable}`}>
         <AuthCookieReset />
+        <PerformanceOptimizer />
         {children}
       </body>
     </html>
