@@ -1957,6 +1957,109 @@ input {
   transform: translateY(-2px);
   border-color: rgba(255, 255, 255, 0.16);
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  pointer-events: auto;
+}
+
+/* Prevent scroll interference during hover */
+.catalog-grid {
+  pointer-events: auto;
+}
+
+.catalog-card {
+  pointer-events: auto;
+}
+
+/* Ensure smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+/* Expandable Related Section */
+.expandable-related-section {
+  position: relative;
+}
+
+.expandable-toggle-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+}
+
+.expandable-toggle-button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.expandable-toggle-icon {
+  transition: transform 0.3s ease;
+}
+
+.expandable-toggle-icon.is-expanded {
+  transform: rotate(180deg);
+}
+
+.expandable-content {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.5s ease, opacity 0.3s ease;
+}
+
+.expandable-content.is-expanded {
+  max-height: 2000px;
+  opacity: 1;
+}
+
+.expandable-content.is-collapsed {
+  max-height: 0;
+  opacity: 0;
+}
+
+.expandable-section {
+  margin-bottom: 3rem;
+}
+
+.expandable-section:last-child {
+  margin-bottom: 2rem;
+}
+
+.expandable-actions {
+  display: flex;
+  justify-content: center;
+  padding-top: 2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 2rem;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .expandable-toggle-button {
+    padding: 0.6rem 1.2rem;
+    font-size: 0.85rem;
+  }
+  
+  .expandable-section {
+    margin-bottom: 2rem;
+  }
+  
+  .expandable-content.is-expanded {
+    max-height: 3000px;
+  }
 }
 
 .catalog-card.is-navigating {

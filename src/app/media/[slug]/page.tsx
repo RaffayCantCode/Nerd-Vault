@@ -7,6 +7,7 @@ import { CatalogCard } from "@/components/catalog-card";
 import { DetailBackButton } from "@/components/detail-back-button";
 import { DetailGallery } from "@/components/detail-gallery";
 import { DetailViewEffects } from "@/components/detail-view-effects";
+import { ExpandableRelatedSection } from "@/components/expandable-related-section";
 import { FranchiseRelatedSection } from "@/components/franchise-related-section";
 import { MediaActions } from "@/components/media-actions";
 import { RelatedMediaSection } from "@/components/related-media-section";
@@ -2072,25 +2073,11 @@ export default async function MediaDetailPage({
             </section>
           ) : null}
 
-          {franchiseSection ? (
-            <FranchiseRelatedSection
-              title={franchiseSection.title}
-              summary={franchiseSection.summary}
-              entries={franchiseSection.entries}
-              secondaryTitle={franchiseSection.secondaryTitle}
-              secondaryEntries={franchiseSection.secondaryEntries}
-            />
-          ) : null}
-
-          <section className="section-stack" style={{ paddingTop: 0 }}>
-            <div className="section-header">
-              <div>
-                <p className="eyebrow">Related</p>
-                <h2 className="headline">More like this</h2>
-              </div>
-            </div>
-            <RelatedMediaSection items={related} />
-          </section>
+          <ExpandableRelatedSection 
+            related={related}
+            franchiseSection={franchiseSection || undefined}
+            mediaTitle={media.title}
+          />
 
           <section className="section-stack" style={{ paddingTop: 0 }}>
             <div className="section-header">
