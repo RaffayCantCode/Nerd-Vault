@@ -53,22 +53,23 @@ export default async function HomeHubPage() {
                     <input type="hidden" name="redirectTo" value="/home" />
                     <div className="auth-field">
                       <label htmlFor="home-login-email">Email</label>
-                      <input id="home-login-email" name="email" type="email" placeholder="you@example.com" required />
+                      <input id="home-login-email" name="email" type="email" placeholder="you@example.com" required autoComplete="email" />
                     </div>
                     <div className="auth-field">
                       <label htmlFor="home-login-password">Password</label>
-                      <input id="home-login-password" name="password" type="password" placeholder="Your password" required minLength={8} />
+                      <input id="home-login-password" name="password" type="password" placeholder="Your password" required minLength={8} autoComplete="current-password" />
                     </div>
                     <button type="submit" className="button button-primary auth-submit-button">
-                      Log in
+                      Log in to your vault
                     </button>
                   </form>
                   <div className="auth-divider">
                     <span>or</span>
                   </div>
                   <form action={signInWithGoogle}>
+                    <input type="hidden" name="redirectTo" value="/home" />
                     <button type="submit" className="button button-secondary auth-google-button" disabled={!googleReady}>
-                      Continue with Google
+                      {googleReady ? "Continue with Google" : "Google sign-in not available"}
                     </button>
                   </form>
                 </div>
@@ -80,9 +81,13 @@ export default async function HomeHubPage() {
     );
   }
 
-  const user = await ensureCurrentUserRecord();
-  const shellData = await getViewerShellData(user.id);
-  const library = await getLibraryStateForUser(user.id);
+  // Parallelize database calls for better performance
+  const [user, shellData, library] = await Promise.all([
+    ensureCurrentUserRecord(),
+    getViewerShellData(session.user.id).catch(() => ({ folders: [], viewerProfile: null, friends: [] })),
+    getLibraryStateForUser(session.user.id).catch(() => ({ watched: [], wishlist: [], folders: [] }))
+  ]);
+  
   const feed = await buildHomeFeed(library);
 
   return (

@@ -50,10 +50,18 @@ export function CatalogCard({
     }
   }
 
-  function handleNavigate() {
+  function handleNavigate(e: React.MouseEvent) {
+    e.preventDefault();
+    if (isNavigating) return;
+    
     setIsNavigating(true);
     onBeforeNavigate?.();
     warmRoute();
+    
+    // Navigate programmatically after a short delay
+    setTimeout(() => {
+      router.push(routeHref);
+    }, 100);
   }
 
   // Prefetch route for priority cards
@@ -105,6 +113,13 @@ export function CatalogCard({
   useEffect(() => {
     if (priority) setIsVisible(true);
   }, [priority]);
+
+  // Reset navigation state when component unmounts or route changes
+  useEffect(() => {
+    return () => {
+      setIsNavigating(false);
+    };
+  }, []);
 
   return (
     <Link

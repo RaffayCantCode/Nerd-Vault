@@ -314,7 +314,7 @@ export function BrowseWorkspace({
           }
         })(),
   );
-  const [remoteCatalog, setRemoteCatalog] = useState<MediaItem[]>(catalog);
+  const [remoteCatalog, setRemoteCatalog] = useState<MediaItem[]>([]);
   const initialPage =
     shouldResetForReload
       ? 1
@@ -326,7 +326,8 @@ export function BrowseWorkspace({
   const [page, setPage] = useState(initialPage);
   const [activePage, setActivePage] = useState(initialPage);
   const [totalPages, setTotalPages] = useState(Math.max(1, initialTotalPages));
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [cacheVersion, setCacheVersion] = useState(0);
   const [pageSize, setPageSize] = useState(
     typeof window === "undefined" ? 24 : getBrowsePageSize(window.innerWidth),
@@ -630,12 +631,15 @@ export function BrowseWorkspace({
 
       try {
         const primaryItems = await fetchPage(page);
-        if (!hasActiveSearch) {
+        if (!hasActiveSearch && !isInitialLoad) {
+          // Only prefetch additional pages when not initial load and not searching
           const minimumVisible = Math.max(12, pageSize - 1);
-          const nextItems = await fetchPage(page + 1, true).catch(() => [] as MediaItem[]);
-          if (primaryItems.length + nextItems.length < minimumVisible) {
-            void fetchPage(page + 2, true).catch(() => undefined);
-            void fetchPage(page + 3, true).catch(() => undefined);
+          if (primaryItems.length < minimumVisible) {
+            const nextItems = await fetchPage(page + 1, true).catch(() => [] as MediaItem[]);
+            if (primaryItems.length + nextItems.length < minimumVisible) {
+              void fetchPage(page + 2, true).catch(() => undefined);
+              void fetchPage(page + 3, true).catch(() => undefined);
+            }
           }
         }
       } catch (error) {
@@ -647,6 +651,7 @@ export function BrowseWorkspace({
         setActivePage(1);
       } finally {
         setIsLoading(false);
+        setIsInitialLoad(false);
       }
     }
 
@@ -666,10 +671,11 @@ export function BrowseWorkspace({
       return typedVisible;
     }
 
-    const merged = [...bootstrapCatalog, ...catalog, ...remoteCatalog];
+    // Better deduplication: prioritize remote catalog, then bootstrap, then initial catalog
+    const allItems = [...remoteCatalog, ...bootstrapCatalog, ...catalog];
     const seen = new Set<string>();
 
-    return merged.filter((item) => {
+    return allItems.filter((item) => {
       const key = `${item.source}-${item.sourceId}`;
       if (seen.has(key)) {
         return false;
@@ -682,7 +688,8 @@ export function BrowseWorkspace({
   const knownGenreCatalog = useMemo(() => {
     const seen = new Set<string>();
 
-    return [...bootstrapCatalog, ...catalog, ...remoteCatalog].filter((item) => {
+    // Better deduplication: prioritize remote catalog, then bootstrap, then initial catalog
+    return [...remoteCatalog, ...bootstrapCatalog, ...catalog].filter((item) => {
       const key = `${item.source}-${item.sourceId}`;
       if (seen.has(key)) {
         return false;

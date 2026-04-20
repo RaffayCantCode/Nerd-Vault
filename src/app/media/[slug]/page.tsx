@@ -1102,10 +1102,25 @@ async function findRemoteMediaBySlug(slug: string, preferredSource?: string, pre
         ...(preferredType === "show" ? showCatalog?.items ?? [] : []),
         ...(preferredType === "anime" ? animeCatalog?.items ?? [] : []),
         ...(preferredType === "game" ? gameCatalog?.items ?? [] : []),
-        ...(preferredType ? [] : movieCatalog?.items ?? []),
-        ...(preferredType ? [] : showCatalog?.items ?? []),
-        ...(preferredType ? [] : animeCatalog?.items ?? []),
-        ...(preferredType ? [] : gameCatalog?.items ?? []),
+        ...(preferredType ? [] : [
+          ...(movieCatalog?.items ?? []),
+          ...(showCatalog?.items ?? []),
+          ...(animeCatalog?.items ?? []),
+          ...(gameCatalog?.items ?? [])
+        ].sort((a, b) => {
+          // Prioritize anime for slugs that contain anime-like keywords
+          const slugLower = (slugWords || slug).toLowerCase();
+          const animeKeywords = ['anime', 'manga', 'season', 'episode', 'dub', 'sub'];
+          const hasAnimeKeywords = animeKeywords.some(keyword => slugLower.includes(keyword));
+          
+          if (hasAnimeKeywords) {
+            if (a.type === 'anime' && b.type !== 'anime') return -1;
+            if (b.type === 'anime' && a.type !== 'anime') return 1;
+          }
+          
+          // Otherwise prioritize by rating/popularity
+          return (b.rating || 0) - (a.rating || 0);
+        })),
       ];
 
       const exactIdentityMatch =

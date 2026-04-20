@@ -221,7 +221,7 @@ html {
   .sidebar-signout-button {
     width: 100%;
     min-width: 0;
-    min-height: 60px;
+    height: 64px;
     grid-template-columns: 44px minmax(0, 1fr);
     grid-template-rows: none;
     justify-items: start;
@@ -4368,13 +4368,12 @@ body {
 }
 
 .folder-hero-actions {
-  position: absolute;
-  top: 0;
-  right: 0;
+  position: static;
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: flex-start;
+  margin-top: 12px;
 }
 
 .folder-hero-actions .folder-edit-button {
@@ -7636,7 +7635,7 @@ html {
   .sidebar-signout-button {
     width: 100%;
     min-width: 0;
-    min-height: 60px;
+    height: 64px;
     grid-template-columns: 44px minmax(0, 1fr);
     grid-template-rows: none;
     justify-items: start;

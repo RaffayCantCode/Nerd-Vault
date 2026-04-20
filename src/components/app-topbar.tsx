@@ -277,7 +277,7 @@ export function AppTopBar({
             {profileMenuOpen ? (
               <div className="topbar-panel glass profile-menu-panel">
                 <div className="topbar-user-results">
-                  <Link href="/profile" className="button button-secondary">
+                  <Link href="/profile" className="button button-secondary" onClick={() => setProfileMenuOpen(false)}>
                     Open profile
                   </Link>
                   {!isGuest ? (

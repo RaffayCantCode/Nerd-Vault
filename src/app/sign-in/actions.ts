@@ -10,7 +10,7 @@ import { OAUTH_TRANSIENT_COOKIE_NAMES } from "@/lib/auth-cookies";
 import { signIn } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-export async function signInWithGoogle() {
+export async function signInWithGoogle(formData?: FormData) {
   if (!process.env.AUTH_GOOGLE_ID || !process.env.AUTH_GOOGLE_SECRET || !process.env.AUTH_SECRET) {
     redirect("/sign-in?mode=login&error=google-not-configured");
   }
@@ -21,7 +21,8 @@ export async function signInWithGoogle() {
     cookieStore.delete(cookieName);
   }
 
-  await signIn("google", { redirectTo: "/browse" });
+  const redirectTo = formData?.get("redirectTo") as string || "/browse";
+  await signIn("google", { redirectTo });
 }
 
 export async function signUpWithCredentials(formData: FormData) {
