@@ -398,17 +398,23 @@ export async function getIgdbGameDetails(id: number) {
 
 /** Other games in the same IGDB collection (franchise / series entries). */
 export async function getIgdbCollectionNeighbors(gameId: number): Promise<MediaItem[]> {
-  const rows = await igdbFetch<Array<{ id: number; collection?: IgdbCollection }>>(
-    `fields id, collection.id; where id = ${gameId}; limit 1;`,
+  const rows = await igdbFetch<Array<{ id: number; collection?: IgdbCollection; franchises?: Array<{ id: number }> }>>(
+    `fields id, collection.id, franchises.id; where id = ${gameId}; limit 1;`,
   );
   const collectionId = rows[0]?.collection?.id;
-  if (!collectionId) {
+  const franchiseIds = rows[0]?.franchises?.map(f => f.id) || [];
+  
+  if (!collectionId && franchiseIds.length === 0) {
     return [];
   }
 
-  const games = await igdbFetch<IgdbGame[]>(
-    `fields ${IGDB_GAME_DETAIL_FIELDS}; where collection = ${collectionId} & version_parent = null; sort first_release_date asc; limit 40;`,
-  );
+  let query = `fields ${IGDB_GAME_DETAIL_FIELDS}; where version_parent = null & (`;
+  const conditions: string[] = [];
+  if (collectionId) conditions.push(`collection = ${collectionId}`);
+  if (franchiseIds.length > 0) conditions.push(`franchises = (${franchiseIds.join(",")})`);
+  query += conditions.join(" | ") + "); sort first_release_date asc; limit 40;";
+
+  const games = await igdbFetch<IgdbGame[]>(query);
   return games.map(mapGame).filter((item) => (item.year || 0) >= 1970);
 }
 

@@ -61,17 +61,17 @@ html {
     display: none !important;
   }
 
-  /* Sidebar - Desktop Rail (Fixed & Stable) */
+  /* Sidebar - Desktop Rail (Cursor Follow & Stable) */
   .sidebar.sidebar-rail {
     position: fixed !important;
     left: 12px !important;
-    top: 50% !important;
-    width: 72px !important; /* Sleeker proper size */
+    top: var(--sidebar-y-pct, 50%) !important;
+    width: 72px !important; /* Sleeker rail size */
     height: auto !important;
     min-height: auto !important;
     max-height: 90vh !important;
     border-radius: 24px !important;
-    padding: 20px 0 !important; /* Centered content */
+    padding: 20px 0 !important;
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
@@ -80,27 +80,23 @@ html {
     overflow-x: hidden !important;
     z-index: 100 !important;
     transform: translateY(-50%) translateZ(0) !important;
-    backface-visibility: hidden;
-    perspective: 1000px;
-    transition: width 0.3s cubic-bezier(0.19, 1, 0.22, 1), background 0.3s ease !important;
+    transition: 
+      width 0.3s cubic-bezier(0.19, 1, 0.22, 1),
+      top 0.1s ease-out, /* Faster follow but smooth */
+      background 0.3s ease !important;
     background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)),
-                rgba(6,9,15,0.95) !important;
+                rgba(6,9,15,0.96) !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
     backdrop-filter: blur(24px) !important;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
     scrollbar-width: none;
   }
 
-  .sidebar.sidebar-rail::-webkit-scrollbar {
-    display: none;
-  }
-
   .sidebar.sidebar-rail:hover,
   .sidebar.sidebar-rail:focus-within {
     width: 240px !important;
-    align-items: stretch !important;
+    align-items: flex-start !important; /* Content to start when expanded */
     padding-inline: 12px !important;
-    border-radius: 24px !important;
   }
 
   .brand.brand-rail {
@@ -122,14 +118,14 @@ html {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    width: 56px !important;
+    width: 56px !important; /* Square icon area */
     height: 56px !important;
     padding: 0 !important;
     border-radius: 16px !important;
-    gap: 12px !important;
+    gap: 16px !important;
     transition: all 0.2s ease !important;
     color: var(--muted) !important;
-    margin: 0 auto !important; /* Centered in rail */
+    margin: 0 auto !important;
   }
 
   .sidebar-nav-button:hover,
@@ -138,8 +134,7 @@ html {
     background: rgba(255, 255, 255, 0.08) !important;
   }
 
-  .sidebar.sidebar-rail:hover .sidebar-nav-button,
-  .sidebar.sidebar-rail:focus-within .sidebar-nav-button {
+  .sidebar.sidebar-rail:hover .sidebar-nav-button {
     width: 100% !important;
     justify-content: flex-start !important;
     padding: 0 16px !important;
@@ -149,13 +144,27 @@ html {
   .sidebar-nav-label {
     display: none !important;
     white-space: nowrap !important;
-    font-size: 0.95rem !important;
+    font-size: 1rem !important;
     font-weight: 600 !important;
+    opacity: 0;
+    transition: opacity 0.3s ease;
   }
 
-  .sidebar.sidebar-rail:hover .sidebar-nav-label,
-  .sidebar.sidebar-rail:focus-within .sidebar-nav-label {
+  .sidebar.sidebar-rail:hover .sidebar-nav-label {
     display: block !important;
+    opacity: 1;
+  }
+
+  .sidebar-nav-icon {
+    width: 24px !important;
+    height: 24px !important;
+    flex-shrink: 0 !important;
+    transition: transform 0.2s ease !important;
+  }
+
+  .sidebar-nav-button:hover .sidebar-nav-icon {
+    transform: scale(1.1);
+    color: var(--gold) !important;
   }
 
   .sidebar-rail-divider {
@@ -179,16 +188,15 @@ html {
     flex: 1 !important;
     overflow-y: auto !important;
     padding: 8px 0 !important;
-    scrollbar-width: none !important; /* Firefox */
-    -ms-overflow-style: none !important;  /* IE and Edge */
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
   }
 
   .sidebar-rail-stack::-webkit-scrollbar {
-    display: none !important; /* Chrome, Safari and Opera */
+    display: none !important;
   }
 
-  .sidebar.sidebar-rail:hover .sidebar-rail-stack,
-  .sidebar.sidebar-rail:focus-within .sidebar-rail-stack {
+  .sidebar.sidebar-rail:hover .sidebar-rail-stack {
     align-items: stretch !important;
   }
 
@@ -202,29 +210,25 @@ html {
     padding: 0 !important;
     border-radius: 16px !important;
     transition: all 0.2s ease !important;
-    margin: 0 auto !important; /* Centered */
-  }
-
-  .sidebar-folder-tile:hover,
-  .sidebar-folder-tile.is-active,
-  .sidebar-icon-button:hover {
-    background: rgba(255, 255, 255, 0.08) !important;
+    margin: 0 auto !important;
+    background: rgba(255, 255, 255, 0.05) !important;
   }
 
   .sidebar.sidebar-rail:hover .sidebar-folder-tile,
   .sidebar.sidebar-rail:hover .sidebar-icon-button {
     width: 100% !important;
     justify-content: flex-start !important;
-    padding: 0 8px !important;
-    gap: 12px !important;
+    padding: 0 10px !important;
+    gap: 16px !important;
     margin: 0 !important;
   }
 
   .sidebar-folder-art {
-    width: 40px !important;
-    height: 40px !important;
-    min-width: 40px !important;
-    border-radius: 12px !important;
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    border-radius: 10px !important;
+    object-fit: cover !important;
   }
 
   .sidebar-signout-form {
@@ -243,20 +247,15 @@ html {
     justify-content: center !important;
     padding: 0 !important;
     border-radius: 16px !important;
+    margin: 0 auto !important;
     transition: all 0.2s ease !important;
-    margin: 0 auto !important; /* Centered */
-  }
-
-  .sidebar-signout-button:hover {
-    background: rgba(255, 100, 100, 0.1) !important;
-    color: #ff6b6b !important;
   }
 
   .sidebar.sidebar-rail:hover .sidebar-signout-button {
     width: 100% !important;
     justify-content: flex-start !important;
     padding: 0 16px !important;
-    gap: 12px !important;
+    gap: 16px !important;
     margin: 0 !important;
   }
 

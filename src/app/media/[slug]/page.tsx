@@ -32,6 +32,7 @@ import {
   getTmdbCollectionItems,
   getTmdbMediaDetails,
   getTmdbRelatedByFranchise,
+  getTmdbShowRelations,
   getTmdbStarterCatalog,
 } from "@/lib/sources/tmdb";
 import { matchesFranchise, isLikelyAnime } from "@/lib/franchise-utils";
@@ -895,46 +896,44 @@ async function buildFranchiseSection(media: MediaItem, animeFranchise?: AnimeFra
     }
   }
 
+  if (media.type === "show" && media.source === "tmdb") {
+    const relations = await getTmdbShowRelations(Number(media.sourceId)).catch(() => [] as MediaItem[]);
+    const combined = dedupeItems([media, ...relations]).filter((candidate) => candidate.type === "show");
+    
+    if (combined.length >= 2) {
+      const ordered = [...combined].sort((left, right) => (left.year || 0) - (right.year || 0));
+      const activeIndex = Math.max(0, ordered.findIndex((candidate) => candidate.id === media.id));
+      const title = media.details.collectionTitle ?? media.title;
+
+      return {
+        title: `${title} universe`.replace(/\b\w/g, (char) => char.toUpperCase()),
+        summary: buildFranchiseSummary(title, activeIndex, ordered.length),
+        entries: ordered.map((entry) => ({
+          id: entry.id,
+          title: entry.title,
+          meta: [entry.year || "Year TBD", `${entry.rating.toFixed(1)} / 10`, entry.details.status ?? "Series"].filter(Boolean).join(" / "),
+          href: buildMediaHref(entry),
+          badge: buildFranchiseBadge(entry.title, parseInstallmentOrder(entry.title)),
+          isActive: entry.id === media.id,
+        })),
+      };
+    }
+  }
+
   const signals = buildFranchiseSignals(media);
-  const igdbSeries =
-    media.type === "game" && media.source === "igdb" && Number.isFinite(Number(media.sourceId))
-      ? await getIgdbCollectionNeighbors(Number(media.sourceId)).catch(() => [] as MediaItem[])
-      : [];
-  const hasIgdbFranchiseLine = igdbSeries.some((entry) => entry.sourceId !== media.sourceId);
-  const pooled =
-    media.type === "game" && media.source === "igdb" && hasIgdbFranchiseLine
-      ? ([] as MediaItem[])
-      : await getFranchiseFallback(media, signals);
-  const candidates = dedupeItems([media, ...igdbSeries, ...pooled])
-    .filter((candidate) => candidate.type === media.type)
-    .filter((candidate) => !isSupplementalFranchiseCandidate(media, candidate))
+  
+  // Final fallback: Use keyword matching to find neighbors if everything else failed
+  const pooled = await getFranchiseFallback(media, signals).catch(() => [] as MediaItem[]);
+  const candidates = dedupeItems([media, ...pooled])
+    .filter((candidate) => candidate.type === media.type || (media.type === 'anime' && candidate.type === 'anime_movie') || (media.type === 'anime_movie' && candidate.type === 'anime'))
     .map((candidate) => ({
       candidate,
       score: rankFranchiseCandidate(media, candidate, signals),
     }))
     .filter((entry) => {
-      if (entry.candidate.id === media.id) {
-        return true;
-      }
-
-      if (media.type === "game") {
-        return (
-          (entry.score >= 44 || isExplicitSequelTitle(media, entry.candidate) || candidateMatchesSignal(entry.candidate, signals)) &&
-          hasStrongFranchiseConnection(media, entry.candidate, signals)
-        );
-      }
-
-      if (media.type === "movie" || media.type === "show") {
-        return (
-          (entry.score >= 40 || isExplicitSequelTitle(media, entry.candidate) || candidateMatchesSignal(entry.candidate, signals)) &&
-          hasStrongFranchiseConnection(media, entry.candidate, signals)
-        );
-      }
-
-      return (
-        (entry.score >= 46 || isExplicitSequelTitle(media, entry.candidate) || candidateMatchesSignal(entry.candidate, signals)) &&
-        hasStrongFranchiseConnection(media, entry.candidate, signals)
-      );
+      if (entry.candidate.id === media.id) return true;
+      // Much more lenient for keyword-based franchise discovery
+      return entry.score >= 35 || candidateMatchesSignal(entry.candidate, signals);
     })
     .sort((left, right) => right.score - left.score)
     .map((entry) => entry.candidate);
@@ -946,12 +945,10 @@ async function buildFranchiseSection(media: MediaItem, animeFranchise?: AnimeFra
   const ordered = [...candidates].sort((left, right) => {
     const leftOrder = parseInstallmentOrder(left.title);
     const rightOrder = parseInstallmentOrder(right.title);
-    const yearGap = (left.year || Number.MAX_SAFE_INTEGER) - (right.year || Number.MAX_SAFE_INTEGER);
-    if (yearGap !== 0) {
-      return yearGap;
-    }
+    const yearGap = (left.year || 9999) - (right.year || 9999);
+    if (yearGap !== 0) return yearGap;
     if (leftOrder !== null || rightOrder !== null) {
-      return (leftOrder ?? Number.MAX_SAFE_INTEGER) - (rightOrder ?? Number.MAX_SAFE_INTEGER);
+      return (leftOrder ?? 999) - (rightOrder ?? 999);
     }
     return left.title.localeCompare(right.title);
   });
@@ -965,7 +962,7 @@ async function buildFranchiseSection(media: MediaItem, animeFranchise?: AnimeFra
     entries: ordered.map((entry) => ({
       id: entry.id,
       title: entry.title,
-      meta: [entry.year || "Year TBD", `${entry.rating.toFixed(1)} / 10`, entry.details.entryLabel ?? entry.details.releaseInfo ?? entry.details.runtime ?? entry.details.platform ?? entry.details.status ?? "Entry"].filter(Boolean).join(" / "),
+      meta: [entry.year || "Year TBD", `${entry.rating.toFixed(1)} / 10`, entry.details.entryLabel ?? entry.details.releaseInfo ?? "Entry"].filter(Boolean).join(" / "),
       href: buildMediaHref(entry),
       badge: buildFranchiseBadge(entry.title, parseInstallmentOrder(entry.title)),
       isActive: entry.id === media.id,

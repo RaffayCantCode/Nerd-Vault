@@ -56,17 +56,11 @@ export function ExpandableRelatedSection({
 }: ExpandableRelatedSectionProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const hasContent = related.length > 0 || franchiseSection;
-
-  if (!hasContent) {
-    return null;
-  }
-
   return (
     <section className="section-stack expandable-related-section" style={{ paddingTop: 0 }}>
-      {/* Franchise Section - Always visible if it exists */}
-      {franchiseSection && (
-        <div className="franchise-wrapper">
+      {/* Franchise Section */}
+      <div className="franchise-wrapper">
+        {franchiseSection ? (
           <FranchiseRelatedSection
             title={franchiseSection.title}
             summary={franchiseSection.summary}
@@ -74,32 +68,40 @@ export function ExpandableRelatedSection({
             secondaryTitle={franchiseSection.secondaryTitle}
             secondaryEntries={franchiseSection.secondaryEntries}
           />
-        </div>
-      )}
+        ) : (
+          <div className="section-header">
+            <div>
+              <p className="eyebrow">Franchise</p>
+              <h2 className="headline" style={{ opacity: 0.5 }}>Not a part of any franchise</h2>
+              <p className="copy">This title is a standalone entry in our vault.</p>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* More Like This Header */}
-      <div className="section-header" style={{ marginTop: franchiseSection ? 40 : 0 }}>
+      <div className="section-header" style={{ marginTop: 60 }}>
         <div>
           <p className="eyebrow">Discover</p>
           <h2 className="headline">More like this</h2>
-          <p className="copy">Titles with similar genres and atmosphere to {mediaTitle}</p>
+          <p className="copy">Hand-picked titles that share the same DNA as {mediaTitle}</p>
         </div>
       </div>
 
-      {/* Similar Media - First row always visible, rest expandable */}
+      {/* Similar Media - Expandable Grid */}
       <div className={`related-media-container ${isExpanded ? "is-expanded" : "is-collapsed"}`}>
         <RelatedMediaSection items={related} />
       </div>
 
       {/* Actions Row */}
       <div className="related-actions-row">
-        <BrowseResetLink className="action-button action-button-primary">
+        <BrowseResetLink className="action-button action-button-secondary">
           Back to Browse
         </BrowseResetLink>
         
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className={`action-button ${isExpanded ? "action-button-secondary" : "action-button-gold"}`}
+          className={`action-button ${isExpanded ? "action-button-gold" : "action-button-gold"}`}
           aria-expanded={isExpanded}
         >
           {isExpanded ? "Close More" : "View More"}

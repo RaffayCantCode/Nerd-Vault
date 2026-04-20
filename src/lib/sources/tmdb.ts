@@ -626,6 +626,27 @@ export async function getTmdbCollectionItems(collectionId: number): Promise<Medi
     .filter((item) => item.year >= 1900 && item.rating >= 3.5 && !item.genres.some((g) => ["News", "Talk"].includes(g)));
 }
 
+/** Find related series or spin-offs for a show */
+export async function getTmdbShowRelations(showId: number): Promise<MediaItem[]> {
+  const [recommendations, similar] = await Promise.all([
+    tmdbFetch<TmdbPagedResponse>(`/tv/${showId}/recommendations?language=en-US&page=1`).catch(() => ({ results: [] })),
+    tmdbFetch<TmdbPagedResponse>(`/tv/${showId}/similar?language=en-US&page=1`).catch(() => ({ results: [] })),
+  ]);
+  
+  const showGenres = await getGenreMap("tv");
+  const combined = [...recommendations.results, ...similar.results];
+  const seen = new Set<number>();
+  
+  return combined
+    .filter(res => {
+      if (seen.has(res.id)) return false;
+      seen.add(res.id);
+      return true;
+    })
+    .map(res => mapMovieOrShow(res, "show", showGenres))
+    .filter(item => item.year >= 1900 && item.rating >= 4.0);
+}
+
 /** Find related movies/shows by title matching when collection data is insufficient */
 export async function getTmdbRelatedByFranchise(title: string, type: "movie" | "show", maxResults: number = 12): Promise<MediaItem[]> {
   const genres = await getGenreMap(type === "show" ? "tv" : type);

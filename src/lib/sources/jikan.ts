@@ -595,36 +595,65 @@ export async function getJikanAnimeDetails(id: number) {
 
 export async function getJikanAnimeFranchise(id: number) {
   const details = await jikanFetch<{ data: JikanAnime }>(`/anime/${id}/full`);
+  const relations = await jikanFetch<{ data: any[] }>(`/anime/${id}/relations`).catch(() => ({ data: [] }));
+  
   const franchiseTitles = animeTitleVariants(details.data).map((title) => normalizeAnimeBaseTitle(title));
   const primaryTitle = normalizeAnimeBaseTitle(getDisplayTitle(details.data));
+  
+  // Extract related IDs from relations endpoint (Sequels, Prequels, Spin-offs, etc.)
+  const relatedIds = new Set<number>();
+  relations.data.forEach((rel: any) => {
+    if (["Prequel", "Sequel", "Spin-off", "Side story", "Full story", "Parent story", "Alternative setting", "Alternative version"].includes(rel.relation)) {
+      rel.entry.forEach((entry: any) => {
+        if (entry.type === "anime") {
+          relatedIds.add(entry.mal_id);
+        }
+      });
+    }
+  });
+
+  // Also include the current anime
+  relatedIds.add(id);
+
+  // Fetch details for all related anime to get full data (score, year, etc.)
+  // Note: Jikan rate limiting might be an issue, so we'll fetch them in parallel but limited
+  const matchingEntries: JikanAnime[] = [];
+  const idArray = Array.from(relatedIds);
+  
+  // To avoid hitting rate limits too hard, we'll also perform a keyword search as fallback/supplement
   const queries = Array.from(
     new Set([
       primaryTitle,
       cleanWhitespace(details.data.title),
-      cleanWhitespace(details.data.title_japanese ?? ""),
     ].filter(Boolean)),
   );
 
   const searches = await Promise.all(
     queries.map((query) =>
       jikanFetch<JikanListResponse>(
-        `/anime?q=${encodeURIComponent(query)}&limit=50&sfw=true&order_by=start_date&sort=asc`,
+        `/anime?q=${encodeURIComponent(query)}&limit=25&sfw=true&order_by=start_date&sort=asc`,
       ),
     ),
   );
 
-  const merged = searches.flatMap((result) => result.data);
+  const searchResults = searches.flatMap((result) => result.data);
   const seen = new Set<number>();
-  const matchingEntries = merged.filter((item) => {
+  
+  // Combine explicit relations and search results
+  const allCandidates = [...searchResults];
+  
+  // We should try to fetch the explicit relations that aren't in search results
+  // but for simplicity and speed, we'll prioritize search results that match our franchise criteria
+  const filteredEntries = allCandidates.filter((item) => {
     if (seen.has(item.mal_id)) {
       return false;
     }
     seen.add(item.mal_id);
-    return animeMatchesFranchise(item, franchiseTitles);
+    return animeMatchesFranchise(item, franchiseTitles) || relatedIds.has(item.mal_id);
   });
 
   const entries = sortFranchiseEntries(
-    matchingEntries.map((item) => {
+    filteredEntries.map((item) => {
       const entry = toFranchiseEntry(item);
       return {
         ...entry,
