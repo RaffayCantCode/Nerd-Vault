@@ -49,6 +49,44 @@ export function normalizeAnimeBaseTitle(rawTitle: string, type?: string): string
 }
 
 /**
+ * Determines if content is likely anime vs live-action based on multiple indicators
+ */
+export function isLikelyAnime(title: string, genres?: string[], overview?: string, type?: string): boolean {
+  const normalized = title.toLowerCase();
+  const genreStr = genres?.join(' ').toLowerCase() || '';
+  const overviewStr = overview?.toLowerCase() || '';
+  
+  // Explicit anime indicators
+  if (type === 'anime' || normalized.includes('anime') || normalized.includes('manga')) {
+    return true;
+  }
+  
+  // Anime-specific genre indicators
+  const animeGenres = ['animation', 'anime', 'sci-fi & fantasy', 'fantasy', 'adventure', 'action & adventure'];
+  const hasAnimeGenre = genres?.some(g => animeGenres.some(ag => genreStr.includes(ag)));
+  
+  // Live-action indicators to exclude
+  const liveActionIndicators = ['live action', 'action', 'thriller', 'horror', 'drama', 'comedy'];
+  const hasLiveActionGenre = genres?.some(g => liveActionIndicators.some(lg => genreStr.includes(lg) && !g.includes('animation')));
+  
+  // Title indicators
+  const animeTitleIndicators = ['dragon ball', 'naruto', 'one piece', 'attack on titan', 'demon slayer', 'my hero academia'];
+  const hasAnimeTitle = animeTitleIndicators.some(indicator => normalized.includes(indicator));
+  
+  // Overview indicators
+  const animeOverviewIndicators = ['anime', 'manga', 'japanese', 'studio'];
+  const hasAnimeOverview = animeOverviewIndicators.some(indicator => overviewStr.includes(indicator));
+  
+  // Decision logic
+  if (hasAnimeGenre && !hasLiveActionGenre) return true;
+  if (hasAnimeTitle || hasAnimeOverview) return true;
+  if (hasLiveActionGenre && !hasAnimeGenre) return false;
+  
+  // Default to anime for safety (better to include than exclude)
+  return true;
+}
+
+/**
  * Determines if an anime is likely a movie vs series based on title and metadata
  */
 export function isAnimeMovie(title: string, episodes?: number, type?: string): boolean {

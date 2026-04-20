@@ -2,7 +2,7 @@ import { writeBrowsePageCache, writeBrowsePageCacheV2 } from "@/lib/browse-cache
 import { rankCandidatesForQuery } from "@/lib/search-utils";
 import { enrichAnimeImagesFromTmdb, TmdbAnimeImageEnrichment } from "@/lib/sources/tmdb";
 import { MediaItem } from "@/lib/types";
-import { matchesFranchise, normalizeAnimeBaseTitle, isAnimeMovie, groupAnimeByFranchise } from "@/lib/franchise-utils";
+import { matchesFranchise, normalizeAnimeBaseTitle, isAnimeMovie, groupAnimeByFranchise, isLikelyAnime } from "@/lib/franchise-utils";
 
 const JIKAN_BASE_URL = "https://api.jikan.moe/v4";
 const JIKAN_CACHE_TTL_MS = 1000 * 60 * 30;
@@ -292,16 +292,20 @@ function mapAnime(
   const title = overrides?.title || getDisplayTitle(item);
   const canonicalTitle = overrides?.collectionTitle || normalizeAnimeBaseTitle(getDisplayTitle(item));
 
+  // Determine if this is an anime movie or series
+  const isMovie = isAnimeMovie(title, item.episodes, item.type);
+  const animeType = isMovie ? 'anime-movie' : 'anime'; // Use specific anime-movie type for movies
+
   return {
     id: `jikan-anime-${item.mal_id}`,
     slug: slugify(canonicalTitle || title),
     source: "jikan",
     sourceId: String(item.mal_id),
+    type: animeType,
     title,
     originalTitle: item.title_japanese || item.title,
-    type: "anime",
     year: getAnimeYear(item),
-    rating: Number(item.score?.toFixed(1)) || 0,
+    rating: Number((item.score ?? 0).toFixed(1)) || 0,
     language: "ja",
     genres: Array.from(
       new Set([
@@ -363,7 +367,7 @@ function toFranchiseEntry(item: JikanAnime): AnimeFranchiseEntry {
     id: item.mal_id,
     title: getDisplayTitle(item),
     year: item.year ?? 0,
-    rating: Number(item.score?.toFixed(1)) || 0,
+    rating: Number((item.score ?? 0).toFixed(1)) || 0,
     status: item.status || undefined,
     episodes: item.episodes ?? undefined,
     type: item.type ?? undefined,

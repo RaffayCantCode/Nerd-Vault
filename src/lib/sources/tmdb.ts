@@ -1,6 +1,6 @@
 import { MediaItem } from "@/lib/types";
 import { rankCandidatesForQuery } from "@/lib/search-utils";
-import { matchesFranchise } from "@/lib/franchise-utils";
+import { matchesFranchise, isLikelyAnime } from "@/lib/franchise-utils";
 import { writeBrowsePageCache, writeBrowsePageCacheV2 } from "@/lib/browse-cache";
 
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
@@ -192,6 +192,11 @@ function dedupeImageUrls(images: Array<string | null | undefined>) {
   });
 }
 
+function getGenreNameFromMap(id: number, type: "movie" | "tv"): string {
+  const genreMap = type === "movie" ? cachedMovieGenres : cachedTvGenres;
+  return genreMap?.get(id) || "";
+}
+
 function mapMovieOrShow(
   item: TmdbListItem,
   type: "movie" | "show",
@@ -291,16 +296,18 @@ function isUsefulMovie(item: MediaItem) {
     item.year >= 1980 &&
     item.rating >= 5 &&
     !item.genres.some((genre) => banned.has(genre))
-  );
-}
-
 function isUsefulShow(item: MediaItem) {
   const banned = new Set(["News", "Talk", "Soap"]);
+  
+  // Filter out anime content from TMDB show API
+  const isAnimeContent = isLikelyAnime(item.title, item.genres, item.overview, 'tv');
+  
   return (
     item.language === "en" &&
+    item.rating >= 6.5 &&
     item.year >= 1980 &&
-    item.rating >= 6 &&
-    !item.genres.some((genre) => banned.has(genre))
+    !banned.has(item.genres[0] ?? "") &&
+    !isAnimeContent // Exclude anime from show results
   );
 }
 
@@ -652,6 +659,7 @@ export async function enrichAnimeImagesFromTmdb(params: {
     ),
   ]);
 
+  // Filter candidates to only include anime content
   const candidates = [
     ...(tvResults?.results.map((item) => ({ item, type: "tv" as const })) ?? []),
     ...(movieResults?.results.map((item) => ({ item, type: "movie" as const })) ?? []),
@@ -660,7 +668,17 @@ export async function enrichAnimeImagesFromTmdb(params: {
       ...entry,
       score: titleMatchScore(entry.item, titles, params.year),
     }))
-    .filter((entry) => entry.score >= 40)
+    .filter((entry) => {
+      // Must have good title match
+      if (entry.score < 40) return false;
+      
+      // Check if content is likely anime using multiple indicators
+      const genres = entry.item.genre_ids?.map(id => getGenreNameFromMap(id, entry.type === 'movie' ? 'movie' : 'tv')) || [];
+      const overview = entry.item.overview || '';
+      const title = entry.item.title || entry.item.name || '';
+      
+      return isLikelyAnime(title, genres, overview, entry.type === 'movie' ? 'movie' : 'tv');
+    })
     .sort((left, right) => right.score - left.score);
 
   const best = candidates[0];
