@@ -2,6 +2,7 @@ import { MediaItem } from "@/lib/types";
 import { rankCandidatesForQuery } from "@/lib/search-utils";
 import { matchesFranchise, isLikelyAnime } from "@/lib/franchise-utils";
 import { writeBrowsePageCache, writeBrowsePageCacheV2 } from "@/lib/browse-cache";
+import { browseJikanAnime } from "@/lib/sources/jikan";
 
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/original";
@@ -564,6 +565,17 @@ export async function browseTmdbCatalog(params: TmdbBrowseParams) {
 
   if (params.type === "show") {
     return getTmdbShowPageWithMode(page, query, genre, sort, seed);
+  }
+
+  if (params.type === "anime-movie" || params.type === "anime") {
+    // For anime types, delegate to Jikan anime catalog
+    return browseJikanAnime({
+      page,
+      query,
+      genre,
+      sort,
+      seed
+    });
   }
 
   const { movieGenres, tvGenres } = await getGenreMaps();

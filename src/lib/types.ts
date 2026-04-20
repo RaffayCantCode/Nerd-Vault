@@ -1,4 +1,4 @@
-export type MediaType = "movie" | "show" | "anime" | "anime-movie" | "game";
+export type MediaType = "movie" | "show" | "anime" | "anime-movie" | "game" | "all";
 
 export type MediaPerson = {
   name: string;
