@@ -2,7 +2,7 @@ import { writeBrowsePageCache, writeBrowsePageCacheV2 } from "@/lib/browse-cache
 import { rankCandidatesForQuery } from "@/lib/search-utils";
 import { enrichAnimeImagesFromTmdb, TmdbAnimeImageEnrichment } from "@/lib/sources/tmdb";
 import { MediaItem } from "@/lib/types";
-import { matchesFranchise } from "@/lib/franchise-utils";
+import { matchesFranchise, normalizeAnimeBaseTitle, isAnimeMovie, groupAnimeByFranchise } from "@/lib/franchise-utils";
 
 const JIKAN_BASE_URL = "https://api.jikan.moe/v4";
 const JIKAN_CACHE_TTL_MS = 1000 * 60 * 30;
@@ -211,18 +211,6 @@ function getAnimeYear(item: JikanAnime) {
   return item.year ?? item.aired?.prop?.from?.year ?? 0;
 }
 
-function normalizeAnimeBaseTitle(rawTitle: string) {
-  return cleanWhitespace(
-    rawTitle
-      .replace(/\s*:\s*the final season(?:\s+part\s+\d+)?$/i, "")
-      .replace(/\s+the final season(?:\s+part\s+\d+)?$/i, "")
-      .replace(/\s+final season(?:\s+part\s+\d+)?$/i, "")
-      .replace(/\s+\d+(?:st|nd|rd|th)\s+season$/i, "")
-      .replace(/\s+season\s+\d+$/i, "")
-      .replace(/\s+part\s+\d+$/i, "")
-      .replace(/\s+cour\s+\d+$/i, ""),
-  );
-}
 
 function animeTitleVariants(item: JikanAnime) {
   return Array.from(
@@ -425,50 +413,74 @@ function inferSeasonKey(entry: AnimeFranchiseEntry) {
 }
 
 function collapseAnimeFranchises(items: JikanAnime[]): MediaItem[] {
-  const groups = new Map<string, JikanAnime[]>();
+  // Use enhanced franchise grouping that separates movies from series
+  const animeItems = items.map(item => ({
+    id: item.mal_id.toString(),
+    title: getDisplayTitle(item),
+    episodes: item.episodes ?? undefined,
+    type: item.type ?? undefined,
+    score: item.score ?? undefined,
+    year: getAnimeYear(item) ?? undefined,
+    originalItem: item
+  }));
+  
+  const { movies, series } = groupAnimeByFranchise(animeItems);
+  
+  // Process movie groups
+  const movieResults = movies.map(([collectionTitle, entries]) => {
+    const sortedByPriority = [...entries].sort((left, right) => {
+      const scoreGap = (right.score ?? 0) - (left.score ?? 0);
+      if (scoreGap !== 0) return scoreGap;
+      return (left.year ?? 0) - (right.year ?? 0);
+    });
 
-  for (const item of items) {
-    const key = normalizeAnimeBaseTitle(getDisplayTitle(item));
-    const existing = groups.get(key) ?? [];
-    existing.push(item);
-    groups.set(key, existing);
-  }
+    const representative = sortedByPriority[0];
+    const years = entries.map((entry) => entry.year).filter((year): year is number => year !== undefined);
+    const earliestYear = years.length ? Math.min(...years) : (representative.year ?? 0);
 
-  return Array.from(groups.entries())
-    .map(([collectionTitle, entries]) => {
-      const sortedByPriority = [...entries].sort((left, right) => {
-        const scoreGap = (right.score ?? 0) - (left.score ?? 0);
-        if (scoreGap !== 0) {
-          return scoreGap;
-        }
-        return (left.year ?? 0) - (right.year ?? 0);
-      });
+    return mapAnime(
+      representative.originalItem,
+      undefined,
+      {
+        title: collectionTitle,
+        collectionTitle,
+        entryCount: entries.length,
+        entryLabel: entries.length > 1 ? `${entries.length} movies` : 'Movie',
+      },
+    );
+  });
 
-      const representative = sortedByPriority[0];
-      const years = entries.map((entry) => getAnimeYear(entry)).filter(Boolean);
-      const earliestYear = years.length ? Math.min(...years) : getAnimeYear(representative);
-      const franchiseEntries = sortFranchiseEntries(entries.map(toFranchiseEntry));
+  // Process series groups
+  const seriesResults = series.map(([collectionTitle, entries]) => {
+    const sortedByPriority = [...entries].sort((left, right) => {
+      const scoreGap = (right.score ?? 0) - (left.score ?? 0);
+      if (scoreGap !== 0) return scoreGap;
+      return (left.year ?? 0) - (right.year ?? 0);
+    });
 
-      return mapAnime(
-        {
-          ...representative,
-          year: earliestYear,
-        },
-        undefined,
-        {
-          title: collectionTitle,
-          collectionTitle,
-          entryCount: entries.length,
-          entryLabel:
-            entries.length > 1
-              ? `${entries.length} entries`
-              : representative.episodes
-                ? `${representative.episodes} episodes`
-                : undefined,
-        },
-      );
-    })
-    .filter(isUsefulAnime);
+    const representative = sortedByPriority[0];
+    const years = entries.map((entry) => entry.year).filter((year): year is number => year !== undefined);
+    const earliestYear = years.length ? Math.min(...years) : (representative.year ?? 0);
+    const franchiseEntries = sortFranchiseEntries(entries.map(entry => toFranchiseEntry(entry.originalItem)));
+
+    return mapAnime(
+      representative.originalItem,
+      undefined,
+      {
+        title: collectionTitle,
+        collectionTitle,
+        entryCount: entries.length,
+        entryLabel:
+          entries.length > 1
+            ? `${entries.length} entries`
+            : representative.originalItem.episodes
+              ? `${representative.originalItem.episodes} episodes`
+              : undefined,
+      },
+    );
+  });
+
+  return [...movieResults, ...seriesResults].filter(isUsefulAnime);
 }
 
 export async function browseJikanAnime(params: JikanBrowseParams) {
