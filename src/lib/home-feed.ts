@@ -206,14 +206,14 @@ async function gatherCandidates(type: MediaType, genres: string[], signals: stri
       withTimeout(
         browseIgdbGames({ page: 1, genre, sort: index === 0 ? "rating" : "discovery", seed: 91 + index }),
         emptyBrowseResult(),
-        5000,
+        8000,
       ),
     ),
     ...signals.map((query, index) =>
       withTimeout(
         browseIgdbGames({ page: 1, query, sort: "rating", seed: 111 + index }),
         emptyBrowseResult(),
-        5000,
+        8000,
       ),
     ),
   ]);
