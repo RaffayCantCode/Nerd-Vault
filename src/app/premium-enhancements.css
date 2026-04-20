@@ -533,20 +533,21 @@ html {
 
 /* Enhanced Search and Filters */
 .browse-search-input {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 12px 16px;
-  color: var(--text);
-  font-size: 0.95rem;
-  transition: all 200ms ease;
+  background: rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 24px !important;
+  padding: 1rem 1.5rem !important;
+  color: var(--text) !important;
+  font-size: 1.1rem !important;
+  transition: all 0.3s ease !important;
 }
 
 .browse-search-input:focus {
-  border-color: var(--gold);
-  background: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 0 0 3px rgba(3, 252, 190, 0.2);
-  outline: none;
+  border-color: var(--gold) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 0 0 3px rgba(3, 252, 190, 0.2) !important;
+  outline: none !important;
 }
 
 .browse-filter-button {

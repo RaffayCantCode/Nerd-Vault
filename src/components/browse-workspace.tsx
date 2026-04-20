@@ -37,9 +37,9 @@ function isReloadNavigation() {
 }
 
 function getBrowsePageSize(viewportWidth: number) {
-  if (viewportWidth < 768) return 32;
-  if (viewportWidth < 1680) return 48;
-  return 60;
+  if (viewportWidth < 768) return 48;
+  if (viewportWidth < 1680) return 72;
+  return 96;
 }
 
 function scrollToElementWithOffset(element: HTMLElement | null, offset: number, behavior: ScrollBehavior = "auto") {

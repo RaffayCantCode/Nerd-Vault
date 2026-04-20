@@ -2,14 +2,23 @@
 
 /* Fix hero buttons not working on mobile */
 .landing-hero-actions {
-  display: flex;
-  gap: 1.5rem;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: center;
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 1.5rem !important;
+  flex-wrap: nowrap !important;
+  justify-content: flex-start !important;
+  align-items: center !important;
   position: relative;
   z-index: 10;
-  margin-top: 1rem;
+  margin-top: 2.5rem !important;
+}
+
+.landing-actions-authenticated,
+.landing-actions-guest {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 1.5rem !important;
+  align-items: center !important;
 }
 
 .landing-hero-actions .landing-cta {
@@ -21,16 +30,14 @@
   cursor: pointer;
   position: relative;
   z-index: 5;
-  min-height: 48px;
-  min-width: 120px;
-  padding: 12px 24px;
+  min-height: 52px;
+  min-width: 140px;
+  padding: 14px 32px;
   border-radius: 12px;
   font-weight: 600;
-  font-size: 0.9rem;
-  transition: all 0.3s ease;
+  font-size: 15px;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* Fix headings being cut off */

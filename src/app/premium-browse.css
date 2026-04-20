@@ -106,22 +106,23 @@
 
 /* Premium Search Input */
 .browse-search-input {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  padding: 0.75rem 1rem;
-  color: #ffffff;
-  font-size: 0.875rem;
-  width: 100%;
-  max-width: 300px;
-  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 24px !important;
+  padding: 1rem 1.5rem !important;
+  color: #ffffff !important;
+  font-size: 1.1rem !important;
+  width: 100% !important;
+  max-width: 400px !important;
+  transition: all 0.3s ease !important;
 }
 
 .browse-search-input:focus {
-  outline: none;
-  border-color: var(--gold);
-  background: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 0 0 3px rgba(3, 252, 190, 0.2);
+  outline: none !important;
+  border-color: var(--gold) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 0 0 3px rgba(3, 252, 190, 0.25), 0 8px 24px rgba(0, 0, 0, 0.3) !important;
 }
 
 .browse-search-input::placeholder {
