@@ -993,11 +993,12 @@ input {
 }
 
 .topbar {
-  padding-top: 18px;
+  padding: 18px 24px 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 16px;
+  min-height: 80px;
 }
 
 .brand {
@@ -8002,7 +8003,7 @@ html {
   display: inline-flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 1rem 2rem;
+  padding: 1rem 2.5rem;
   border-radius: 50px;
   text-decoration: none;
   font-weight: 600;
@@ -8010,6 +8011,26 @@ html {
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  min-width: 180px;
+  justify-content: center;
+}
+
+.landing-cta::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.landing-cta:hover::before {
+  left: 100%;
 }
 
 .landing-cta-primary {
@@ -8019,8 +8040,12 @@ html {
 }
 
 .landing-cta-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 40px rgba(3, 252, 190, 0.4);
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 15px 45px rgba(3, 252, 190, 0.5);
+}
+
+.landing-cta-primary:active {
+  transform: translateY(-1px) scale(1.01);
 }
 
 .landing-cta-secondary {
@@ -8031,8 +8056,14 @@ html {
 }
 
 .landing-cta-secondary:hover {
-  background: rgba(255, 255, 255, 0.12);
-  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 15px 45px rgba(255, 255, 255, 0.1);
+}
+
+.landing-cta-secondary:active {
+  transform: translateY(-1px) scale(1.01);
 }
 
 .landing-cta-text {
@@ -8352,59 +8383,109 @@ html {
 
 /* CTA Section */
 .landing-cta {
-  padding: 6rem 2rem;
+  padding: 8rem 2rem;
   text-align: center;
   background: linear-gradient(135deg, rgba(3, 252, 190, 0.1), rgba(158, 135, 255, 0.1));
+  position: relative;
+  overflow: hidden;
+}
+
+.landing-cta::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.02) 0%, transparent 70%);
+  pointer-events: none;
 }
 
 .landing-cta-container {
-  max-width: 800px;
+  max-width: 900px;
   margin: 0 auto;
+  position: relative;
+  z-index: 1;
 }
 
 .cta-title {
-  font-size: clamp(2.5rem, 5vw, 3.5rem);
+  font-size: clamp(2.5rem, 5vw, 4rem);
   font-weight: 800;
   color: white;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
   font-family: var(--font-display), sans-serif;
+  background: linear-gradient(135deg, #ffffff, #03fcbe, #9e87ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  background-size: 200% 200%;
+  animation: gradientShift 3s ease-in-out infinite;
 }
 
 .cta-subtitle {
-  font-size: 1.25rem;
-  color: rgba(255, 255, 255, 0.8);
-  margin-bottom: 3rem;
+  font-size: 1.3rem;
+  color: rgba(255, 255, 255, 0.85);
+  margin-bottom: 3.5rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.6;
 }
 
 .cta-actions {
   display: flex;
-  gap: 1rem;
+  gap: 1.5rem;
   justify-content: center;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .cta-button {
   display: inline-flex;
   align-items: center;
-  padding: 1rem 2rem;
+  padding: 1.2rem 2.5rem;
   border-radius: 50px;
   text-decoration: none;
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 1.05rem;
   transition: all 0.3s ease;
-  min-width: 150px;
+  min-width: 180px;
   justify-content: center;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  border: none;
+  outline: none;
+}
+
+.cta-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.cta-button:hover::before {
+  left: 100%;
 }
 
 .cta-primary {
   background: linear-gradient(135deg, #03fcbe, #9e87ff);
   color: #0a0e1a;
-  box-shadow: 0 8px 32px rgba(3, 252, 190, 0.3);
+  box-shadow: 0 10px 40px rgba(3, 252, 190, 0.35);
 }
 
 .cta-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 40px rgba(3, 252, 190, 0.4);
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 20px 50px rgba(3, 252, 190, 0.5);
+}
+
+.cta-primary:active {
+  transform: translateY(-2px) scale(1.01);
 }
 
 .cta-secondary {
@@ -8416,7 +8497,13 @@ html {
 
 .cta-secondary:hover {
   background: rgba(255, 255, 255, 0.15);
-  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 20px 50px rgba(255, 255, 255, 0.15);
+}
+
+.cta-secondary:active {
+  transform: translateY(-2px) scale(1.01);
 }
 
 /* Animations */
@@ -8438,6 +8525,11 @@ html {
 @keyframes featureIconPulse {
   0%, 100% { transform: scale(1); opacity: 0.2; }
   50% { transform: scale(1.1); opacity: 0.3; }
+}
+
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
 }
 
 /* Mobile Responsive */
@@ -8483,6 +8575,13 @@ html {
   
   .landing-hero-actions {
     justify-content: center;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .landing-cta {
+    width: 100%;
+    max-width: 280px;
   }
   
   .landing-features-grid,
@@ -8493,11 +8592,25 @@ html {
   .cta-actions {
     flex-direction: column;
     align-items: center;
+    gap: 1rem;
   }
   
   .cta-button {
     width: 100%;
-    max-width: 300px;
+    max-width: 280px;
+  }
+  
+  .landing-cta {
+    padding: 6rem 1rem;
+  }
+  
+  .cta-title {
+    font-size: clamp(2rem, 6vw, 3rem);
+  }
+  
+  .cta-subtitle {
+    font-size: 1.1rem;
+    margin-bottom: 2.5rem;
   }
 }
 
@@ -8507,11 +8620,36 @@ html {
   }
   
   .landing-hero-title {
-    font-size: clamp(2rem, 8vw, 3rem);
+    font-size: clamp(1.8rem, 8vw, 2.5rem);
   }
   
   .landing-hero-subtitle {
-    font-size: 1.1rem;
+    font-size: 1rem;
+  }
+  
+  .landing-hero-badge {
+    padding: 0.4rem 0.8rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .landing-badge-text {
+    font-size: 0.9rem;
+  }
+  
+  .landing-badge-label {
+    font-size: 0.8rem;
+  }
+  
+  .landing-hero-stats {
+    gap: 1.5rem;
+  }
+  
+  .landing-stat-number {
+    font-size: 2rem;
+  }
+  
+  .landing-stat-label {
+    font-size: 0.8rem;
   }
   
   .landing-features,
@@ -8524,4 +8662,62 @@ html {
   .platform-card {
     padding: 2rem 1.5rem;
   }
+  
+  .feature-icon,
+  .platform-icon {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .feature-icon-symbol {
+    font-size: 1.5rem;
+  }
+  
+  .platform-icon {
+    font-size: 2rem;
+  }
+  
+  .landing-cta {
+    padding: 5rem 1rem;
+  }
+  
+  .cta-title {
+    font-size: clamp(1.8rem, 7vw, 2.5rem);
+  }
+  
+  .cta-subtitle {
+    font-size: 1rem;
+    margin-bottom: 2rem;
+  }
+  
+  .cta-actions {
+    gap: 0.8rem;
+  }
+  
+  .cta-button {
+    padding: 1rem 2rem;
+    font-size: 0.95rem;
+    min-width: 140px;
+  }
+}
+
+/* Small improvements for better user experience */
+.landing-cta:focus-visible,
+.cta-button:focus-visible {
+  outline: 2px solid rgba(3, 252, 190, 0.5);
+  outline-offset: 2px;
+}
+
+.landing-cta-secondary:focus-visible {
+  outline-color: rgba(158, 135, 255, 0.5);
+}
+
+/* Better loading states */
+.landing-page {
+  opacity: 0;
+  animation: fadeIn 0.6s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  to { opacity: 1; }
 }
