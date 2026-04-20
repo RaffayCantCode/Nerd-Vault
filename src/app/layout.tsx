@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Bebas_Neue, Manrope } from "next/font/google";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { AuthCookieReset } from "@/components/auth-cookie-reset";
 import "./globals.css";
 
@@ -60,6 +61,7 @@ export default function RootLayout({
       <body className={`${display.variable} ${sans.variable}`}>
         <AuthCookieReset />
         {children}
+        <SpeedInsights />
       </body>
     </html>
   );
