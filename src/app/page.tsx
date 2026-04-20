@@ -58,23 +58,19 @@ export default async function HomePage() {
                 {isSignedIn ? (
                   <div className="landing-actions-authenticated">
                     <Link href="/home" className="landing-cta landing-cta-primary">
-                      <span className="landing-cta-text">Open Your Vault</span>
-                      <span className="landing-cta-arrow">Enter</span>
+                      Open Your Vault
                     </Link>
                     <BrowseResetLink className="landing-cta landing-cta-secondary">
-                      <span className="landing-cta-text">Discover</span>
-                      <span className="landing-cta-arrow">Explore</span>
+                      Discover
                     </BrowseResetLink>
                   </div>
                 ) : (
                   <div className="landing-actions-guest">
                     <Link href="/sign-in" className="landing-cta landing-cta-primary">
-                      <span className="landing-cta-text">Start Your Collection</span>
-                      <span className="landing-cta-arrow">Begin</span>
+                      Start Your Collection
                     </Link>
                     <BrowseResetLink className="landing-cta landing-cta-secondary">
-                      <span className="landing-cta-text">Browse Free</span>
-                      <span className="landing-cta-arrow">Preview</span>
+                      Browse Free
                     </BrowseResetLink>
                   </div>
                 )}

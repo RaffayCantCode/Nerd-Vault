@@ -1,3 +1,5 @@
+@import './mobile-improvements.css';
+
 :root {
   --bg: #060911;
   --bg-soft: #0e1420;
@@ -55,10 +57,14 @@ html {
     display: none;
   }
 
-  .sidebar.sidebar-rail,
+  .sidebar.sidebar-rail {
+    width: 88px;
+    transition: width 200ms ease;
+  }
+
   .sidebar.sidebar-rail:hover,
   .sidebar.sidebar-rail:focus-within {
-    width: 116px;
+    width: 240px;
   }
 
   .brand.brand-rail {

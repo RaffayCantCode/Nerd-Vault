@@ -1,0 +1,217 @@
+/* Mobile and Sidebar Improvements */
+
+/* General mobile responsiveness */
+@media (max-width: 900px) {
+  .page-shell {
+    padding-bottom: 80px !important;
+  }
+
+  .app-shell-layout {
+    width: 100% !important;
+    padding: 8px 6px 80px 6px !important;
+  }
+
+  .catalog-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .catalog-card {
+    min-height: 200px !important;
+  }
+
+  .browse-toolbar {
+    flex-direction: column !important;
+    gap: 12px !important;
+    padding: 12px !important;
+  }
+
+  .bottom-pager {
+    padding: 16px 12px 24px !important;
+  }
+
+  .detail-view-layout {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+  }
+
+  .detail-story-panel {
+    padding: 20px !important;
+  }
+
+  .related-media-section {
+    padding: 20px 12px !important;
+  }
+
+  .folder-hero-layout {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+  }
+
+  .profile-settings-layout {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+  }
+}
+
+/* Small screen mobile */
+@media (max-width: 480px) {
+  .catalog-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .catalog-card {
+    min-height: 240px !important;
+  }
+
+  .landing-hero-title {
+    font-size: 2rem !important;
+    line-height: 1.2 !important;
+  }
+
+  .landing-hero-subtitle {
+    font-size: 0.95rem !important;
+    line-height: 1.5 !important;
+  }
+
+  .landing-features-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  .platforms-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+}
+
+/* Improved sidebar proportions for desktop */
+@media (min-width: 901px) {
+  .sidebar.sidebar-rail {
+    width: 88px !important;
+    transition: width 200ms ease !important;
+  }
+
+  .sidebar.sidebar-rail:hover,
+  .sidebar.sidebar-rail:focus-within {
+    width: 240px !important;
+  }
+}
+
+/* Enhanced mobile sidebar toggle */
+@media (max-width: 900px) {
+  .sidebar-mobile-toggle {
+    left: 0px !important;
+    width: 48px !important;
+    height: 88px !important;
+    border-radius: 0 24px 24px 0 !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.06)), rgba(6, 9, 15, 0.95) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+    transition: left 280ms ease, transform 280ms ease, opacity 280ms ease !important;
+  }
+
+  .sidebar-mobile-toggle-arrow {
+    font-size: 1.5rem !important;
+    font-weight: bold !important;
+  }
+
+  .sidebar.sidebar-rail {
+    width: min(85vw, 320px) !important;
+    border-radius: 24px !important;
+    transform: translateX(calc(-100% - 20px)) !important;
+  }
+
+  .sidebar-shell.is-mobile-open .sidebar.sidebar-rail {
+    transform: translateX(0) !important;
+  }
+
+  .sidebar-shell.is-mobile-open .sidebar-mobile-toggle {
+    left: min(85vw, 320px) !important;
+    transform: translate(-16px, -50%) !important;
+  }
+}
+
+/* Improved landing page buttons */
+@media (max-width: 900px) {
+  .landing-hero-actions {
+    flex-direction: row !important;
+    gap: 12px !important;
+    justify-content: center !important;
+    flex-wrap: wrap !important;
+  }
+
+  .landing-cta {
+    min-width: 140px !important;
+    height: 48px !important;
+    border-radius: 12px !important;
+    font-size: 0.95rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 20px !important;
+  }
+
+  .landing-cta-arrow {
+    display: none !important;
+  }
+
+  .cta-actions {
+    flex-direction: row !important;
+    gap: 12px !important;
+    justify-content: center !important;
+    flex-wrap: wrap !important;
+  }
+
+  .cta-button {
+    min-width: 140px !important;
+    height: 48px !important;
+    border-radius: 12px !important;
+    font-size: 0.95rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 20px !important;
+  }
+}
+
+@media (min-width: 901px) {
+  .landing-hero-actions {
+    flex-direction: row !important;
+    gap: 16px !important;
+    justify-content: flex-start !important;
+  }
+
+  .landing-cta {
+    min-width: 160px !important;
+    height: 52px !important;
+    border-radius: 14px !important;
+    font-size: 1rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 24px !important;
+  }
+
+  .landing-cta-arrow {
+    display: none !important;
+  }
+
+  .cta-actions {
+    flex-direction: row !important;
+    gap: 16px !important;
+    justify-content: flex-start !important;
+  }
+
+  .cta-button {
+    min-width: 160px !important;
+    height: 52px !important;
+    border-radius: 14px !important;
+    font-size: 1rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 24px !important;
+  }
+}
