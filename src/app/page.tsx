@@ -159,6 +159,68 @@ export default async function HomePage() {
           </div>
         </section>
 
+        {/* TV Shows Section */}
+        <section className="landing-tv-shows">
+          <div className="landing-tv-shows-container">
+            <div className="tv-shows-header">
+              <h2 className="tv-shows-title">Your TV Show Hub</h2>
+              <p className="tv-shows-subtitle">
+                Track every episode, manage multiple series, and never lose your place in your favorite shows
+              </p>
+            </div>
+            
+            <div className="tv-shows-grid">
+              <div className="tv-show-card tv-shows-tracking">
+                <div className="tv-show-icon">
+                  <div className="tv-show-icon-bg" />
+                  <span className="tv-show-icon-symbol">Track</span>
+                </div>
+                <h3 className="tv-show-title">Episode Tracking</h3>
+                <p className="tv-show-description">
+                  Keep perfect track of where you are in every series with automatic progress tracking and season management
+                </p>
+                <div className="tv-show-features">
+                  <span className="tv-show-feature">Season Progress</span>
+                  <span className="tv-show-feature">Episode History</span>
+                  <span className="tv-show-feature">Watch Status</span>
+                </div>
+              </div>
+              
+              <div className="tv-show-card tv-shows-discovery">
+                <div className="tv-show-icon">
+                  <div className="tv-show-icon-bg" />
+                  <span className="tv-show-icon-symbol">Discover</span>
+                </div>
+                <h3 className="tv-show-title">Smart Discovery</h3>
+                <p className="tv-show-description">
+                  Find your next binge with AI-powered recommendations based on your viewing history and preferences
+                </p>
+                <div className="tv-show-features">
+                  <span className="tv-show-feature">Personalized</span>
+                  <span className="tv-show-feature">Trending Shows</span>
+                  <span className="tv-show-feature">Genre Matching</span>
+                </div>
+              </div>
+              
+              <div className="tv-show-card tv-shows-management">
+                <div className="tv-show-icon">
+                  <div className="tv-show-icon-bg" />
+                  <span className="tv-show-icon-symbol">Manage</span>
+                </div>
+                <h3 className="tv-show-title">Series Management</h3>
+                <p className="tv-show-description">
+                  Organize your shows with custom lists, watch queues, and smart folders for perfect content curation
+                </p>
+                <div className="tv-show-features">
+                  <span className="tv-show-feature">Custom Lists</span>
+                  <span className="tv-show-feature">Watch Queue</span>
+                  <span className="tv-show-feature">Smart Folders</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Platform Section */}
         <section className="landing-platforms">
           <div className="landing-platforms-container">

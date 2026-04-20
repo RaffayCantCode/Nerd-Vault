@@ -1,13 +1,48 @@
 import Link from "next/link";
 import { CatalogCard } from "@/components/catalog-card";
 import { HomeFeed } from "@/lib/home-feed";
+import { NVLoader } from "@/components/nv-loader";
 
 const SECTION_ORDER = [
   { key: "movie", label: "Movies" },
-  { key: "show", label: "Shows" },
   { key: "anime", label: "Anime" },
   { key: "game", label: "Games" },
 ] as const;
+
+// Loading state component
+function HomeWorkspaceLoading() {
+  return (
+    <main className="workspace">
+      <section className="workspace-hero glass home-hero">
+        <div className="home-hero-backdrop" aria-hidden="true" />
+        <div className="workspace-hero-grid">
+          <div className="workspace-copy">
+            <div className="skeleton" style={{ width: '120px', height: '24px', marginBottom: '16px', borderRadius: '8px' }} />
+            <div className="skeleton" style={{ width: '300px', height: '48px', marginBottom: '16px', borderRadius: '8px' }} />
+            <div className="skeleton" style={{ width: '100%', maxWidth: '600px', height: '20px', marginBottom: '12px', borderRadius: '4px' }} />
+            <div className="skeleton" style={{ width: '100%', maxWidth: '500px', height: '20px', marginBottom: '24px', borderRadius: '4px' }} />
+            <div className="skeleton" style={{ width: '400px', height: '40px', borderRadius: '8px' }} />
+          </div>
+          <aside className="info-panel glass home-hero-panel">
+            <div className="skeleton" style={{ width: '100%', height: '200px', borderRadius: '12px' }} />
+          </aside>
+        </div>
+      </section>
+      
+      <div className="section-stack">
+        <div className="section-header">
+          <div className="skeleton" style={{ width: '120px', height: '24px', marginBottom: '8px', borderRadius: '8px' }} />
+          <div className="skeleton" style={{ width: '300px', height: '36px', borderRadius: '8px' }} />
+        </div>
+        <div className="catalog-grid">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <div key={index} className="skeleton" style={{ aspectRatio: '2/3', borderRadius: '12px' }} />
+          ))}
+        </div>
+      </div>
+    </main>
+  );
+}
 
 export function HomeWorkspace({
   viewerName,
@@ -16,6 +51,11 @@ export function HomeWorkspace({
   viewerName: string;
   feed: HomeFeed;
 }) {
+  // Show loading state if feed is empty or still loading
+  if (!feed || Object.keys(feed.sections).length === 0) {
+    return <HomeWorkspaceLoading />;
+  }
+
   return (
     <main className="workspace">
       <section className="workspace-hero glass home-hero">
@@ -150,15 +190,15 @@ export function HomeWorkspace({
         )}
       </section>
 
-      {/* Dedicated TV Shows Section */}
+      {/* TV Shows Section - Series */}
       {feed.sections.show?.length > 0 && (
         <section id="home-tv-shows" className="section-stack" style={{ paddingTop: 0 }}>
           <div className="section-header">
             <div>
-              <p className="eyebrow">Featured</p>
-              <h2 className="headline">TV Shows you'll love</h2>
+              <p className="eyebrow">For you</p>
+              <h2 className="headline">Series you'll probably like</h2>
               <p className="copy" style={{ marginTop: 8, maxWidth: 760 }}>
-                Handpicked TV series based on your viewing history and preferences. From ongoing favorites to hidden gems waiting to be discovered.
+                TV series picked based on your viewing history and preferences. From ongoing favorites to hidden gems waiting to be discovered.
               </p>
             </div>
           </div>
@@ -170,7 +210,7 @@ export function HomeWorkspace({
           {feed.sections.show.length > 12 && (
             <div className="section-actions" style={{ marginTop: 24, textAlign: 'center' }}>
               <a href="#home-show" className="button button-secondary">
-                View all TV shows
+                View all series
               </a>
             </div>
           )}
