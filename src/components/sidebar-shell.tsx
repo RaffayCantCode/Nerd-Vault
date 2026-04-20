@@ -7,9 +7,7 @@ export function SidebarShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [togglePosition, setTogglePosition] = useState(50); // percentage from top
-  const [cursorY, setCursorY] = useState(50); // Vertical position (0-100)
-  const [isHoveringSidebar, setIsHoveringSidebar] = useState(false);
+  const [togglePosition, setTogglePosition] = useState(50); // percentage from top (for mobile arrow)
   const [isDesktop, setIsDesktop] = useState(false);
   const searchKey = searchParams.toString();
 
@@ -31,21 +29,6 @@ export function SidebarShell({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Instant cursor follow for desktop
-  useEffect(() => {
-    if (!isDesktop || isHoveringSidebar) return;
-
-    function handleMouseMove(e: MouseEvent) {
-      // Calculate cursor Y position relative to viewport height as a percentage
-      const yPercent = (e.clientY / window.innerHeight) * 100;
-      // Clamp to prevent the sidebar from hitting the very top/bottom edges
-      setCursorY(Math.max(10, Math.min(90, yPercent)));
-    }
-
-    window.addEventListener("mousemove", handleMouseMove);
-    return () => window.removeEventListener("mousemove", handleMouseMove);
-  }, [isDesktop, isHoveringSidebar]);
-
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -57,27 +40,16 @@ export function SidebarShell({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Update toggle position based on scroll - for mobile arrow
+  // Mobile arrow follow logic - uses simpler fixed viewport positioning
+  // No complex scroll height math needed for a "fixed" feel
   const handleScroll = useCallback(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || isDesktop) return;
     
-    window.requestAnimationFrame(() => {
-      const scrollTop = window.scrollY;
-      const windowHeight = window.innerHeight;
-      const docHeight = document.documentElement.scrollHeight;
-      const scrollableDistance = docHeight - windowHeight;
-      
-      if (scrollableDistance <= 0) {
-        setTogglePosition(50);
-        return;
-      }
-      
-      const scrollPercent = scrollTop / scrollableDistance;
-      const clampedPercent = Math.max(15, Math.min(85, scrollPercent * 70 + 15));
-      
-      setTogglePosition(clampedPercent);
-    });
-  }, []);
+    // We keep the arrow at 50% of the viewport height (fixed position via CSS)
+    // But we can add a tiny bit of "lag" or "bounce" if we wanted. 
+    // For now, let's keep it simple as requested.
+    setTogglePosition(50);
+  }, [isDesktop]);
 
   useEffect(() => {
     window.addEventListener("scroll", handleScroll, { passive: true });
@@ -102,18 +74,8 @@ export function SidebarShell({ children }: { children: ReactNode }) {
     };
   }, [isMobileOpen]);
 
-  // Sidebar position vars
-  const sidebarStyles = isDesktop ? {
-    '--sidebar-y-pct': `${cursorY}%`,
-  } as React.CSSProperties : {};
-
   return (
-    <div 
-      className={`sidebar-shell ${isMobileOpen ? "is-mobile-open" : ""}`}
-      onMouseEnter={() => setIsHoveringSidebar(true)}
-      onMouseLeave={() => setIsHoveringSidebar(false)}
-      style={sidebarStyles}
-    >
+    <div className={`sidebar-shell ${isMobileOpen ? "is-mobile-open" : ""}`}>
       <button
         type="button"
         className="sidebar-mobile-toggle glass"

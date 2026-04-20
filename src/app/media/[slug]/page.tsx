@@ -920,54 +920,9 @@ async function buildFranchiseSection(media: MediaItem, animeFranchise?: AnimeFra
     }
   }
 
-  const signals = buildFranchiseSignals(media);
-  
-  // Final fallback: Use keyword matching to find neighbors if everything else failed
-  const pooled = await getFranchiseFallback(media, signals).catch(() => [] as MediaItem[]);
-  const candidates = dedupeItems([media, ...pooled])
-    .filter((candidate) => candidate.type === media.type || (media.type === 'anime' && candidate.type === 'anime_movie') || (media.type === 'anime_movie' && candidate.type === 'anime'))
-    .map((candidate) => ({
-      candidate,
-      score: rankFranchiseCandidate(media, candidate, signals),
-    }))
-    .filter((entry) => {
-      if (entry.candidate.id === media.id) return true;
-      // Much more lenient for keyword-based franchise discovery
-      return entry.score >= 35 || candidateMatchesSignal(entry.candidate, signals);
-    })
-    .sort((left, right) => right.score - left.score)
-    .map((entry) => entry.candidate);
-
-  if (candidates.length < 2) {
-    return null;
-  }
-
-  const ordered = [...candidates].sort((left, right) => {
-    const leftOrder = parseInstallmentOrder(left.title);
-    const rightOrder = parseInstallmentOrder(right.title);
-    const yearGap = (left.year || 9999) - (right.year || 9999);
-    if (yearGap !== 0) return yearGap;
-    if (leftOrder !== null || rightOrder !== null) {
-      return (leftOrder ?? 999) - (rightOrder ?? 999);
-    }
-    return left.title.localeCompare(right.title);
-  });
-
-  const activeIndex = Math.max(0, ordered.findIndex((candidate) => candidate.id === media.id));
-  const collectionTitle = media.details.collectionTitle ?? signals[0] ?? media.title;
-
-  return {
-    title: collectionTitle.replace(/\b\w/g, (char) => char.toUpperCase()),
-    summary: buildFranchiseSummary(collectionTitle, activeIndex, ordered.length),
-    entries: ordered.map((entry) => ({
-      id: entry.id,
-      title: entry.title,
-      meta: [entry.year || "Year TBD", `${entry.rating.toFixed(1)} / 10`, entry.details.entryLabel ?? entry.details.releaseInfo ?? "Entry"].filter(Boolean).join(" / "),
-      href: buildMediaHref(entry),
-      badge: buildFranchiseBadge(entry.title, parseInstallmentOrder(entry.title)),
-      isActive: entry.id === media.id,
-    })),
-  };
+  // If no official source-specific franchise found, return null to show "Not a part of any franchise"
+  // Removing loose keyword-based fallback to maintain strictness
+  return null;
 }
 
 function normalizeSlugValue(value: string) {
