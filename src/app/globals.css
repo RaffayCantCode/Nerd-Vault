@@ -1954,9 +1954,9 @@ input {
 }
 
 .catalog-card:hover {
-  transform: translateY(-6px);
+  transform: translateY(-2px);
   border-color: rgba(255, 255, 255, 0.16);
-  box-shadow: 0 26px 44px rgba(0, 0, 0, 0.32);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
 }
 
 .catalog-card.is-navigating {
@@ -1975,7 +1975,7 @@ input {
 }
 
 .catalog-card:hover img {
-  transform: scale(1.04);
+  transform: scale(1.01);
 }
 
 .catalog-card.is-navigating img {
