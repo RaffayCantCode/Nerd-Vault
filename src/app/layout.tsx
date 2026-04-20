@@ -5,6 +5,7 @@ import { PerformanceOptimizer } from "@/components/performance-optimizer";
 import "./globals.css";
 import "./ui-fixes.css";
 import "./sidebar-fixes.css";
+import "./mobile-fixes.css";
 
 const display = Bebas_Neue({
   subsets: ["latin"],

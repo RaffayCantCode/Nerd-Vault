@@ -135,7 +135,6 @@ export function CatalogCard({
       className={`catalog-card ${isNavigating ? "is-navigating" : ""} ${isVisible ? "is-visible" : ""} ${isImageLoaded ? "has-media-loaded" : ""}`}
       prefetch={false}
       onClick={handleNavigate}
-      onFocus={warmRoute}
     >
       <ResilientMediaImage
         item={item}
