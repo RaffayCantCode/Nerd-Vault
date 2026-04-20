@@ -6,6 +6,7 @@ import "./globals.css";
 import "./ui-fixes.css";
 import "./sidebar-fixes.css";
 import "./mobile-fixes.css";
+import "./critical-fixes.css";
 
 const display = Bebas_Neue({
   subsets: ["latin"],

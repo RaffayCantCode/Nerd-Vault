@@ -178,7 +178,7 @@
 }
 
 .catalog-card:hover {
-  transform: translateY(-8px) scale(1.02);
+  /* Hover transform disabled to fix scroll glitch */
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
   border-color: rgba(255, 255, 255, 0.2);
 }
@@ -191,11 +191,6 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.4s ease;
-}
-
-.catalog-card:hover .catalog-card-image {
-  transform: scale(1.05);
 }
 
 .catalog-card-content {
