@@ -138,6 +138,7 @@ export function CatalogCard({
         fetchPriority={priority ? "high" : "auto"}
         decoding="async"
         onLoadStateChange={setIsImageLoaded}
+        className="catalog-card-image"
       />
       <div className="catalog-sheen" />
       {isNavigating ? (
@@ -145,16 +146,23 @@ export function CatalogCard({
           <NVLoader compact label="Opening..." />
         </div>
       ) : null}
-      <div className="catalog-copy">
-        <div className="meta-row">
-          <span className="pill">{item.type}</span>
-          <span className="pill">{item.year}</span>
-          <span className="pill">{item.rating.toFixed(1)}</span>
+      <div className="catalog-card-content">
+        <h3 className="catalog-card-title">{item.title}</h3>
+        <div className="catalog-card-meta">
+          <div className="catalog-card-rating">
+            <span className="rating-star">\u2605</span>
+            <span>{item.rating.toFixed(1)}</span>
+          </div>
+          <div className="catalog-card-info">
+            <span>{item.year}</span>
+            <span className="catalog-card-type">{item.type}</span>
+          </div>
         </div>
-        <h3 className="catalog-title">{item.title}</h3>
-        <p className="catalog-genres">
-          {(item.genres.length ? item.genres : ["More details"]).slice(0, 3).join(" • ")}
-        </p>
+        <div className="genre-pills">
+          {(item.genres.length ? item.genres : ["More details"]).slice(0, 2).map((genre, index) => (
+            <span key={index} className="genre-pill">{genre}</span>
+          ))}
+        </div>
       </div>
     </Link>
   );

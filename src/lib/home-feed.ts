@@ -409,6 +409,8 @@ export async function buildHomeFeed(library: LibraryState): Promise<HomeFeed> {
       movie: movies,
       show: shows,
       anime,
+      "anime_movie": [],
+      all: [],
       game: games,
     },
   };

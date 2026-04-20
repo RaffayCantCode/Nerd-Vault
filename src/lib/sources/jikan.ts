@@ -293,8 +293,8 @@ function mapAnime(
   const canonicalTitle = overrides?.collectionTitle || normalizeAnimeBaseTitle(getDisplayTitle(item));
 
   // Determine if this is an anime movie or series
-  const isMovie = isAnimeMovie(title, item.episodes, item.type);
-  const animeType = isMovie ? 'anime-movie' : 'anime'; // Use specific anime-movie type for movies
+  const isMovie = isAnimeMovie(title, item.episodes ?? undefined, item.type ?? undefined);
+  const animeType = isMovie ? 'anime_movie' : 'anime'; // Use specific anime_movie type for movies
 
   return {
     id: `jikan-anime-${item.mal_id}`,

@@ -19,10 +19,10 @@ export default async function HomeHubPage() {
     );
 
     return (
-      <div className="page-shell">
-        <div className="app-shell-layout">
+      <div className="page-shell home-page">
+        <div className="app-shell-layout home-layout">
           <AppSidebar active="home" />
-          <main className="workspace">
+          <main className="workspace home-workspace">
             <AppTopBar viewerId={viewerId} viewerName={viewerName} viewerAvatar={viewerAvatar} />
             <section className="auth-screen">
               <div className="auth-screen-card glass" style={{ width: "min(100%, 1040px)" }}>
@@ -91,10 +91,10 @@ export default async function HomeHubPage() {
   const feed = await buildHomeFeed(library);
 
   return (
-    <div className="page-shell">
-      <div className="app-shell-layout">
+    <div className="page-shell home-page">
+      <div className="app-shell-layout home-layout">
         <AppSidebar active="home" initialFolders={shellData.folders} />
-        <main className="workspace">
+        <main className="workspace home-workspace">
           <AppTopBar
             viewerId={viewerId}
             viewerName={viewerName}

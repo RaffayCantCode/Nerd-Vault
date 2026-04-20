@@ -64,7 +64,7 @@ type TmdbPagedResponse = {
 };
 
 export type TmdbBrowseParams = {
-  type: "all" | "movie" | "show";
+  type: "all" | "movie" | "show" | "anime" | "anime_movie";
   page?: number;
   query?: string;
   genre?: string;
@@ -566,7 +566,7 @@ export async function browseTmdbCatalog(params: TmdbBrowseParams) {
     return getTmdbShowPageWithMode(page, query, genre, sort, seed);
   }
 
-  if (params.type === "anime-movie" || params.type === "anime") {
+  if (params.type === "anime_movie" || params.type === "anime") {
     // For anime types, delegate to Jikan anime catalog
     return browseJikanAnime({
       page,

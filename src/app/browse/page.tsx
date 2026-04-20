@@ -20,10 +20,10 @@ export default async function BrowsePage() {
   const shellData = session?.user?.id ? await getViewerShellData(session.user.id) : null;
 
   return (
-    <div className="page-shell">
-      <div className="app-shell-layout">
+    <div className="page-shell browse-page">
+      <div className="app-shell-layout browse-layout">
         <AppSidebar active="browse" initialFolders={shellData?.folders ?? []} />
-        <main className="workspace">
+        <main className="workspace browse-workspace">
           <AppTopBar
             viewerId={viewerId}
             viewerName={viewerName}

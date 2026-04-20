@@ -20,7 +20,7 @@ export function groupByFranchiseEnhanced(items: MediaItem[]): FranchiseGroup[] {
   const franchiseMap = new Map<string, FranchiseGroup>();
   
   for (const item of items) {
-    const franchiseKey = item.collectionTitle || item.title;
+    const franchiseKey = item.details.collectionTitle || item.title;
     
     if (!franchiseMap.has(franchiseKey)) {
       franchiseMap.set(franchiseKey, {
@@ -35,7 +35,7 @@ export function groupByFranchiseEnhanced(items: MediaItem[]): FranchiseGroup[] {
     const group = franchiseMap.get(franchiseKey)!;
     
     // Separate anime movies from series
-    if (item.type === 'anime-movie') {
+    if (item.type === 'anime_movie') {
       group.movies.push(item);
       group.hasMovies = true;
     } else if (item.type === 'anime') {
@@ -61,9 +61,9 @@ export function groupByFranchiseEnhanced(items: MediaItem[]): FranchiseGroup[] {
  */
 export function shouldUseEnhancedFranchiseDisplay(items: MediaItem[]): boolean {
   return items.some(item => 
-    item.type === 'anime-movie' || 
+    item.type === 'anime_movie' || 
     item.type === 'anime' || 
-    (item.collectionTitle && item.type === 'movie')
+    (item.details.collectionTitle && item.type === 'movie')
   );
 }
 
@@ -87,7 +87,7 @@ export function getFranchiseDisplayLabel(group: FranchiseGroup): string {
 export function filterByFranchiseType(items: MediaItem[], type: 'movies' | 'series'): MediaItem[] {
   return items.filter(item => {
     if (type === 'movies') {
-      return item.type === 'anime-movie' || item.type === 'movie';
+      return item.type === 'anime_movie' || item.type === 'movie';
     } else {
       return item.type === 'anime' || item.type === 'show';
     }

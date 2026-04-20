@@ -11,6 +11,7 @@ import { FranchiseRelatedSection } from "@/components/franchise-related-section"
 import { MediaActions } from "@/components/media-actions";
 import { RelatedMediaSection } from "@/components/related-media-section";
 import { ResilientMediaImage } from "@/components/resilient-media-image";
+import { PremiumMediaDetails } from "@/components/premium-media-details";
 import { auth } from "@/lib/auth";
 import { getViewerShellData } from "@/lib/vault-server";
 import { canonicalGenreLabels, sharedCanonicalGenreCount } from "@/lib/catalog-utils";
@@ -1856,13 +1857,14 @@ export default async function MediaDetailPage({
   } as Record<string, string>;
 
   return (
-    <div className="page-shell">
-      <div className="app-shell-layout">
-        <AppSidebar active="browse" initialFolders={sidebarFolders} />
+    <PremiumMediaDetails media={media}>
+      <div className="page-shell">
+        <div className="app-shell-layout">
+          <AppSidebar active="browse" initialFolders={sidebarFolders} />
 
-        <main className={`workspace detail-layout ${easterEgg?.className ?? ""}`} style={detailPaletteStyle}>
-          <DetailViewEffects />
-          <AppTopBar viewerId={viewerId} viewerName={viewerName} viewerAvatar={viewerAvatar} />
+          <main className={`workspace detail-layout ${easterEgg?.className ?? ""}`} style={detailPaletteStyle}>
+            <DetailViewEffects />
+            <AppTopBar viewerId={viewerId} viewerName={viewerName} viewerAvatar={viewerAvatar} />
           <section className="detail-hero glass">
             <div className="hero-media">
               <img
@@ -2090,5 +2092,6 @@ export default async function MediaDetailPage({
         </main>
       </div>
     </div>
+    </PremiumMediaDetails>
   );
 }

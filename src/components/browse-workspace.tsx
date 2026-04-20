@@ -1210,7 +1210,7 @@ export function BrowseWorkspace({
       )}
 
       <section className="section-stack" style={{ paddingTop: 0 }}>
-        <div className="browse-toolbar glass" ref={toolbarRef}>
+        <div className="browse-toolbar" ref={toolbarRef}>
           <div className="browse-toolbar-grid">
             <div className="browse-toolbar-copy">
               <p className="eyebrow">Search and browse</p>
@@ -1242,7 +1242,7 @@ export function BrowseWorkspace({
                 <div className="browse-live-search-row">
                   <input
                     id="browse-live-search"
-                    className="search-input browse-live-search-input"
+                    className="browse-search-input"
                     type="search"
                     placeholder="Search titles, genres, or keywords..."
                     value={query}

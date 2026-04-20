@@ -233,6 +233,7 @@ enum MediaType {
   movie
   show
   anime
+  anime_movie
   game
 }
 
