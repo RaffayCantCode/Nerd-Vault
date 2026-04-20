@@ -33,7 +33,7 @@ import {
   getTmdbRelatedByFranchise,
   getTmdbStarterCatalog,
 } from "@/lib/sources/tmdb";
-import { matchesFranchise } from "@/lib/franchise-utils";
+import { matchesFranchise, isLikelyAnime } from "@/lib/franchise-utils";
 import { MediaItem } from "@/lib/types";
 
 type AnimeFranchiseData =
@@ -814,7 +814,10 @@ function rankFranchiseCandidate(base: MediaItem, candidate: MediaItem, signals: 
 }
 
 async function buildFranchiseSection(media: MediaItem, animeFranchise?: AnimeFranchiseData): Promise<FranchiseSectionData | null> {
-  if (media.type === "anime" && animeFranchise && (animeFranchise.seasonEntries?.length || animeFranchise.entries.length > 1)) {
+  // Handle both anime series and anime movies
+  const isAnimeContent = media.type === "anime" || (media.type === "movie" && media.source === "tmdb" && isLikelyAnime(media.title, media.genres, media.overview));
+  
+  if (isAnimeContent && animeFranchise && (animeFranchise.seasonEntries?.length || animeFranchise.entries.length > 1)) {
     const sourceEntries = animeFranchise.seasonEntries?.length ? animeFranchise.seasonEntries : animeFranchise.entries;
     const mappedEntries = sourceEntries.map((entry) => ({
       id: `jikan-${entry.id}`,

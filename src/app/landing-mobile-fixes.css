@@ -3,12 +3,13 @@
 /* Fix hero buttons not working on mobile */
 .landing-hero-actions {
   display: flex;
-  gap: 1rem;
+  gap: 1.5rem;
   flex-wrap: wrap;
   justify-content: center;
   align-items: center;
   position: relative;
   z-index: 10;
+  margin-top: 1rem;
 }
 
 .landing-hero-actions .landing-cta {
@@ -74,7 +75,7 @@
 
 .cta-actions {
   display: flex;
-  gap: 1rem;
+  gap: 1.5rem;
   flex-wrap: wrap;
   justify-content: center;
   align-items: center;

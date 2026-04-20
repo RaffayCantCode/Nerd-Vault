@@ -388,6 +388,18 @@ function createSmartDedupKey(item: MediaItem): string {
   const normalizedTitle = normalizePart(item.title);
   const normalizedOriginalTitle = normalizePart(item.originalTitle || "");
   
+  // Check if this is likely an anime movie (important for cross-source deduplication)
+  const isAnimeMovie = item.type === 'anime' && 
+    (normalizedTitle.includes('movie') || 
+     normalizedTitle.includes('film') || 
+     item.details.episodeCount && item.details.episodeCount <= 3);
+  
+  // For anime movies, use anime-movie unified key to match across sources
+  if (isAnimeMovie) {
+    const movieTitle = normalizedTitle.replace(/\s*(movie|film)\s*$/i, '').trim();
+    return `anime-movie-${movieTitle}-${item.year}`;
+  }
+  
   // For anime/shows, use title + year + type as primary key
   if (item.type === 'anime' || item.type === 'show') {
     // Handle series with multiple seasons - use base title + year
