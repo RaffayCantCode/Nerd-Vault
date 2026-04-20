@@ -296,6 +296,9 @@ function isUsefulMovie(item: MediaItem) {
     item.year >= 1980 &&
     item.rating >= 5 &&
     !item.genres.some((genre) => banned.has(genre))
+  );
+}
+
 function isUsefulShow(item: MediaItem) {
   const banned = new Set(["News", "Talk", "Soap"]);
   
