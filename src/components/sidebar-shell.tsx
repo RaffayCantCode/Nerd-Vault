@@ -108,11 +108,11 @@ export function SidebarShell({ children }: { children: ReactNode }) {
   }, [isMobileOpen]);
 
   // Sidebar follow cursor effect for desktop
-   // We apply this directly to the children (the aside element) via a CSS variable
-   // or by passing it down. For simplicity, we'll use a CSS variable on the shell.
-   const sidebarFollowVars = isDesktop ? {
-     '--sidebar-follow-y': `${(cursorY - 50) * 0.25}vh`, // Even more pronounced
-   } as React.CSSProperties : {};
+  // We calculate the position based on the cursor's Y percentage in the viewport.
+  // This allows the sidebar to "travel" the left side of the page.
+  const sidebarFollowVars = isDesktop ? {
+    '--cursor-y-pct': `${cursorY}%`,
+  } as React.CSSProperties : {};
 
   return (
     <div 

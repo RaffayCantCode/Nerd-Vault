@@ -61,48 +61,59 @@ html {
     display: none !important;
   }
 
-  /* Sidebar - Desktop Rail */
+  /* Sidebar - Desktop Rail (Floating & Traveling) */
   .sidebar.sidebar-rail {
     position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    bottom: 0 !important;
-    width: 92px !important; /* Proper size */
-    height: 100vh !important;
-    min-height: 100vh !important;
-    max-height: none !important;
-    border-radius: 0 !important;
-    padding: 24px 14px !important;
+    left: 20px !important;
+    top: var(--cursor-y-pct, 50%) !important;
+    width: 80px !important; /* Sleeker proper size */
+    height: auto !important;
+    min-height: auto !important;
+    max-height: 85vh !important;
+    border-radius: 40px !important; /* Rounded vault look */
+    padding: 24px 10px !important;
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
-    gap: 16px !important;
+    gap: 12px !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
     z-index: 100 !important;
-    transition: width 0.3s cubic-bezier(0.19, 1, 0.22, 1), transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
-    transform: translateY(var(--sidebar-follow-y, 0)) translateZ(0) !important;
+    
+    /* Dynamic travel effect */
+    transform: translateY(-50%) translateZ(0) !important;
+    transition: 
+      width 0.3s cubic-bezier(0.19, 1, 0.22, 1),
+      top 0.45s cubic-bezier(0.2, 0, 0.2, 1.1), /* Smooth magnetic travel */
+      background 0.3s ease !important;
+      
     background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)),
-                rgba(6,9,15,0.97) !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+                rgba(6,9,15,0.92) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
     backdrop-filter: blur(24px) !important;
-    box-shadow: 6px 0 32px rgba(0, 0, 0, 0.4) !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5) !important;
+    scrollbar-width: none;
+  }
+
+  .sidebar.sidebar-rail::-webkit-scrollbar {
+    display: none;
   }
 
   .sidebar.sidebar-rail:hover,
   .sidebar.sidebar-rail:focus-within {
-    width: 240px !important;
+    width: 220px !important;
     align-items: stretch !important;
-    box-shadow: 10px 0 40px rgba(0, 0, 0, 0.4) !important;
+    border-radius: 24px !important;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6) !important;
   }
 
   .brand.brand-rail {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    width: 56px !important;
-    height: 56px !important;
-    margin-bottom: 12px !important;
+    width: 52px !important;
+    height: 52px !important;
+    margin-bottom: 8px !important;
     transition: all 0.2s ease !important;
   }
 
@@ -110,17 +121,17 @@ html {
   .sidebar.sidebar-rail:focus-within .brand.brand-rail {
     width: 100% !important;
     justify-content: flex-start !important;
-    padding-left: 12px !important;
+    padding-left: 10px !important;
   }
 
   .sidebar-nav-button {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    width: 52px !important;
-    height: 48px !important;
+    width: 50px !important;
+    height: 50px !important;
     padding: 0 !important;
-    border-radius: 12px !important;
+    border-radius: 16px !important;
     gap: 12px !important;
     transition: all 0.2s ease !important;
     color: var(--muted) !important;
@@ -194,7 +205,7 @@ html {
 
   /* Main Layout adjustment for fixed sidebar */
   .app-shell-layout {
-    padding-left: 100px !important; /* Slightly more space for wider sidebar */
+    padding-left: 120px !important; /* Space for the floating sidebar */
     padding-right: 0 !important; /* Full width */
     width: 100% !important;
     max-width: none !important;
