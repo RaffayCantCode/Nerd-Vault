@@ -1,5 +1,7 @@
 import { MediaItem } from "@/lib/types";
 import { rankCandidatesForQuery } from "@/lib/search-utils";
+import { matchesFranchise } from "@/lib/franchise-utils";
+import { writeBrowsePageCache, writeBrowsePageCacheV2 } from "@/lib/browse-cache";
 
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/original";
@@ -596,6 +598,28 @@ export async function getTmdbCollectionItems(collectionId: number): Promise<Medi
   return parts
     .map((part) => mapMovieOrShow(part, "movie", movieGenres))
     .filter((item) => item.year >= 1900 && item.rating >= 3.5 && !item.genres.some((g) => ["News", "Talk"].includes(g)));
+}
+
+/** Find related movies/shows by title matching when collection data is insufficient */
+export async function getTmdbRelatedByFranchise(title: string, type: "movie" | "show", maxResults: number = 12): Promise<MediaItem[]> {
+  const genres = await getGenreMap(type === "show" ? "tv" : type);
+  const searchQuery = title.replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
+  
+  // Search for similar titles
+  const searchResults = await tmdbFetch<TmdbPagedResponse>(
+    `/search/${type === "show" ? "tv" : type}?query=${encodeURIComponent(searchQuery)}&language=en-US&page=1`
+  );
+
+  const items = searchResults.results
+    .map(item => mapMovieOrShow(item, type, genres))
+    .filter(item => item.year >= 1900 && item.rating >= 3.5);
+
+  // Use improved franchise matching to filter results
+  const filteredItems = items.filter(item => 
+    matchesFranchise(item.title, item.originalTitle, undefined, [title])
+  );
+
+  return filteredItems.slice(0, maxResults);
 }
 
 export async function enrichAnimeImagesFromTmdb(params: {

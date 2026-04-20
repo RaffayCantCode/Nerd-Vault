@@ -21,6 +21,7 @@ import {
   browseIgdbGames,
   getIgdbCollectionNeighbors,
   getIgdbGameDetails,
+  getIgdbRelatedGamesByFranchise,
   getIgdbSimilarGamesForGame,
 } from "@/lib/sources/igdb";
 import { browseJikanAnime, getJikanAnimeDetails, getJikanAnimeFranchise } from "@/lib/sources/jikan";
@@ -28,8 +29,10 @@ import {
   browseTmdbCatalog,
   getTmdbCollectionItems,
   getTmdbMediaDetails,
+  getTmdbRelatedByFranchise,
   getTmdbStarterCatalog,
 } from "@/lib/sources/tmdb";
+import { matchesFranchise } from "@/lib/franchise-utils";
 import { MediaItem } from "@/lib/types";
 
 type AnimeFranchiseData =
@@ -1206,10 +1209,6 @@ function scoreRelatedCandidate(base: MediaItem, candidate: MediaItem) {
 }
 
 function scoreMoreLikeThisCandidate(base: MediaItem, candidate: MediaItem) {
-  if (candidate.type !== base.type) {
-    return -100;
-  }
-
   let score = 0;
   const sharedGenres = sharedCanonicalGenreCount(base, candidate);
   const sharedTopics = sharedTopicTokenCount(base, candidate);
@@ -1218,6 +1217,18 @@ function scoreMoreLikeThisCandidate(base: MediaItem, candidate: MediaItem) {
   const sharedCredits = candidate.credits.filter((credit) =>
     base.credits.some((baseCredit) => baseCredit.name.trim().toLowerCase() === credit.name.trim().toLowerCase()),
   ).length;
+
+  // Apply improved franchise matching for better similarity scoring
+  const isFranchiseMatch = matchesFranchise(
+    candidate.title,
+    candidate.originalTitle,
+    undefined,
+    [base.title, base.originalTitle || ''].filter(Boolean)
+  );
+  
+  if (isFranchiseMatch) {
+    score += 15; // Boost franchise matches significantly
+  }
   const yearDistance = Math.abs((candidate.year || 0) - (base.year || 0));
 
   score += 22;
@@ -1487,6 +1498,14 @@ async function getRelatedMediaRail(media: MediaItem) {
   const collected: MediaItem[] = [];
 
   if (media.type === "movie" || media.type === "show") {
+    // Add franchise-based related media for better matching
+    const franchiseRelated = await withTimeout(
+      getTmdbRelatedByFranchise(media.title, media.type as "movie" | "show", 8),
+      [] as MediaItem[],
+      1200,
+    );
+    collected.push(...franchiseRelated);
+
     const results = await Promise.allSettled(
       [media.type].flatMap((mediaType, mediaTypeIndex) => [
         withTimeout(
@@ -1560,6 +1579,14 @@ async function getRelatedMediaRail(media: MediaItem) {
         900,
       );
       collected.push(...similarFromIgdb);
+
+      // Add franchise-based related games for better matching
+      const franchiseRelated = await withTimeout(
+        getIgdbRelatedGamesByFranchise(media.title, 8),
+        [] as MediaItem[],
+        1200,
+      );
+      collected.push(...franchiseRelated);
     }
 
     const results = await Promise.allSettled([

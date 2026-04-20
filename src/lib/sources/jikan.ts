@@ -1,6 +1,8 @@
+import { writeBrowsePageCache, writeBrowsePageCacheV2 } from "@/lib/browse-cache";
+import { rankCandidatesForQuery } from "@/lib/search-ranker";
 import { enrichAnimeImagesFromTmdb, TmdbAnimeImageEnrichment } from "@/lib/sources/tmdb";
 import { MediaItem } from "@/lib/types";
-import { rankCandidatesForQuery } from "@/lib/search-utils";
+import { matchesFranchise } from "@/lib/franchise-utils";
 
 const JIKAN_BASE_URL = "https://api.jikan.moe/v4";
 const JIKAN_CACHE_TTL_MS = 1000 * 60 * 30;
@@ -252,8 +254,13 @@ function rankLocalSearchResults(items: MediaItem[], query: string) {
   return rankCandidatesForQuery(items, query, { limit: 96, minRank: 8 });
 }
 
-function animeMatchesFranchise(item: JikanAnime, franchiseKeys: Set<string>) {
-  return animeTitleVariants(item).some((title) => franchiseKeys.has(normalizeAnimeBaseTitle(title)));
+function animeMatchesFranchise(item: JikanAnime, franchiseTitles: string[]) {
+  return matchesFranchise(
+    getDisplayTitle(item),
+    item.title_english ?? undefined,
+    item.title_japanese ?? undefined,
+    franchiseTitles
+  );
 }
 
 function mapCredits(characters?: JikanCharacter[]) {
@@ -588,7 +595,7 @@ export async function getJikanAnimeDetails(id: number) {
 
 export async function getJikanAnimeFranchise(id: number) {
   const details = await jikanFetch<{ data: JikanAnime }>(`/anime/${id}/full`);
-  const franchiseKeys = new Set(animeTitleVariants(details.data).map((title) => normalizeAnimeBaseTitle(title)));
+  const franchiseTitles = animeTitleVariants(details.data).map((title) => normalizeAnimeBaseTitle(title));
   const primaryTitle = normalizeAnimeBaseTitle(getDisplayTitle(details.data));
   const queries = Array.from(
     new Set([
@@ -613,7 +620,7 @@ export async function getJikanAnimeFranchise(id: number) {
       return false;
     }
     seen.add(item.mal_id);
-    return animeMatchesFranchise(item, franchiseKeys);
+    return animeMatchesFranchise(item, franchiseTitles);
   });
 
   const entries = sortFranchiseEntries(

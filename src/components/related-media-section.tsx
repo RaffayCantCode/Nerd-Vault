@@ -16,6 +16,7 @@ export function RelatedMediaSection({
   onBeforeNavigate?: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   if (!items.length) {
     return (
@@ -31,6 +32,22 @@ export function RelatedMediaSection({
 
   const canToggle = items.length > COLLAPSED_RELATED_COUNT;
   const visibleItems = expanded ? items : items.slice(0, COLLAPSED_RELATED_COUNT);
+  const remainingCount = items.length - visibleItems.length;
+
+  const handleToggle = () => {
+    if (expanded) {
+      // Collapse immediately
+      setExpanded(false);
+    } else {
+      // Show loading state for better UX
+      setIsLoading(true);
+      // Simulate loading for smooth transition
+      setTimeout(() => {
+        setExpanded(true);
+        setIsLoading(false);
+      }, 300);
+    }
+  };
 
   return (
     <div className="related-media-section">
@@ -40,15 +57,28 @@ export function RelatedMediaSection({
         ))}
       </div>
 
-      {canToggle ? (
+      {canToggle && (
         <div className="related-media-actions">
-          <button type="button" className="button button-secondary" onClick={() => setExpanded((current) => !current)}>
-            {expanded ? "Show less related" : `Show ${items.length - visibleItems.length} more related`}
+          <button 
+            type="button" 
+            className={`button button-secondary ${isLoading ? 'loading' : ''}`} 
+            onClick={handleToggle}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <span>Loading more related titles...</span>
+            ) : expanded ? (
+              <span>Show less related</span>
+            ) : (
+              <span>View {remainingCount} more related title{remainingCount !== 1 ? 's' : ''}</span>
+            )}
           </button>
         </div>
-      ) : (
+      )}
+
+      {!canToggle && items.length > 0 && (
         <div className="related-media-actions">
-          <p className="copy">That is the full related set for this title.</p>
+          <p className="copy">That's all the related titles we found for this entry.</p>
         </div>
       )}
 

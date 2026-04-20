@@ -140,17 +140,40 @@ function rotateBuckets<T>(items: T[], offset: number) {
 function buildDiscoverySlice(items: MediaItem[], seed: number, targetSize: number) {
   if (items.length <= targetSize) return items;
 
-  const topBand = shuffleBySeed(items.slice(0, Math.min(12, items.length)), seed + 1).slice(0, Math.min(2, targetSize));
-  const middleBand = shuffleBySeed(items.slice(12, Math.min(28, items.length)), seed + 2).slice(
-    0,
-    Math.min(3, Math.max(0, targetSize - topBand.length)),
-  );
-  const deepBand = shuffleBySeed(items.slice(28), seed + 3).slice(
-    0,
-    Math.max(0, targetSize - topBand.length - middleBand.length),
-  );
+  // Sort items by rating to identify different tiers
+  const sortedByRating = [...items].sort((a, b) => b.rating - a.rating);
+  const totalItems = sortedByRating.length;
+  
+  // Define tiers for discovery
+  const popularThreshold = Math.max(8, Math.min(9, sortedByRating[Math.floor(totalItems * 0.1)]?.rating || 8));
+  const underratedThreshold = Math.max(6, Math.min(7, sortedByRating[Math.floor(totalItems * 0.6)]?.rating || 6));
+  
+  const popular = sortedByRating.filter(item => item.rating >= popularThreshold);
+  const underrated = sortedByRating.filter(item => item.rating >= underratedThreshold && item.rating < popularThreshold);
+  const hiddenGems = sortedByRating.filter(item => item.rating >= 5 && item.rating < underratedThreshold);
+  
+  // Create discovery mix: 30% popular, 40% underrated, 30% hidden gems
+  const popularCount = Math.max(1, Math.floor(targetSize * 0.3));
+  const underratedCount = Math.max(2, Math.floor(targetSize * 0.4));
+  const hiddenGemCount = Math.max(1, targetSize - popularCount - underratedCount);
+  
+  const selectedPopular = shuffleBySeed(popular, seed + 1).slice(0, popularCount);
+  const selectedUnderrated = shuffleBySeed(underrated, seed + 2).slice(0, underratedCount);
+  const selectedHiddenGems = shuffleBySeed(hiddenGems, seed + 3).slice(0, hiddenGemCount);
+  
+  // If we don't have enough items in any category, fill from others
+  const discoveryMix = [...selectedPopular, ...selectedUnderrated, ...selectedHiddenGems];
+  const remaining = targetSize - discoveryMix.length;
+  
+  if (remaining > 0) {
+    const fillerItems = shuffleBySeed(
+      sortedByRating.filter(item => !discoveryMix.includes(item)), 
+      seed + 4
+    ).slice(0, remaining);
+    discoveryMix.push(...fillerItems);
+  }
 
-  return dedupeBySource([...topBand, ...middleBand, ...deepBand]).slice(0, targetSize);
+  return dedupeBySource(discoveryMix).slice(0, targetSize);
 }
 
 function emptyPayload(page: number) {
@@ -379,21 +402,34 @@ export async function browseMixedCatalog({
   if (!safeQuery && !needsBroaderPool && page > 1) {
     const seenAcrossPages = new Set<string>();
 
-    for (let previousPage = 1; previousPage < page; previousPage += 1) {
-      const previousCacheKey = JSON.stringify({
-        page: previousPage,
-        query: safeQuery,
-        genre,
-        sort,
-        seed,
-        pageSize: safePageSize,
-      });
-      const previousPayload = mixedCatalogCache.get(previousCacheKey)?.payload;
-      previousPayload?.items.forEach((item) => seenAcrossPages.add(`${item.source}-${item.sourceId}`));
-    }
+    // Only check the immediate previous page to prevent overly aggressive deduplication
+    const previousPage = page - 1;
+    const previousCacheKey = JSON.stringify({
+      page: previousPage,
+      query: safeQuery,
+      genre,
+      sort,
+      seed,
+      pageSize: safePageSize,
+    });
+    const previousPayload = mixedCatalogCache.get(previousCacheKey)?.payload;
+    previousPayload?.items.forEach((item) => seenAcrossPages.add(`${item.source}-${item.sourceId}`));
 
+    // Allow some overlap for better discovery - only filter out exact duplicates from immediate previous page
     if (seenAcrossPages.size) {
-      finalItems = finalItems.filter((item) => !seenAcrossPages.has(`${item.source}-${item.sourceId}`));
+      const filteredItems = finalItems.filter((item) => !seenAcrossPages.has(`${item.source}-${item.sourceId}`));
+      
+      // If we filtered out too many items, allow some duplicates back to maintain page size
+      if (filteredItems.length < safePageSize * 0.7) {
+        // Keep the filtered items but add back some unique ones to fill the page
+        const needed = safePageSize - filteredItems.length;
+        const duplicatesToAdd = finalItems
+          .filter((item) => seenAcrossPages.has(`${item.source}-${item.sourceId}`))
+          .slice(0, needed);
+        finalItems = [...filteredItems, ...duplicatesToAdd];
+      } else {
+        finalItems = filteredItems;
+      }
     }
   }
 

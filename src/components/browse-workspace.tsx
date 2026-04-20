@@ -37,9 +37,9 @@ function isReloadNavigation() {
 }
 
 function getBrowsePageSize(viewportWidth: number) {
-  if (viewportWidth < 768) return 24;
-  if (viewportWidth < 1680) return 36;
-  return 40;
+  if (viewportWidth < 768) return 32;
+  if (viewportWidth < 1680) return 48;
+  return 60;
 }
 
 function scrollToElementWithOffset(element: HTMLElement | null, offset: number, behavior: ScrollBehavior = "auto") {
@@ -976,12 +976,30 @@ export function BrowseWorkspace({
   const showGridSkeletons = showPendingState && !remoteCatalog.length && !hasVisibleBrowseContent;
 
   useEffect(() => {
+    // Preload current page images first (priority)
     const nextVisible = visibleGridItems.slice(0, Math.min(18, visibleGridItems.length));
     nextVisible.forEach((item) => {
       preloadImage(item.coverUrl);
       preloadImage(item.backdropUrl);
     });
-  }, [visibleGridItems]);
+
+    // After current page images are loaded, preload next page images for smooth transitions
+    if (!isInitialLoad && !isLoading && visibleGridItems.length > 0) {
+      setTimeout(() => {
+        // Preload next page items if available
+        const nextPageKey = buildCacheKey(filter, activePage + 1, genre, deferredQuery, sort, sessionSeedRef.current, pageSize);
+        const nextPageData = prefetchedPagesRef.current[nextPageKey];
+        
+        if (nextPageData?.items?.length) {
+          const nextVisible = nextPageData.items.slice(0, Math.min(12, nextPageData.items.length));
+          nextVisible.forEach((item) => {
+            preloadImage(item.coverUrl);
+            preloadImage(item.backdropUrl);
+          });
+        }
+      }, 1000); // Start preloading after 1 second delay
+    }
+  }, [visibleGridItems, isInitialLoad, isLoading, activePage, filter, genre, deferredQuery, sort, pageSize]);
 
   function toggleWishlist(item: MediaItem) {
     const key = `${item.source}-${item.sourceId}`;
@@ -994,12 +1012,18 @@ export function BrowseWorkspace({
     void addMediaToWishlist(item);
   }
 
-  function handlePageChange(nextPage: number, source: "top" | "bottom") {
-    const clamped = Math.min(totalPages, Math.max(1, nextPage));
-    if (clamped === page) {
+  function handlePageChange(targetPage: number, source?: string) {
+    const clamped = Math.max(1, Math.min(totalPages, targetPage));
+    if (clamped === activePage) {
       return;
     }
 
+    // Scroll to top of media list instantly when changing pages
+    scrollToElementWithOffset(resultsRef.current, 80, "auto");
+    
+    // Show loading state immediately for faster perceived response
+    setIsLoading(true);
+    
     shouldScrollToToolbarRef.current = false;
     shouldScrollToResultsRef.current = true;
     scrollBehaviorRef.current = "auto";

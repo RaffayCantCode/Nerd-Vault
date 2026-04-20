@@ -1,5 +1,7 @@
+import { writeBrowsePageCache, writeBrowsePageCacheV2 } from "@/lib/browse-cache";
+import { rankCandidatesForQuery } from "@/lib/search-ranker";
 import { MediaItem } from "@/lib/types";
-import { rankCandidatesForQuery } from "@/lib/search-utils";
+import { matchesFranchise } from "@/lib/franchise-utils";
 
 const IGDB_BASE_URL = "https://api.igdb.com/v4";
 const IGDB_IMAGE_BASE_URL = "https://images.igdb.com/igdb/image/upload/t_1080p";
@@ -242,7 +244,7 @@ function mapGame(game: IgdbGame): MediaItem {
 }
 
 function isUsefulGame(game: MediaItem) {
-  return game.year >= 1980 && game.rating >= 6;
+  return game.year >= 1980 && game.rating >= 5;
 }
 
 function rankLocalSearchResults(items: MediaItem[], query: string) {
@@ -421,4 +423,22 @@ export async function getIgdbSimilarGamesForGame(gameId: number): Promise<MediaI
   );
   const ids = rows[0]?.similar_games ?? [];
   return getIgdbGamesByIds(ids);
+}
+
+/** Find related games by title matching when API similar games are insufficient */
+export async function getIgdbRelatedGamesByFranchise(gameName: string, maxResults: number = 12): Promise<MediaItem[]> {
+  // Search for games with similar titles
+  const searchQuery = gameName.replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
+  const searchResults = await igdbFetch<IgdbGame[]>(
+    `search "${searchQuery}"; fields name, summary, total_rating, first_release_date, cover, genres, platforms, involved_companies, status, collection; where total_rating > 5; limit ${maxResults * 2};`
+  );
+
+  const items = searchResults.map(mapGame).filter(isUsefulGame);
+  
+  // Use improved franchise matching to filter results
+  const filteredItems = items.filter(item => 
+    matchesFranchise(item.title, undefined, undefined, [gameName])
+  );
+
+  return filteredItems.slice(0, maxResults);
 }
