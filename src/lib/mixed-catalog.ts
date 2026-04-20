@@ -2,7 +2,7 @@ import { browseIgdbGames } from "@/lib/sources/igdb";
 import { browseJikanAnime } from "@/lib/sources/jikan";
 import { browseTmdbCatalog } from "@/lib/sources/tmdb";
 import { itemMatchesGenre } from "@/lib/catalog-utils";
-import { rankCandidatesForQuery } from "@/lib/search-utils";
+import { rankCandidatesForQuery, validateSearchResults, dedupeMediaKey } from "@/lib/search-utils";
 import { MediaItem } from "@/lib/types";
 
 const MIXED_CACHE_TTL_MS = 1000 * 60 * 10;
@@ -234,7 +234,7 @@ function writeSourceFallback(
 }
 
 async function withTimeout<T>(work: Promise<T>, fallback: T, timeoutMs = 1800) {
-  let timer: NodeJS.Timeout | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
       work,
@@ -353,7 +353,7 @@ export async function browseMixedCatalog({
     }),
   );
 
-  const searchPool = dedupeBySource(
+  const searchPool = dedupeMediaKey(
     pageResults.flatMap(({ movieEntry, showEntry, animeEntry, gameEntry }) => [
       ...movieEntry.items,
       ...showEntry.items,
@@ -383,7 +383,7 @@ export async function browseMixedCatalog({
     ];
   });
 
-  const mixed = dedupeBySource(
+  const mixed = dedupeMediaKey(
     safeQuery ? searchPool : takeBalancedBuckets(seededBuckets, Math.max(7, Math.ceil(safePageSize / 4)), safePageSize + 6),
   ).filter((item): item is MediaItem => Boolean(item));
 
@@ -399,36 +399,59 @@ export async function browseMixedCatalog({
 
   let finalItems = rankedMixed;
 
+  // Ensure NO media repeats across pages by checking all previous pages
   if (!safeQuery && !needsBroaderPool && page > 1) {
     const seenAcrossPages = new Set<string>();
 
-    // Only check the immediate previous page to prevent overly aggressive deduplication
-    const previousPage = page - 1;
-    const previousCacheKey = JSON.stringify({
-      page: previousPage,
-      query: safeQuery,
-      genre,
-      sort,
-      seed,
-      pageSize: safePageSize,
-    });
-    const previousPayload = mixedCatalogCache.get(previousCacheKey)?.payload;
-    previousPayload?.items.forEach((item) => seenAcrossPages.add(`${item.source}-${item.sourceId}`));
+    // Check all previous pages to ensure complete deduplication
+    for (let prevPage = 1; prevPage < page; prevPage++) {
+      const previousCacheKey = JSON.stringify({
+        page: prevPage,
+        query: safeQuery,
+        genre,
+        sort,
+        seed,
+        pageSize: safePageSize,
+      });
+      const previousPayload = mixedCatalogCache.get(previousCacheKey)?.payload;
+      previousPayload?.items.forEach((item) => seenAcrossPages.add(`${item.source}-${item.sourceId}`));
+    }
 
-    // Allow some overlap for better discovery - only filter out exact duplicates from immediate previous page
+    // Filter out ALL items that have appeared in previous pages
     if (seenAcrossPages.size) {
-      const filteredItems = finalItems.filter((item) => !seenAcrossPages.has(`${item.source}-${item.sourceId}`));
+      finalItems = finalItems.filter((item) => !seenAcrossPages.has(`${item.source}-${item.sourceId}`));
       
-      // If we filtered out too many items, allow some duplicates back to maintain page size
-      if (filteredItems.length < safePageSize * 0.7) {
-        // Keep the filtered items but add back some unique ones to fill the page
-        const needed = safePageSize - filteredItems.length;
-        const duplicatesToAdd = finalItems
-          .filter((item) => seenAcrossPages.has(`${item.source}-${item.sourceId}`))
-          .slice(0, needed);
-        finalItems = [...filteredItems, ...duplicatesToAdd];
-      } else {
-        finalItems = filteredItems;
+      // If we don't have enough unique items, fetch more from the next pages
+      if (finalItems.length < safePageSize) {
+        // Try to fetch additional unique items from subsequent pages
+        const additionalNeeded = safePageSize - finalItems.length;
+        const nextPage = page + 1;
+        
+        // Fetch from next page if available
+        try {
+          const nextCacheKey = JSON.stringify({
+            page: nextPage,
+            query: safeQuery,
+            genre,
+            sort,
+            seed,
+            pageSize: safePageSize,
+          });
+          
+          // If next page is not cached, we'll work with what we have
+          const nextPayload = mixedCatalogCache.get(nextCacheKey)?.payload;
+          if (nextPayload?.items?.length) {
+            const additionalItems = nextPayload.items
+              .filter((item) => !seenAcrossPages.has(`${item.source}-${item.sourceId}`))
+              .filter((item) => !finalItems.some((existing) => `${existing.source}-${existing.sourceId}` === `${item.source}-${item.sourceId}`))
+              .slice(0, additionalNeeded);
+            
+            finalItems = [...finalItems, ...additionalItems];
+          }
+        } catch (error) {
+          // If fetching fails, continue with available items
+          console.warn('Could not fetch additional items for page completion:', error);
+        }
       }
     }
   }
@@ -443,11 +466,14 @@ export async function browseMixedCatalog({
     );
   }, 1);
 
+  // Apply media validation to filter out placeholder media
+  const validatedItems = validateSearchResults(finalItems);
+
   const payload = {
     page: isSearch ? 1 : page,
     totalPages: isSearch ? 1 : Math.max(1, maxSourcePages),
-    totalResults: finalItems.length,
-    items: finalItems,
+    totalResults: validatedItems.length,
+    items: validatedItems,
   };
 
   mixedCatalogCache.set(cacheKey, {

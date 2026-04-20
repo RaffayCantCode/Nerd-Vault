@@ -20,7 +20,7 @@ function emptyBrowsePayload(): BrowsePayload {
 }
 
 async function withTimeout<T>(work: Promise<T>, fallback: T, timeoutMs: number) {
-  let timer: NodeJS.Timeout | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
 
   try {
     return await Promise.race([
@@ -66,45 +66,71 @@ function interleaveBootstrapBuckets(...buckets: MediaItem[][]) {
 
 export async function getBrowseBootstrapCatalog(seed: number) {
   const fallback = emptyBrowsePayload();
+  
+  // Load all media types with generous timeouts to ensure complete data
   const [movies, shows, anime, games] = await Promise.all([
     withTimeout(
       browseTmdbCatalog({ type: "movie", page: 1, query: "", genre: "", sort: "discovery", seed: seed + 1 }).catch(() => fallback),
       fallback,
-      900,
+      3000, // Increased from 900ms
     ),
     withTimeout(
       browseTmdbCatalog({ type: "show", page: 1, query: "", genre: "", sort: "discovery", seed: seed + 2 }).catch(() => fallback),
       fallback,
-      900,
+      3000, // Increased from 900ms
     ),
     withTimeout(
       browseJikanAnime({ page: 1, query: "", genre: "", sort: "discovery", seed: seed + 3 }).catch(() => fallback),
       fallback,
-      1200,
+      4000, // Increased from 1200ms
     ),
     withTimeout(
       browseIgdbGames({ page: 1, query: "", genre: "", sort: "discovery", seed: seed + 4 }).catch(() => fallback),
       fallback,
-      2600,
+      8000, // Increased from 2600ms to ensure games load
     ),
   ]);
 
-  const guaranteedGameItems = games.items.length
-    ? games.items
-    : (
-        await withTimeout(
-          browseIgdbGames({ page: 1, query: "", genre: "", sort: "rating", seed: seed + 44 }).catch(() => fallback),
-          fallback,
-          3600,
-        )
-      ).items;
+  // Ensure we always have games by trying multiple strategies if needed
+  let guaranteedGameItems = games.items;
+  
+  if (!guaranteedGameItems.length) {
+    console.log("Primary games fetch failed, trying backup strategy...");
+    guaranteedGameItems = (
+      await withTimeout(
+        browseIgdbGames({ page: 1, query: "", genre: "", sort: "rating", seed: seed + 44 }).catch(() => fallback),
+        fallback,
+        10000, // Increased from 3600ms
+      )
+    ).items;
+  }
+  
+  // Final fallback - try with different parameters
+  if (!guaranteedGameItems.length) {
+    console.log("Backup games fetch failed, trying final fallback...");
+    guaranteedGameItems = (
+      await withTimeout(
+        browseIgdbGames({ page: 1, query: "", genre: "", sort: "newest", seed: seed + 88 }).catch(() => fallback),
+        fallback,
+        12000, // Extended timeout for final attempt
+      )
+    ).items;
+  }
+
+  // Ensure we have items from each category, use fallbacks if needed
+  const finalMovies = movies.items.length ? movies.items : fallback.items;
+  const finalShows = shows.items.length ? shows.items : fallback.items;
+  const finalAnime = anime.items.length ? anime.items : fallback.items;
+  const finalGames = guaranteedGameItems.length ? guaranteedGameItems : fallback.items;
+
+  console.log(`Browse catalog loaded - Movies: ${finalMovies.length}, Shows: ${finalShows.length}, Anime: ${finalAnime.length}, Games: ${finalGames.length}`);
 
   return dedupeItems(
     interleaveBootstrapBuckets(
-      pickFirstUnique(movies.items, 3),
-      pickFirstUnique(shows.items, 3),
-      pickFirstUnique(anime.items, 3),
-      pickFirstUnique(guaranteedGameItems, 3),
+      pickFirstUnique(finalMovies, 3),
+      pickFirstUnique(finalShows, 3),
+      pickFirstUnique(finalAnime, 3),
+      pickFirstUnique(finalGames, 3),
     ),
   ).slice(0, 12);
 }

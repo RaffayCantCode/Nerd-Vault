@@ -7,7 +7,7 @@ import { CatalogCard } from "@/components/catalog-card";
 import { FilterChipBar } from "@/components/filter-chip-bar";
 import { NVLoader } from "@/components/nv-loader";
 import { filterCatalog, itemGenreLabels, itemMatchesGenre } from "@/lib/catalog-utils";
-import { inclusiveSearchRank } from "@/lib/search-utils";
+import { inclusiveSearchRank, validateSearchResults, dedupeMediaKey } from "@/lib/search-utils";
 import { MediaItem, MediaType } from "@/lib/types";
 import { addMediaToWishlist, fetchLibraryState, removeMediaFromWishlist, subscribeVaultChanges } from "@/lib/vault-client";
 
@@ -282,6 +282,7 @@ export function BrowseWorkspace({
   );
   const [query, setQuery] = useState(shouldResetForReload ? "" : queryFromUrl || initialState?.query || "");
   const deferredQuery = useDeferredValue(query);
+  const [urlUpdateQuery, setUrlUpdateQuery] = useState(query);
   const [genre, setGenre] = useState(shouldResetForReload ? "all" : genreFromUrl || initialState?.genre || "all");
   const [sort, setSort] = useState<SortMode>(
     shouldResetForReload
@@ -508,7 +509,16 @@ export function BrowseWorkspace({
     if (`${window.location.pathname}${window.location.search}` !== nextUrl) {
       window.history.replaceState(null, "", nextUrl);
     }
-  }, [activePage, filter, genre, query, sort]);
+  }, [activePage, filter, genre, urlUpdateQuery, sort]);
+
+  // Debounced URL updates to prevent typing glitches
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setUrlUpdateQuery(query);
+    }, 500); // 500ms delay to allow smooth typing
+
+    return () => clearTimeout(timer);
+  }, [query]);
 
   useEffect(() => {
     if (shouldResetForReload) {
@@ -673,16 +683,13 @@ export function BrowseWorkspace({
 
     // Better deduplication: prioritize remote catalog, then bootstrap, then initial catalog
     const allItems = [...remoteCatalog, ...bootstrapCatalog, ...catalog];
-    const seen = new Set<string>();
-
-    return allItems.filter((item) => {
-      const key = `${item.source}-${item.sourceId}`;
-      if (seen.has(key)) {
-        return false;
-      }
-      seen.add(key);
+    
+    const filteredItems = allItems.filter((item) => {
       return (filter === "all" || item.type === filter) && inclusiveSearchRank(item, deferredQuery) >= 10;
     });
+
+    // Apply enhanced deduplication and media validation
+    return validateSearchResults(dedupeMediaKey(filteredItems));
   }, [bootstrapCatalog, catalog, deferredQuery, filter, hasActiveSearch, remoteCatalog, typedVisible]);
 
   const knownGenreCatalog = useMemo(() => {
@@ -736,20 +743,17 @@ export function BrowseWorkspace({
     }
 
     const merged = [...remoteCatalog, ...bootstrapCatalog, ...catalog];
-    const seen = new Set<string>();
 
-    return merged.filter((item) => {
-      const key = `${item.source}-${item.sourceId}`;
-      if (seen.has(key)) {
-        return false;
-      }
-      seen.add(key);
+    const filteredItems = merged.filter((item) => {
       return (
         (filter === "all" || item.type === filter) &&
         inclusiveSearchRank(item, deferredQuery) >= 10 &&
         itemMatchesGenre(item, genre)
       );
     });
+
+    // Apply enhanced deduplication and media validation
+    return validateSearchResults(dedupeMediaKey(filteredItems));
   }, [bootstrapCatalog, catalog, deferredQuery, filter, genre, hasActiveSearch, remoteCatalog, visible]);
 
   const bootstrapHeroBaseCatalog = useMemo(() => {
@@ -1242,7 +1246,17 @@ export function BrowseWorkspace({
                     type="search"
                     placeholder="Search titles, genres, or keywords..."
                     value={query}
-                    onChange={(event) => setQuery(event.target.value)}
+                    onChange={(event) => {
+                      // Immediate state update for smooth typing
+                      setQuery(event.target.value);
+                    }}
+                    onKeyDown={(event) => {
+                      // Prevent form submission on Enter to allow smooth typing
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        handleSearchJump(event);
+                      }
+                    }}
                   />
                   <button type="submit" className="button button-primary browse-search-submit">
                     Search
