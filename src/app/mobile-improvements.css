@@ -5,8 +5,8 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -17,6 +17,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .home-panel-icon-bg {
@@ -36,28 +37,29 @@
 }
 
 .home-panel-title .eyebrow {
-  margin: 0;
+  margin: 0 0 6px 0;
   opacity: 0.8;
 }
 
 .home-panel-title .headline {
-  margin: 4px 0 0;
+  margin: 0;
   font-size: 1.1rem;
   font-weight: 600;
+  line-height: 1.3;
 }
 
 .home-panel-stats {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: 14px;
+  margin-bottom: 24px;
 }
 
 .home-stat-card {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 12px 16px;
+  padding: 14px 16px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
@@ -79,13 +81,15 @@
   background: rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   color: var(--gold);
+  flex-shrink: 0;
 }
 
 .home-stat-content {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
+  justify-content: center;
 }
 
 .home-stat-label {
@@ -93,30 +97,42 @@
   opacity: 0.7;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  line-height: 1.2;
 }
 
 .home-stat-value {
   font-size: 1.2rem;
   font-weight: 600;
   color: var(--text);
+  line-height: 1.2;
 }
 
 .home-panel-footer {
-  padding-top: 16px;
+  padding-top: 20px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: auto;
 }
 
 .home-panel-copy {
   font-size: 0.9rem;
   opacity: 0.8;
-  line-height: 1.4;
+  line-height: 1.5;
   margin: 0;
+}
+
+/* Ensure the panel fills its container properly */
+.home-hero-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  justify-content: space-between;
 }
 
 @media (max-width: 900px) {
   .home-panel-header {
     gap: 12px;
-    margin-bottom: 16px;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
   }
   
   .home-panel-icon {
@@ -128,12 +144,21 @@
     font-size: 1rem;
   }
   
+  .home-panel-title .eyebrow {
+    margin-bottom: 4px;
+  }
+  
   .home-panel-title .headline {
     font-size: 1rem;
   }
   
+  .home-panel-stats {
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  
   .home-stat-card {
-    padding: 10px 12px;
+    padding: 12px 14px;
     gap: 12px;
   }
   
@@ -142,8 +167,16 @@
     height: 32px;
   }
   
+  .home-stat-content {
+    gap: 3px;
+  }
+  
   .home-stat-value {
     font-size: 1.1rem;
+  }
+  
+  .home-panel-footer {
+    padding-top: 16px;
   }
   
   .home-panel-copy {
@@ -205,6 +238,62 @@
   }
 }
 
+/* Home Page Layout Improvements */
+.workspace {
+  padding-bottom: 60px !important;
+}
+
+.section-stack {
+  margin-bottom: 48px !important;
+}
+
+.section-stack:last-child {
+  margin-bottom: 0 !important;
+}
+
+.section-header {
+  margin-bottom: 24px !important;
+}
+
+.catalog-grid {
+  margin-bottom: 32px !important;
+}
+
+.home-upcoming-grid {
+  margin-bottom: 32px !important;
+}
+
+.folder-empty {
+  margin-bottom: 32px !important;
+}
+
+.section-actions {
+  margin-top: 32px !important;
+  margin-bottom: 16px !important;
+}
+
+/* Improved spacing for home hero */
+.home-hero {
+  margin-bottom: 48px !important;
+}
+
+/* TV Shows Section Specific Styling */
+#home-tv-shows {
+  background: linear-gradient(135deg, rgba(158, 135, 255, 0.05), rgba(3, 252, 190, 0.02));
+  border-radius: 24px;
+  padding: 32px 24px !important;
+  margin-bottom: 48px !important;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+#home-tv-shows .section-header {
+  margin-bottom: 32px !important;
+}
+
+#home-tv-shows .catalog-grid {
+  margin-bottom: 24px !important;
+}
+
 /* Small screen mobile */
 @media (max-width: 480px) {
   .catalog-grid {
@@ -234,6 +323,19 @@
   .platforms-grid {
     grid-template-columns: 1fr !important;
     gap: 16px !important;
+  }
+
+  .workspace {
+    padding-bottom: 40px !important;
+  }
+
+  .section-stack {
+    margin-bottom: 32px !important;
+  }
+
+  #home-tv-shows {
+    padding: 24px 16px !important;
+    margin-bottom: 32px !important;
   }
 }
 

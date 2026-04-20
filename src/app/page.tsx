@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { EnhancedLink } from "@/components/enhanced-link";
 import { signOutUser } from "@/app/sign-in/sign-out-action";
 import { BrowseResetLink } from "@/components/browse-reset-link";
 import { LandingAuthCard } from "@/components/landing-auth-card";

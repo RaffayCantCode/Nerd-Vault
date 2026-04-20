@@ -32,6 +32,9 @@ export function HomeWorkspace({
               <a href="#home-upcoming" className="button button-secondary profile-jump-button">
                 Coming soon
               </a>
+              <a href="#home-tv-shows" className="button button-secondary profile-jump-button">
+                TV Shows
+              </a>
               {SECTION_ORDER.map((section) => (
                 <a key={section.key} href={`#home-${section.key}`} className="button button-secondary profile-jump-button">
                   {section.label}
@@ -146,6 +149,33 @@ export function HomeWorkspace({
           </div>
         )}
       </section>
+
+      {/* Dedicated TV Shows Section */}
+      {feed.sections.show?.length > 0 && (
+        <section id="home-tv-shows" className="section-stack" style={{ paddingTop: 0 }}>
+          <div className="section-header">
+            <div>
+              <p className="eyebrow">Featured</p>
+              <h2 className="headline">TV Shows you'll love</h2>
+              <p className="copy" style={{ marginTop: 8, maxWidth: 760 }}>
+                Handpicked TV series based on your viewing history and preferences. From ongoing favorites to hidden gems waiting to be discovered.
+              </p>
+            </div>
+          </div>
+          <div className="catalog-grid">
+            {feed.sections.show.slice(0, 12).map((item, index) => (
+              <CatalogCard key={item.id} item={item} priority={index < 6} />
+            ))}
+          </div>
+          {feed.sections.show.length > 12 && (
+            <div className="section-actions" style={{ marginTop: 24, textAlign: 'center' }}>
+              <a href="#home-show" className="button button-secondary">
+                View all TV shows
+              </a>
+            </div>
+          )}
+        </section>
+      )}
 
       {SECTION_ORDER.map((section) => {
         const items = feed.sections[section.key];
