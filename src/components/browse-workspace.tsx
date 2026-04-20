@@ -1065,7 +1065,7 @@ export function BrowseWorkspace({
 
   return (
     <div className="workspace">
-      {featured ? (
+      {featured && !isInitialLoad ? (
       <section className="workspace-hero glass">
           {/* Full-bleed backdrop */}
           <div className="hero-media" key={`bg-${featuredKey}`}>

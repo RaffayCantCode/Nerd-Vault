@@ -11,121 +11,240 @@ export default async function HomePage() {
   const isSignedIn = Boolean(session?.user?.id);
 
   return (
-    <div className="page-shell">
+    <div className="page-shell landing-page">
       <SiteHeader />
 
-      <main className="container landing-shell">
-        <section className="landing-stage glass">
-          <div className="landing-stage-media">
-            <Image
-              src="https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=1800&q=80"
-              alt="NerdVault backdrop - Entertainment collection"
-              fill
-              priority
-              sizes="100vw"
-            />
+      <main className="landing-main">
+        {/* Hero Section with Premium Design */}
+        <section className="landing-hero">
+          <div className="landing-hero-background">
+            <div className="landing-hero-gradient" />
+            <div className="landing-hero-pattern" />
           </div>
-
-          <div className="landing-stage-grid">
-            <div className="landing-copy">
-              <div className="landing-brand">
-                <p className="eyebrow">Welcome to</p>
-                <h1 className="display">NerdVault</h1>
+          
+          <div className="landing-hero-content">
+            <div className="landing-hero-text">
+              <div className="landing-hero-badge">
+                <span className="landing-badge-text">NV</span>
+                <span className="landing-badge-label">NerdVault</span>
               </div>
               
-              <p className="copy landing-tagline">
-                Your personal universe of entertainment. Track, discover, and share everything you love.
+              <h1 className="landing-hero-title">
+                Your Universe of
+                <span className="landing-hero-accent">Entertainment</span>
+              </h1>
+              
+              <p className="landing-hero-subtitle">
+                The ultimate platform for tracking, discovering, and sharing everything you love. 
+                Movies, TV shows, anime, and games - all in one beautifully crafted vault.
               </p>
               
-              <p className="copy landing-description">
-                Unify your movie, TV show, anime, and game collections in one beautiful hub. Smart folders, detailed insights, and intelligent recommendations powered by TMDB, Jikan, and IGDB.
-              </p>
-
-              <div className="landing-cta-section">
+              <div className="landing-hero-stats">
+                <div className="landing-stat">
+                  <span className="landing-stat-number">3</span>
+                  <span className="landing-stat-label">Media Sources</span>
+                </div>
+                <div className="landing-stat">
+                  <span className="landing-stat-number">4</span>
+                  <span className="landing-stat-label">Content Types</span>
+                </div>
+                <div className="landing-stat">
+                  <span className="landing-stat-number">1</span>
+                  <span className="landing-stat-label">Unified Experience</span>
+                </div>
+              </div>
+              
+              <div className="landing-hero-actions">
                 {isSignedIn ? (
-                  <div className="landing-cta-signed-in">
-                    <h2 className="landing-welcome-back">Welcome back!</h2>
-                    <p className="copy landing-user-message">Continue your entertainment journey</p>
-                    <div className="button-row landing-primary-actions">
-                      <Link href="/home" className="button button-primary landing-cta-primary">
-                        Open Your Vault
-                      </Link>
-                      <BrowseResetLink className="button button-secondary landing-cta-secondary">
-                        Discover New Content
-                      </BrowseResetLink>
-                    </div>
-                    <div className="landing-secondary-actions">
-                      <Link href="/profile" className="button button-ghost">
-                        Your Profile
-                      </Link>
-                      <Link href="/support" className="button button-ghost">
-                        Help & Support
-                      </Link>
-                      <form action={signOutUser}>
-                        <button type="submit" className="button button-ghost">
-                          Sign Out
-                        </button>
-                      </form>
-                    </div>
+                  <div className="landing-actions-authenticated">
+                    <Link href="/home" className="landing-cta landing-cta-primary">
+                      <span className="landing-cta-text">Open Your Vault</span>
+                      <span className="landing-cta-arrow">Enter</span>
+                    </Link>
+                    <BrowseResetLink className="landing-cta landing-cta-secondary">
+                      <span className="landing-cta-text">Discover</span>
+                      <span className="landing-cta-arrow">Explore</span>
+                    </BrowseResetLink>
                   </div>
                 ) : (
-                  <div className="landing-cta-guest">
-                    <div className="button-row landing-primary-actions">
-                      <Link href="/sign-in" className="button button-primary landing-cta-primary">
-                        Start Your Collection
-                      </Link>
-                      <BrowseResetLink className="button button-secondary landing-cta-secondary">
-                        Browse Without Account
-                      </BrowseResetLink>
-                    </div>
-                    <div className="landing-secondary-actions">
-                      <Link href="/home" className="button button-ghost">
-                        Preview Features
-                      </Link>
-                      <Link href="/support" className="button button-ghost">
-                        Learn More
-                      </Link>
-                    </div>
+                  <div className="landing-actions-guest">
+                    <Link href="/sign-in" className="landing-cta landing-cta-primary">
+                      <span className="landing-cta-text">Start Your Collection</span>
+                      <span className="landing-cta-arrow">Begin</span>
+                    </Link>
+                    <BrowseResetLink className="landing-cta landing-cta-secondary">
+                      <span className="landing-cta-text">Browse Free</span>
+                      <span className="landing-cta-arrow">Preview</span>
+                    </BrowseResetLink>
                   </div>
                 )}
               </div>
-
-              <div className="landing-features">
-                <div className="landing-feature">
-                  <div className="landing-feature-icon"> films</div>
-                  <h3 className="landing-feature-title">Rich Media Database</h3>
-                  <p className="copy landing-feature-desc">Powered by TMDB, Jikan, and IGDB for comprehensive coverage</p>
-                </div>
-                <div className="landing-feature">
-                  <div className="landing-feature-icon"> folders</div>
-                  <h3 className="landing-feature-title">Smart Organization</h3>
-                  <p className="copy landing-feature-desc">Custom folders, watched lists, and wishlist management</p>
-                </div>
-                <div className="landing-feature">
-                  <div className="landing-feature-icon"> users</div>
-                  <h3 className="landing-feature-title">Social Discovery</h3>
-                  <p className="copy landing-feature-desc">Connect with friends, share recommendations, and explore collections</p>
+            </div>
+            
+            <div className="landing-hero-visual">
+              <div className="landing-vault-icon">
+                <div className="vault-ring vault-ring-outer" />
+                <div className="vault-ring vault-ring-middle" />
+                <div className="vault-ring vault-ring-inner" />
+                <div className="vault-core">
+                  <span className="vault-text">NV</span>
                 </div>
               </div>
+              <div className="landing-particles">
+                <div className="particle particle-1" />
+                <div className="particle particle-2" />
+                <div className="particle particle-3" />
+                <div className="particle particle-4" />
+              </div>
             </div>
-
-            <LandingAuthCard isSignedIn={isSignedIn} />
           </div>
         </section>
 
-        <section className="landing-info-section">
-          <div className="landing-info-grid">
-            <div className="landing-info-card glass">
-              <h3 className="landing-info-title">For Movie & TV Fans</h3>
-              <p className="copy">Track your watch history, create custom lists, and discover new shows with intelligent recommendations.</p>
+        {/* Features Section */}
+        <section className="landing-features">
+          <div className="landing-features-container">
+            <div className="landing-features-header">
+              <h2 className="landing-features-title">Everything You Need in One Place</h2>
+              <p className="landing-features-subtitle">
+                Powerful features designed for entertainment enthusiasts who demand the best
+              </p>
             </div>
-            <div className="landing-info-card glass">
-              <h3 className="landing-info-title">For Anime Enthusiasts</h3>
-              <p className="copy">Organize your anime collection, follow series progress, and connect with fellow anime fans.</p>
+            
+            <div className="landing-features-grid">
+              <div className="landing-feature-card">
+                <div className="feature-icon feature-icon-database">
+                  <div className="feature-icon-bg" />
+                  <span className="feature-icon-symbol">Database</span>
+                </div>
+                <h3 className="feature-title">Rich Media Database</h3>
+                <p className="feature-description">
+                  Powered by TMDB, Jikan, and IGDB for comprehensive coverage across movies, shows, anime, and games
+                </p>
+                <div className="feature-tech">
+                  <span className="tech-badge">TMDB</span>
+                  <span className="tech-badge">Jikan</span>
+                  <span className="tech-badge">IGDB</span>
+                </div>
+              </div>
+              
+              <div className="landing-feature-card">
+                <div className="feature-icon feature-icon-organization">
+                  <div className="feature-icon-bg" />
+                  <span className="feature-icon-symbol">Folders</span>
+                </div>
+                <h3 className="feature-title">Smart Organization</h3>
+                <p className="feature-description">
+                  Custom folders, watched lists, and wishlist management that adapts to your preferences
+                </p>
+                <div className="feature-tech">
+                  <span className="tech-badge">Custom</span>
+                  <span className="tech-badge">Smart</span>
+                  <span className="tech-badge">Flexible</span>
+                </div>
+              </div>
+              
+              <div className="landing-feature-card">
+                <div className="feature-icon feature-icon-social">
+                  <div className="feature-icon-bg" />
+                  <span className="feature-icon-symbol">Social</span>
+                </div>
+                <h3 className="feature-title">Social Discovery</h3>
+                <p className="feature-description">
+                  Connect with friends, share recommendations, and explore collections from like-minded users
+                </p>
+                <div className="feature-tech">
+                  <span className="tech-badge">Friends</span>
+                  <span className="tech-badge">Share</span>
+                  <span className="tech-badge">Discover</span>
+                </div>
+              </div>
             </div>
-            <div className="landing-info-card glass">
-              <h3 className="landing-info-title">For Gamers</h3>
-              <p className="copy">Log your gaming journey, manage your backlog, and discover new games across all platforms.</p>
+          </div>
+        </section>
+
+        {/* Platform Section */}
+        <section className="landing-platforms">
+          <div className="landing-platforms-container">
+            <div className="platforms-header">
+              <h2 className="platforms-title">For Every Type of Fan</h2>
+              <p className="platforms-subtitle">
+                Tailored experiences for different entertainment preferences
+              </p>
+            </div>
+            
+            <div className="platforms-grid">
+              <div className="platform-card platform-movies">
+                <div className="platform-icon">films</div>
+                <h3 className="platform-title">Movie & TV Fans</h3>
+                <p className="platform-description">
+                  Track your watch history, create custom lists, and discover new shows with intelligent recommendations
+                </p>
+                <div className="platform-features">
+                  <span className="platform-feature">Watch Tracking</span>
+                  <span className="platform-feature">Smart Lists</span>
+                  <span className="platform-feature">AI Recommendations</span>
+                </div>
+              </div>
+              
+              <div className="platform-card platform-anime">
+                <div className="platform-icon">anime</div>
+                <h3 className="platform-title">Anime Enthusiasts</h3>
+                <p className="platform-description">
+                  Organize your anime collection, follow series progress, and connect with fellow anime fans
+                </p>
+                <div className="platform-features">
+                  <span className="platform-feature">Series Tracking</span>
+                  <span className="platform-feature">Episode Progress</span>
+                  <span className="platform-feature">Community</span>
+                </div>
+              </div>
+              
+              <div className="platform-card platform-games">
+                <div className="platform-icon">games</div>
+                <h3 className="platform-title">Gamers</h3>
+                <p className="platform-description">
+                  Log your gaming journey, manage your backlog, and discover new games across all platforms
+                </p>
+                <div className="platform-features">
+                  <span className="platform-feature">Game Library</span>
+                  <span className="platform-feature">Backlog Management</span>
+                  <span className="platform-feature">Cross-Platform</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* CTA Section */}
+        <section className="landing-cta">
+          <div className="landing-cta-container">
+            <div className="cta-content">
+              <h2 className="cta-title">Ready to Build Your Collection?</h2>
+              <p className="cta-subtitle">
+                Join thousands of entertainment enthusiasts who've already discovered the better way to track their media
+              </p>
+              
+              <div className="cta-actions">
+                {isSignedIn ? (
+                  <div className="cta-authenticated">
+                    <Link href="/home" className="cta-button cta-primary">
+                      Open Your Vault
+                    </Link>
+                    <Link href="/profile" className="cta-button cta-secondary">
+                      View Profile
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="cta-guest">
+                    <Link href="/sign-in" className="cta-button cta-primary">
+                      Get Started Free
+                    </Link>
+                    <BrowseResetLink className="cta-button cta-secondary">
+                      Try Demo
+                    </BrowseResetLink>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </section>
