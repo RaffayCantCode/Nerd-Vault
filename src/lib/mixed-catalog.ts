@@ -144,34 +144,48 @@ function buildDiscoverySlice(items: MediaItem[], seed: number, targetSize: numbe
   const sortedByRating = [...items].sort((a, b) => b.rating - a.rating);
   const totalItems = sortedByRating.length;
   
-  // Define tiers for discovery
-  const popularThreshold = Math.max(8, Math.min(9, sortedByRating[Math.floor(totalItems * 0.1)]?.rating || 8));
-  const underratedThreshold = Math.max(6, Math.min(7, sortedByRating[Math.floor(totalItems * 0.6)]?.rating || 6));
+  // More aggressive discovery tiers - reduce popular content significantly
+  const popularThreshold = Math.max(8.5, Math.min(9.5, sortedByRating[Math.floor(totalItems * 0.05)]?.rating || 8.5));
+  const underratedThreshold = Math.max(6.5, Math.min(7.5, sortedByRating[Math.floor(totalItems * 0.4)]?.rating || 6.5));
+  const hiddenGemThreshold = Math.max(5, Math.min(6, sortedByRating[Math.floor(totalItems * 0.7)]?.rating || 5));
   
   const popular = sortedByRating.filter(item => item.rating >= popularThreshold);
   const underrated = sortedByRating.filter(item => item.rating >= underratedThreshold && item.rating < popularThreshold);
-  const hiddenGems = sortedByRating.filter(item => item.rating >= 5 && item.rating < underratedThreshold);
+  const hiddenGems = sortedByRating.filter(item => item.rating >= hiddenGemThreshold && item.rating < underratedThreshold);
+  const deepCuts = sortedByRating.filter(item => item.rating >= 4 && item.rating < hiddenGemThreshold);
   
-  // Create discovery mix: 30% popular, 40% underrated, 30% hidden gems
-  const popularCount = Math.max(1, Math.floor(targetSize * 0.3));
-  const underratedCount = Math.max(2, Math.floor(targetSize * 0.4));
-  const hiddenGemCount = Math.max(1, targetSize - popularCount - underratedCount);
+  // Create discovery mix: 15% popular, 25% underrated, 35% hidden gems, 25% deep cuts
+  const popularCount = Math.max(0, Math.floor(targetSize * 0.15));
+  const underratedCount = Math.max(1, Math.floor(targetSize * 0.25));
+  const hiddenGemCount = Math.max(2, Math.floor(targetSize * 0.35));
+  const deepCutCount = targetSize - popularCount - underratedCount - hiddenGemCount;
   
   const selectedPopular = shuffleBySeed(popular, seed + 1).slice(0, popularCount);
   const selectedUnderrated = shuffleBySeed(underrated, seed + 2).slice(0, underratedCount);
   const selectedHiddenGems = shuffleBySeed(hiddenGems, seed + 3).slice(0, hiddenGemCount);
+  const selectedDeepCuts = shuffleBySeed(deepCuts, seed + 4).slice(0, deepCutCount);
   
   // If we don't have enough items in any category, fill from others
-  const discoveryMix = [...selectedPopular, ...selectedUnderrated, ...selectedHiddenGems];
+  const discoveryMix = [...selectedPopular, ...selectedUnderrated, ...selectedHiddenGems, ...selectedDeepCuts];
   const remaining = targetSize - discoveryMix.length;
   
   if (remaining > 0) {
     const fillerItems = shuffleBySeed(
       sortedByRating.filter(item => !discoveryMix.includes(item)), 
-      seed + 4
+      seed + 5
     ).slice(0, remaining);
     discoveryMix.push(...fillerItems);
   }
+
+  // Add variety by year - ensure we get items from different decades
+  const currentYear = new Date().getFullYear();
+  const decades = [2020, 2010, 2000, 1990, 1980];
+  const yearVarietyItems = discoveryMix.filter(item => {
+    const itemYear = item.year || 2020;
+    return decades.some(decade => 
+      itemYear >= decade && itemYear < decade + 10
+    );
+  });
 
   return dedupeBySource(discoveryMix).slice(0, targetSize);
 }
@@ -345,7 +359,7 @@ export async function browseMixedCatalog({
             })
             .catch(() => readSourceFallback("game", sourcePage, safeQuery, "", sort)),
           readSourceFallback("game", sourcePage, safeQuery, "", sort),
-          safeQuery ? 5200 : 8500,
+          safeQuery ? 4200 : 1800,
         ),
       ]);
 
@@ -393,70 +407,38 @@ export async function browseMixedCatalog({
   const rankedMixed = safeQuery
     ? rankSearchItems(filteredMixed, safeQuery, Math.max(safePageSize * 4, 120))
     : interleaveTypePriority(
-        rotateBuckets(shuffleBySeed(filteredMixed, seed + page), seed * 7 + page * 5),
+        rotateBuckets(shuffleBySeed(filteredMixed, seed + page * 13), seed * 7 + page * 11),
         safePageSize,
       );
 
   let finalItems = rankedMixed;
 
-  // Ensure NO media repeats across pages by checking all previous pages
-  if (!safeQuery && !needsBroaderPool && page > 1) {
+  // Enhanced pagination: Ensure NO media repeats across pages
+  if (!safeQuery && page > 1) {
     const seenAcrossPages = new Set<string>();
-
-    // Check all previous pages to ensure complete deduplication
+    
+    // Check if we have cached items from previous pages
     for (let prevPage = 1; prevPage < page; prevPage++) {
-      const previousCacheKey = JSON.stringify({
-        page: prevPage,
-        query: safeQuery,
-        genre,
-        sort,
-        seed,
-        pageSize: safePageSize,
-      });
-      const previousPayload = mixedCatalogCache.get(previousCacheKey)?.payload;
-      previousPayload?.items.forEach((item) => seenAcrossPages.add(`${item.source}-${item.sourceId}`));
+      const prevCacheKey = JSON.stringify({ page: prevPage, query: safeQuery, genre, sort, seed, pageSize: safePageSize });
+      const prevCached = mixedCatalogCache.get(prevCacheKey);
+      
+      if (prevCached && prevCached.expiresAt > Date.now()) {
+        prevCached.payload.items.forEach((item: MediaItem) => {
+          seenAcrossPages.add(`${item.source}-${item.sourceId}`);
+        });
+      }
     }
 
-    // Filter out ALL items that have appeared in previous pages
-    if (seenAcrossPages.size) {
-      finalItems = finalItems.filter((item) => !seenAcrossPages.has(`${item.source}-${item.sourceId}`));
-      
-      // If we don't have enough unique items, fetch more from the next pages
-      if (finalItems.length < safePageSize) {
-        // Try to fetch additional unique items from subsequent pages
-        const additionalNeeded = safePageSize - finalItems.length;
-        const nextPage = page + 1;
-        
-        // Fetch from next page if available
-        try {
-          const nextCacheKey = JSON.stringify({
-            page: nextPage,
-            query: safeQuery,
-            genre,
-            sort,
-            seed,
-            pageSize: safePageSize,
-          });
-          
-          // If next page is not cached, we'll work with what we have
-          const nextPayload = mixedCatalogCache.get(nextCacheKey)?.payload;
-          if (nextPayload?.items?.length) {
-            const additionalItems = nextPayload.items
-              .filter((item) => !seenAcrossPages.has(`${item.source}-${item.sourceId}`))
-              .filter((item) => !finalItems.some((existing) => `${existing.source}-${existing.sourceId}` === `${item.source}-${item.sourceId}`))
-              .slice(0, additionalNeeded);
-            
-            finalItems = [...finalItems, ...additionalItems];
-          }
-        } catch (error) {
-          // If fetching fails, continue with available items
-          console.warn('Could not fetch additional items for page completion:', error);
-        }
-      }
+    // Filter out any items that have been seen in previous pages
+    if (seenAcrossPages.size > 0) {
+      finalItems = rankedMixed.filter((item: MediaItem) => {
+        const itemKey = `${item.source}-${item.sourceId}`;
+        return !seenAcrossPages.has(itemKey);
+      });
     }
   }
 
-  const maxSourcePages = pageResults.reduce((currentMax, entry) => {
+  const maxSourcePages = pageResults.reduce((currentMax: number, entry: any) => {
     return Math.max(
       currentMax,
       entry.movieEntry.totalPages ?? 1,
