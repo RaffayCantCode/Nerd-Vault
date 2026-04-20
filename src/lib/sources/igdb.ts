@@ -1,7 +1,17 @@
 import { writeBrowsePageCache, writeBrowsePageCacheV2 } from "@/lib/browse-cache";
-import { rankCandidatesForQuery } from "@/lib/search-ranker";
+import { rankCandidatesForQuery } from "@/lib/search-utils";
 import { MediaItem } from "@/lib/types";
 import { matchesFranchise } from "@/lib/franchise-utils";
+
+// Declare process.env for TypeScript
+declare const process: {
+  env: {
+    TWITCH_APP_ACCESS_TOKEN?: string;
+    IGDB_CLIENT_ID?: string;
+    IGDB_CLIENT_SECRET?: string;
+    [key: string]: string | undefined;
+  };
+};
 
 const IGDB_BASE_URL = "https://api.igdb.com/v4";
 const IGDB_IMAGE_BASE_URL = "https://images.igdb.com/igdb/image/upload/t_1080p";
@@ -102,15 +112,15 @@ function mapIgdbStatus(status?: number, releaseYear?: number) {
 }
 
 async function getIgdbToken() {
-  const existing = process.env.TWITCH_APP_ACCESS_TOKEN;
+  const existing = process.env?.TWITCH_APP_ACCESS_TOKEN;
   if (existing) return existing;
 
   if (cachedToken && cachedToken.expiresAt > Date.now()) {
     return cachedToken.value;
   }
 
-  const clientId = process.env.IGDB_CLIENT_ID;
-  const clientSecret = process.env.IGDB_CLIENT_SECRET;
+  const clientId = process.env?.IGDB_CLIENT_ID;
+  const clientSecret = process.env?.IGDB_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
     throw new Error("Missing IGDB_CLIENT_ID or IGDB_CLIENT_SECRET");
@@ -154,7 +164,7 @@ async function igdbFetch<T>(query: string, endpoint = "games") {
     return cached.payload as T;
   }
 
-  const clientId = process.env.IGDB_CLIENT_ID;
+  const clientId = process.env?.IGDB_CLIENT_ID;
   if (!clientId) {
     throw new Error("Missing IGDB_CLIENT_ID");
   }
@@ -169,7 +179,6 @@ async function igdbFetch<T>(query: string, endpoint = "games") {
       "Content-Type": "text/plain",
     },
     body: query,
-    next: { revalidate: 3600 },
   });
 
   if (!response.ok) {

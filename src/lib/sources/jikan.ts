@@ -1,5 +1,5 @@
 import { writeBrowsePageCache, writeBrowsePageCacheV2 } from "@/lib/browse-cache";
-import { rankCandidatesForQuery } from "@/lib/search-ranker";
+import { rankCandidatesForQuery } from "@/lib/search-utils";
 import { enrichAnimeImagesFromTmdb, TmdbAnimeImageEnrichment } from "@/lib/sources/tmdb";
 import { MediaItem } from "@/lib/types";
 import { matchesFranchise } from "@/lib/franchise-utils";
@@ -155,6 +155,7 @@ async function jikanFetch<T>(path: string) {
   }
 
   const response = await fetch(`${JIKAN_BASE_URL}${path}`, {
+    // @ts-ignore - Next.js specific fetch option
     next: { revalidate: 3600 },
   });
 
