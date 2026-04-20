@@ -1,7 +1,6 @@
 import { MediaItem } from "@/lib/types";
 import { rankCandidatesForQuery } from "@/lib/search-utils";
 import { matchesFranchise, isLikelyAnime } from "@/lib/franchise-utils";
-import { writeBrowsePageCache, writeBrowsePageCacheV2 } from "@/lib/browse-cache";
 import { browseJikanAnime } from "@/lib/sources/jikan";
 
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
