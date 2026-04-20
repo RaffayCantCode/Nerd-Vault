@@ -307,6 +307,19 @@ export default async function HomePage() {
             </div>
           </div>
         </section>
+
+        {/* Footer */}
+        <footer className="landing-footer">
+          <div className="landing-footer-container">
+            <div className="landing-footer-brand">
+              <span className="landing-footer-logo">NV</span>
+              <span className="landing-footer-name">NerdVault</span>
+            </div>
+            <p className="landing-footer-copy">
+              Your universe of entertainment. Movies, TV shows, anime, and games — all in one vault.
+            </p>
+          </div>
+        </footer>
       </main>
     </div>
   );
