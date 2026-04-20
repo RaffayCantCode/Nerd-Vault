@@ -1,5 +1,156 @@
 /* Mobile and Sidebar Improvements */
 
+/* Improved Home Panel Design */
+.home-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.home-panel-icon {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.home-panel-icon-bg {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--gold), var(--blue));
+  border-radius: 12px;
+  opacity: 0.8;
+}
+
+.home-panel-icon-text {
+  position: relative;
+  color: var(--bg);
+  font-weight: bold;
+  font-size: 1.1rem;
+  z-index: 1;
+}
+
+.home-panel-title .eyebrow {
+  margin: 0;
+  opacity: 0.8;
+}
+
+.home-panel-title .headline {
+  margin: 4px 0 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.home-panel-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.home-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  transition: all 200ms ease;
+}
+
+.home-stat-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+.home-stat-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  color: var(--gold);
+}
+
+.home-stat-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.home-stat-label {
+  font-size: 0.85rem;
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.home-stat-value {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.home-panel-footer {
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.home-panel-copy {
+  font-size: 0.9rem;
+  opacity: 0.8;
+  line-height: 1.4;
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .home-panel-header {
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  
+  .home-panel-icon {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .home-panel-icon-text {
+    font-size: 1rem;
+  }
+  
+  .home-panel-title .headline {
+    font-size: 1rem;
+  }
+  
+  .home-stat-card {
+    padding: 10px 12px;
+    gap: 12px;
+  }
+  
+  .home-stat-icon {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .home-stat-value {
+    font-size: 1.1rem;
+  }
+  
+  .home-panel-copy {
+    font-size: 0.85rem;
+  }
+}
+
 /* General mobile responsiveness */
 @media (max-width: 900px) {
   .page-shell {

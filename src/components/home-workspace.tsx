@@ -41,18 +41,57 @@ export function HomeWorkspace({
           </div>
 
           <aside className="info-panel glass home-hero-panel">
-            <p className="eyebrow">Taste read</p>
-            <div className="detail-side-stat">
-              <span>Upcoming alerts</span>
-              <strong>{feed.upcoming.length}</strong>
+            <div className="home-panel-header">
+              <div className="home-panel-icon">
+                <div className="home-panel-icon-bg" />
+                <span className="home-panel-icon-text">NV</span>
+              </div>
+              <div className="home-panel-title">
+                <p className="eyebrow">Taste read</p>
+                <h3 className="headline">Your vault insights</h3>
+              </div>
             </div>
-            <div className="detail-side-stat">
-              <span>For you rows</span>
-              <strong>{SECTION_ORDER.filter((section) => feed.sections[section.key].length).length}</strong>
+            <div className="home-panel-stats">
+              <div className="home-stat-card">
+                <div className="home-stat-icon">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                    <path d="M12 6v6l4 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                </div>
+                <div className="home-stat-content">
+                  <span className="home-stat-label">Upcoming</span>
+                  <strong className="home-stat-value">{feed.upcoming.length}</strong>
+                </div>
+              </div>
+              <div className="home-stat-card">
+                <div className="home-stat-icon">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+                    <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2"/>
+                    <path d="M9 9h6v6H9z" fill="currentColor"/>
+                  </svg>
+                </div>
+                <div className="home-stat-content">
+                  <span className="home-stat-label">Categories</span>
+                  <strong className="home-stat-value">{SECTION_ORDER.filter((section) => feed.sections[section.key].length).length}</strong>
+                </div>
+              </div>
+              <div className="home-stat-card">
+                <div className="home-stat-icon">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+                    <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z" stroke="currentColor" strokeWidth="2"/>
+                  </svg>
+                </div>
+                <div className="home-stat-content">
+                  <span className="home-stat-label">Built from</span>
+                  <strong className="home-stat-value">Your data</strong>
+                </div>
+              </div>
             </div>
-            <div className="detail-side-stat">
-              <span>Built from</span>
-              <strong>Watched, wishlist, folders</strong>
+            <div className="home-panel-footer">
+              <p className="copy home-panel-copy">
+                Personalized recommendations based on your watched list, wishlist, and folder organization
+              </p>
             </div>
           </aside>
         </div>
