@@ -142,17 +142,11 @@ export function matchesFranchise(
     return true;
   }
   
-  // For anime, be extra strict about type matching
+  // For anime, allow movies and series to be grouped together
+  // This allows franchises like Chainsaw Man to show both movie and series
   if (itemType === 'anime') {
-    const isMovie = isAnimeMovie(itemTitle, itemEpisodes);
-    
-    // Don't mix movies with series
-    for (const franchiseTitle of franchiseTitles) {
-      const isFranchiseMovie = isAnimeMovie(franchiseTitle);
-      if (isMovie !== isFranchiseMovie) {
-        return false; // Different types, don't match
-      }
-    }
+    // Skip strict type checking for anime - allow movies and series to match
+    // This improves franchise discovery for mixed anime content
   }
   
   // For partial matches, be much more strict - require significant overlap
@@ -188,21 +182,18 @@ export function matchesFranchise(
  * Enhanced anime franchise grouping that respects type separation
  */
 export function groupAnimeByFranchise(items: Array<{title: string; episodes?: number; type?: string; id: string; originalItem?: any; score?: number; year?: number}>) {
-  const movieGroups = new Map<string, Array<{title: string; episodes?: number; type?: string; id: string; originalItem?: any; score?: number; year?: number}>>();
-  const seriesGroups = new Map<string, Array<{title: string; episodes?: number; type?: string; id: string; originalItem?: any; score?: number; year?: number}>>();
+  const franchiseGroups = new Map<string, Array<{title: string; episodes?: number; type?: string; id: string; originalItem?: any; score?: number; year?: number}>>();
   
   for (const item of items) {
-    const isMovie = isAnimeMovie(item.title, item.episodes, item.type);
-    const key = normalizeAnimeBaseTitle(item.title, isMovie ? 'movie' : 'series');
+    // Use unified franchise key for both movies and series
+    const key = normalizeAnimeBaseTitle(item.title);
     
-    const targetGroups = isMovie ? movieGroups : seriesGroups;
-    const existing = targetGroups.get(key) || [];
+    const existing = franchiseGroups.get(key) || [];
     existing.push(item);
-    targetGroups.set(key, existing);
+    franchiseGroups.set(key, existing);
   }
   
   return {
-    movies: Array.from(movieGroups.entries()),
-    series: Array.from(seriesGroups.entries())
+    franchises: Array.from(franchiseGroups.entries())
   };
 }

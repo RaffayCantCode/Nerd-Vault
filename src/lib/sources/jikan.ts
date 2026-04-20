@@ -428,20 +428,25 @@ function collapseAnimeFranchises(items: JikanAnime[]): MediaItem[] {
     originalItem: item
   }));
   
-  const { movies, series } = groupAnimeByFranchise(animeItems);
+  const { franchises } = groupAnimeByFranchise(animeItems);
   
-  // Process movie groups
-  const movieResults = movies.map(([collectionTitle, entries]) => {
-    const sortedByPriority = [...entries].sort((left, right) => {
+  // Process all franchise groups (movies and series together)
+  const franchiseResults = franchises.map(([collectionTitle, entries]: [string, any[]]) => {
+    const sortedByPriority = [...entries].sort((left: any, right: any) => {
       const scoreGap = (right.score ?? 0) - (left.score ?? 0);
       if (scoreGap !== 0) return scoreGap;
       return (left.year ?? 0) - (right.year ?? 0);
     });
 
     const representative = sortedByPriority[0];
-    const years = entries.map((entry) => entry.year).filter((year): year is number => year !== undefined);
+    const years = entries.map((entry: any) => entry.year).filter((year: any): year is number => year !== undefined);
     const earliestYear = years.length ? Math.min(...years) : (representative.year ?? 0);
+    const franchiseEntries = sortFranchiseEntries(entries.map((entry: any) => toFranchiseEntry(entry.originalItem)));
 
+    // Determine if this is mixed content (movies + series)
+    const hasMovies = entries.some((entry: any) => entry.type === 'movie' || isAnimeMovie(entry.title, entry.episodes, entry.type));
+    const hasSeries = entries.some((entry: any) => entry.type === 'tv' || !isAnimeMovie(entry.title, entry.episodes, entry.type));
+    
     return mapAnime(
       representative.originalItem,
       undefined,
@@ -449,42 +454,20 @@ function collapseAnimeFranchises(items: JikanAnime[]): MediaItem[] {
         title: collectionTitle,
         collectionTitle,
         entryCount: entries.length,
-        entryLabel: entries.length > 1 ? `${entries.length} movies` : 'Movie',
+        entryLabel: hasMovies && hasSeries 
+          ? `${entries.length} entries` 
+          : hasMovies 
+            ? `${entries.length} movies`
+            : entries.length > 1
+              ? `${entries.length} entries`
+              : representative.originalItem.episodes
+                ? `${representative.originalItem.episodes} episodes`
+                : undefined,
       },
     );
   });
 
-  // Process series groups
-  const seriesResults = series.map(([collectionTitle, entries]) => {
-    const sortedByPriority = [...entries].sort((left, right) => {
-      const scoreGap = (right.score ?? 0) - (left.score ?? 0);
-      if (scoreGap !== 0) return scoreGap;
-      return (left.year ?? 0) - (right.year ?? 0);
-    });
-
-    const representative = sortedByPriority[0];
-    const years = entries.map((entry) => entry.year).filter((year): year is number => year !== undefined);
-    const earliestYear = years.length ? Math.min(...years) : (representative.year ?? 0);
-    const franchiseEntries = sortFranchiseEntries(entries.map(entry => toFranchiseEntry(entry.originalItem)));
-
-    return mapAnime(
-      representative.originalItem,
-      undefined,
-      {
-        title: collectionTitle,
-        collectionTitle,
-        entryCount: entries.length,
-        entryLabel:
-          entries.length > 1
-            ? `${entries.length} entries`
-            : representative.originalItem.episodes
-              ? `${representative.originalItem.episodes} episodes`
-              : undefined,
-      },
-    );
-  });
-
-  return [...movieResults, ...seriesResults].filter(isUsefulAnime);
+  return franchiseResults.filter(isUsefulAnime);
 }
 
 export async function browseJikanAnime(params: JikanBrowseParams) {

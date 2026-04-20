@@ -883,11 +883,15 @@ export function BrowseWorkspace({
       return;
     }
 
-    window.requestAnimationFrame(() => {
-      scrollToElementWithOffset(resultsRef.current, pageScrollOffsetRef.current, scrollBehaviorRef.current);
-      shouldScrollToResultsRef.current = false;
-      scrollBehaviorRef.current = "auto";
-    });
+    // Simplified scroll handling to prevent getting stuck
+    const timer = setTimeout(() => {
+      if (resultsRef.current) {
+        scrollToElementWithOffset(resultsRef.current, pageScrollOffsetRef.current, "smooth");
+        shouldScrollToResultsRef.current = false;
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, [activePage, deferredQuery, isLoading, sortedVisible.length]);
 
   useEffect(() => {
@@ -907,10 +911,13 @@ export function BrowseWorkspace({
 
     const nextScroll = Number(stored);
     if (Number.isFinite(nextScroll) && nextScroll > 0) {
-      window.requestAnimationFrame(() => {
+      // Add timeout to ensure DOM is ready
+      const timer = setTimeout(() => {
         window.scrollTo({ top: nextScroll, behavior: "auto" });
         window.sessionStorage.removeItem(BROWSE_SCROLL_KEY);
-      });
+      }, 50);
+      
+      return () => clearTimeout(timer);
     }
 
     didRestoreScrollRef.current = true;
