@@ -291,11 +291,16 @@ function mapMovieOrShow(
 
 function isUsefulMovie(item: MediaItem) {
   const banned = new Set(["News", "Talk"]);
+  
+  // Filter out anime content from TMDB movie API to prevent duplicates with Jikan
+  const isAnimeContent = isLikelyAnime(item.title, item.genres, item.overview, 'movie');
+  
   return (
     item.language === "en" &&
     item.year >= 1980 &&
     item.rating >= 5 &&
-    !item.genres.some((genre) => banned.has(genre))
+    !item.genres.some((genre) => banned.has(genre)) &&
+    !isAnimeContent // Exclude anime from movie results
   );
 }
 

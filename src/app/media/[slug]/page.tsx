@@ -2078,24 +2078,6 @@ export default async function MediaDetailPage({
             franchiseSection={franchiseSection || undefined}
             mediaTitle={media.title}
           />
-
-          <section className="section-stack" style={{ paddingTop: 0 }}>
-            <div className="section-header">
-              <div>
-                <p className="eyebrow">Discover</p>
-                <h2 className="headline">Explore more content</h2>
-              </div>
-            </div>
-            <div className="media-details-actions">
-              <BrowseResetLink className="action-button action-button-primary">
-                Browse Catalog
-              </BrowseResetLink>
-              <Link href="/home" className="action-button action-button-secondary">
-                Back to Home
-              </Link>
-            </div>
-          </section>
-
         </main>
       </div>
     </div>

@@ -61,17 +61,17 @@ html {
     display: none !important;
   }
 
-  /* Sidebar - Desktop Rail (Floating & Traveling) */
+  /* Sidebar - Desktop Rail (Fixed & Stable) */
   .sidebar.sidebar-rail {
     position: fixed !important;
-    left: 20px !important;
-    top: var(--cursor-y-pct, 50%) !important;
-    width: 80px !important; /* Sleeker proper size */
+    left: 12px !important;
+    top: 50% !important;
+    width: 72px !important; /* Sleeker proper size */
     height: auto !important;
     min-height: auto !important;
-    max-height: 85vh !important;
-    border-radius: 40px !important; /* Rounded vault look */
-    padding: 24px 10px !important;
+    max-height: 90vh !important;
+    border-radius: 24px !important;
+    padding: 20px 0 !important; /* Centered content */
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
@@ -79,19 +79,15 @@ html {
     overflow-y: auto !important;
     overflow-x: hidden !important;
     z-index: 100 !important;
-    
-    /* Dynamic travel effect */
     transform: translateY(-50%) translateZ(0) !important;
-    transition: 
-      width 0.3s cubic-bezier(0.19, 1, 0.22, 1),
-      top 0.45s cubic-bezier(0.2, 0, 0.2, 1.1), /* Smooth magnetic travel */
-      background 0.3s ease !important;
-      
+    backface-visibility: hidden;
+    perspective: 1000px;
+    transition: width 0.3s cubic-bezier(0.19, 1, 0.22, 1), background 0.3s ease !important;
     background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)),
-                rgba(6,9,15,0.92) !important;
+                rgba(6,9,15,0.95) !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
     backdrop-filter: blur(24px) !important;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
     scrollbar-width: none;
   }
 
@@ -101,46 +97,45 @@ html {
 
   .sidebar.sidebar-rail:hover,
   .sidebar.sidebar-rail:focus-within {
-    width: 220px !important;
+    width: 240px !important;
     align-items: stretch !important;
+    padding-inline: 12px !important;
     border-radius: 24px !important;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6) !important;
   }
 
   .brand.brand-rail {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    width: 52px !important;
-    height: 52px !important;
+    width: 100% !important;
+    height: 56px !important;
     margin-bottom: 8px !important;
-    transition: all 0.2s ease !important;
+    padding: 0 !important;
   }
 
-  .sidebar.sidebar-rail:hover .brand.brand-rail,
-  .sidebar.sidebar-rail:focus-within .brand.brand-rail {
-    width: 100% !important;
+  .sidebar.sidebar-rail:hover .brand.brand-rail {
     justify-content: flex-start !important;
-    padding-left: 10px !important;
+    padding-left: 16px !important;
   }
 
   .sidebar-nav-button {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    width: 50px !important;
-    height: 50px !important;
+    width: 56px !important;
+    height: 56px !important;
     padding: 0 !important;
     border-radius: 16px !important;
     gap: 12px !important;
     transition: all 0.2s ease !important;
     color: var(--muted) !important;
+    margin: 0 auto !important; /* Centered in rail */
   }
 
   .sidebar-nav-button:hover,
   .sidebar-nav-button.is-active {
     color: var(--text) !important;
-    background: rgba(255, 255, 255, 0.06) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
   }
 
   .sidebar.sidebar-rail:hover .sidebar-nav-button,
@@ -148,13 +143,14 @@ html {
     width: 100% !important;
     justify-content: flex-start !important;
     padding: 0 16px !important;
+    margin: 0 !important;
   }
 
   .sidebar-nav-label {
     display: none !important;
     white-space: nowrap !important;
     font-size: 0.95rem !important;
-    font-weight: 500 !important;
+    font-weight: 600 !important;
   }
 
   .sidebar.sidebar-rail:hover .sidebar-nav-label,
@@ -163,31 +159,72 @@ html {
   }
 
   .sidebar-rail-divider {
-    width: 44px !important;
+    width: 32px !important;
     height: 1px !important;
     margin: 8px auto !important;
     background: rgba(255, 255, 255, 0.1) !important;
-    transition: width 0.2s ease !important;
+    transition: width 0.3s ease !important;
   }
 
-  .sidebar.sidebar-rail:hover .sidebar-rail-divider,
-  .sidebar.sidebar-rail:focus-within .sidebar-rail-divider {
-    width: calc(100% - 32px) !important;
+  .sidebar.sidebar-rail:hover .sidebar-rail-divider {
+    width: 100% !important;
   }
 
   .sidebar-rail-stack {
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
-    gap: 6px !important;
+    gap: 12px !important;
     width: 100% !important;
     flex: 1 !important;
     overflow-y: auto !important;
+    padding: 8px 0 !important;
+    scrollbar-width: none !important; /* Firefox */
+    -ms-overflow-style: none !important;  /* IE and Edge */
+  }
+
+  .sidebar-rail-stack::-webkit-scrollbar {
+    display: none !important; /* Chrome, Safari and Opera */
   }
 
   .sidebar.sidebar-rail:hover .sidebar-rail-stack,
   .sidebar.sidebar-rail:focus-within .sidebar-rail-stack {
     align-items: stretch !important;
+  }
+
+  .sidebar-folder-tile,
+  .sidebar-icon-button {
+    width: 56px !important;
+    height: 56px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    border-radius: 16px !important;
+    transition: all 0.2s ease !important;
+    margin: 0 auto !important; /* Centered */
+  }
+
+  .sidebar-folder-tile:hover,
+  .sidebar-folder-tile.is-active,
+  .sidebar-icon-button:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+  }
+
+  .sidebar.sidebar-rail:hover .sidebar-folder-tile,
+  .sidebar.sidebar-rail:hover .sidebar-icon-button {
+    width: 100% !important;
+    justify-content: flex-start !important;
+    padding: 0 8px !important;
+    gap: 12px !important;
+    margin: 0 !important;
+  }
+
+  .sidebar-folder-art {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    border-radius: 12px !important;
   }
 
   .sidebar-signout-form {
@@ -198,15 +235,35 @@ html {
     width: 100% !important;
   }
 
-  .sidebar.sidebar-rail:hover .sidebar-signout-form,
-  .sidebar.sidebar-rail:focus-within .sidebar-signout-form {
-    justify-content: stretch !important;
+  .sidebar-signout-button {
+    width: 56px !important;
+    height: 56px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    border-radius: 16px !important;
+    transition: all 0.2s ease !important;
+    margin: 0 auto !important; /* Centered */
+  }
+
+  .sidebar-signout-button:hover {
+    background: rgba(255, 100, 100, 0.1) !important;
+    color: #ff6b6b !important;
+  }
+
+  .sidebar.sidebar-rail:hover .sidebar-signout-button {
+    width: 100% !important;
+    justify-content: flex-start !important;
+    padding: 0 16px !important;
+    gap: 12px !important;
+    margin: 0 !important;
   }
 
   /* Main Layout adjustment for fixed sidebar */
   .app-shell-layout {
-    padding-left: 120px !important; /* Space for the floating sidebar */
-    padding-right: 0 !important; /* Full width */
+    padding-left: 100px !important; /* Space for fixed rail */
+    padding-right: 0 !important;
     width: 100% !important;
     max-width: none !important;
     margin: 0 !important;
@@ -216,9 +273,9 @@ html {
 
   .workspace {
     width: 100% !important;
-    max-width: none !important; /* Cover full space */
+    max-width: none !important;
     margin: 0 !important;
-    padding-right: 2rem !important; /* Some breathing room on the right */
+    padding: 0 2rem 2rem 2rem !important; /* Proper padding for full page */
   }
 }
 
@@ -236,6 +293,7 @@ html {
   .sidebar-shell {
     position: relative;
     z-index: 120;
+    width: 0; /* Let the fixed rail handle the space */
   }
 
   .sidebar-mobile-toggle {
@@ -343,6 +401,144 @@ html {
   .detail-content {
     padding-left: 12px !important;
     padding-right: 12px !important;
+  }
+}
+
+/* ─── FRANCHISE & RELATED SECTION OVERHAUL ─── */
+.expandable-related-section {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 4rem !important;
+  padding-top: 4rem !important;
+}
+
+.franchise-wrapper {
+  margin-bottom: 4rem;
+}
+
+.franchise-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.25rem;
+  margin-top: 1.5rem;
+}
+
+.franchise-card {
+  padding: 1.5rem;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.3s cubic-bezier(0.2, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: rgba(255, 255, 255, 0.02);
+  text-decoration: none;
+}
+
+.franchise-card:hover {
+  transform: translateY(-5px);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--gold);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.franchise-card.is-active {
+  border-color: var(--gold);
+  background: rgba(3, 252, 190, 0.05);
+  pointer-events: none;
+}
+
+.franchise-card-topline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.franchise-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--gold);
+  letter-spacing: 0.05em;
+}
+
+.franchise-card-title {
+  font-size: 1.15rem !important;
+  margin: 0 !important;
+  color: white;
+}
+
+.franchise-card-meta {
+  font-size: 0.875rem !important;
+  opacity: 0.6;
+  margin: 0 !important;
+}
+
+/* Expandable Media Grid */
+.related-media-container {
+  overflow: hidden;
+  transition: max-height 0.6s cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+.related-media-container.is-collapsed {
+  max-height: 520px; /* Roughly 1.5 rows on large desktop */
+  mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
+  pointer-events: none;
+}
+
+.related-media-container.is-collapsed .catalog-card {
+  pointer-events: none; /* Disable interaction when collapsed */
+}
+
+/* Ensure the first row remains interactable if we want, but user said "press to drop more" 
+   so we'll keep it simple: collapse everything slightly and expand to full. */
+
+.related-media-container.is-expanded {
+  max-height: 5000px;
+}
+
+/* Actions Row */
+.related-actions-row {
+  display: flex;
+  gap: 1.25rem;
+  margin-top: 2.5rem;
+  justify-content: center;
+  align-items: center;
+}
+
+.action-button-gold {
+  background: var(--gold) !important;
+  color: #06090f !important;
+  font-weight: 700 !important;
+  box-shadow: 0 0 20px rgba(3, 252, 190, 0.3) !important;
+}
+
+.action-button-gold:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 0 30px rgba(3, 252, 190, 0.5) !important;
+}
+
+.expandable-icon {
+  display: inline-flex;
+  margin-left: 8px;
+  transition: transform 0.4s cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+.expandable-icon.is-rotated {
+  transform: rotate(180deg);
+}
+
+@media (max-width: 900px) {
+  .franchise-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .related-actions-row {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .related-actions-row .action-button {
+    width: 100% !important;
   }
 }
 
