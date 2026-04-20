@@ -1229,6 +1229,7 @@ function scoreMoreLikeThisCandidate(base: MediaItem, candidate: MediaItem) {
   if (isFranchiseMatch) {
     score += 15; // Boost franchise matches significantly
   }
+
   const yearDistance = Math.abs((candidate.year || 0) - (base.year || 0));
 
   score += 22;
