@@ -64,10 +64,16 @@ export function SidebarShell({ children }: { children: ReactNode }) {
       const scrollTop = window.scrollY;
       const windowHeight = window.innerHeight;
       const docHeight = document.documentElement.scrollHeight;
+      const scrollableDistance = docHeight - windowHeight;
+      
+      if (scrollableDistance <= 0) {
+        setTogglePosition(50);
+        return;
+      }
       
       // Calculate position as percentage (15% to 85% range)
-      const scrollPercent = scrollTop / (docHeight - windowHeight || 1);
-      const clampedPercent = Math.max(15, Math.min(85, scrollPercent * 100 + 15));
+      const scrollPercent = scrollTop / scrollableDistance;
+      const clampedPercent = Math.max(15, Math.min(85, scrollPercent * 70 + 15));
       
       setTogglePosition(clampedPercent);
     });

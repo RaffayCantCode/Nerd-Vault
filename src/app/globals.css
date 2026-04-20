@@ -344,10 +344,36 @@ html {
   width: 100%;
 }
 
-html, body {
+/* Ensure the main browser scroll system is ALWAYS active and stable */
+html {
   overflow-x: hidden !important;
+  overflow-y: scroll !important; /* Force browser scrollbar to prevent layout shift */
   height: auto !important;
   min-height: 100% !important;
+  scroll-behavior: smooth !important;
+}
+
+body {
+  overflow-x: hidden !important;
+  overflow-y: visible !important; /* Let the html tag handle the scroll */
+  height: auto !important;
+  min-height: 100% !important;
+  position: relative !important;
+  touch-action: auto !important; /* Ensure touch and wheel events are NEVER blocked */
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* Ensure no layout container traps the scroll or locks it */
+.page-shell, 
+.app-shell-layout, 
+.workspace,
+#__next,
+main {
+  overflow: visible !important; /* Never trap scroll */
+  height: auto !important;
+  min-height: 100% !important;
+  max-height: none !important;
+  touch-action: auto !important;
 }
 
 /* Ensure no invisible overlays block scroll */
@@ -356,9 +382,10 @@ html, body {
   display: none !important;
 }
 
-/* Prevent scroll lock during transitions */
-.page-shell {
-  overflow: visible !important;
+/* Sidebar should NEVER trap the scroll of the whole page */
+.sidebar.sidebar-rail {
+  /* It has overflow-y: auto already, but we need to ensure it doesn't prevent bubbling */
+  overscroll-behavior: contain;
 }
 
 .catalog-card {
@@ -371,6 +398,7 @@ html, body {
   cursor: pointer;
   position: relative;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  touch-action: auto !important; /* Explicitly allow auto scroll */
 }
 
 .catalog-card:hover {
