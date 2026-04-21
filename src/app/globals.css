@@ -2106,16 +2106,18 @@ input {
 .topbar-user {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 0.4rem 0.5rem 0.4rem 0.4rem;
+  gap: 16px;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.55rem 0.65rem 0.55rem 0.5rem;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .topbar-user-avatar {
-  width: 42px;
-  height: 42px;
+  width: 54px;
+  height: 54px;
   border-radius: 50%;
   object-fit: cover;
 }
@@ -2130,16 +2132,18 @@ input {
 
 .topbar-user-copy {
   display: grid;
-  gap: 2px;
+  gap: 4px;
+  min-width: 0;
+  margin-right: auto;
 }
 
 .topbar-user-copy strong {
-  font-size: 0.92rem;
+  font-size: 1rem;
 }
 
 .topbar-user-copy span {
   color: var(--muted);
-  font-size: 0.76rem;
+  font-size: 0.82rem;
 }
 
 .sidebar-playlist {
@@ -4480,8 +4484,8 @@ body {
 
 .folder-showcase-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 260px));
-  gap: 18px;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 232px));
+  gap: 16px;
   justify-content: flex-start;
 }
 
@@ -4511,7 +4515,7 @@ body {
 }
 
 .folder-showcase-art-compact {
-  min-height: 180px;
+  min-height: 156px;
 }
 
 .folder-showcase-art::after {
@@ -4525,8 +4529,8 @@ body {
 
 .folder-showcase-copy {
   display: grid;
-  gap: 12px;
-  padding: 18px 18px 20px;
+  gap: 10px;
+  padding: 16px 16px 18px;
 }
 
 .folder-showcase-meta,
@@ -4557,14 +4561,14 @@ body {
 }
 
 .folder-showcase-title-row strong {
-  font-size: 1.3rem;
+  font-size: 1.16rem;
   letter-spacing: -0.04em;
   line-height: 1.05;
 }
 
 .folder-showcase-summary {
-  min-height: 4.8rem;
-  font-size: 0.94rem;
+  min-height: 3.6rem;
+  font-size: 0.9rem;
 }
 
 .folder-showcase-chip-row {
@@ -5199,7 +5203,8 @@ body {
 }
 
 .topbar-user-button {
-  min-width: 0;
+  min-width: 220px;
+  justify-content: center;
 }
 
 .topbar-user-copy strong {
@@ -7753,55 +7758,89 @@ html {
 
 .folder-hero-title-group {
   grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 28px;
+  align-items: center;
+  gap: 24px;
 }
 
 .folder-hero-cover-card {
-  width: 220px;
-  min-width: 220px;
+  width: 184px;
+  min-width: 184px;
   aspect-ratio: 1 / 1;
 }
 
 .folder-hero-copy {
-  padding-top: 8px;
+  padding-top: 6px;
 }
 
 .folder-hero-subcopy {
-  margin-top: 8px;
+  margin-top: 10px;
+  max-width: 54ch;
 }
 
 .folder-hero-actions {
   position: static;
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 12px;
-  justify-items: stretch;
-  align-self: start;
-  min-width: 190px;
+  justify-content: flex-end;
+  align-self: center;
+  min-width: 0;
+  margin-left: auto;
 }
 
 .folder-hero-actions .button {
-  width: 100%;
+  width: auto;
   min-height: 52px;
+  padding-inline: 1.2rem;
 }
 
 .profile-avatar {
-  width: 88px;
-  height: 88px;
+  width: 104px;
+  height: 104px;
   border-radius: 26px;
 }
 
 .profile-avatar-large {
-  width: 80px;
-  height: 80px;
+  width: 112px;
+  height: 112px;
 }
 
 .profile-avatar-stack {
-  width: 164px;
+  width: 196px;
 }
 
 .profile-identity {
   align-items: center;
+  gap: 20px;
+}
+
+.folder-opening-shell {
+  min-height: calc(100svh - 140px);
+  display: grid;
+  place-items: center;
+}
+
+.folder-opening-loader {
+  width: min(100%, 520px);
+  min-height: 360px;
+  display: grid;
+  place-items: center;
+}
+
+.folder-page-reveal {
+  animation: folderPageReveal 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes folderPageReveal {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .detail-favorite-note {
@@ -8061,7 +8100,7 @@ html {
   .folder-hero-actions {
     min-width: 0;
     width: 100%;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: flex-start;
   }
 
   .detail-gallery-grid {
@@ -8070,6 +8109,49 @@ html {
 }
 
 @media (max-width: 640px) {
+  .topbar-user {
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .topbar-user-copy {
+    flex: 1 1 160px;
+  }
+
+  .topbar-user-button {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .folder-hero-cover-card {
+    width: min(160px, 42vw);
+    min-width: min(160px, 42vw);
+  }
+
+  .folder-hero-actions {
+    justify-content: stretch;
+  }
+
+  .folder-hero-actions .button {
+    width: 100%;
+  }
+
+  .profile-avatar {
+    width: 92px;
+    height: 92px;
+  }
+
+  .profile-avatar-large {
+    width: 96px;
+    height: 96px;
+  }
+
+  .profile-avatar-stack {
+    width: 100%;
+    justify-content: center;
+  }
+
   .detail-gallery-grid {
     grid-template-columns: 1fr;
   }

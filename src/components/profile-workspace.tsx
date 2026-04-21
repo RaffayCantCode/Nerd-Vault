@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { ChangeEvent, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { CatalogCard } from "@/components/catalog-card";
 import { ImageAdjusterModal } from "@/components/image-adjuster-modal";
+import { NVLoader } from "@/components/nv-loader";
 import { MediaItem } from "@/lib/types";
 import { deleteLibraryFolder, fetchProfilePayload, primeProfilePayload, saveFolder, saveProfileSettings, subscribeVaultChanges } from "@/lib/vault-client";
 import { PrivacyLevel, SocialProfile, StoredFolder, VaultProfilePayload } from "@/lib/vault-types";
@@ -153,8 +154,10 @@ export function ProfileWorkspace({
   const [watchedPage, setWatchedPage] = useState(1);
   const [wishlistPage, setWishlistPage] = useState(1);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isFolderOpening, setIsFolderOpening] = useState(false);
   const profileSettingsRef = useRef<HTMLDivElement | null>(null);
   const profileAvatarActionsRef = useRef<HTMLDivElement | null>(null);
+  const previousFolderIdRef = useRef<string | null>(selectedFolderId);
 
   useEffect(() => {
     if (initialPayload) {
@@ -218,6 +221,19 @@ export function ProfileWorkspace({
     if (!showProfileSettings) return;
     profileSettingsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [showProfileSettings]);
+
+  useEffect(() => {
+    const previousFolderId = previousFolderIdRef.current;
+    previousFolderIdRef.current = selectedFolderId;
+
+    if (!selectedFolderId || !selectedFolder || selectedFolderId === previousFolderId) {
+      return;
+    }
+
+    setIsFolderOpening(true);
+    const timeout = window.setTimeout(() => setIsFolderOpening(false), 520);
+    return () => window.clearTimeout(timeout);
+  }, [selectedFolder, selectedFolderId]);
 
   function handleAvatarFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -359,8 +375,20 @@ export function ProfileWorkspace({
   }
 
   if (selectedFolder) {
+    if (isFolderOpening) {
+      return (
+        <main className="workspace">
+          <section className="workspace-hero glass folder-hero folder-opening-shell">
+            <div className="folder-opening-loader">
+              <NVLoader label={`Opening ${selectedFolder.name}...`} />
+            </div>
+          </section>
+        </main>
+      );
+    }
+
     return (
-      <main className="workspace">
+      <main className="workspace folder-page-reveal">
         <section className="workspace-hero glass folder-hero">
           <div className="folder-hero-media" style={getFolderBackdropStyle(selectedFolder.coverUrl)} />
           <div className="workspace-hero-grid">
