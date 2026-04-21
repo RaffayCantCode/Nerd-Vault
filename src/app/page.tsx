@@ -275,7 +275,7 @@ export default async function HomePage() {
         </section>
 
         {/* CTA Section */}
-        <section className="landing-cta">
+        <section className="landing-final-cta">
           <div className="landing-cta-container">
             <div className="cta-content">
               <h2 className="cta-title">Ready to Build Your Collection?</h2>
@@ -303,6 +303,11 @@ export default async function HomePage() {
                     </BrowseResetLink>
                   </div>
                 )}
+              </div>
+              <div className="landing-cta-note">
+                <span>Track what you finished.</span>
+                <span>Find the next thing faster.</span>
+                <span>Keep every universe in one vault.</span>
               </div>
             </div>
           </div>

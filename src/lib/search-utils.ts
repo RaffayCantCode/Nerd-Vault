@@ -8,6 +8,31 @@ function normalizePart(input?: string | null) {
     .trim();
 }
 
+function isExactCanonicalTitleMatch(item: MediaItem, query: string) {
+  const normalizedQuery = normalizePart(query);
+  if (!normalizedQuery) return false;
+
+  const title = normalizePart(item.title);
+  const originalTitle = normalizePart(item.originalTitle);
+
+  return title === normalizedQuery || originalTitle === normalizedQuery;
+}
+
+function isPrefixCanonicalTitleMatch(item: MediaItem, query: string) {
+  const normalizedQuery = normalizePart(query);
+  if (!normalizedQuery) return false;
+
+  const title = normalizePart(item.title);
+  const originalTitle = normalizePart(item.originalTitle);
+
+  return (
+    title.startsWith(normalizedQuery) ||
+    originalTitle.startsWith(normalizedQuery) ||
+    compactAlphaNum(title).startsWith(compactAlphaNum(normalizedQuery)) ||
+    compactAlphaNum(originalTitle).startsWith(compactAlphaNum(normalizedQuery))
+  );
+}
+
 function compactAlphaNum(input: string) {
   return normalizePart(input).replace(/\s+/g, "");
 }
@@ -573,14 +598,31 @@ export function rankCandidatesForQuery(
   const minRank = options?.minRank ?? 10;
   const limit = options?.limit ?? 96;
 
-  return validateSearchResults(dedupeMediaKey(items))
-    .map((item) => ({ item, rank: inclusiveSearchRank(item, q) }))
+  const ranked = validateSearchResults(dedupeMediaKey(items))
+    .map((item) => ({
+      item,
+      rank: inclusiveSearchRank(item, q),
+      exactTitle: isExactCanonicalTitleMatch(item, q),
+      prefixTitle: isPrefixCanonicalTitleMatch(item, q),
+    }))
     .filter((entry) => entry.rank >= minRank)
     .sort((left, right) => {
+      if (left.exactTitle !== right.exactTitle) {
+        return left.exactTitle ? -1 : 1;
+      }
+      if (left.prefixTitle !== right.prefixTitle) {
+        return left.prefixTitle ? -1 : 1;
+      }
       const gap = right.rank - left.rank;
       if (gap !== 0) return gap;
       return right.item.rating - left.item.rating || right.item.year - left.item.year;
-    })
-    .map((entry) => entry.item)
-    .slice(0, limit);
+    });
+
+  const exactMatches = ranked.filter((entry) => entry.exactTitle);
+  if (exactMatches.length) {
+    const remainder = ranked.filter((entry) => !entry.exactTitle);
+    return [...exactMatches, ...remainder].map((entry) => entry.item).slice(0, limit);
+  }
+
+  return ranked.map((entry) => entry.item).slice(0, limit);
 }

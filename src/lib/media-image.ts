@@ -3,16 +3,16 @@ export type MediaImageIntent = "thumb" | "cover" | "backdrop" | "gallery" | "lig
 const TMDB_SIZES: Record<MediaImageIntent, string> = {
   thumb: "w342",
   cover: "w500",
-  backdrop: "w1280",
-  gallery: "w780",
-  lightbox: "w1280",
+  backdrop: "original",
+  gallery: "w1280",
+  lightbox: "original",
 };
 
 const IGDB_SIZES: Record<MediaImageIntent, string> = {
   thumb: "t_cover_big",
-  cover: "t_cover_big",
-  backdrop: "t_screenshot_big",
-  gallery: "t_screenshot_big",
+  cover: "t_720p",
+  backdrop: "t_1080p",
+  gallery: "t_1080p",
   lightbox: "t_1080p",
 };
 

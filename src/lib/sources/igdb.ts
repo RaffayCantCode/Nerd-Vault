@@ -51,6 +51,11 @@ type IgdbCollection = {
   name?: string;
 };
 
+type IgdbFranchise = {
+  id: number;
+  name?: string;
+};
+
 type IgdbGame = {
   id: number;
   name: string;
@@ -68,7 +73,14 @@ type IgdbGame = {
   involved_companies?: IgdbCompany[];
   status?: number;
   collection?: IgdbCollection;
+  franchises?: IgdbFranchise[];
   similar_games?: number[];
+  expanded_games?: number[];
+  dlcs?: number[];
+  expansions?: number[];
+  remakes?: number[];
+  remasters?: number[];
+  standalone_expansions?: number[];
 };
 
 type IgdbCountResponse = {
@@ -246,7 +258,7 @@ function mapGame(game: IgdbGame): MediaItem {
       releaseDate: isoDateFromTimestamp(game.first_release_date),
       releaseInfo: releaseYear ? `${releaseYear} release` : undefined,
       studio: developers[0]?.name,
-      collectionTitle: game.collection?.name,
+      collectionTitle: game.collection?.name ?? game.franchises?.[0]?.name,
       collectionId: game.collection?.id,
     },
   };
@@ -258,6 +270,16 @@ function isUsefulGame(game: MediaItem) {
 
 function rankLocalSearchResults(items: MediaItem[], query: string) {
   return rankCandidatesForQuery(items, query, { limit: 96, minRank: 8 });
+}
+
+function dedupeBySource(items: MediaItem[]) {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = `${item.source}-${item.sourceId}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export async function browseIgdbGames(params: {
@@ -292,6 +314,8 @@ export async function browseIgdbGames(params: {
     "status",
     "collection.id",
     "collection.name",
+    "franchises.id",
+    "franchises.name",
   ].join(",");
 
   const whereParts = [
@@ -384,7 +408,15 @@ const IGDB_GAME_DETAIL_FIELDS = [
   "status",
   "collection.id",
   "collection.name",
+  "franchises.id",
+  "franchises.name",
   "similar_games",
+  "expanded_games",
+  "dlcs",
+  "expansions",
+  "remakes",
+  "remasters",
+  "standalone_expansions",
 ].join(",");
 
 export async function getIgdbGameDetails(id: number) {
@@ -416,6 +448,52 @@ export async function getIgdbCollectionNeighbors(gameId: number): Promise<MediaI
 
   const games = await igdbFetch<IgdbGame[]>(query);
   return games.map(mapGame).filter((item) => (item.year || 0) >= 1970);
+}
+
+export async function getIgdbFranchiseEntries(gameId: number): Promise<MediaItem[]> {
+  const rows = await igdbFetch<IgdbGame[]>(
+    `fields ${IGDB_GAME_DETAIL_FIELDS}; where id = ${gameId}; limit 1;`,
+  ).catch(() => []);
+
+  const game = rows[0];
+  if (!game) {
+    return [];
+  }
+
+  const franchiseIds = game.franchises?.map((entry) => entry.id).filter((id) => Number.isFinite(id)) ?? [];
+  const explicitIds = Array.from(
+    new Set([
+      ...(game.similar_games ?? []),
+      ...(game.expanded_games ?? []),
+      ...(game.dlcs ?? []),
+      ...(game.expansions ?? []),
+      ...(game.remakes ?? []),
+      ...(game.remasters ?? []),
+      ...(game.standalone_expansions ?? []),
+      game.id,
+    ].filter((id) => Number.isFinite(id))),
+  );
+
+  const [neighbors, explicitGames, franchiseGames] = await Promise.all([
+    getIgdbCollectionNeighbors(gameId).catch(() => [] as MediaItem[]),
+    explicitIds.length ? getIgdbGamesByIds(explicitIds).catch(() => [] as MediaItem[]) : Promise.resolve([] as MediaItem[]),
+    franchiseIds.length
+      ? igdbFetch<IgdbGame[]>(
+          `fields ${IGDB_GAME_DETAIL_FIELDS}; where version_parent = null & franchises = (${franchiseIds.join(",")}); sort first_release_date asc; limit 50;`,
+        )
+          .then((entries) => entries.map(mapGame).filter((item) => (item.year || 0) >= 1970))
+          .catch(() => [] as MediaItem[])
+      : Promise.resolve([] as MediaItem[]),
+  ]);
+
+  const franchiseNames = game.franchises?.map((entry) => entry.name?.trim()).filter(Boolean) ?? [];
+  const title = game.collection?.name ?? franchiseNames[0] ?? game.name;
+  const franchiseTitles = [title, ...franchiseNames, game.name].filter((value): value is string => Boolean(value));
+
+  return dedupeBySource([...neighbors, ...explicitGames, ...franchiseGames]).filter((item) =>
+    item.id === `igdb-game-${game.id}` ||
+    matchesFranchise(item.title, undefined, undefined, franchiseTitles),
+  );
 }
 
 /** Resolve IGDB similar_games ids into full cards (best-effort). */

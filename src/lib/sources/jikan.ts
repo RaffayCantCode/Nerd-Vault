@@ -72,6 +72,17 @@ type JikanAnime = {
   };
 };
 
+type JikanRelationResponse = {
+  data: Array<{
+    relation: string;
+    entry: Array<{
+      mal_id: number;
+      type: string;
+      name: string;
+    }>;
+  }>;
+};
+
 type JikanCharacter = {
   character: {
     name: string;
@@ -595,16 +606,25 @@ export async function getJikanAnimeDetails(id: number) {
 
 export async function getJikanAnimeFranchise(id: number) {
   const details = await jikanFetch<{ data: JikanAnime }>(`/anime/${id}/full`);
-  const relations = await jikanFetch<{ data: any[] }>(`/anime/${id}/relations`).catch(() => ({ data: [] }));
+  const relations = await jikanFetch<JikanRelationResponse>(`/anime/${id}/relations`).catch(() => ({ data: [] }));
   
   const franchiseTitles = animeTitleVariants(details.data).map((title) => normalizeAnimeBaseTitle(title));
   const primaryTitle = normalizeAnimeBaseTitle(getDisplayTitle(details.data));
   
-  // Extract related IDs from relations endpoint (Sequels, Prequels, Spin-offs, etc.)
+  const allowedRelations = new Set([
+    "Prequel",
+    "Sequel",
+    "Spin-off",
+    "Side story",
+    "Full story",
+    "Parent story",
+    "Alternative setting",
+    "Alternative version",
+  ]);
   const relatedIds = new Set<number>();
-  relations.data.forEach((rel: any) => {
-    if (["Prequel", "Sequel", "Spin-off", "Side story", "Full story", "Parent story", "Alternative setting", "Alternative version"].includes(rel.relation)) {
-      rel.entry.forEach((entry: any) => {
+  relations.data.forEach((rel) => {
+    if (allowedRelations.has(rel.relation)) {
+      rel.entry.forEach((entry) => {
         if (entry.type === "anime") {
           relatedIds.add(entry.mal_id);
         }
@@ -615,12 +635,17 @@ export async function getJikanAnimeFranchise(id: number) {
   // Also include the current anime
   relatedIds.add(id);
 
-  // Fetch details for all related anime to get full data (score, year, etc.)
-  // Note: Jikan rate limiting might be an issue, so we'll fetch them in parallel but limited
-  const matchingEntries: JikanAnime[] = [];
-  const idArray = Array.from(relatedIds);
-  
-  // To avoid hitting rate limits too hard, we'll also perform a keyword search as fallback/supplement
+  const explicitRelationResponses = await Promise.all(
+    Array.from(relatedIds).map((relatedId) =>
+      jikanFetch<{ data: JikanAnime }>(`/anime/${relatedId}/full`)
+        .then((response) => response.data)
+        .catch(() => null),
+    ),
+  );
+
+  const explicitEntries = explicitRelationResponses.filter((entry): entry is JikanAnime => Boolean(entry));
+
+  // To avoid missing niche results, keep a search supplement for cases where the relation graph is sparse.
   const queries = Array.from(
     new Set([
       primaryTitle,
@@ -638,12 +663,9 @@ export async function getJikanAnimeFranchise(id: number) {
 
   const searchResults = searches.flatMap((result) => result.data);
   const seen = new Set<number>();
-  
-  // Combine explicit relations and search results
-  const allCandidates = [...searchResults];
-  
-  // We should try to fetch the explicit relations that aren't in search results
-  // but for simplicity and speed, we'll prioritize search results that match our franchise criteria
+
+  const allCandidates = [...explicitEntries, ...searchResults];
+
   const filteredEntries = allCandidates.filter((item) => {
     if (seen.has(item.mal_id)) {
       return false;

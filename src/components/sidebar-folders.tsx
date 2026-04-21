@@ -101,7 +101,8 @@ export function SidebarFolders({ initialFolders = [] }: { initialFolders?: Store
         title="Create folder"
         onClick={() => setIsCreating((current) => !current)}
       >
-        <span>+</span>
+        <span aria-hidden="true">+</span>
+        <span className="sidebar-folder-tooltip">New folder</span>
       </button>
 
       {isCreating && isMounted

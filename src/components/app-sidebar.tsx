@@ -62,8 +62,9 @@ function IconDoor() {
 function IconLeave() {
   return (
     <svg className="sidebar-nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden>
-      <path d="M10 5H6a1.5 1.5 0 0 0-1.5 1.5v11A1.5 1.5 0 0 0 6 19h4" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" />
-      <path d="M15 8.5 19.5 12 15 15.5M19.5 12H9" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M9 4.75H6.75A1.75 1.75 0 0 0 5 6.5v11a1.75 1.75 0 0 0 1.75 1.75H9" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" />
+      <path d="M13.25 8.25 18 12l-4.75 3.75" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M17.75 12H9.5" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" />
     </svg>
   );
 }

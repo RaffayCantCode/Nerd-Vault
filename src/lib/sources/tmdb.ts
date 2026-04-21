@@ -44,6 +44,11 @@ type TmdbListItem = {
   } | null;
   production_companies?: Array<{ name: string }>;
   networks?: Array<{ name: string }>;
+  created_by?: Array<{ id: number; name: string }>;
+  keywords?: {
+    keywords?: Array<{ id: number; name: string }>;
+    results?: Array<{ id: number; name: string }>;
+  };
 };
 
 type TmdbCredits = {
@@ -76,6 +81,11 @@ export type TmdbAnimeImageEnrichment = {
   coverUrl?: string;
   backdropUrl?: string;
   screenshots: string[];
+};
+
+type TmdbKeyword = {
+  id: number;
+  name: string;
 };
 
 type BrowsePayload = {
@@ -181,11 +191,74 @@ function titleMatchScore(candidate: TmdbListItem, titles: string[], year?: numbe
   return score + Math.round((candidate.vote_average ?? 0) * 2);
 }
 
+function hasLiveActionAdaptationMarkers(candidate: TmdbListItem) {
+  const haystack = [
+    candidate.title,
+    candidate.name,
+    candidate.original_title,
+    candidate.original_name,
+    candidate.overview,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return /\b(live action|stage play|stage production|the stage|theatre|theater|musical|play adaptation)\b/i.test(
+    haystack,
+  );
+}
+
+function isSafeAnimeImageCandidate(
+  candidate: TmdbListItem,
+  type: "movie" | "tv",
+  genres: string[],
+  titles: string[],
+) {
+  if (hasLiveActionAdaptationMarkers(candidate)) {
+    return false;
+  }
+
+  const normalizedGenres = genres.map((genre) => genre.toLowerCase());
+  const title = candidate.title || candidate.name || "";
+  const overview = candidate.overview || "";
+  const hasAnimationGenre = normalizedGenres.some((genre) => genre.includes("animation") || genre.includes("anime"));
+  const hasJapaneseOrigin = candidate.original_language === "ja";
+  const titleHasStrongMatch = titles.some((entry) => {
+    const normalizedEntry = normalizeTitle(entry);
+    const normalizedTitle = normalizeTitle(title);
+    return (
+      normalizedEntry === normalizedTitle ||
+      normalizedTitle.startsWith(normalizedEntry) ||
+      normalizedEntry.startsWith(normalizedTitle)
+    );
+  });
+
+  if (hasAnimationGenre) {
+    return true;
+  }
+
+  if (!hasJapaneseOrigin) {
+    return false;
+  }
+
+  return titleHasStrongMatch && isLikelyAnime(title, genres, overview, type);
+}
+
 function dedupeImageUrls(images: Array<string | null | undefined>) {
   const seen = new Set<string>();
   return images.filter((image): image is string => {
     if (!image) return false;
     const key = image.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function dedupeMediaItems(items: MediaItem[]) {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = `${item.source}-${item.sourceId}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -647,6 +720,118 @@ export async function getTmdbShowRelations(showId: number): Promise<MediaItem[]>
     .filter(item => item.year >= 1900 && item.rating >= 4.0);
 }
 
+function extractTmdbKeywordNames(payload?: { keywords?: TmdbKeyword[]; results?: TmdbKeyword[] } | null) {
+  return Array.from(
+    new Set([...(payload?.keywords ?? []), ...(payload?.results ?? [])].map((entry) => entry.name.trim()).filter(Boolean)),
+  );
+}
+
+function normalizeFranchiseKey(input: string) {
+  return input
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^\w\s]+/g, " ")
+    .replace(/\b(the|a|an|series|saga|collection|movie|tv|show)\b/g, " ")
+    .replace(/\b(season|part|chapter|episode)\s+\d+\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function hasStrongTmdbTitleAffinity(baseTitles: string[], candidate: MediaItem) {
+  const candidateKeys = [
+    candidate.title,
+    candidate.originalTitle ?? "",
+    candidate.details.collectionTitle ?? "",
+  ]
+    .map((value) => normalizeFranchiseKey(value))
+    .filter(Boolean);
+
+  return baseTitles.some((baseTitle) =>
+    candidateKeys.some((candidateTitle) => {
+      if (!baseTitle || !candidateTitle) return false;
+      if (baseTitle === candidateTitle) return true;
+      if (baseTitle.length >= 6 && candidateTitle.length >= 6) {
+        return candidateTitle.includes(baseTitle) || baseTitle.includes(candidateTitle);
+      }
+      return false;
+    }),
+  );
+}
+
+export async function getTmdbFranchiseEntries(id: number, type: "movie" | "tv"): Promise<MediaItem[]> {
+  const mappedType = type === "movie" ? "movie" : "show";
+  const genres = await getGenreMap(type === "movie" ? "movie" : "tv");
+
+  const [details, recommendations, similar, keywordsPayload] = await Promise.all([
+    tmdbFetch<TmdbListItem>(`/${type}/${id}?language=en-US`).catch(() => null),
+    tmdbFetch<TmdbPagedResponse>(`/${type}/${id}/recommendations?language=en-US&page=1`).catch(() => null),
+    tmdbFetch<TmdbPagedResponse>(`/${type}/${id}/similar?language=en-US&page=1`).catch(() => null),
+    tmdbFetch<{ keywords?: TmdbKeyword[]; results?: TmdbKeyword[] }>(`/${type}/${id}/keywords`).catch(() => null),
+  ]);
+
+  if (!details) {
+    return [];
+  }
+
+  if (type === "movie" && details.belongs_to_collection?.id) {
+    return getTmdbCollectionItems(details.belongs_to_collection.id);
+  }
+
+  const titleVariants = [
+    details.name,
+    details.title,
+    details.original_name,
+    details.original_title,
+  ]
+    .filter(Boolean)
+    .map((value) => String(value).trim());
+  const [searchA, searchB] = await Promise.all([
+    titleVariants[0]
+      ? tmdbFetch<TmdbPagedResponse>(`/search/${type}?language=en-US&page=1&query=${encodeURIComponent(titleVariants[0])}`).catch(() => null)
+      : Promise.resolve(null),
+    titleVariants[1] && titleVariants[1] !== titleVariants[0]
+      ? tmdbFetch<TmdbPagedResponse>(`/search/${type}?language=en-US&page=1&query=${encodeURIComponent(titleVariants[1])}`).catch(() => null)
+      : Promise.resolve(null),
+  ]);
+  const normalizedTitleVariants = Array.from(new Set(titleVariants.map((value) => normalizeFranchiseKey(value)).filter(Boolean)));
+  const keywordNames = extractTmdbKeywordNames(keywordsPayload).map((value) => normalizeFranchiseKey(value)).filter((value) => value.length >= 4);
+  const candidatePool = [
+    ...(recommendations?.results ?? []),
+    ...(similar?.results ?? []),
+    ...(searchA?.results ?? []),
+    ...(searchB?.results ?? []),
+  ];
+
+  const mapped = dedupeMediaItems(
+    candidatePool
+      .map((item) => mapMovieOrShow(item, mappedType, genres))
+      .filter((item) => item.year >= 1900 && item.rating >= 3.5),
+  );
+
+  const filtered = mapped.filter((item) => {
+    const titleAffinity = hasStrongTmdbTitleAffinity(normalizedTitleVariants, item);
+    if (titleAffinity) {
+      return true;
+    }
+
+    if (!keywordNames.length) {
+      return false;
+    }
+
+    const haystack = normalizeFranchiseKey(
+      [item.title, item.originalTitle ?? "", item.overview, item.details.studio ?? ""].join(" "),
+    );
+
+    return keywordNames.some((keyword) => keyword.length >= 5 && haystack.includes(keyword));
+  });
+
+  return filtered.sort((left, right) => {
+    const yearGap = (left.year || 0) - (right.year || 0);
+    if (yearGap !== 0) return yearGap;
+    return right.rating - left.rating;
+  });
+}
+
 /** Find related movies/shows by title matching when collection data is insufficient */
 export async function getTmdbRelatedByFranchise(title: string, type: "movie" | "show", maxResults: number = 12): Promise<MediaItem[]> {
   const genres = await getGenreMap(type === "show" ? "tv" : type);
@@ -692,6 +877,7 @@ export async function enrichAnimeImagesFromTmdb(params: {
   }
 
   const searchTitle = titles[0];
+  await getGenreMaps().catch(() => null);
   const [tvResults, movieResults] = await Promise.all([
     tmdbFetch<TmdbPagedResponse>(`/search/tv?language=en-US&page=1&query=${encodeURIComponent(searchTitle)}`).catch(() => null),
     tmdbFetch<TmdbPagedResponse>(`/search/movie?language=en-US&include_adult=false&page=1&query=${encodeURIComponent(searchTitle)}`).catch(
@@ -712,12 +898,8 @@ export async function enrichAnimeImagesFromTmdb(params: {
       // Must have good title match
       if (entry.score < 40) return false;
       
-      // Check if content is likely anime using multiple indicators
       const genres = entry.item.genre_ids?.map(id => getGenreNameFromMap(id, entry.type === 'movie' ? 'movie' : 'tv')) || [];
-      const overview = entry.item.overview || '';
-      const title = entry.item.title || entry.item.name || '';
-      
-      return isLikelyAnime(title, genres, overview, entry.type === 'movie' ? 'movie' : 'tv');
+      return isSafeAnimeImageCandidate(entry.item, entry.type, genres, titles);
     })
     .sort((left, right) => right.score - left.score);
 

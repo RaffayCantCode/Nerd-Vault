@@ -154,6 +154,26 @@ export function DetailGallery({
                   <span>/</span>
                   <span>{galleryImages.length}</span>
                 </div>
+                {galleryImages.length > 1 ? (
+                  <div className="detail-lightbox-strip">
+                    {galleryImages.map((slide, index) => (
+                      <button
+                        key={`thumb-${slide.key}-${index}`}
+                        type="button"
+                        className={`detail-lightbox-thumb ${index === activeIndex ? "is-active" : ""}`}
+                        onClick={() => setActiveIndex(index)}
+                        aria-label={`Show ${title} image ${index + 1}`}
+                      >
+                        <img
+                          src={optimizeMediaImageUrl(slide.raw, "thumb") ?? slide.src}
+                          alt={`${title} thumbnail ${index + 1}`}
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </div>,
             document.body,
