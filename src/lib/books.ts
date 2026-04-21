@@ -25,6 +25,29 @@ type GutendexResponse = {
   results: GutendexBook[];
 };
 
+const BOOK_GENRE_RULES = [
+  { label: "Fiction", terms: ["fiction", "novel", "stories", "literature"] },
+  { label: "Classics", terms: ["classic", "classics"] },
+  { label: "Romance", terms: ["romance", "love", "courtship"] },
+  { label: "Horror", terms: ["ghost", "horror", "terror", "supernatural"] },
+  { label: "Adventure", terms: ["adventure", "voyage", "travel", "sea stories"] },
+  { label: "Fantasy", terms: ["fantasy", "fairy", "legend", "myth"] },
+  { label: "Mystery", terms: ["mystery", "detective", "crime"] },
+  { label: "History", terms: ["history", "historical", "war"] },
+  { label: "Science", terms: ["science", "mathematics", "astronomy", "physics"] },
+  { label: "Poetry", terms: ["poetry", "poems"] },
+  { label: "Drama", terms: ["drama", "plays", "tragedies", "comedy"] },
+] as const;
+
+function deriveGenres(subjects: string[]) {
+  const normalized = subjects.join(" ").toLowerCase();
+  const matches = BOOK_GENRE_RULES
+    .filter((rule) => rule.terms.some((term) => normalized.includes(term)))
+    .map((rule) => rule.label);
+
+  return matches.length ? matches.slice(0, 4) : ["Literary"];
+}
+
 function mapBook(book: GutendexBook): BookSummary {
   const authors = (book.authors ?? [])
     .map((author) => author.name?.trim())
@@ -40,6 +63,7 @@ function mapBook(book: GutendexBook): BookSummary {
     summary,
     coverUrl: book.formats?.["image/jpeg"] ?? null,
     subjects: (book.subjects ?? []).slice(0, 8),
+    genres: deriveGenres(book.subjects ?? []),
     languages: book.languages ?? [],
     downloadCount,
     pageCountEstimate,
@@ -114,22 +138,51 @@ function splitIntoParagraphs(text: string) {
     .slice(0, 2200);
 }
 
-export async function fetchBooksPage({ page, query }: { page: number; query: string }): Promise<BookListPayload> {
+export async function fetchBooksPage({
+  page,
+  query,
+  genre = "All",
+}: {
+  page: number;
+  query: string;
+  genre?: string;
+}): Promise<BookListPayload> {
   const url = new URL(GUTENDEX_API_URL);
   url.searchParams.set("page", String(Math.max(1, page)));
+  const normalizedGenre = genre.trim() || "All";
+  const searchTerms = [query.trim(), normalizedGenre !== "All" ? normalizedGenre : ""].filter(Boolean).join(" ");
 
-  if (query.trim()) {
-    url.searchParams.set("search", query.trim());
+  if (searchTerms) {
+    url.searchParams.set("search", searchTerms);
   }
 
   const payload = await fetchGutendex(url);
+  const mappedItems = payload.results.map(mapBook);
+  const filteredItems =
+    normalizedGenre === "All"
+      ? mappedItems
+      : mappedItems.filter((book) => book.genres.includes(normalizedGenre));
 
   return {
     page: Math.max(1, page),
     totalPages: Math.max(1, Math.ceil(payload.count / GUTENDEX_PAGE_SIZE)),
-    totalResults: payload.count,
-    items: payload.results.map(mapBook),
+    totalResults: normalizedGenre === "All" ? payload.count : filteredItems.length,
+    items: filteredItems,
   };
+}
+
+export async function fetchBookSummary(bookId: number): Promise<BookSummary> {
+  const url = new URL(GUTENDEX_API_URL);
+  url.searchParams.set("ids", String(bookId));
+
+  const payload = await fetchGutendex(url);
+  const book = payload.results[0];
+
+  if (!book) {
+    throw new Error("Book not found");
+  }
+
+  return mapBook(book);
 }
 
 export async function fetchBookReaderPayload(bookId: number): Promise<BookReaderPayload> {

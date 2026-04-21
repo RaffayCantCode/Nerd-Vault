@@ -7,6 +7,7 @@ export type BookSummary = {
   summary: string;
   coverUrl: string | null;
   subjects: string[];
+  genres: string[];
   languages: string[];
   downloadCount: number;
   pageCountEstimate: number;

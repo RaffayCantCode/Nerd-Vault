@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { BookCover } from "@/components/book-cover";
+import { BooksSidebar } from "@/components/books-sidebar";
+import { NVLoader } from "@/components/nv-loader";
+import { readBookTheme, readBookWishlist, subscribeBooksChange, toggleBookWishlist } from "@/lib/book-client";
 import { BookListPayload, BookSummary, BookTheme } from "@/lib/book-types";
-import { readBookTheme, readBookWishlist, subscribeBooksChange, toggleBookWishlist, writeBookTheme } from "@/lib/book-client";
 
 const emptyPayload: BookListPayload = {
   page: 1,
@@ -17,14 +19,23 @@ function formatCompactNumber(value: number) {
   return new Intl.NumberFormat("en", { notation: "compact" }).format(value);
 }
 
-export function BooksWorkspace() {
+export function BooksWorkspace({
+  initialPayload = emptyPayload,
+  initialQuery = "",
+  initialGenre = "All",
+}: {
+  initialPayload?: BookListPayload;
+  initialQuery?: string;
+  initialGenre?: string;
+}) {
   const [theme, setTheme] = useState<BookTheme>("dark");
-  const [query, setQuery] = useState("");
-  const [submittedQuery, setSubmittedQuery] = useState("");
-  const [page, setPage] = useState(1);
-  const [payload, setPayload] = useState<BookListPayload>(emptyPayload);
+  const [query, setQuery] = useState(initialQuery);
+  const [submittedQuery, setSubmittedQuery] = useState(initialQuery);
+  const [activeGenre, setActiveGenre] = useState(initialGenre);
+  const [page, setPage] = useState(initialPayload.page || 1);
+  const [payload, setPayload] = useState<BookListPayload>(initialPayload);
   const [wishlist, setWishlist] = useState<number[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialPayload.items.length);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -39,18 +50,31 @@ export function BooksWorkspace() {
 
   useEffect(() => {
     let active = true;
+    const canUseInitial =
+      initialPayload.items.length > 0 &&
+      page === initialPayload.page &&
+      submittedQuery === initialQuery &&
+      activeGenre === initialGenre;
+
+    if (canUseInitial) {
+      setPayload(initialPayload);
+      setLoading(false);
+      return () => {
+        active = false;
+      };
+    }
 
     async function loadBooks() {
       setLoading(true);
       setError(null);
 
       try {
-        const search = new URLSearchParams({
-          page: String(page),
-        });
-
+        const search = new URLSearchParams({ page: String(page) });
         if (submittedQuery.trim()) {
           search.set("query", submittedQuery.trim());
+        }
+        if (activeGenre !== "All") {
+          search.set("genre", activeGenre);
         }
 
         const response = await fetch(`/api/books?${search.toString()}`, { cache: "no-store" });
@@ -79,7 +103,7 @@ export function BooksWorkspace() {
     return () => {
       active = false;
     };
-  }, [page, submittedQuery]);
+  }, [activeGenre, initialGenre, initialPayload, initialQuery, page, submittedQuery]);
 
   function submitSearch(event: FormEvent) {
     event.preventDefault();
@@ -91,21 +115,14 @@ export function BooksWorkspace() {
     return wishlist.includes(book.id);
   }
 
+  const genreChips = useMemo(
+    () => Array.from(new Set(["All", ...payload.items.flatMap((book) => book.genres)])).slice(0, 9),
+    [payload.items],
+  );
+
   return (
     <div className="books-shell" data-theme={theme}>
-      <div className="books-sidebar">
-        <Link href="/" className="books-brand" aria-label="Back to landing page">
-          <span className="books-brand-mark">NV</span>
-        </Link>
-        <button type="button" className="books-theme-toggle" onClick={() => writeBookTheme(theme === "dark" ? "light" : "dark")}>
-          {theme === "dark" ? "Light" : "Dark"}
-        </button>
-        <div className="books-sidebar-line" />
-        <Link href="/" className="books-sidebar-link is-active">
-          Landing
-        </Link>
-        <span className="books-sidebar-caption">Reading only</span>
-      </div>
+      <BooksSidebar theme={theme} active="library" />
 
       <main className="books-main">
         <section className="books-hero">
@@ -113,7 +130,7 @@ export function BooksWorkspace() {
             <p className="books-eyebrow">Stories</p>
             <h1 className="books-title">A calmer room for reading, separate from the rest of your vault.</h1>
             <p className="books-copy">
-              Browse Project Gutenberg classics, save titles for later, and reopen every book exactly where you left it.
+              Browse Project Gutenberg books, sort by genre, save titles for later, and step into a dedicated reader when you are ready.
             </p>
             <form className="books-search" onSubmit={submitSearch}>
               <input
@@ -125,10 +142,25 @@ export function BooksWorkspace() {
               />
               <button type="submit">Search</button>
             </form>
+            <div className="books-genre-row">
+              {genreChips.map((genre) => (
+                <button
+                  key={genre}
+                  type="button"
+                  className={`books-genre-chip ${activeGenre === genre ? "is-active" : ""}`}
+                  onClick={() => {
+                    setActiveGenre(genre);
+                    setPage(1);
+                  }}
+                >
+                  {genre}
+                </button>
+              ))}
+            </div>
             <div className="books-hero-metadata">
               <span>{loading ? "Loading library..." : `${formatCompactNumber(payload.totalResults)} books found`}</span>
               <span>{wishlist.length} saved</span>
-              <span>In-app reading</span>
+              <span>Project Gutenberg only</span>
             </div>
           </div>
 
@@ -136,9 +168,9 @@ export function BooksWorkspace() {
             <div className="books-feature-glow" />
             <div className="books-feature-stack">
               <div className="books-feature-card">
-                <p className="books-feature-label">Reading mode</p>
-                <strong>Distraction-free pages with resume tracking</strong>
-                <span>Pick up from your saved paragraph and keep moving.</span>
+                <p className="books-feature-label">Reading flow</p>
+                <strong>Open a book page first, then enter the full reader when you’re ready.</strong>
+                <span>The library stays fast, covers fit better, and loading uses the NV motion while the reader prepares.</span>
               </div>
               <BookCover title="Midnight Atlas" author="Reading room preview" />
             </div>
@@ -163,6 +195,11 @@ export function BooksWorkspace() {
           </div>
 
           {error ? <div className="books-empty-state">{error}</div> : null}
+          {loading ? (
+            <div className="books-inline-loader">
+              <NVLoader compact label="Refreshing the library..." />
+            </div>
+          ) : null}
 
           <div className="books-grid">
             {payload.items.map((book) => (
@@ -181,7 +218,7 @@ export function BooksWorkspace() {
                 </div>
                 <div className="books-card-actions">
                   <Link href={`/books/${book.id}`} className="books-card-button books-card-button-primary">
-                    Read now
+                    Open book
                   </Link>
                   <button type="button" className="books-card-button" onClick={() => toggleBookWishlist(book.id)}>
                     {isWishlisted(book) ? "Saved" : "Wishlist"}

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BookCover } from "@/components/book-cover";
+import { BooksSidebar } from "@/components/books-sidebar";
+import { NVLoader } from "@/components/nv-loader";
 import { BookReaderPayload, BookTheme } from "@/lib/book-types";
 import {
   readBookProgress,
@@ -11,14 +12,13 @@ import {
   saveBookProgress,
   subscribeBooksChange,
   toggleBookWishlist,
-  writeBookTheme,
 } from "@/lib/book-client";
 
-export function BookReader({ bookId }: { bookId: number }) {
+export function BookReader({ bookId, initialPayload = null }: { bookId: number; initialPayload?: BookReaderPayload | null }) {
   const [theme, setTheme] = useState<BookTheme>("dark");
-  const [payload, setPayload] = useState<BookReaderPayload | null>(null);
+  const [payload, setPayload] = useState<BookReaderPayload | null>(initialPayload);
   const [wishlist, setWishlist] = useState<number[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialPayload);
   const [error, setError] = useState<string | null>(null);
   const readerRef = useRef<HTMLDivElement>(null);
   const hasRestoredProgressRef = useRef(false);
@@ -36,6 +36,13 @@ export function BookReader({ bookId }: { bookId: number }) {
 
   useEffect(() => {
     let active = true;
+
+    if (initialPayload) {
+      setLoading(false);
+      return () => {
+        active = false;
+      };
+    }
 
     async function loadBook() {
       setLoading(true);
@@ -68,7 +75,7 @@ export function BookReader({ bookId }: { bookId: number }) {
     return () => {
       active = false;
     };
-  }, [bookId]);
+  }, [bookId, initialPayload]);
 
   useEffect(() => {
     if (!payload || !readerRef.current || hasRestoredProgressRef.current) {
@@ -103,7 +110,7 @@ export function BookReader({ bookId }: { bookId: number }) {
     }
 
     function persistProgress() {
-      if (!readerRef.current || !payload) {
+      if (!readerRef.current) {
         return;
       }
 
@@ -143,54 +150,55 @@ export function BookReader({ bookId }: { bookId: number }) {
   const isWishlisted = useMemo(() => wishlist.includes(bookId), [bookId, wishlist]);
 
   if (loading) {
-    return <div className="books-reader-shell" data-theme={theme}><div className="books-empty-state">Preparing your reading room...</div></div>;
+    return (
+      <div className="books-reader-shell" data-theme={theme}>
+        <BooksSidebar theme={theme} active="reader" />
+        <main className="books-reader-main">
+          <section className="books-loading-shell">
+            <NVLoader label="Preparing your reading room..." />
+          </section>
+        </main>
+      </div>
+    );
   }
 
   if (error || !payload) {
     return (
       <div className="books-reader-shell" data-theme={theme}>
-        <div className="books-empty-state">{error || "This book could not be loaded."}</div>
+        <BooksSidebar theme={theme} active="reader" />
+        <main className="books-reader-main">
+          <div className="books-empty-state">{error || "This book could not be loaded."}</div>
+        </main>
       </div>
     );
   }
 
   return (
     <div className="books-reader-shell" data-theme={theme}>
-      <aside className="books-reader-sidebar">
-        <Link href="/" className="books-brand">NV</Link>
-        <button type="button" className="books-theme-toggle" onClick={() => writeBookTheme(theme === "dark" ? "light" : "dark")}>
-          {theme === "dark" ? "Light" : "Dark"}
-        </button>
-        <Link href="/books" className="books-sidebar-link is-active">Library</Link>
-        <Link href="/" className="books-sidebar-link">Landing</Link>
-      </aside>
+      <BooksSidebar theme={theme} active="reader" currentBookTitle={payload.book.title} />
 
       <main className="books-reader-main">
-        <section className="books-reader-hero">
+        <section className="books-reader-topbar">
           <div className="books-reader-copy">
-            <p className="books-eyebrow">Reading now</p>
-            <h1>{payload.book.title}</h1>
+            <p className="books-eyebrow">Reader</p>
+            <h1 className="books-reader-title">{payload.book.title}</h1>
             <p className="books-copy">
-              {payload.book.authors.join(", ") || "Unknown author"} · {payload.book.pageCountEstimate} pages estimated · resume tracking enabled
+              {payload.book.authors.join(", ") || "Unknown author"} · {payload.book.pageCountEstimate} pages estimated · auto resume enabled
             </p>
-            <div className="books-reader-actions">
-              <Link href="/books" className="books-card-button books-card-button-primary">Back to library</Link>
-              <button type="button" className="books-card-button" onClick={() => toggleBookWishlist(bookId)}>
-                {isWishlisted ? "Saved to wishlist" : "Add to wishlist"}
-              </button>
-            </div>
-            <p className="books-reader-summary">{payload.book.summary}</p>
           </div>
-
-          <div className="books-reader-art">
-            <BookCover title={payload.book.title} author={payload.book.authors[0]} />
+          <div className="books-reader-actions">
+            <Link href={`/books/${bookId}`} className="books-card-button">Book info</Link>
+            <Link href="/books" className="books-card-button">Library</Link>
+            <button type="button" className="books-card-button" onClick={() => toggleBookWishlist(bookId)}>
+              {isWishlisted ? "Saved to wishlist" : "Add to wishlist"}
+            </button>
           </div>
         </section>
 
-        <section className="books-reader-panel">
+        <section className="books-reader-panel books-reader-panel-immersive">
           <div className="books-reader-toolbar">
             <div>
-              <p className="books-eyebrow">Reader</p>
+              <p className="books-eyebrow">Immersive reader</p>
               <strong>Scroll to read. Your position is saved automatically.</strong>
             </div>
           </div>
