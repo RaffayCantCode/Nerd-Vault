@@ -27,7 +27,7 @@ export type BookReaderPayload = {
 
 export type StoredBookProgress = {
   bookId: number;
-  paragraphIndex: number;
+  currentPage: number;
   percent: number;
   updatedAt: number;
 };

@@ -1,28 +1,57 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BooksSidebar } from "@/components/books-sidebar";
 import { NVLoader } from "@/components/nv-loader";
+import { fetchPersistedBookProgress, readBookTheme, readBookWishlist, saveBookProgress, subscribeBooksChange, toggleBookWishlist } from "@/lib/book-client";
 import { BookReaderPayload, BookTheme } from "@/lib/book-types";
-import {
-  readBookProgress,
-  readBookTheme,
-  readBookWishlist,
-  saveBookProgress,
-  subscribeBooksChange,
-  toggleBookWishlist,
-} from "@/lib/book-client";
 
-export function BookReader({ bookId, initialPayload = null }: { bookId: number; initialPayload?: BookReaderPayload | null }) {
+function paginateParagraphs(paragraphs: string[], targetSize = 2600) {
+  const pages: string[][] = [];
+  let currentPage: string[] = [];
+  let currentSize = 0;
+
+  for (const paragraph of paragraphs) {
+    const paragraphSize = paragraph.length;
+
+    if (currentPage.length && currentSize + paragraphSize > targetSize) {
+      pages.push(currentPage);
+      currentPage = [];
+      currentSize = 0;
+    }
+
+    currentPage.push(paragraph);
+    currentSize += paragraphSize;
+  }
+
+  if (currentPage.length) {
+    pages.push(currentPage);
+  }
+
+  return pages;
+}
+
+export function BookReader({
+  bookId,
+  initialPayload = null,
+  initialProgress = null,
+}: {
+  bookId: number;
+  initialPayload?: BookReaderPayload | null;
+  initialProgress?: {
+    currentPage: number;
+    totalPages: number;
+    percent: number;
+  } | null;
+}) {
   const [theme, setTheme] = useState<BookTheme>("dark");
   const [payload, setPayload] = useState<BookReaderPayload | null>(initialPayload);
   const [wishlist, setWishlist] = useState<number[]>([]);
   const [loading, setLoading] = useState(!initialPayload);
   const [error, setError] = useState<string | null>(null);
-  const readerRef = useRef<HTMLDivElement>(null);
-  const hasRestoredProgressRef = useRef(false);
-  const saveTimerRef = useRef<number | null>(null);
+  const [currentPage, setCurrentPage] = useState(Math.max(1, initialProgress?.currentPage ?? 1));
+  const [hasResolvedSavedPage, setHasResolvedSavedPage] = useState(Boolean(initialProgress));
 
   useEffect(() => {
     const sync = () => {
@@ -38,7 +67,6 @@ export function BookReader({ bookId, initialPayload = null }: { bookId: number; 
     let active = true;
 
     if (initialPayload) {
-      setLoading(false);
       return () => {
         active = false;
       };
@@ -77,77 +105,69 @@ export function BookReader({ bookId, initialPayload = null }: { bookId: number; 
     };
   }, [bookId, initialPayload]);
 
-  useEffect(() => {
-    if (!payload || !readerRef.current || hasRestoredProgressRef.current) {
-      return;
-    }
-
-    const progress = readBookProgress(bookId);
-    if (!progress) {
-      hasRestoredProgressRef.current = true;
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      const target = readerRef.current?.querySelector<HTMLElement>(`[data-paragraph="${progress.paragraphIndex}"]`);
-      if (target && readerRef.current) {
-        readerRef.current.scrollTop = Math.max(0, target.offsetTop - 28);
-      } else if (readerRef.current) {
-        const maxScroll = readerRef.current.scrollHeight - readerRef.current.clientHeight;
-        readerRef.current.scrollTop = Math.max(0, Math.round(maxScroll * progress.percent));
-      }
-
-      hasRestoredProgressRef.current = true;
-    }, 80);
-
-    return () => window.clearTimeout(timer);
-  }, [bookId, payload]);
+  const pages = useMemo(() => (payload ? paginateParagraphs(payload.paragraphs) : []), [payload]);
+  const totalPages = Math.max(1, pages.length);
 
   useEffect(() => {
-    const reader = readerRef.current;
-    if (!reader || !payload) {
+    setCurrentPage((page) => Math.max(1, Math.min(initialProgress?.currentPage ?? page, totalPages)));
+  }, [initialProgress?.currentPage, totalPages]);
+
+  useEffect(() => {
+    if (!payload) {
       return;
     }
 
-    function persistProgress() {
-      if (!readerRef.current) {
+    let active = true;
+
+    async function syncSavedProgress() {
+      if (initialProgress) {
+        setHasResolvedSavedPage(true);
         return;
       }
 
-      const readerTop = readerRef.current.scrollTop;
-      const maxScroll = Math.max(1, readerRef.current.scrollHeight - readerRef.current.clientHeight);
-      const percent = Math.max(0, Math.min(1, readerTop / maxScroll));
-      const paragraphs = Array.from(readerRef.current.querySelectorAll<HTMLElement>("[data-paragraph]"));
-      const activeParagraph =
-        paragraphs.find((paragraph) => paragraph.offsetTop + paragraph.offsetHeight >= readerTop + 24) ?? paragraphs[paragraphs.length - 1];
-      const paragraphIndex = Number(activeParagraph?.dataset.paragraph ?? "0");
+      try {
+        const saved = await fetchPersistedBookProgress(bookId);
+        if (!active) {
+          return;
+        }
 
-      saveBookProgress({
-        bookId,
-        paragraphIndex: Number.isFinite(paragraphIndex) ? paragraphIndex : 0,
-        percent,
-        updatedAt: Date.now(),
-      });
-    }
-
-    function handleScroll() {
-      if (saveTimerRef.current) {
-        window.clearTimeout(saveTimerRef.current);
+        if (saved.progress?.currentPage) {
+          setCurrentPage(Math.max(1, Math.min(saved.progress.currentPage, totalPages)));
+        }
+      } catch {
+        // Ignore and keep current page fallback.
+      } finally {
+        if (active) {
+          setHasResolvedSavedPage(true);
+        }
       }
-
-      saveTimerRef.current = window.setTimeout(persistProgress, 180);
     }
 
-    reader.addEventListener("scroll", handleScroll, { passive: true });
+    void syncSavedProgress();
+
     return () => {
-      reader.removeEventListener("scroll", handleScroll);
-      if (saveTimerRef.current) {
-        window.clearTimeout(saveTimerRef.current);
-      }
+      active = false;
     };
-  }, [bookId, payload]);
+  }, [bookId, initialProgress, payload, totalPages]);
 
-  const isWishlisted = useMemo(() => wishlist.includes(bookId), [bookId, wishlist]);
+  useEffect(() => {
+    if (!payload || !pages.length || !hasResolvedSavedPage) {
+      return;
+    }
+
+    void saveBookProgress({
+      bookId,
+      title: payload.book.title,
+      author: payload.book.authors[0],
+      coverUrl: payload.book.coverUrl ?? undefined,
+      currentPage,
+      totalPages,
+      percent: totalPages <= 1 ? 1 : (currentPage - 1) / (totalPages - 1),
+      updatedAt: Date.now(),
+    });
+  }, [bookId, currentPage, hasResolvedSavedPage, pages.length, payload, totalPages]);
+
+  const isWishlisted = wishlist.includes(bookId);
 
   if (loading) {
     return (
@@ -173,6 +193,8 @@ export function BookReader({ bookId, initialPayload = null }: { bookId: number; 
     );
   }
 
+  const visiblePage = pages[Math.max(0, currentPage - 1)] ?? [];
+
   return (
     <div className="books-reader-shell" data-theme={theme}>
       <BooksSidebar theme={theme} active="reader" currentBookTitle={payload.book.title} />
@@ -183,7 +205,7 @@ export function BookReader({ bookId, initialPayload = null }: { bookId: number; 
             <p className="books-eyebrow">Reader</p>
             <h1 className="books-reader-title">{payload.book.title}</h1>
             <p className="books-copy">
-              {payload.book.authors.join(", ") || "Unknown author"} · {payload.book.pageCountEstimate} pages estimated · auto resume enabled
+              {payload.book.authors.join(", ") || "Unknown author"} · page {currentPage} of {totalPages}
             </p>
           </div>
           <div className="books-reader-actions">
@@ -198,13 +220,22 @@ export function BookReader({ bookId, initialPayload = null }: { bookId: number; 
         <section className="books-reader-panel books-reader-panel-immersive">
           <div className="books-reader-toolbar">
             <div>
-              <p className="books-eyebrow">Immersive reader</p>
-              <strong>Scroll to read. Your position is saved automatically.</strong>
+              <p className="books-eyebrow">Paged reader</p>
+              <strong>Turn pages and resume exactly from the saved page.</strong>
+            </div>
+            <div className="books-page-controls">
+              <button type="button" className="books-card-button" disabled={currentPage <= 1} onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}>
+                Previous page
+              </button>
+              <span className="books-page-indicator">{currentPage} / {totalPages}</span>
+              <button type="button" className="books-card-button books-card-button-primary" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}>
+                Next page
+              </button>
             </div>
           </div>
-          <div ref={readerRef} className="books-reader-content">
-            {payload.paragraphs.map((paragraph, index) => (
-              <p key={`${index}-${paragraph.slice(0, 20)}`} data-paragraph={index} className="books-reader-paragraph">
+          <div className="books-reader-content books-reader-content-paged">
+            {visiblePage.map((paragraph, index) => (
+              <p key={`${currentPage}-${index}-${paragraph.slice(0, 20)}`} className="books-reader-paragraph">
                 {paragraph}
               </p>
             ))}

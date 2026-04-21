@@ -1,18 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { BookCover } from "@/components/book-cover";
 import { BooksSidebar } from "@/components/books-sidebar";
 import { NVLoader } from "@/components/nv-loader";
-import { readBookProgress, readBookTheme, readBookWishlist, subscribeBooksChange, toggleBookWishlist } from "@/lib/book-client";
+import { readBookTheme, readBookWishlist, subscribeBooksChange, toggleBookWishlist } from "@/lib/book-client";
 import { BookSummary, BookTheme } from "@/lib/book-types";
 
 function formatCompactNumber(value: number) {
   return new Intl.NumberFormat("en", { notation: "compact" }).format(value);
 }
 
-export function BookDetail({ book }: { book: BookSummary }) {
+export function BookDetail({
+  book,
+  initialProgress = null,
+}: {
+  book: BookSummary;
+  initialProgress?: {
+    currentPage: number;
+    totalPages: number;
+    percent: number;
+  } | null;
+}) {
   const [theme, setTheme] = useState<BookTheme>("dark");
   const [wishlist, setWishlist] = useState<number[]>([]);
 
@@ -26,7 +36,6 @@ export function BookDetail({ book }: { book: BookSummary }) {
     return subscribeBooksChange(sync);
   }, []);
 
-  const progress = useMemo(() => readBookProgress(book.id), [book.id, wishlist]);
   const isWishlisted = wishlist.includes(book.id);
 
   return (
@@ -48,7 +57,7 @@ export function BookDetail({ book }: { book: BookSummary }) {
             <p className="books-reader-summary">{book.summary}</p>
             <div className="books-reader-actions">
               <Link href={`/books/${book.id}/read`} className="books-card-button books-card-button-primary">
-                {progress ? "Resume reading" : "Read book"}
+                {initialProgress ? "Resume reading" : "Read book"}
               </Link>
               <button type="button" className="books-card-button" onClick={() => toggleBookWishlist(book.id)}>
                 {isWishlisted ? "Saved to wishlist" : "Add to wishlist"}
@@ -58,7 +67,9 @@ export function BookDetail({ book }: { book: BookSummary }) {
               </Link>
             </div>
             <p className="books-progress-note">
-              {progress ? `Saved progress: ${Math.round(progress.percent * 100)}% into the book.` : "No reading progress saved yet."}
+              {initialProgress
+                ? `Saved progress: page ${initialProgress.currentPage} of ${initialProgress.totalPages}.`
+                : "No reading progress saved yet."}
             </p>
           </div>
 
@@ -89,7 +100,7 @@ export function BookDetail({ book }: { book: BookSummary }) {
             </div>
             <div className="books-detail-panel">
               <strong>Reader mode</strong>
-              <p>Dedicated in-app reader with automatic resume and a calmer layout.</p>
+              <p>Dedicated in-app paged reader with automatic resume and a calmer layout.</p>
             </div>
           </div>
         </section>

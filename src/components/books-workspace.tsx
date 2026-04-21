@@ -5,7 +5,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { BookCover } from "@/components/book-cover";
 import { BooksSidebar } from "@/components/books-sidebar";
 import { NVLoader } from "@/components/nv-loader";
-import { readBookTheme, readBookWishlist, subscribeBooksChange, toggleBookWishlist } from "@/lib/book-client";
+import { fetchPersistedBookProgress, readBookTheme, readBookWishlist, subscribeBooksChange, toggleBookWishlist } from "@/lib/book-client";
 import { BookListPayload, BookSummary, BookTheme } from "@/lib/book-types";
 
 const emptyPayload: BookListPayload = {
@@ -23,10 +23,20 @@ export function BooksWorkspace({
   initialPayload = emptyPayload,
   initialQuery = "",
   initialGenre = "All",
+  initialContinue = null,
 }: {
   initialPayload?: BookListPayload;
   initialQuery?: string;
   initialGenre?: string;
+  initialContinue?: {
+    bookId: number;
+    title: string;
+    author?: string;
+    coverUrl?: string;
+    currentPage: number;
+    totalPages: number;
+    percent: number;
+  } | null;
 }) {
   const [theme, setTheme] = useState<BookTheme>("dark");
   const [query, setQuery] = useState(initialQuery);
@@ -37,6 +47,7 @@ export function BooksWorkspace({
   const [wishlist, setWishlist] = useState<number[]>([]);
   const [loading, setLoading] = useState(!initialPayload.items.length);
   const [error, setError] = useState<string | null>(null);
+  const [continueReading, setContinueReading] = useState(initialContinue);
 
   useEffect(() => {
     const sync = () => {
@@ -46,6 +57,22 @@ export function BooksWorkspace({
 
     sync();
     return subscribeBooksChange(sync);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    fetchPersistedBookProgress()
+      .then((payload) => {
+        if (active && payload.continueReading) {
+          setContinueReading(payload.continueReading);
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -162,6 +189,20 @@ export function BooksWorkspace({
               <span>{wishlist.length} saved</span>
               <span>Project Gutenberg only</span>
             </div>
+            {continueReading ? (
+              <div className="books-continue-card">
+                <div className="books-continue-copy">
+                  <p className="books-feature-label">Continue reading</p>
+                  <strong>{continueReading.title}</strong>
+                  <span>
+                    {continueReading.author || "Project Gutenberg"} · page {continueReading.currentPage} of {continueReading.totalPages}
+                  </span>
+                </div>
+                <Link href={`/books/${continueReading.bookId}/read`} className="books-card-button books-card-button-primary">
+                  Continue
+                </Link>
+              </div>
+            ) : null}
           </div>
 
           <div className="books-feature-panel">

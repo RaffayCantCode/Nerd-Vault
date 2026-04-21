@@ -38,9 +38,9 @@
   --books-accent-strong: #c98752;
   --books-shadow: 0 20px 70px rgba(77, 51, 27, 0.14);
   background:
-    radial-gradient(circle at top left, rgba(167, 101, 52, 0.14), transparent 20%),
+    radial-gradient(circle at top left, rgba(167, 101, 52, 0.16), transparent 20%),
     radial-gradient(circle at 85% 18%, rgba(111, 83, 58, 0.08), transparent 18%),
-    linear-gradient(180deg, #f5eee2, var(--books-bg));
+    linear-gradient(180deg, #fcf8f0, var(--books-bg));
 }
 
 .books-sidebar,
@@ -136,6 +136,31 @@
   color: var(--books-muted);
   font-size: 0.82rem;
   line-height: 1.4;
+}
+
+.books-continue-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 18px;
+  padding: 16px 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(239, 195, 143, 0.2);
+  background: linear-gradient(180deg, rgba(239, 195, 143, 0.1), rgba(255,255,255,0.02));
+}
+
+.books-continue-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.books-continue-copy strong {
+  font-size: 1.05rem;
+}
+
+.books-continue-copy span {
+  color: var(--books-muted);
 }
 
 .books-sidebar-link.is-active,
@@ -583,11 +608,36 @@
     var(--books-panel-strong);
 }
 
+.books-page-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.books-page-indicator {
+  min-width: 84px;
+  text-align: center;
+  color: var(--books-muted);
+}
+
 .books-reader-content {
   max-height: calc(100vh - 190px);
   overflow: auto;
   padding: 12px 18px 12px 6px;
   scrollbar-width: thin;
+}
+
+.books-reader-content-paged {
+  overflow: hidden;
+  min-height: min(72vh, 920px);
+  max-height: none;
+  padding: 20px 28px;
+  border-radius: 24px;
+  border: 1px solid var(--books-line);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)),
+    var(--books-panel);
 }
 
 .books-reader-paragraph {
@@ -669,8 +719,18 @@
     align-items: stretch;
   }
 
+  .books-continue-card,
+  .books-page-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .books-reader-content {
     max-height: none;
     padding-right: 0;
+  }
+
+  .books-reader-content-paged {
+    padding: 18px;
   }
 }

@@ -74,7 +74,7 @@ export function readBookProgress(bookId: number) {
   return readBookProgressMap()[String(bookId)] ?? null;
 }
 
-export function saveBookProgress(progress: StoredBookProgress) {
+export function saveLocalBookProgress(progress: StoredBookProgress) {
   const next = {
     ...readBookProgressMap(),
     [String(progress.bookId)]: progress,
@@ -82,4 +82,71 @@ export function saveBookProgress(progress: StoredBookProgress) {
 
   window.localStorage.setItem(BOOK_PROGRESS_KEY, JSON.stringify(next));
   emitBooksChange();
+}
+
+export async function fetchPersistedBookProgress(bookId?: number) {
+  const search = new URLSearchParams();
+  if (typeof bookId === "number" && Number.isFinite(bookId)) {
+    search.set("bookId", String(bookId));
+  }
+
+  const response = await fetch(`/api/books/progress${search.toString() ? `?${search.toString()}` : ""}`, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error("Could not load saved progress");
+  }
+
+  return response.json() as Promise<{
+    ok: boolean;
+    progress: {
+      bookId: number;
+      title: string;
+      author?: string;
+      coverUrl?: string;
+      currentPage: number;
+      totalPages: number;
+      percent: number;
+      updatedAt: string;
+    } | null;
+    continueReading: {
+      bookId: number;
+      title: string;
+      author?: string;
+      coverUrl?: string;
+      currentPage: number;
+      totalPages: number;
+      percent: number;
+      updatedAt: string;
+    } | null;
+  }>;
+}
+
+export async function saveBookProgress(progress: StoredBookProgress & { title: string; author?: string; coverUrl?: string; totalPages: number }) {
+  saveLocalBookProgress(progress);
+
+  try {
+    const response = await fetch("/api/books/progress", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        bookId: progress.bookId,
+        title: progress.title,
+        author: progress.author,
+        coverUrl: progress.coverUrl,
+        currentPage: progress.currentPage,
+        totalPages: progress.totalPages,
+        percent: progress.percent,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Progress save failed");
+    }
+  } catch {
+    // Keep local fallback progress for guests or temporary network issues.
+  }
 }
