@@ -63,7 +63,7 @@ export function BookDetail({
                   <strong>Sign in to save your reading progress.</strong>
                   <span>You can still open the book now, but page saving and continue reading work best with an account.</span>
                 </div>
-                <Link href="/sign-in" className="books-card-button books-card-button-primary">
+                <Link href={`/sign-in?redirectTo=${encodeURIComponent(`/books/${book.id}`)}`} className="books-card-button books-card-button-primary">
                   Sign in
                 </Link>
               </div>

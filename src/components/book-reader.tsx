@@ -217,7 +217,7 @@ export function BookReader({
           </div>
           <div className="books-reader-actions">
             {!isSignedIn ? (
-              <Link href="/sign-in" className="books-card-button books-card-button-primary">
+              <Link href={`/sign-in?redirectTo=${encodeURIComponent(`/books/${bookId}/read`)}`} className="books-card-button books-card-button-primary">
                 Sign in to save
               </Link>
             ) : null}
