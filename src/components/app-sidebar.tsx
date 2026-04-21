@@ -21,6 +21,20 @@ function IconHome() {
   );
 }
 
+function IconLanding() {
+  return (
+    <svg className="sidebar-nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden>
+      <path
+        d="M4.5 10.5 12 4l7.5 6.5V19a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 19z"
+        stroke="currentColor"
+        strokeWidth="1.65"
+        strokeLinejoin="round"
+      />
+      <path d="M8.5 20.5v-5.75h7v5.75" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function IconUser() {
   return (
     <svg className="sidebar-nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden>
@@ -87,6 +101,10 @@ export async function AppSidebar({ active, initialFolders = [] }: AppSidebarProp
         </Link>
 
         <nav className="sidebar-rail-nav" aria-label="Primary navigation">
+          <Link href="/" className="sidebar-nav-button" aria-label="Landing page" title="Landing page">
+            <IconLanding />
+            <span className="sidebar-nav-label">Landing</span>
+          </Link>
           <Link
             href="/home"
             className={`sidebar-nav-button ${active === "home" ? "is-active" : ""}`}

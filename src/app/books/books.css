@@ -557,6 +557,8 @@
   gap: 16px;
   color: inherit;
   text-decoration: none;
+  position: relative;
+  z-index: 1;
 }
 
 .books-card-copy {
@@ -587,6 +589,8 @@
 .books-card-actions {
   display: flex;
   gap: 10px;
+  position: relative;
+  z-index: 2;
 }
 
 .books-card-actions .books-card-button,
@@ -863,6 +867,11 @@
     padding: 16px;
   }
 
+  .books-card-actions .books-card-button,
+  .books-card-actions .books-card-button-primary {
+    width: 100%;
+  }
+
   .book-cover {
     width: min(100%, 240px);
     margin-inline: auto;
@@ -914,9 +923,12 @@
   }
 
   .books-sidebar-mobile-toggle,
-  .books-sidebar-mobile-backdrop,
   .books-sidebar-shell.is-mobile-open .books-sidebar,
   .books-sidebar-shell.is-mobile-open .books-reader-sidebar {
+    pointer-events: auto;
+  }
+
+  .books-sidebar-shell.is-mobile-open .books-sidebar-mobile-backdrop {
     pointer-events: auto;
   }
 

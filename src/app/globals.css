@@ -9872,6 +9872,21 @@ html {
     gap: 14px !important;
   }
 
+  .sidebar-shell.is-mobile-open .sidebar.sidebar-rail .brand.brand-rail {
+    width: 100% !important;
+    min-height: 64px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    margin: 0 !important;
+    padding: 6px 8px !important;
+  }
+
+  .sidebar-shell.is-mobile-open .sidebar.sidebar-rail .brand-mark-logo {
+    width: 48px !important;
+    height: 48px !important;
+  }
+
   .topbar.container .brand {
     min-width: 0;
     align-items: center;
@@ -10132,8 +10147,11 @@ html {
   }
 
   .sidebar-mobile-toggle,
-  .sidebar-mobile-backdrop,
   .sidebar-shell.is-mobile-open .sidebar.sidebar-rail {
+    pointer-events: auto !important;
+  }
+
+  .sidebar-shell.is-mobile-open .sidebar-mobile-backdrop {
     pointer-events: auto !important;
   }
 
