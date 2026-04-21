@@ -99,7 +99,10 @@ export function ResilientMediaImage({
         }
         if (src !== fallback) {
           setSrc(fallback);
+          return;
         }
+        setLoaded(true);
+        onLoadStateChange?.(true);
       }}
     />
   );

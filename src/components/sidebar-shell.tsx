@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 export function SidebarShell({ children }: { children: ReactNode }) {
@@ -8,6 +8,7 @@ export function SidebarShell({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const searchKey = searchParams.toString();
+  const toggleRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setIsMobileOpen(false);
@@ -52,14 +53,51 @@ export function SidebarShell({ children }: { children: ReactNode }) {
     };
   }, [isMobileOpen]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    function setHandlePosition(clientY: number) {
+      if (window.innerWidth > 900 || !toggleRef.current) {
+        return;
+      }
+
+      const clamped = Math.max(84, Math.min(window.innerHeight - 84, clientY));
+      toggleRef.current.style.setProperty("--sidebar-toggle-y", `${clamped}px`);
+    }
+
+    function handlePointerMove(event: PointerEvent) {
+      setHandlePosition(event.clientY);
+    }
+
+    function handleTouchMove(event: TouchEvent) {
+      const touch = event.touches[0];
+      if (touch) {
+        setHandlePosition(touch.clientY);
+      }
+    }
+
+    setHandlePosition(window.innerHeight / 2);
+    window.addEventListener("pointermove", handlePointerMove, { passive: true });
+    window.addEventListener("touchmove", handleTouchMove, { passive: true });
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("touchmove", handleTouchMove);
+    };
+  }, []);
+
   return (
     <div className={`sidebar-shell ${isMobileOpen ? "is-mobile-open" : ""}`}>
       <button
+        ref={toggleRef}
         type="button"
         className="sidebar-mobile-toggle glass"
         aria-label={isMobileOpen ? "Close sidebar" : "Open sidebar"}
         aria-expanded={isMobileOpen}
         onClick={() => setIsMobileOpen((current) => !current)}
+        style={{ top: "var(--sidebar-toggle-y, 50vh)" }}
       >
         <span className="sidebar-mobile-toggle-arrow">{isMobileOpen ? "<" : ">"}</span>
       </button>

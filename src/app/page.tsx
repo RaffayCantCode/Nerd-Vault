@@ -64,6 +64,9 @@ export default async function HomePage() {
                     <BrowseResetLink className="landing-cta landing-cta-secondary">
                       Discover
                     </BrowseResetLink>
+                    <Link href="/books" className="landing-cta landing-cta-secondary">
+                      Read Stories
+                    </Link>
                   </div>
                 ) : (
                   <div className="landing-actions-guest">
@@ -73,6 +76,9 @@ export default async function HomePage() {
                     <BrowseResetLink className="landing-cta landing-cta-secondary">
                       Browse Free
                     </BrowseResetLink>
+                    <Link href="/books" className="landing-cta landing-cta-secondary">
+                      Read Stories
+                    </Link>
                   </div>
                 )}
               </div>
@@ -308,6 +314,67 @@ export default async function HomePage() {
                 <span>Track what you finished.</span>
                 <span>Find the next thing faster.</span>
                 <span>Keep every universe in one vault.</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="landing-features">
+          <div className="landing-features-container">
+            <div className="landing-features-header">
+              <h2 className="landing-features-title">A Separate Reading Room</h2>
+              <p className="landing-features-subtitle">
+                Books live in their own quiet space with in-app reading, resume tracking, and a softer atmosphere.
+              </p>
+            </div>
+
+            <div className="landing-features-grid">
+              <div className="landing-feature-card">
+                <div className="feature-icon feature-icon-database">
+                  <div className="feature-icon-bg" />
+                  <span className="feature-icon-symbol">Stories</span>
+                </div>
+                <h3 className="feature-title">Project Gutenberg Library</h3>
+                <p className="feature-description">
+                  Explore a huge library of free classics, surfaced through a dedicated books interface rather than the main media browse.
+                </p>
+                <div className="feature-tech">
+                  <span className="tech-badge">75k+ ebooks</span>
+                  <span className="tech-badge">Separate UX</span>
+                  <span className="tech-badge">Reading-first</span>
+                </div>
+              </div>
+
+              <div className="landing-feature-card">
+                <div className="feature-icon feature-icon-organization">
+                  <div className="feature-icon-bg" />
+                  <span className="feature-icon-symbol">Resume</span>
+                </div>
+                <h3 className="feature-title">Continue Where You Stopped</h3>
+                <p className="feature-description">
+                  The reader saves your position automatically so reopening a title brings you back to the same place.
+                </p>
+                <div className="feature-tech">
+                  <span className="tech-badge">Auto-save</span>
+                  <span className="tech-badge">Smooth reader</span>
+                  <span className="tech-badge">Private tracking</span>
+                </div>
+              </div>
+
+              <div className="landing-feature-card">
+                <div className="feature-icon feature-icon-social">
+                  <div className="feature-icon-bg" />
+                  <span className="feature-icon-symbol">Calm</span>
+                </div>
+                <h3 className="feature-title">No Noise, Just Reading</h3>
+                <p className="feature-description">
+                  No ratings, no recommendations to friends, and no main-app crossover. Save titles quietly and read inside the site.
+                </p>
+                <div className="feature-tech">
+                  <span className="tech-badge">Wishlist only</span>
+                  <span className="tech-badge">No social layer</span>
+                  <span className="tech-badge">Focused space</span>
+                </div>
               </div>
             </div>
           </div>

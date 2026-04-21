@@ -1,0 +1,201 @@
+"use client";
+
+import Link from "next/link";
+import { FormEvent, useEffect, useState } from "react";
+import { BookCover } from "@/components/book-cover";
+import { BookListPayload, BookSummary, BookTheme } from "@/lib/book-types";
+import { readBookTheme, readBookWishlist, subscribeBooksChange, toggleBookWishlist, writeBookTheme } from "@/lib/book-client";
+
+const emptyPayload: BookListPayload = {
+  page: 1,
+  totalPages: 1,
+  totalResults: 0,
+  items: [],
+};
+
+function formatCompactNumber(value: number) {
+  return new Intl.NumberFormat("en", { notation: "compact" }).format(value);
+}
+
+export function BooksWorkspace() {
+  const [theme, setTheme] = useState<BookTheme>("dark");
+  const [query, setQuery] = useState("");
+  const [submittedQuery, setSubmittedQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [payload, setPayload] = useState<BookListPayload>(emptyPayload);
+  const [wishlist, setWishlist] = useState<number[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const sync = () => {
+      setTheme(readBookTheme());
+      setWishlist(readBookWishlist());
+    };
+
+    sync();
+    return subscribeBooksChange(sync);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadBooks() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const search = new URLSearchParams({
+          page: String(page),
+        });
+
+        if (submittedQuery.trim()) {
+          search.set("query", submittedQuery.trim());
+        }
+
+        const response = await fetch(`/api/books?${search.toString()}`, { cache: "no-store" });
+        const nextPayload = (await response.json()) as BookListPayload & { ok?: boolean; message?: string };
+
+        if (!response.ok || nextPayload.ok === false) {
+          throw new Error(nextPayload.message || "Could not load books");
+        }
+
+        if (active) {
+          setPayload(nextPayload);
+        }
+      } catch (loadError) {
+        if (active) {
+          setError(loadError instanceof Error ? loadError.message : "Could not load books");
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadBooks();
+
+    return () => {
+      active = false;
+    };
+  }, [page, submittedQuery]);
+
+  function submitSearch(event: FormEvent) {
+    event.preventDefault();
+    setPage(1);
+    setSubmittedQuery(query);
+  }
+
+  function isWishlisted(book: BookSummary) {
+    return wishlist.includes(book.id);
+  }
+
+  return (
+    <div className="books-shell" data-theme={theme}>
+      <div className="books-sidebar">
+        <Link href="/" className="books-brand" aria-label="Back to landing page">
+          <span className="books-brand-mark">NV</span>
+        </Link>
+        <button type="button" className="books-theme-toggle" onClick={() => writeBookTheme(theme === "dark" ? "light" : "dark")}>
+          {theme === "dark" ? "Light" : "Dark"}
+        </button>
+        <div className="books-sidebar-line" />
+        <Link href="/" className="books-sidebar-link is-active">
+          Landing
+        </Link>
+        <span className="books-sidebar-caption">Reading only</span>
+      </div>
+
+      <main className="books-main">
+        <section className="books-hero">
+          <div className="books-hero-copy">
+            <p className="books-eyebrow">Stories</p>
+            <h1 className="books-title">A calmer room for reading, separate from the rest of your vault.</h1>
+            <p className="books-copy">
+              Browse Project Gutenberg classics, save titles for later, and reopen every book exactly where you left it.
+            </p>
+            <form className="books-search" onSubmit={submitSearch}>
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search authors, titles, or eras..."
+                aria-label="Search books"
+              />
+              <button type="submit">Search</button>
+            </form>
+            <div className="books-hero-metadata">
+              <span>{loading ? "Loading library..." : `${formatCompactNumber(payload.totalResults)} books found`}</span>
+              <span>{wishlist.length} saved</span>
+              <span>In-app reading</span>
+            </div>
+          </div>
+
+          <div className="books-feature-panel">
+            <div className="books-feature-glow" />
+            <div className="books-feature-stack">
+              <div className="books-feature-card">
+                <p className="books-feature-label">Reading mode</p>
+                <strong>Distraction-free pages with resume tracking</strong>
+                <span>Pick up from your saved paragraph and keep moving.</span>
+              </div>
+              <BookCover title="Midnight Atlas" author="Reading room preview" />
+            </div>
+          </div>
+        </section>
+
+        <section className="books-library">
+          <div className="books-section-head">
+            <div>
+              <p className="books-eyebrow">Library</p>
+              <h2>{submittedQuery ? `Results for "${submittedQuery}"` : "Project Gutenberg library"}</h2>
+            </div>
+            <div className="books-pager">
+              <button type="button" disabled={page <= 1 || loading} onClick={() => setPage((current) => Math.max(1, current - 1))}>
+                Previous
+              </button>
+              <span>{payload.page} / {payload.totalPages}</span>
+              <button type="button" disabled={page >= payload.totalPages || loading} onClick={() => setPage((current) => current + 1)}>
+                Next
+              </button>
+            </div>
+          </div>
+
+          {error ? <div className="books-empty-state">{error}</div> : null}
+
+          <div className="books-grid">
+            {payload.items.map((book) => (
+              <article key={book.id} className="books-card">
+                <Link href={`/books/${book.id}`} className="books-card-link">
+                  <BookCover title={book.title} author={book.authors[0]} size="small" />
+                  <div className="books-card-copy">
+                    <p className="books-card-title">{book.title}</p>
+                    <p className="books-card-author">{book.authors.join(", ") || "Unknown author"}</p>
+                    <p className="books-card-summary">{book.summary}</p>
+                  </div>
+                </Link>
+                <div className="books-card-meta">
+                  <span>{book.pageCountEstimate} pages est.</span>
+                  <span>{formatCompactNumber(book.downloadCount)} reads</span>
+                </div>
+                <div className="books-card-actions">
+                  <Link href={`/books/${book.id}`} className="books-card-button books-card-button-primary">
+                    Read now
+                  </Link>
+                  <button type="button" className="books-card-button" onClick={() => toggleBookWishlist(book.id)}>
+                    {isWishlisted(book) ? "Saved" : "Wishlist"}
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          {!loading && !payload.items.length && !error ? (
+            <div className="books-empty-state">No books matched that search yet. Try another author, title, or genre.</div>
+          ) : null}
+        </section>
+      </main>
+    </div>
+  );
+}

@@ -1,4 +1,5 @@
 import { writeBrowsePageCache, writeBrowsePageCacheV2 } from "@/lib/browse-cache";
+import { browseFallbackGames } from "@/lib/game-fallback-catalog";
 import { rankCandidatesForQuery } from "@/lib/search-utils";
 import { MediaItem } from "@/lib/types";
 import { matchesFranchise } from "@/lib/franchise-utils";
@@ -289,6 +290,11 @@ export async function browseIgdbGames(params: {
   sort?: "discovery" | "newest" | "rating" | "title";
   seed?: number;
 }): Promise<BrowsePayload> {
+  if (!process.env?.TWITCH_APP_ACCESS_TOKEN && !process.env?.IGDB_CLIENT_ID) {
+    return browseFallbackGames(params);
+  }
+
+  try {
   const page = Math.max(1, params.page ?? 1);
   const queryText = params.query?.trim();
   const sort = params.sort ?? "discovery";
@@ -388,6 +394,9 @@ export async function browseIgdbGames(params: {
     totalResults: items.length,
     items,
   };
+  } catch {
+    return browseFallbackGames(params);
+  }
 }
 
 const IGDB_GAME_DETAIL_FIELDS = [

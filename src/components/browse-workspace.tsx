@@ -883,13 +883,12 @@ export function BrowseWorkspace({
       return;
     }
 
-    // Simplified scroll handling to prevent getting stuck
     const timer = setTimeout(() => {
       if (resultsRef.current) {
-        scrollToElementWithOffset(resultsRef.current, pageScrollOffsetRef.current, "smooth");
+        scrollToElementWithOffset(resultsRef.current, pageScrollOffsetRef.current, scrollBehaviorRef.current);
         shouldScrollToResultsRef.current = false;
       }
-    }, 100);
+    }, 60);
 
     return () => clearTimeout(timer);
   }, [activePage, deferredQuery, isLoading, sortedVisible.length]);
@@ -911,10 +910,10 @@ export function BrowseWorkspace({
 
     const nextScroll = Number(stored);
     if (Number.isFinite(nextScroll) && nextScroll > 0) {
-      // Add timeout to ensure DOM is ready
       const timer = setTimeout(() => {
         window.scrollTo({ top: nextScroll, behavior: "auto" });
         window.sessionStorage.removeItem(BROWSE_SCROLL_KEY);
+        didRestoreScrollRef.current = true;
       }, 50);
       
       return () => clearTimeout(timer);
@@ -1028,13 +1027,7 @@ export function BrowseWorkspace({
     if (clamped === activePage) {
       return;
     }
-
-    // Scroll to top of media list instantly when changing pages
-    scrollToElementWithOffset(resultsRef.current, 80, "auto");
-    
-    // Show loading state immediately for faster perceived response
     setIsLoading(true);
-    
     shouldScrollToToolbarRef.current = false;
     shouldScrollToResultsRef.current = true;
     scrollBehaviorRef.current = "auto";
