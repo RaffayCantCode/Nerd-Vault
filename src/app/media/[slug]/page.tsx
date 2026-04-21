@@ -13,8 +13,9 @@ import { MediaActions } from "@/components/media-actions";
 import { RelatedMediaSection } from "@/components/related-media-section";
 import { ResilientMediaImage } from "@/components/resilient-media-image";
 import { PremiumMediaDetails } from "@/components/premium-media-details";
+import { VaultClientPrimer } from "@/components/vault-client-primer";
 import { auth } from "@/lib/auth";
-import { getViewerShellData } from "@/lib/vault-server";
+import { getLibraryStateForUser, getViewerShellData } from "@/lib/vault-server";
 import { canonicalGenreLabels, sharedCanonicalGenreCount } from "@/lib/catalog-utils";
 import { dedupeGalleryImageUrls, canonicalGalleryImageKey } from "@/lib/gallery-image-key";
 import { optimizeMediaImageUrl } from "@/lib/media-image";
@@ -2049,7 +2050,13 @@ export default async function MediaDetailPage({
   const viewerName = session?.user?.name || "Guest vault";
   const viewerId = session?.user?.id || "guest-vault";
   const viewerAvatar = session?.user?.image || undefined;
-  const sidebarFolders = session?.user?.id ? (await getViewerShellData(session.user.id).catch(() => null))?.folders ?? [] : [];
+  const [shellData, library] = session?.user?.id
+    ? await Promise.all([
+        getViewerShellData(session.user.id).catch(() => null),
+        getLibraryStateForUser(session.user.id).catch(() => null),
+      ])
+    : [null, null];
+  const sidebarFolders = shellData?.folders ?? [];
   const { slug } = await params;
   const { source, sourceId, type } = await searchParams;
   let media: MediaItem | undefined = getMediaBySlug(slug);
@@ -2191,7 +2198,17 @@ export default async function MediaDetailPage({
 
           <main className={`workspace detail-layout ${easterEgg?.className ?? ""}`} style={detailPaletteStyle}>
             <DetailViewEffects />
-            <AppTopBar viewerId={viewerId} viewerName={viewerName} viewerAvatar={viewerAvatar} />
+            <VaultClientPrimer
+              library={library}
+              profile={shellData ? { ...shellData, viewedProfile: shellData.viewerProfile, watched: library?.watched ?? [], wishlist: library?.wishlist ?? [], canSeeWatched: true, canSeeWishlist: true, viewingOwnProfile: true } : null}
+            />
+            <AppTopBar
+              viewerId={viewerId}
+              viewerName={viewerName}
+              viewerAvatar={viewerAvatar}
+              initialProfile={shellData?.viewerProfile ?? null}
+              initialFriends={shellData?.friends ?? []}
+            />
           <section className="detail-hero glass">
             <div className="hero-media">
               <img

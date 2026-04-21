@@ -3,6 +3,7 @@ import { signInWithCredentials, signInWithGoogle } from "@/app/sign-in/actions";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopBar } from "@/components/app-topbar";
 import { HomeWorkspace } from "@/components/home-workspace";
+import { VaultClientPrimer } from "@/components/vault-client-primer";
 import { auth } from "@/lib/auth";
 import { buildHomeFeed } from "@/lib/home-feed";
 import { ensureCurrentUserRecord, getLibraryStateForUser, getViewerShellData } from "@/lib/vault-server";
@@ -84,8 +85,9 @@ export default async function HomeHubPage() {
     );
   }
 
-  const [user, shellData, library] = await Promise.all([
-    ensureCurrentUserRecord(),
+  await ensureCurrentUserRecord();
+
+  const [shellData, library] = await Promise.all([
     getViewerShellData(session.user.id).catch(() => ({ folders: [], viewerProfile: null, friends: [] })),
     getLibraryStateForUser(session.user.id).catch(() => ({ watched: [], wishlist: [], folders: [] }))
   ]);
@@ -97,6 +99,10 @@ export default async function HomeHubPage() {
       <div className="app-shell-layout home-layout">
         <AppSidebar active="home" initialFolders={shellData.folders} />
         <main className="workspace home-workspace">
+          <VaultClientPrimer
+            library={library}
+            profile={shellData.viewerProfile ? { ...shellData, viewedProfile: shellData.viewerProfile, watched: library.watched, wishlist: library.wishlist, canSeeWatched: true, canSeeWishlist: true, viewingOwnProfile: true } : null}
+          />
           <AppTopBar
             viewerId={viewerId}
             viewerName={viewerName}

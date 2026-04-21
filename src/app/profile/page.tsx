@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopBar } from "@/components/app-topbar";
 import { ProfileWorkspace } from "@/components/profile-workspace";
+import { VaultClientPrimer } from "@/components/vault-client-primer";
 import { auth } from "@/lib/auth";
 import { ensureCurrentUserRecord, getVaultProfilePayload, getViewerShellData } from "@/lib/vault-server";
 
@@ -52,9 +53,10 @@ export default async function ProfilePage({
     );
   }
 
-  const shellData = session?.user?.id ? await getViewerShellData(session.user.id) : null;
-  const initialPayload = session?.user?.id
-    ? await getVaultProfilePayload((await ensureCurrentUserRecord()).id, requestedUser ?? session.user.id)
+  const currentUser = session?.user?.id ? await ensureCurrentUserRecord() : null;
+  const shellData = currentUser?.id ? await getViewerShellData(currentUser.id) : null;
+  const initialPayload = currentUser?.id
+    ? await getVaultProfilePayload(currentUser.id, requestedUser ?? currentUser.id)
     : undefined;
 
   return (
@@ -62,6 +64,11 @@ export default async function ProfilePage({
       <div className="app-shell-layout">
         <AppSidebar active="profile" initialFolders={shellData?.folders ?? []} />
         <main className="workspace">
+          <VaultClientPrimer
+            library={initialPayload && initialPayload.viewingOwnProfile ? { watched: initialPayload.watched, wishlist: initialPayload.wishlist, folders: initialPayload.folders } : null}
+            profile={initialPayload ?? null}
+            profileUserId={requestedUser}
+          />
           <AppTopBar
             viewerId={viewerId}
             viewerName={userName}

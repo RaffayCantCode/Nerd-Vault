@@ -1,4 +1,5 @@
 import { Prisma, PrivacyLevel as PrismaPrivacyLevel } from "@prisma/client";
+import { cache } from "react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { MediaItem } from "@/lib/types";
@@ -153,14 +154,14 @@ function canViewPrivacy(ownerId: string, viewerId: string, visibility: PrivacyLe
   return ownerFriendIds.includes(viewerId);
 }
 
-async function getFriendIds(userId: string) {
+const getFriendIds = cache(async (userId: string) => {
   const rows = await prisma.friendship.findMany({
     where: { userId },
     select: { friendId: true },
   });
 
   return rows.map((row) => row.friendId);
-}
+});
 
 async function upsertGenres(tx: Prisma.TransactionClient, mediaId: string, genres: string[]) {
   const uniqueGenres = Array.from(new Set(genres.map((genre) => genre.trim()).filter(Boolean)));
@@ -285,7 +286,7 @@ export async function persistMediaItem(item: MediaItem, txArg?: Prisma.Transacti
   });
 }
 
-export async function getLibraryStateForUser(userId: string): Promise<LibraryState> {
+export const getLibraryStateForUser = cache(async (userId: string): Promise<LibraryState> => {
   const [watchedRows, wishlistRows, folders] = await Promise.all([
     prisma.watchedItem.findMany({
       where: { userId },
@@ -344,9 +345,9 @@ export async function getLibraryStateForUser(userId: string): Promise<LibrarySta
     wishlist: wishlistRows.map((row) => serializeMedia(row.media)),
     folders: folders.map(serializeFolder),
   };
-}
+});
 
-export async function getFoldersForUser(userId: string): Promise<StoredFolder[]> {
+export const getFoldersForUser = cache(async (userId: string): Promise<StoredFolder[]> => {
   const folders = await prisma.folder.findMany({
     where: { userId },
     orderBy: { updatedAt: "desc" },
@@ -369,9 +370,9 @@ export async function getFoldersForUser(userId: string): Promise<StoredFolder[]>
   });
 
   return folders.map(serializeFolder);
-}
+});
 
-export async function getViewerShellData(userId: string) {
+export const getViewerShellData = cache(async (userId: string) => {
   const [viewer, friendIds, folders] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
@@ -409,9 +410,9 @@ export async function getViewerShellData(userId: string) {
     viewerProfile: serializeProfile(viewer, friendIds),
     friends: friends.map((friend) => serializeProfile(friend, [])),
   };
-}
+});
 
-export async function getVaultProfilePayload(viewerId: string, viewedUserId: string): Promise<VaultProfilePayload> {
+export const getVaultProfilePayload = cache(async (viewerId: string, viewedUserId: string): Promise<VaultProfilePayload> => {
   const [viewer, viewed, viewerFriendIds, viewedFriendIds] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: viewerId },
@@ -477,7 +478,7 @@ export async function getVaultProfilePayload(viewerId: string, viewedUserId: str
     canSeeWishlist,
     viewingOwnProfile,
   };
-}
+});
 
 export async function updateProfile(userId: string, updates: {
   avatarUrl?: string;
