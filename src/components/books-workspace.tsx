@@ -5,7 +5,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { BookCover } from "@/components/book-cover";
 import { BooksSidebar } from "@/components/books-sidebar";
 import { NVLoader } from "@/components/nv-loader";
-import { fetchPersistedBookProgress, readBookTheme, readBookWishlist, subscribeBooksChange, toggleBookWishlist } from "@/lib/book-client";
+import { clearBookProgress, fetchPersistedBookProgress, readBookTheme, readBookWishlist, subscribeBooksChange, toggleBookWishlist } from "@/lib/book-client";
 import { BookListPayload, BookSummary, BookTheme } from "@/lib/book-types";
 
 const emptyPayload: BookListPayload = {
@@ -48,6 +48,7 @@ export function BooksWorkspace({
   const [loading, setLoading] = useState(!initialPayload.items.length);
   const [error, setError] = useState<string | null>(null);
   const [continueReading, setContinueReading] = useState(initialContinue);
+  const [clearingContinue, setClearingContinue] = useState(false);
 
   useEffect(() => {
     const sync = () => {
@@ -198,9 +199,29 @@ export function BooksWorkspace({
                     {continueReading.author || "Project Gutenberg"} · page {continueReading.currentPage} of {continueReading.totalPages}
                   </span>
                 </div>
-                <Link href={`/books/${continueReading.bookId}/read`} className="books-card-button books-card-button-primary">
-                  Continue
-                </Link>
+                <div className="books-continue-actions">
+                  <Link href={`/books/${continueReading.bookId}/read`} className="books-card-button books-card-button-primary">
+                    Continue
+                  </Link>
+                  <button
+                    type="button"
+                    className="books-card-button books-card-button-dismiss"
+                    disabled={clearingContinue}
+                    aria-label={`Remove ${continueReading.title} from continue reading`}
+                    onClick={async () => {
+                      if (!continueReading) {
+                        return;
+                      }
+
+                      setClearingContinue(true);
+                      await clearBookProgress(continueReading.bookId);
+                      setContinueReading(null);
+                      setClearingContinue(false);
+                    }}
+                  >
+                    {clearingContinue ? "Removing..." : "×"}
+                  </button>
+                </div>
               </div>
             ) : null}
           </div>

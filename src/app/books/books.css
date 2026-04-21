@@ -160,9 +160,16 @@
   background: linear-gradient(180deg, rgba(239, 195, 143, 0.1), rgba(255,255,255,0.02));
 }
 
+.books-continue-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .books-continue-copy {
   display: grid;
   gap: 6px;
+  min-width: 0;
 }
 
 .books-continue-copy strong {
@@ -171,6 +178,14 @@
 
 .books-continue-copy span {
   color: var(--books-muted);
+}
+
+.books-card-button-dismiss {
+  min-width: 52px;
+  width: 52px;
+  padding: 0;
+  font-size: 1.4rem;
+  line-height: 1;
 }
 
 .books-signin-note {
@@ -233,6 +248,10 @@
   border-radius: 34px;
   background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)), var(--books-panel);
   box-shadow: var(--books-shadow);
+}
+
+.books-wishlist-hero .books-title {
+  max-width: 13ch;
 }
 
 .books-eyebrow {
@@ -357,6 +376,20 @@
   padding: 0.62rem 0.88rem;
   border-radius: 999px;
   border: 1px solid var(--books-line);
+  color: var(--books-muted);
+}
+
+.books-empty-state-rich {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+}
+
+.books-empty-state-rich strong {
+  font-size: 1.1rem;
+}
+
+.books-empty-state-rich span {
   color: var(--books-muted);
 }
 
@@ -845,6 +878,14 @@
   .books-signin-note {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .books-continue-actions {
+    width: 100%;
+  }
+
+  .books-continue-actions .books-card-button {
+    flex: 1 1 auto;
   }
 
   .books-reader-content {

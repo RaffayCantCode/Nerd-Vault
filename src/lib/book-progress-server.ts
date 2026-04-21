@@ -137,3 +137,12 @@ export async function saveBookProgressForUser(
       "updatedAt" = CURRENT_TIMESTAMP
   `;
 }
+
+export async function deleteBookProgressForUser(userId: string, bookId: number) {
+  await ensureBookProgressTable();
+
+  await prisma.$executeRaw`
+    DELETE FROM "BookProgress"
+    WHERE "userId" = ${userId} AND "bookId" = ${bookId}
+  `;
+}

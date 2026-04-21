@@ -185,6 +185,22 @@ export async function fetchBookSummary(bookId: number): Promise<BookSummary> {
   return mapBook(book);
 }
 
+export async function fetchBooksByIds(bookIds: number[]): Promise<BookSummary[]> {
+  const normalizedIds = Array.from(new Set(bookIds.filter((bookId) => Number.isFinite(bookId) && bookId > 0)));
+  if (!normalizedIds.length) {
+    return [];
+  }
+
+  const url = new URL(GUTENDEX_API_URL);
+  url.searchParams.set("ids", normalizedIds.join(","));
+
+  const payload = await fetchGutendex(url);
+  const mapped = payload.results.map(mapBook);
+  const order = new Map(normalizedIds.map((id, index) => [id, index]));
+
+  return mapped.sort((left, right) => (order.get(left.id) ?? 0) - (order.get(right.id) ?? 0));
+}
+
 export async function fetchBookReaderPayload(bookId: number): Promise<BookReaderPayload> {
   const url = new URL(GUTENDEX_API_URL);
   url.searchParams.set("ids", String(bookId));

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getBookProgress, getContinueReading, getSessionUserId, saveBookProgressForUser } from "@/lib/book-progress-server";
+import { deleteBookProgressForUser, getBookProgress, getContinueReading, getSessionUserId, saveBookProgressForUser } from "@/lib/book-progress-server";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -58,6 +58,31 @@ export async function POST(request: NextRequest) {
       {
         ok: false,
         message: error instanceof Error ? error.message : "Could not save book progress",
+      },
+      { status: 400 },
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  const userId = await getSessionUserId();
+  if (!userId) {
+    return NextResponse.json({ ok: false, message: "Unauthorized" }, { status: 401 });
+  }
+
+  const bookId = Number(request.nextUrl.searchParams.get("bookId") || "");
+  if (!Number.isFinite(bookId)) {
+    return NextResponse.json({ ok: false, message: "Book id is required" }, { status: 400 });
+  }
+
+  try {
+    await deleteBookProgressForUser(userId, bookId);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: error instanceof Error ? error.message : "Could not clear book progress",
       },
       { status: 400 },
     );

@@ -84,6 +84,13 @@ export function saveLocalBookProgress(progress: StoredBookProgress) {
   emitBooksChange();
 }
 
+export function clearLocalBookProgress(bookId: number) {
+  const next = { ...readBookProgressMap() };
+  delete next[String(bookId)];
+  window.localStorage.setItem(BOOK_PROGRESS_KEY, JSON.stringify(next));
+  emitBooksChange();
+}
+
 export async function fetchPersistedBookProgress(bookId?: number) {
   const search = new URLSearchParams();
   if (typeof bookId === "number" && Number.isFinite(bookId)) {
@@ -148,5 +155,21 @@ export async function saveBookProgress(progress: StoredBookProgress & { title: s
     }
   } catch {
     // Keep local fallback progress for guests or temporary network issues.
+  }
+}
+
+export async function clearBookProgress(bookId: number) {
+  clearLocalBookProgress(bookId);
+
+  try {
+    const response = await fetch(`/api/books/progress?bookId=${bookId}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok && response.status !== 401) {
+      throw new Error("Progress clear failed");
+    }
+  } catch {
+    // Local fallback still clears the continue state in this browser.
   }
 }
