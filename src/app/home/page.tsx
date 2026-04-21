@@ -24,27 +24,16 @@ export default async function HomeHubPage() {
           <main className="workspace home-workspace">
             <AppTopBar viewerId={viewerId} viewerName={viewerName} viewerAvatar={viewerAvatar} />
             <section className="auth-screen">
-              <div className="auth-screen-card glass" style={{ width: "min(100%, 1040px)" }}>
-                <div className="auth-screen-copy">
+              <div className="auth-screen-card glass" style={{ width: "min(100%, 760px)", gridTemplateColumns: "1fr" }}>
+                <div className="auth-screen-copy" style={{ justifyItems: "start" }}>
                   <p className="eyebrow">Home hub</p>
-                  <h1 className="headline">To see Home, log in first.</h1>
-                  <p className="copy">
-                    Home depends on your personal vault data, so guest mode cannot open it yet.
-                  </p>
+                  <h1 className="headline">You must be logged in to see this page.</h1>
+                  <p className="copy">Sign in with the website account flow and then come back to Home.</p>
                   <div className="button-row" style={{ marginTop: 18 }}>
                     <Link href="/sign-in?redirectTo=%2Fhome" className="button button-primary">
-                      Go to login
+                      Sign in
                     </Link>
                   </div>
-                </div>
-                <div className="auth-screen-panel glass">
-                  <div className="auth-panel-header">
-                    <p className="eyebrow">Guest mode</p>
-                    <h2 className="headline" style={{ margin: 0 }}>Browse is open, Home is locked.</h2>
-                  </div>
-                  <p className="copy" style={{ margin: 0 }}>
-                    Log in and NerdVault will bring back your saved activity, recommendations, folders, and recent progress here.
-                  </p>
                 </div>
               </div>
             </section>

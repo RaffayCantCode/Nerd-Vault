@@ -9,6 +9,31 @@ const SECTION_ORDER = [
   { key: "game", label: "Games" },
 ] as const;
 
+const SECTION_ITEM_LABEL = {
+  movie: "movie",
+  anime: "anime",
+  game: "game",
+} as const;
+
+const WATCHED_PROMPTS = {
+  show: {
+    title: "Add a TV show to watched first.",
+    copy: "Mark any series as watched and we will start shaping TV recommendations around that taste.",
+  },
+  movie: {
+    title: "Add a movie to watched first.",
+    copy: "Mark any movie as watched and we will recommend more films that fit what you actually like.",
+  },
+  anime: {
+    title: "Add an anime to watched first.",
+    copy: "Mark any anime as watched and we will recommend more anime according to that signal.",
+  },
+  game: {
+    title: "Add a game to watched first.",
+    copy: "Mark any game as watched and we will start building game picks around it.",
+  },
+} as const;
+
 // Loading state component
 function HomeWorkspaceLoading() {
   return (
@@ -52,7 +77,7 @@ export function HomeWorkspace({
   feed: HomeFeed;
 }) {
   // Show loading state if feed is empty or still loading
-  if (!feed || Object.keys(feed.sections).length === 0) {
+  if (!feed) {
     return <HomeWorkspaceLoading />;
   }
 
@@ -191,35 +216,39 @@ export function HomeWorkspace({
       </section>
 
       {/* TV Shows Section - Series */}
-      {feed.sections.show?.length > 0 && (
-        <section id="home-tv-shows" className="section-stack" style={{ paddingTop: 0 }}>
-          <div className="section-header">
-            <div>
-              <p className="eyebrow">For you</p>
-              <h2 className="headline">Series you'll probably like</h2>
-              <p className="copy" style={{ marginTop: 8, maxWidth: 760 }}>
-                TV series picked based on your viewing history and preferences. From ongoing favorites to hidden gems waiting to be discovered.
-              </p>
-            </div>
+      <section id="home-tv-shows" className="section-stack" style={{ paddingTop: 0 }}>
+        <div className="section-header">
+          <div>
+            <p className="eyebrow">For you</p>
+            <h2 className="headline">Series you'll probably like</h2>
+            <p className="copy" style={{ marginTop: 8, maxWidth: 760 }}>
+              TV series picked from what you have actually marked as watched, so the lane gets better as you teach it your taste.
+            </p>
           </div>
-          <div className="catalog-grid">
-            {feed.sections.show.slice(0, 12).map((item, index) => (
-              <CatalogCard key={item.id} item={item} priority={index < 6} />
-            ))}
-          </div>
-          {feed.sections.show.length > 12 && (
-            <div className="section-actions" style={{ marginTop: 24, textAlign: 'center' }}>
-              <a href="#home-show" className="button button-secondary">
-                View all series
-              </a>
+        </div>
+        {feed.watchedCounts.show > 0 ? (
+          feed.sections.show.length ? (
+            <div className="catalog-grid">
+              {feed.sections.show.slice(0, 12).map((item, index) => (
+                <CatalogCard key={item.id} item={item} priority={index < 6} />
+              ))}
             </div>
-          )}
-        </section>
-      )}
+          ) : (
+            <div className="folder-empty glass">
+              <p className="headline">We need a little more signal from your series history.</p>
+              <p className="copy">Try adding another watched show and this lane should get much more useful.</p>
+            </div>
+          )
+        ) : (
+          <div className="folder-empty glass">
+            <p className="headline">{WATCHED_PROMPTS.show.title}</p>
+            <p className="copy">{WATCHED_PROMPTS.show.copy}</p>
+          </div>
+        )}
+      </section>
 
       {SECTION_ORDER.map((section) => {
         const items = feed.sections[section.key];
-        if (!items.length) return null;
 
         return (
           <section key={section.key} id={`home-${section.key}`} className="section-stack" style={{ paddingTop: 0 }}>
@@ -229,11 +258,25 @@ export function HomeWorkspace({
                 <h2 className="headline">{section.label} you'll probably like</h2>
               </div>
             </div>
-            <div className="catalog-grid">
-              {items.map((item, index) => (
-                <CatalogCard key={item.id} item={item} priority={index < 8} />
-              ))}
-            </div>
+            {feed.watchedCounts[section.key] > 0 ? (
+              items.length ? (
+                <div className="catalog-grid">
+                  {items.map((item, index) => (
+                    <CatalogCard key={item.id} item={item} priority={index < 8} />
+                  ))}
+                </div>
+              ) : (
+                <div className="folder-empty glass">
+                  <p className="headline">We need a little more signal from your {section.label.toLowerCase()} history.</p>
+                  <p className="copy">Add another watched {SECTION_ITEM_LABEL[section.key]} and we will have a better base for recommendations.</p>
+                </div>
+              )
+            ) : (
+              <div className="folder-empty glass">
+                <p className="headline">{WATCHED_PROMPTS[section.key].title}</p>
+                <p className="copy">{WATCHED_PROMPTS[section.key].copy}</p>
+              </div>
+            )}
           </section>
         );
       })}

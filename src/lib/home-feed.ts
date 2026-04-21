@@ -1,6 +1,6 @@
-import { browseIgdbGames } from "@/lib/sources/igdb";
+import { browseIgdbGames, getIgdbFranchiseEntries, getIgdbRelatedGamesByFranchise } from "@/lib/sources/igdb";
 import { browseJikanAnime, getJikanAnimeFranchise } from "@/lib/sources/jikan";
-import { browseTmdbCatalog, getTmdbMediaDetails } from "@/lib/sources/tmdb";
+import { browseTmdbCatalog, getTmdbFranchiseEntries, getTmdbMediaDetails, getTmdbRelatedByFranchise, getTmdbShowRelations } from "@/lib/sources/tmdb";
 import { MediaItem, MediaType } from "@/lib/types";
 import { LibraryState } from "@/lib/vault-types";
 
@@ -17,6 +17,15 @@ export type HomeFeed = {
   greeting: string;
   sections: Record<MediaType, MediaItem[]>;
   upcoming: HomeContinuation[];
+  watchedCounts: Record<MediaType, number>;
+};
+
+type SeedOrigin = "watched" | "wishlist" | "folder";
+
+type SignalSeed = {
+  item: MediaItem;
+  weight: number;
+  origin: SeedOrigin;
 };
 
 function dedupeItems(items: MediaItem[]) {
@@ -103,58 +112,91 @@ function emptyBrowseResult() {
   return { page: 1, totalPages: 1, totalResults: 0, items: [] as MediaItem[] };
 }
 
-function scoreCandidate(seedItems: MediaItem[], candidate: MediaItem, ownedKeys: Set<string>) {
+function buildSignalSeeds(library: LibraryState, type: MediaType) {
+  const folderItems = library.folders.flatMap((folder) => folder.items);
+  const dedupe = new Set<string>();
+  const seeds: SignalSeed[] = [];
+
+  const pushSeed = (item: MediaItem, origin: SeedOrigin, weight: number) => {
+    if (item.type !== type) return;
+    const key = `${item.source}-${item.sourceId}`;
+    if (dedupe.has(key)) return;
+    dedupe.add(key);
+    seeds.push({ item, origin, weight });
+  };
+
+  library.watched.forEach((item) => pushSeed(item, "watched", 3));
+  library.wishlist.forEach((item) => pushSeed(item, "wishlist", 2));
+  folderItems.forEach((item) => pushSeed(item, "folder", 1.5));
+
+  return seeds;
+}
+
+function scoreCandidate(seeds: SignalSeed[], candidate: MediaItem, ownedKeys: Set<string>) {
   const candidateKey = `${candidate.source}-${candidate.sourceId}`;
   if (ownedKeys.has(candidateKey)) return -999;
 
-  let score = candidate.rating * 4;
+  let score = candidate.rating * 1.5;
   const candidateRoot = buildTitleRoot(candidate);
+  let strongestAffinity = 0;
 
-  for (const seed of seedItems) {
-    const sharedGenres = candidate.genres.filter((genre) => seed.genres.includes(genre)).length;
-    score += sharedGenres * 12;
+  for (const seed of seeds) {
+    const sharedGenres = candidate.genres.filter((genre) => seed.item.genres.includes(genre)).length;
+    let affinity = sharedGenres * 14;
 
     if (
-      seed.details.studio &&
+      seed.item.details.studio &&
       candidate.details.studio &&
-      normalizeText(seed.details.studio) === normalizeText(candidate.details.studio)
+      normalizeText(seed.item.details.studio) === normalizeText(candidate.details.studio)
     ) {
-      score += 16;
+      affinity += 26;
     }
 
-    const seedRoot = buildTitleRoot(seed);
+    const seedRoot = buildTitleRoot(seed.item);
     if (seedRoot && candidateRoot && (seedRoot.includes(candidateRoot) || candidateRoot.includes(seedRoot))) {
-      score += 28;
+      affinity += 48;
     }
 
-    const yearGap = Math.abs((candidate.year || 0) - (seed.year || 0));
-    if (yearGap <= 3) score += 4;
+    if (
+      seed.item.details.collectionTitle &&
+      candidate.details.collectionTitle &&
+      normalizeText(seed.item.details.collectionTitle) === normalizeText(candidate.details.collectionTitle)
+    ) {
+      affinity += 54;
+    }
+
+    const yearGap = Math.abs((candidate.year || 0) - (seed.item.year || 0));
+    if (yearGap <= 2) affinity += 8;
+    else if (yearGap <= 5) affinity += 4;
+
+    strongestAffinity = Math.max(strongestAffinity, affinity);
+    score += affinity * seed.weight;
+  }
+
+  if (strongestAffinity < 18) {
+    return -999;
   }
 
   return score;
 }
 
-function topGenres(items: MediaItem[], type: MediaType) {
+function topGenres(seeds: SignalSeed[]) {
   const counts = new Map<string, number>();
-  items
-    .filter((item) => item.type === type)
-    .forEach((item) => {
-      item.genres.forEach((genre) => counts.set(genre, (counts.get(genre) ?? 0) + 1));
-    });
+  seeds.forEach((seed) => {
+    seed.item.genres.forEach((genre) => counts.set(genre, (counts.get(genre) ?? 0) + seed.weight));
+  });
 
   return [...counts.entries()]
     .sort((a, b) => b[1] - a[1])
     .map(([genre]) => genre)
-    .slice(0, 3);
+    .slice(0, 2);
 }
 
-function topSignals(items: MediaItem[], type: MediaType) {
+function topSignals(seeds: SignalSeed[]) {
   const counts = new Map<string, number>();
-  items
-    .filter((item) => item.type === type)
-    .forEach((item) => {
-      buildSignals(item).forEach((signal) => counts.set(signal, (counts.get(signal) ?? 0) + 1));
-    });
+  seeds.forEach((seed) => {
+    buildSignals(seed.item).forEach((signal) => counts.set(signal, (counts.get(signal) ?? 0) + seed.weight));
+  });
 
   return [...counts.entries()]
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
@@ -162,12 +204,75 @@ function topSignals(items: MediaItem[], type: MediaType) {
     .slice(0, 2);
 }
 
+async function gatherRelatedCandidates(type: MediaType, seeds: SignalSeed[]) {
+  const focusSeeds = seeds.slice(0, 3);
+
+  if (type === "movie") {
+    const results = await Promise.all(
+      focusSeeds.flatMap((seed) => [
+        seed.item.source === "tmdb"
+          ? getTmdbFranchiseEntries(Number(seed.item.sourceId), "movie").catch(() => [] as MediaItem[])
+          : Promise.resolve([] as MediaItem[]),
+        getTmdbRelatedByFranchise(seed.item.title, "movie", 10).catch(() => [] as MediaItem[]),
+      ]),
+    );
+    return dedupeItems(results.flatMap((group) => group));
+  }
+
+  if (type === "show") {
+    const results = await Promise.all(
+      focusSeeds.flatMap((seed) => [
+        seed.item.source === "tmdb"
+          ? getTmdbShowRelations(Number(seed.item.sourceId)).catch(() => [] as MediaItem[])
+          : Promise.resolve([] as MediaItem[]),
+        seed.item.source === "tmdb"
+          ? getTmdbFranchiseEntries(Number(seed.item.sourceId), "tv").catch(() => [] as MediaItem[])
+          : Promise.resolve([] as MediaItem[]),
+        getTmdbRelatedByFranchise(seed.item.title, "show", 10).catch(() => [] as MediaItem[]),
+      ]),
+    );
+    return dedupeItems(results.flatMap((group) => group));
+  }
+
+  if (type === "game") {
+    const results = await Promise.all(
+      focusSeeds.flatMap((seed) => [
+        seed.item.source === "igdb"
+          ? getIgdbFranchiseEntries(Number(seed.item.sourceId)).catch(() => [] as MediaItem[])
+          : Promise.resolve([] as MediaItem[]),
+        getIgdbRelatedGamesByFranchise(seed.item.title, 10).catch(() => [] as MediaItem[]),
+      ]),
+    );
+    return dedupeItems(results.flatMap((group) => group));
+  }
+
+  if (type === "anime") {
+    const results = await Promise.all(
+      focusSeeds.flatMap((seed, index) =>
+        buildSignals(seed.item).slice(0, 2).map((query, queryIndex) =>
+          browseJikanAnime({
+            page: 1,
+            query,
+            sort: "rating",
+            seed: 211 + index * 10 + queryIndex,
+          })
+            .then((result) => result.items)
+            .catch(() => [] as MediaItem[]),
+        ),
+      ),
+    );
+    return dedupeItems(results.flatMap((group) => group));
+  }
+
+  return [] as MediaItem[];
+}
+
 async function gatherCandidates(type: MediaType, genres: string[], signals: string[]) {
   if (type === "movie" || type === "show") {
     const results = await Promise.all([
       ...genres.map((genre, index) =>
         withTimeout(
-          browseTmdbCatalog({ type, page: 1, genre, sort: index === 0 ? "rating" : "discovery", seed: 11 + index }),
+          browseTmdbCatalog({ type, page: 1, genre, sort: "rating", seed: 11 + index }),
           emptyBrowseResult(),
         ),
       ),
@@ -221,20 +326,30 @@ async function gatherCandidates(type: MediaType, genres: string[], signals: stri
   return dedupeItems(results.flatMap((result) => result.items));
 }
 
-async function buildRecommendationsForType(type: MediaType, libraryItems: MediaItem[], ownedKeys: Set<string>) {
-  const seedItems = libraryItems.filter((item) => item.type === type);
-  if (!seedItems.length) return [] as MediaItem[];
+async function buildRecommendationsForType(type: MediaType, library: LibraryState, ownedKeys: Set<string>) {
+  const watchedSeeds = watchedItemsFromLibrary(library).filter((item) => item.type === type);
+  if (!watchedSeeds.length) return [] as MediaItem[];
 
-  const candidates = await gatherCandidates(type, topGenres(libraryItems, type), topSignals(libraryItems, type)).catch(() => []);
+  const seeds = buildSignalSeeds(library, type);
+  const [relatedCandidates, discoveryCandidates] = await Promise.all([
+    gatherRelatedCandidates(type, seeds).catch(() => [] as MediaItem[]),
+    gatherCandidates(type, topGenres(seeds), topSignals(seeds)).catch(() => [] as MediaItem[]),
+  ]);
+
+  const candidates = dedupeItems([...relatedCandidates, ...discoveryCandidates]);
   return candidates
     .map((candidate) => ({
       candidate,
-      score: scoreCandidate(seedItems, candidate, ownedKeys),
+      score: scoreCandidate(seeds, candidate, ownedKeys),
     }))
     .filter((entry) => entry.score > 0)
     .sort((a, b) => b.score - a.score)
     .map((entry) => entry.candidate)
     .slice(0, 8);
+}
+
+function watchedItemsFromLibrary(library: LibraryState) {
+  return dedupeItems(library.watched);
 }
 
 async function findUpcomingForAnime(base: MediaItem, ownedKeys: Set<string>) {
@@ -387,24 +502,34 @@ function buildGreeting(library: LibraryState) {
 }
 
 export async function buildHomeFeed(library: LibraryState): Promise<HomeFeed> {
+  const watchedItems = watchedItemsFromLibrary(library);
   const libraryItems = dedupeItems([
-    ...library.watched,
+    ...watchedItems,
     ...library.wishlist,
     ...library.folders.flatMap((folder) => folder.items),
   ]);
   const ownedKeys = new Set(libraryItems.map((item) => `${item.source}-${item.sourceId}`));
+  const watchedCounts: Record<MediaType, number> = {
+    movie: watchedItems.filter((item) => item.type === "movie").length,
+    show: watchedItems.filter((item) => item.type === "show").length,
+    anime: watchedItems.filter((item) => item.type === "anime").length,
+    anime_movie: watchedItems.filter((item) => item.type === "anime_movie").length,
+    all: watchedItems.length,
+    game: watchedItems.filter((item) => item.type === "game").length,
+  };
 
   const [movies, shows, anime, games, upcoming] = await Promise.all([
-    buildRecommendationsForType("movie", libraryItems, ownedKeys).catch(() => []),
-    buildRecommendationsForType("show", libraryItems, ownedKeys).catch(() => []),
-    buildRecommendationsForType("anime", libraryItems, ownedKeys).catch(() => []),
-    buildRecommendationsForType("game", libraryItems, ownedKeys).catch(() => []),
+    buildRecommendationsForType("movie", library, ownedKeys).catch(() => []),
+    buildRecommendationsForType("show", library, ownedKeys).catch(() => []),
+    buildRecommendationsForType("anime", library, ownedKeys).catch(() => []),
+    buildRecommendationsForType("game", library, ownedKeys).catch(() => []),
     buildUpcomingContinuations(library).catch(() => []),
   ]);
 
   return {
     greeting: buildGreeting(library),
     upcoming,
+    watchedCounts,
     sections: {
       movie: movies,
       show: shows,
