@@ -13,5 +13,5 @@ export default async function BookDetailPage({ params }: { params: Promise<{ id:
     throw new Error("Book not found");
   }
 
-  return <BookDetail book={book} initialProgress={progress} />;
+  return <BookDetail book={book} initialProgress={progress} isSignedIn={Boolean(userId)} />;
 }

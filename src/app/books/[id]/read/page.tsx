@@ -9,5 +9,5 @@ export default async function BookReadPage({ params }: { params: Promise<{ id: s
   const initialPayload = Number.isFinite(bookId) ? await fetchBookReaderPayload(bookId).catch(() => null) : null;
   const initialProgress = userId && Number.isFinite(bookId) ? await getBookProgress(userId, bookId).catch(() => null) : null;
 
-  return <BookReader bookId={bookId} initialPayload={initialPayload} initialProgress={initialProgress} />;
+  return <BookReader bookId={bookId} initialPayload={initialPayload} initialProgress={initialProgress} isSignedIn={Boolean(userId)} />;
 }

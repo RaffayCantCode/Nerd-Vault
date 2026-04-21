@@ -36,6 +36,7 @@ export function BookReader({
   bookId,
   initialPayload = null,
   initialProgress = null,
+  isSignedIn = false,
 }: {
   bookId: number;
   initialPayload?: BookReaderPayload | null;
@@ -44,6 +45,7 @@ export function BookReader({
     totalPages: number;
     percent: number;
   } | null;
+  isSignedIn?: boolean;
 }) {
   const [theme, setTheme] = useState<BookTheme>("dark");
   const [payload, setPayload] = useState<BookReaderPayload | null>(initialPayload);
@@ -207,8 +209,18 @@ export function BookReader({
             <p className="books-copy">
               {payload.book.authors.join(", ") || "Unknown author"} · page {currentPage} of {totalPages}
             </p>
+            {!isSignedIn ? (
+              <p className="books-reader-guest-note">
+                Sign in to keep this page saved and continue later from exactly where you stop.
+              </p>
+            ) : null}
           </div>
           <div className="books-reader-actions">
+            {!isSignedIn ? (
+              <Link href="/sign-in" className="books-card-button books-card-button-primary">
+                Sign in to save
+              </Link>
+            ) : null}
             <Link href={`/books/${bookId}`} className="books-card-button">Book info</Link>
             <Link href="/books" className="books-card-button">Library</Link>
             <button type="button" className="books-card-button" onClick={() => toggleBookWishlist(bookId)}>

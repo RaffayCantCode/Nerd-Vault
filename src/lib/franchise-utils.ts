@@ -24,6 +24,9 @@ export function normalizeAnimeBaseTitle(rawTitle: string, type?: string): string
   const cleaned = rawTitle
     .trim()
     .toLowerCase()
+    .replace(/\s*:\s*the final chapters(?:\s+special\s+\d+)?$/i, "")
+    .replace(/\s+the final chapters(?:\s+special\s+\d+)?$/i, "")
+    .replace(/\s+final chapters(?:\s+special\s+\d+)?$/i, "")
     .replace(/\s*:\s*the final season(?:\s+part\s+\d+)?$/i, "")
     .replace(/\s+the final season(?:\s+part\s+\d+)?$/i, "")
     .replace(/\s+final season(?:\s+part\s+\d+)?$/i, "")
@@ -31,6 +34,7 @@ export function normalizeAnimeBaseTitle(rawTitle: string, type?: string): string
     .replace(/\s+season\s+\d+$/i, "")
     .replace(/\s+part\s+\d+$/i, "")
     .replace(/\s+cour\s+\d+$/i, "")
+    .replace(/\s+special\s+\d+$/i, "")
     .replace(/[^\w\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();

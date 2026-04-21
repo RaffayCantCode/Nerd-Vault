@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { BookTheme } from "@/lib/book-types";
 import { writeBookTheme } from "@/lib/book-client";
 
@@ -28,39 +30,98 @@ export function BooksSidebar({
   active: "library" | "detail" | "reader";
   currentBookTitle?: string;
 }) {
+  const pathname = usePathname();
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+  useEffect(() => {
+    setIsMobileOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    function handleResize() {
+      if (window.innerWidth > 980) {
+        setIsMobileOpen(false);
+      }
+    }
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsMobileOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || window.innerWidth > 980) {
+      return;
+    }
+
+    if (isMobileOpen) {
+      document.body.style.setProperty("overflow", "hidden", "important");
+    } else {
+      document.body.style.removeProperty("overflow");
+    }
+
+    return () => {
+      document.body.style.removeProperty("overflow");
+    };
+  }, [isMobileOpen]);
+
   return (
-    <aside className="books-sidebar books-sidebar-rich">
-      <Link href="/books" className="books-brand" aria-label="Open books library">
-        <span className="books-brand-mark">NV</span>
-      </Link>
+    <div className={`books-sidebar-shell ${isMobileOpen ? "is-mobile-open" : ""}`}>
+      <button
+        type="button"
+        className="books-sidebar-mobile-toggle"
+        aria-label={isMobileOpen ? "Close books sidebar" : "Open books sidebar"}
+        aria-expanded={isMobileOpen}
+        onClick={() => setIsMobileOpen((current) => !current)}
+      >
+        <span className="books-sidebar-mobile-arrow">{isMobileOpen ? "<" : ">"}</span>
+      </button>
+      <div className="books-sidebar-mobile-backdrop" aria-hidden={!isMobileOpen} onClick={() => setIsMobileOpen(false)} />
 
-      <div className="books-sidebar-stack">
-        <Link href="/books" className={`books-sidebar-link books-sidebar-link-rich ${active === "library" ? "is-active" : ""}`}>
-          <Glyph path={iconPaths.library} />
-          <span>Library</span>
+      <aside className="books-sidebar books-sidebar-rich">
+        <Link href="/books" className="books-brand" aria-label="Open books library">
+          <span className="books-brand-mark">NV</span>
         </Link>
-        {active !== "library" ? (
-          <div className="books-sidebar-link books-sidebar-link-rich is-active">
-            <Glyph path={iconPaths.book} />
-            <span>{active === "reader" ? "Reader" : "Book view"}</span>
-          </div>
-        ) : null}
-        <Link href="/" className="books-sidebar-link books-sidebar-link-rich">
-          <Glyph path={iconPaths.landing} />
-          <span>Landing</span>
-        </Link>
-        <button type="button" className="books-theme-toggle books-sidebar-link-rich" onClick={() => writeBookTheme(theme === "dark" ? "light" : "dark")}>
-          <Glyph path={iconPaths.theme} />
-          <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>
-        </button>
-      </div>
 
-      <div className="books-sidebar-bottom">
-        <div className="books-sidebar-status">
-          <strong>{active === "reader" ? "Reader live" : "Stories space"}</strong>
-          <span>{currentBookTitle || "Project Gutenberg books only"}</span>
+        <div className="books-sidebar-stack">
+          <Link href="/books" className={`books-sidebar-link books-sidebar-link-rich ${active === "library" ? "is-active" : ""}`}>
+            <Glyph path={iconPaths.library} />
+            <span>Library</span>
+          </Link>
+          {active !== "library" ? (
+            <div className="books-sidebar-link books-sidebar-link-rich is-active">
+              <Glyph path={iconPaths.book} />
+              <span>{active === "reader" ? "Reader" : "Book view"}</span>
+            </div>
+          ) : null}
+          <Link href="/" className="books-sidebar-link books-sidebar-link-rich">
+            <Glyph path={iconPaths.landing} />
+            <span>Landing</span>
+          </Link>
+          <button type="button" className="books-theme-toggle books-sidebar-link-rich" onClick={() => writeBookTheme(theme === "dark" ? "light" : "dark")}>
+            <Glyph path={iconPaths.theme} />
+            <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>
+          </button>
         </div>
-      </div>
-    </aside>
+
+        <div className="books-sidebar-bottom">
+          <div className="books-sidebar-status">
+            <strong>{active === "reader" ? "Reader live" : "Stories space"}</strong>
+            <span>{currentBookTitle || "Project Gutenberg books only"}</span>
+          </div>
+        </div>
+      </aside>
+    </div>
   );
 }

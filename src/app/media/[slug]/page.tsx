@@ -36,7 +36,7 @@ import {
   getTmdbRelatedByFranchise,
   getTmdbStarterCatalog,
 } from "@/lib/sources/tmdb";
-import { matchesFranchise, isLikelyAnime } from "@/lib/franchise-utils";
+import { matchesFranchise, normalizeAnimeBaseTitle, isLikelyAnime } from "@/lib/franchise-utils";
 import { MediaItem } from "@/lib/types";
 
 type AnimeFranchiseData =
@@ -825,6 +825,48 @@ function hasStrongFranchiseConnection(base: MediaItem, candidate: MediaItem, sig
   return candidateMatchesSignal(candidate, signals);
 }
 
+function buildAnimeFamilyKeys(item: Pick<MediaItem, "title" | "originalTitle" | "details" | "type">) {
+  const itemType = item.type === "anime_movie" ? "movie" : item.type;
+  return Array.from(
+    new Set(
+      [item.title, item.originalTitle ?? "", item.details.collectionTitle ?? ""]
+        .map((value) => value.trim())
+        .filter(Boolean)
+        .map((value) => normalizeAnimeBaseTitle(value, itemType))
+        .filter(Boolean),
+    ),
+  );
+}
+
+function hasStrictAnimeFranchiseConnection(base: MediaItem, candidate: MediaItem) {
+  const baseKeys = buildAnimeFamilyKeys(base);
+  const candidateKeys = buildAnimeFamilyKeys(candidate);
+
+  return candidateKeys.some((candidateKey) =>
+    baseKeys.some((baseKey) => {
+      if (!candidateKey || !baseKey) {
+        return false;
+      }
+
+      if (candidateKey === baseKey) {
+        return true;
+      }
+
+      const candidateWords = candidateKey.split(/\s+/).filter((word) => word.length > 2);
+      const baseWords = baseKey.split(/\s+/).filter((word) => word.length > 2);
+      const commonWords = candidateWords.filter((word) => baseWords.includes(word));
+      const firstWordMatches = candidateWords[0] && baseWords[0] && candidateWords[0] === baseWords[0];
+      const shorterLength = Math.min(candidateKey.length, baseKey.length);
+
+      if (!firstWordMatches || commonWords.length < 2 || shorterLength < 8) {
+        return false;
+      }
+
+      return candidateKey.includes(baseKey) || baseKey.includes(candidateKey);
+    }),
+  );
+}
+
 /**
  * Same franchise "line" for more-like-this dedupe: TMDB collection, IGDB comparable title,
  * or comparable anime/game title roots (sequels in one sub-series).
@@ -1075,7 +1117,7 @@ async function buildFranchiseSection(media: MediaItem, animeFranchise?: AnimeFra
       () => [] as MediaItem[],
     ))
       .filter((candidate) => candidate.type === "anime" || candidate.type === "anime_movie")
-      .filter((candidate) => hasStrongFranchiseConnection(media, candidate, fallbackSignals));
+      .filter((candidate) => hasStrictAnimeFranchiseConnection(media, candidate));
 
     const combinedAnimeFallback = dedupeItems([media, ...fallbackEntries]);
 
@@ -1109,6 +1151,8 @@ async function buildFranchiseSection(media: MediaItem, animeFranchise?: AnimeFra
           })),
       };
     }
+
+    return null;
   }
 
   if (media.type === "movie" && media.source === "tmdb" && media.details.collectionId) {

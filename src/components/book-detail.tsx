@@ -15,6 +15,7 @@ function formatCompactNumber(value: number) {
 export function BookDetail({
   book,
   initialProgress = null,
+  isSignedIn = false,
 }: {
   book: BookSummary;
   initialProgress?: {
@@ -22,6 +23,7 @@ export function BookDetail({
     totalPages: number;
     percent: number;
   } | null;
+  isSignedIn?: boolean;
 }) {
   const [theme, setTheme] = useState<BookTheme>("dark");
   const [wishlist, setWishlist] = useState<number[]>([]);
@@ -55,6 +57,17 @@ export function BookDetail({
               ))}
             </div>
             <p className="books-reader-summary">{book.summary}</p>
+            {!isSignedIn ? (
+              <div className="books-signin-note">
+                <div className="books-signin-copy">
+                  <strong>Sign in to save your reading progress.</strong>
+                  <span>You can still open the book now, but page saving and continue reading work best with an account.</span>
+                </div>
+                <Link href="/sign-in" className="books-card-button books-card-button-primary">
+                  Sign in
+                </Link>
+              </div>
+            ) : null}
             <div className="books-reader-actions">
               <Link href={`/books/${book.id}/read`} className="books-card-button books-card-button-primary">
                 {initialProgress ? "Resume reading" : "Read book"}

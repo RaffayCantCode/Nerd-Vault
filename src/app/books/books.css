@@ -58,6 +58,16 @@
   backdrop-filter: blur(18px);
 }
 
+.books-sidebar-shell {
+  position: relative;
+  z-index: 120;
+}
+
+.books-sidebar-mobile-toggle,
+.books-sidebar-mobile-backdrop {
+  display: none;
+}
+
 .books-sidebar-rich {
   gap: 20px;
   padding: 24px 16px;
@@ -161,6 +171,32 @@
 
 .books-continue-copy span {
   color: var(--books-muted);
+}
+
+.books-signin-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 18px 0 0;
+  padding: 16px 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(239, 195, 143, 0.22);
+  background: linear-gradient(180deg, rgba(239, 195, 143, 0.08), rgba(255,255,255,0.02));
+}
+
+.books-signin-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.books-signin-copy span,
+.books-reader-guest-note {
+  color: var(--books-muted);
+}
+
+.books-reader-guest-note {
+  margin: 10px 0 0;
 }
 
 .books-sidebar-link.is-active,
@@ -663,25 +699,87 @@
     grid-template-columns: 1fr;
   }
 
-  .books-sidebar,
-  .books-reader-sidebar {
-    position: static;
-    height: auto;
-    flex-direction: row;
-    justify-content: flex-start;
-    padding: 18px;
-    border-right: 0;
-    border-bottom: 1px solid var(--books-line);
+  .books-sidebar-shell {
+    width: 0;
   }
 
-  .books-sidebar-caption,
-  .books-sidebar-line {
-    display: none;
+  .books-sidebar-mobile-toggle {
+    position: fixed;
+    top: 50%;
+    left: 8px;
+    z-index: 141;
+    width: 42px;
+    height: 78px;
+    display: grid;
+    place-items: center;
+    border-radius: 0 18px 18px 0;
+    transform: translateY(-50%);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
+      rgba(17, 21, 28, 0.94);
+    border: 1px solid var(--books-line);
+    color: var(--books-accent);
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.24);
+    cursor: pointer;
+  }
+
+  .books-sidebar-shell.is-mobile-open .books-sidebar-mobile-toggle {
+    left: min(82vw, 300px);
+    transform: translate(-14px, -50%);
+  }
+
+  .books-sidebar-mobile-arrow {
+    font-size: 1.35rem;
+    line-height: 1;
+  }
+
+  .books-sidebar-mobile-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 135;
+    display: block;
+    opacity: 0;
+    pointer-events: none;
+    background: rgba(3, 5, 9, 0.46);
+    transition: opacity 220ms ease;
+  }
+
+  .books-sidebar-shell.is-mobile-open .books-sidebar-mobile-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .books-sidebar,
+  .books-reader-sidebar {
+    position: fixed;
+    inset: 10px auto 10px 10px;
+    width: min(82vw, 300px);
+    height: auto;
+    min-height: 0;
+    max-height: calc(100svh - 20px);
+    padding: 18px 14px 18px;
+    border-radius: 28px;
+    border-right: 1px solid var(--books-line);
+    border-bottom: 0;
+    justify-content: flex-start;
+    overflow-y: auto;
+    overflow-x: hidden;
+    transform: translateX(calc(-100% - 24px));
+    opacity: 0;
+    pointer-events: none;
+    z-index: 140;
+  }
+
+  .books-sidebar-shell.is-mobile-open .books-sidebar,
+  .books-sidebar-shell.is-mobile-open .books-reader-sidebar {
+    transform: translateX(0);
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .books-main,
   .books-reader-main {
-    padding: 22px 18px 36px;
+    padding: 22px 18px 36px 18px;
   }
 
   .books-hero,
@@ -692,6 +790,11 @@
 }
 
 @media (max-width: 720px) {
+  .books-main,
+  .books-reader-main {
+    padding: 18px 14px 28px;
+  }
+
   .books-search,
   .books-reader-actions,
   .books-card-actions,
@@ -719,8 +822,27 @@
     align-items: stretch;
   }
 
+  .books-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .books-card {
+    padding: 16px;
+  }
+
+  .book-cover {
+    width: min(100%, 240px);
+    margin-inline: auto;
+  }
+
+  .book-cover-small {
+    max-width: 220px;
+    margin-inline: auto;
+  }
+
   .books-continue-card,
-  .books-page-controls {
+  .books-page-controls,
+  .books-signin-note {
     flex-direction: column;
     align-items: stretch;
   }
@@ -731,6 +853,12 @@
   }
 
   .books-reader-content-paged {
-    padding: 18px;
+    min-height: 62vh;
+    padding: 16px 14px;
+  }
+
+  .books-reader-paragraph {
+    font-size: 1.03rem;
+    line-height: 1.9;
   }
 }

@@ -263,6 +263,44 @@ function animeMatchesFranchise(item: JikanAnime, franchiseTitles: string[]) {
   );
 }
 
+function buildAnimeFranchiseKeys(titles: string[], type?: string | null) {
+  return Array.from(
+    new Set(
+      titles
+        .map((title) => normalizeAnimeBaseTitle(title, type ?? undefined))
+        .filter(Boolean),
+    ),
+  );
+}
+
+function hasStrictAnimeFranchiseKeyMatch(item: JikanAnime, primaryKeys: string[]) {
+  const itemKeys = buildAnimeFranchiseKeys(animeTitleVariants(item), item.type);
+
+  return itemKeys.some((itemKey) =>
+    primaryKeys.some((primaryKey) => {
+      if (!itemKey || !primaryKey) {
+        return false;
+      }
+
+      if (itemKey === primaryKey) {
+        return true;
+      }
+
+      const itemWords = itemKey.split(/\s+/).filter((word) => word.length > 2);
+      const primaryWords = primaryKey.split(/\s+/).filter((word) => word.length > 2);
+      const commonWords = itemWords.filter((word) => primaryWords.includes(word));
+      const firstWordMatches = itemWords[0] && primaryWords[0] && itemWords[0] === primaryWords[0];
+      const shorterLength = Math.min(itemKey.length, primaryKey.length);
+
+      if (!firstWordMatches || commonWords.length < 2 || shorterLength < 8) {
+        return false;
+      }
+
+      return itemKey.includes(primaryKey) || primaryKey.includes(itemKey);
+    }),
+  );
+}
+
 function mapCredits(characters?: JikanCharacter[]) {
   return (
     characters?.slice(0, 5).flatMap((entry) => {
@@ -609,6 +647,7 @@ export async function getJikanAnimeFranchise(id: number) {
   const relations = await jikanFetch<JikanRelationResponse>(`/anime/${id}/relations`).catch(() => ({ data: [] }));
   
   const franchiseTitles = animeTitleVariants(details.data).map((title) => normalizeAnimeBaseTitle(title));
+  const primaryKeys = buildAnimeFranchiseKeys(animeTitleVariants(details.data), details.data.type);
   const primaryTitle = normalizeAnimeBaseTitle(getDisplayTitle(details.data));
   
   const allowedRelations = new Set([
@@ -671,7 +710,7 @@ export async function getJikanAnimeFranchise(id: number) {
       return false;
     }
     seen.add(item.mal_id);
-    return animeMatchesFranchise(item, franchiseTitles) || relatedIds.has(item.mal_id);
+    return relatedIds.has(item.mal_id) || (animeMatchesFranchise(item, franchiseTitles) && hasStrictAnimeFranchiseKeyMatch(item, primaryKeys));
   });
 
   const entries = sortFranchiseEntries(
