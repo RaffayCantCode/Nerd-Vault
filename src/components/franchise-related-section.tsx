@@ -45,30 +45,37 @@ export function FranchiseRelatedSection({
         </div>
       </div>
       {entries.length ? (
-        <div className="franchise-grid">
-          {entries.map((entry, index) => (
-            <Link
-              key={entry.id}
-              href={entry.href}
-              className={`glass franchise-card ${entry.isActive ? "is-active" : ""}`}
-              aria-current={entry.isActive ? "page" : undefined}
-            >
-              <div className="franchise-card-topline">
-                <span className="eyebrow">Entry {index + 1}</span>
-                <span className="franchise-badge">{entry.isActive ? "You are here" : entry.badge ?? "Open"}</span>
-              </div>
-              <h3 className="headline franchise-card-title">{entry.title}</h3>
-              <p className="copy franchise-card-meta">{entry.meta}</p>
-            </Link>
-          ))}
-        </div>
+        <>
+          <div className="section-header franchise-subheader">
+            <div>
+              <p className="eyebrow">{secondaryEntries.length ? "Series / Main entries" : "Franchise order"}</p>
+            </div>
+          </div>
+          <div className="franchise-grid">
+            {entries.map((entry, index) => (
+              <Link
+                key={entry.id}
+                href={entry.href}
+                className={`glass franchise-card ${entry.isActive ? "is-active" : ""}`}
+                aria-current={entry.isActive ? "page" : undefined}
+              >
+                <div className="franchise-card-topline">
+                  <span className="eyebrow">Entry {index + 1}</span>
+                  <span className="franchise-badge">{entry.isActive ? "You are here" : entry.badge ?? "Open"}</span>
+                </div>
+                <h3 className="headline franchise-card-title">{entry.title}</h3>
+                <p className="copy franchise-card-meta">{entry.meta}</p>
+              </Link>
+            ))}
+          </div>
+        </>
       ) : null}
 
       {secondaryEntries.length ? (
         <>
-          <div className="section-header" style={{ marginTop: 12 }}>
+          <div className="section-header franchise-subheader" style={{ marginTop: 12 }}>
             <div>
-              <p className="eyebrow">Separate list</p>
+              <p className="eyebrow">Movies / Specials</p>
               <h3 className="headline" style={{ margin: 0 }}>{secondaryTitle ?? "Franchise movies"}</h3>
             </div>
           </div>

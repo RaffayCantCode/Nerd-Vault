@@ -893,6 +893,35 @@ function buildFranchiseBadge(title: string, order: number | null) {
   return `Entry ${order}`;
 }
 
+function normalizeDisplayTitle(title: string) {
+  const trimmed = title.trim();
+  if (!trimmed) {
+    return title;
+  }
+
+  if (/[A-Z]/.test(trimmed.slice(1))) {
+    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+  }
+
+  return trimmed.replace(/\b([a-z])/g, (match) => match.toUpperCase());
+}
+
+function compareFranchiseItems(left: MediaItem, right: MediaItem) {
+  const leftYear = left.year || Number.MAX_SAFE_INTEGER;
+  const rightYear = right.year || Number.MAX_SAFE_INTEGER;
+  if (leftYear !== rightYear) {
+    return leftYear - rightYear;
+  }
+
+  const leftOrder = parseInstallmentOrder(left.title);
+  const rightOrder = parseInstallmentOrder(right.title);
+  if (leftOrder !== null || rightOrder !== null) {
+    return (leftOrder ?? Number.MAX_SAFE_INTEGER) - (rightOrder ?? Number.MAX_SAFE_INTEGER);
+  }
+
+  return normalizeDisplayTitle(left.title).localeCompare(normalizeDisplayTitle(right.title));
+}
+
 function buildMediaHref(item: Pick<MediaItem, "slug" | "source" | "sourceId" | "type">) {
   return {
     pathname: `/media/${item.slug}`,
@@ -942,7 +971,7 @@ async function buildFranchiseSection(media: MediaItem, animeFranchise?: AnimeFra
     const sourceEntries = animeFranchise.seasonEntries?.length ? animeFranchise.seasonEntries : animeFranchise.entries;
     const mappedEntries = sourceEntries.map((entry) => ({
       id: `jikan-${entry.id}`,
-      title: entry.title,
+      title: normalizeDisplayTitle(entry.title),
       meta: [entry.year || "Year TBD", entry.rating ? `${entry.rating.toFixed(1)} / 10` : "Unrated", entry.episodes ? `${entry.episodes} episodes` : entry.status ?? "Unknown"].filter(Boolean).join(" / "),
       href: {
         pathname: `/media/${slugifyRouteValue(entry.title)}`,
@@ -957,7 +986,7 @@ async function buildFranchiseSection(media: MediaItem, animeFranchise?: AnimeFra
     }));
     const mappedMovies = (animeFranchise.movieEntries ?? []).map((entry) => ({
       id: `jikan-${entry.id}`,
-      title: entry.title,
+      title: normalizeDisplayTitle(entry.title),
       meta: [entry.year || "Year TBD", entry.rating ? `${entry.rating.toFixed(1)} / 10` : "Unrated", entry.status ?? "Movie"].filter(Boolean).join(" / "),
       href: {
         pathname: `/media/${slugifyRouteValue(entry.title)}`,
@@ -973,10 +1002,10 @@ async function buildFranchiseSection(media: MediaItem, animeFranchise?: AnimeFra
     const activeIndex = Math.max(0, mappedEntries.findIndex((entry) => entry.isActive));
 
     return {
-      title: animeFranchise.title,
+      title: normalizeDisplayTitle(animeFranchise.title),
       summary: buildFranchiseSummary(animeFranchise.title, activeIndex, mappedEntries.length),
       entries: mappedEntries,
-      secondaryTitle: mappedMovies.length ? `${animeFranchise.title} movies` : undefined,
+      secondaryTitle: mappedMovies.length ? `${normalizeDisplayTitle(animeFranchise.title)} movies` : undefined,
       secondaryEntries: mappedMovies,
     };
   }
@@ -992,32 +1021,28 @@ async function buildFranchiseSection(media: MediaItem, animeFranchise?: AnimeFra
     const combinedAnimeFallback = dedupeItems([media, ...fallbackEntries]);
 
     if (combinedAnimeFallback.length >= 2) {
-      const ordered = [...combinedAnimeFallback].sort((left, right) => {
-        const yearGap = (left.year || 0) - (right.year || 0);
-        if (yearGap !== 0) return yearGap;
-        return (parseInstallmentOrder(left.title) ?? Number.MAX_SAFE_INTEGER) - (parseInstallmentOrder(right.title) ?? Number.MAX_SAFE_INTEGER);
-      });
+      const ordered = [...combinedAnimeFallback].sort(compareFranchiseItems);
       const activeIndex = Math.max(0, ordered.findIndex((candidate) => candidate.id === media.id));
 
       return {
-        title: media.details.collectionTitle ?? media.title,
+        title: normalizeDisplayTitle(media.details.collectionTitle ?? media.title),
         summary: buildFranchiseSummary(media.details.collectionTitle ?? media.title, activeIndex, ordered.length),
         entries: ordered
           .filter((entry) => entry.type === "anime")
           .map((entry) => ({
             id: entry.id,
-            title: entry.title,
+            title: normalizeDisplayTitle(entry.title),
             meta: [entry.year || "Year TBD", `${entry.rating.toFixed(1)} / 10`, entry.details.runtime ?? entry.details.entryLabel ?? "Series"].filter(Boolean).join(" / "),
             href: buildMediaHref(entry),
             badge: buildFranchiseBadge(entry.title, parseInstallmentOrder(entry.title)),
             isActive: entry.id === media.id,
           })),
-        secondaryTitle: ordered.some((entry) => entry.type === "anime_movie") ? `${media.details.collectionTitle ?? media.title} movies` : undefined,
+        secondaryTitle: ordered.some((entry) => entry.type === "anime_movie") ? `${normalizeDisplayTitle(media.details.collectionTitle ?? media.title)} movies` : undefined,
         secondaryEntries: ordered
           .filter((entry) => entry.type === "anime_movie")
           .map((entry) => ({
             id: entry.id,
-            title: entry.title,
+            title: normalizeDisplayTitle(entry.title),
             meta: [entry.year || "Year TBD", `${entry.rating.toFixed(1)} / 10`, "Movie"].filter(Boolean).join(" / "),
             href: buildMediaHref(entry),
             badge: "Movie",
@@ -1031,27 +1056,16 @@ async function buildFranchiseSection(media: MediaItem, animeFranchise?: AnimeFra
     const parts = await getTmdbCollectionItems(media.details.collectionId).catch(() => [] as MediaItem[]);
     const combined = dedupeItems([media, ...parts]).filter((candidate) => candidate.type === "movie");
     if (combined.length >= 2) {
-      const ordered = [...combined].sort((left, right) => {
-        const yearGap = (left.year || 0) - (right.year || 0);
-        if (yearGap !== 0) {
-          return yearGap;
-        }
-        const leftOrder = parseInstallmentOrder(left.title);
-        const rightOrder = parseInstallmentOrder(right.title);
-        if (leftOrder !== null || rightOrder !== null) {
-          return (leftOrder ?? Number.MAX_SAFE_INTEGER) - (rightOrder ?? Number.MAX_SAFE_INTEGER);
-        }
-        return left.title.localeCompare(right.title);
-      });
+      const ordered = [...combined].sort(compareFranchiseItems);
       const collectionName = media.details.collectionTitle ?? "Series collection";
       const activeIndex = Math.max(0, ordered.findIndex((candidate) => candidate.id === media.id));
 
       return {
-        title: collectionName.replace(/\b\w/g, (char) => char.toUpperCase()),
+        title: normalizeDisplayTitle(collectionName),
         summary: buildFranchiseSummary(collectionName, activeIndex, ordered.length),
         entries: ordered.map((entry) => ({
           id: entry.id,
-          title: entry.title,
+          title: normalizeDisplayTitle(entry.title),
           meta: [entry.year || "Year TBD", `${entry.rating.toFixed(1)} / 10`, entry.details.releaseInfo ?? entry.details.runtime ?? "Feature"].filter(Boolean).join(" / "),
           href: buildMediaHref(entry),
           badge: buildFranchiseBadge(entry.title, parseInstallmentOrder(entry.title)),
@@ -1068,25 +1082,15 @@ async function buildFranchiseSection(media: MediaItem, animeFranchise?: AnimeFra
     ]).filter((candidate) => candidate.type === "movie");
 
     if (combined.length >= 2) {
-      const ordered = [...combined].sort((left, right) => {
-        const yearGap = (left.year || 0) - (right.year || 0);
-        if (yearGap !== 0) {
-          return yearGap;
-        }
-
-        return (
-          (parseInstallmentOrder(left.title) ?? Number.MAX_SAFE_INTEGER) -
-          (parseInstallmentOrder(right.title) ?? Number.MAX_SAFE_INTEGER)
-        );
-      });
+      const ordered = [...combined].sort(compareFranchiseItems);
       const activeIndex = Math.max(0, ordered.findIndex((candidate) => candidate.id === media.id));
 
       return {
-        title: curatedUniverse.title,
+        title: normalizeDisplayTitle(curatedUniverse.title),
         summary: buildFranchiseSummary(curatedUniverse.title, activeIndex, ordered.length),
         entries: ordered.map((entry) => ({
           id: entry.id,
-          title: entry.title,
+          title: normalizeDisplayTitle(entry.title),
           meta: [entry.year || "Year TBD", `${entry.rating.toFixed(1)} / 10`, entry.details.releaseInfo ?? entry.details.runtime ?? "Feature"].filter(Boolean).join(" / "),
           href: buildMediaHref(entry),
           badge: buildFranchiseBadge(entry.title, parseInstallmentOrder(entry.title)),
@@ -1098,31 +1102,43 @@ async function buildFranchiseSection(media: MediaItem, animeFranchise?: AnimeFra
 
   if (media.type === "show" && media.source === "tmdb") {
     const franchiseSignals = buildFranchiseSignals(media);
-    const [relations, curatedEntries] = await Promise.all([
+    const [relations, curatedEntries, crossTypeMovies] = await Promise.all([
       getTmdbFranchiseEntries(Number(media.sourceId), "tv").catch(() => [] as MediaItem[]),
       curatedUniverse?.entries.show?.length
         ? findTmdbUniverseEntries(curatedUniverse.entries.show, "show").catch(() => [] as MediaItem[])
         : Promise.resolve([] as MediaItem[]),
+      getTmdbRelatedByFranchise(media.title, "movie", 8).catch(() => [] as MediaItem[]),
     ]);
 
-    const combined = dedupeItems([media, ...relations, ...curatedEntries])
-      .filter((candidate) => candidate.type === "show")
+    const combined = dedupeItems([media, ...relations, ...curatedEntries, ...crossTypeMovies])
+      .filter((candidate) => candidate.type === "show" || candidate.type === "movie")
       .filter((candidate) => candidate.id === media.id || hasStrongFranchiseConnection(media, candidate, franchiseSignals));
     
     if (combined.length >= 2) {
-      const ordered = [...combined].sort((left, right) => (left.year || 0) - (right.year || 0));
-      const activeIndex = Math.max(0, ordered.findIndex((candidate) => candidate.id === media.id));
+      const ordered = [...combined].sort(compareFranchiseItems);
+      const seriesEntries = ordered.filter((candidate) => candidate.type === "show");
+      const movieEntries = ordered.filter((candidate) => candidate.type === "movie");
+      const activeIndex = Math.max(0, seriesEntries.findIndex((candidate) => candidate.id === media.id));
       const title = curatedUniverse?.title ?? media.details.collectionTitle ?? `${media.title} universe`;
 
       return {
-        title: title.replace(/\b\w/g, (char) => char.toUpperCase()),
-        summary: buildFranchiseSummary(title, activeIndex, ordered.length),
-        entries: ordered.map((entry) => ({
+        title: normalizeDisplayTitle(title),
+        summary: buildFranchiseSummary(title, activeIndex, seriesEntries.length || ordered.length),
+        entries: seriesEntries.map((entry) => ({
           id: entry.id,
-          title: entry.title,
+          title: normalizeDisplayTitle(entry.title),
           meta: [entry.year || "Year TBD", `${entry.rating.toFixed(1)} / 10`, entry.details.status ?? "Series"].filter(Boolean).join(" / "),
           href: buildMediaHref(entry),
           badge: buildFranchiseBadge(entry.title, parseInstallmentOrder(entry.title)),
+          isActive: entry.id === media.id,
+        })),
+        secondaryTitle: movieEntries.length ? `${normalizeDisplayTitle(title)} movies` : undefined,
+        secondaryEntries: movieEntries.map((entry) => ({
+          id: entry.id,
+          title: normalizeDisplayTitle(entry.title),
+          meta: [entry.year || "Year TBD", `${entry.rating.toFixed(1)} / 10`, entry.details.releaseInfo ?? entry.details.runtime ?? "Movie"].filter(Boolean).join(" / "),
+          href: buildMediaHref(entry),
+          badge: "Movie",
           isActive: entry.id === media.id,
         })),
       };
@@ -1144,24 +1160,16 @@ async function buildFranchiseSection(media: MediaItem, animeFranchise?: AnimeFra
       .filter((candidate) => candidate.id === media.id || hasStrongFranchiseConnection(media, candidate, franchiseSignals));
 
     if (combined.length >= 2) {
-      const ordered = [...combined].sort((left, right) => {
-        const orderGap =
-          (parseInstallmentOrder(left.title) ?? Number.MAX_SAFE_INTEGER) -
-          (parseInstallmentOrder(right.title) ?? Number.MAX_SAFE_INTEGER);
-        if (Number.isFinite(orderGap) && orderGap !== 0) {
-          return orderGap;
-        }
-        return (left.year || 0) - (right.year || 0);
-      });
+      const ordered = [...combined].sort(compareFranchiseItems);
       const title = curatedUniverse?.title ?? media.details.collectionTitle ?? `${media.title} universe`;
       const activeIndex = Math.max(0, ordered.findIndex((candidate) => candidate.id === media.id));
 
       return {
-        title,
+        title: normalizeDisplayTitle(title),
         summary: buildFranchiseSummary(title, activeIndex, ordered.length),
         entries: ordered.map((entry) => ({
           id: entry.id,
-          title: entry.title,
+          title: normalizeDisplayTitle(entry.title),
           meta: [entry.year || "Year TBD", `${entry.rating.toFixed(1)} / 10`, entry.details.platform ?? entry.details.releaseInfo ?? "Game"].filter(Boolean).join(" / "),
           href: buildMediaHref(entry),
           badge: buildFranchiseBadge(entry.title, parseInstallmentOrder(entry.title)),
@@ -1178,19 +1186,15 @@ async function buildFranchiseSection(media: MediaItem, animeFranchise?: AnimeFra
     .filter((candidate) => candidate.id === media.id || hasStrongFranchiseConnection(media, candidate, genericFallbackSignals));
 
   if (genericFranchiseCandidates.length >= 2) {
-    const ordered = [...genericFranchiseCandidates].sort((left, right) => {
-      const yearGap = (left.year || 0) - (right.year || 0);
-      if (yearGap !== 0) return yearGap;
-      return (parseInstallmentOrder(left.title) ?? Number.MAX_SAFE_INTEGER) - (parseInstallmentOrder(right.title) ?? Number.MAX_SAFE_INTEGER);
-    });
+    const ordered = [...genericFranchiseCandidates].sort(compareFranchiseItems);
     const activeIndex = Math.max(0, ordered.findIndex((candidate) => candidate.id === media.id));
 
     return {
-      title: media.details.collectionTitle ?? media.title,
+      title: normalizeDisplayTitle(media.details.collectionTitle ?? media.title),
       summary: buildFranchiseSummary(media.details.collectionTitle ?? media.title, activeIndex, ordered.length),
       entries: ordered.map((entry) => ({
         id: entry.id,
-        title: entry.title,
+        title: normalizeDisplayTitle(entry.title),
         meta: [
           entry.year || "Year TBD",
           `${entry.rating.toFixed(1)} / 10`,
@@ -1460,24 +1464,12 @@ function scoreMoreLikeThisCandidate(base: MediaItem, candidate: MediaItem) {
     base.credits.some((baseCredit) => baseCredit.name.trim().toLowerCase() === credit.name.trim().toLowerCase()),
   ).length;
 
-  // Apply improved franchise matching for better similarity scoring
-  const isFranchiseMatch = matchesFranchise(
-    candidate.title,
-    candidate.originalTitle,
-    undefined,
-    [base.title, base.originalTitle || ''].filter(Boolean)
-  );
-  
-  if (isFranchiseMatch) {
-    score += 15; // Boost franchise matches significantly
-  }
-
   const yearDistance = Math.abs((candidate.year || 0) - (base.year || 0));
 
   score += 22;
-  score += sharedGenres * 14;
-  score += sharedTags * 16;
-  score += Math.min(sharedTopics, 4) * 5;
+  score += sharedGenres * 18;
+  score += sharedTags * 20;
+  score += Math.min(sharedTopics, 5) * 6;
   score += Math.min(sharedPlatforms, 3) * (base.type === "game" ? 6 : 2);
   score += sharedCredits * 6;
 
@@ -1491,15 +1483,15 @@ function scoreMoreLikeThisCandidate(base: MediaItem, candidate: MediaItem) {
   score += Math.max(0, 4 - Math.abs(candidate.rating - base.rating));
 
   if (sharedGenres === 0) {
-    score -= 28;
+    score -= 36;
   }
 
   if (sharedTags === 0) {
-    score -= base.type === "game" ? 12 : 20;
+    score -= base.type === "game" ? 14 : 24;
   }
 
   if (sharedGenres === 1 && sharedTags === 0 && sharedTopics < 2) {
-    score -= 18;
+    score -= 24;
   }
 
   if (base.type === "game" && sharedPlatforms === 0) {
@@ -1604,12 +1596,18 @@ function uniqueGalleryImages(media: MediaItem) {
     gallery.push(image);
   }
 
-  for (const image of media.screenshots ?? []) {
+  const screenshots = dedupeGalleryImageUrls((media.screenshots ?? []).filter(Boolean));
+  for (const image of screenshots) {
     push(image);
   }
 
-  push(media.backdropUrl);
-  push(media.coverUrl);
+  if (!gallery.length) {
+    push(media.backdropUrl);
+  }
+
+  if (gallery.length < 2) {
+    push(media.coverUrl);
+  }
 
   return gallery;
 }
@@ -1737,18 +1735,9 @@ async function getRelatedMediaRail(media: MediaItem) {
   const primaryGenre = media.genres[0];
   const secondaryGenre = media.genres[1];
   const tertiaryGenre = media.genres[2];
-  const franchiseSignals = buildFranchiseSignals(media);
   const collected: MediaItem[] = [];
 
   if (media.type === "movie" || media.type === "show") {
-    // Add franchise-based related media for better matching
-    const franchiseRelated = await withTimeout(
-      getTmdbRelatedByFranchise(media.title, media.type as "movie" | "show", 8),
-      [] as MediaItem[],
-      1200,
-    );
-    collected.push(...franchiseRelated);
-
     const results = await Promise.allSettled(
       [media.type].flatMap((mediaType, mediaTypeIndex) => [
         withTimeout(
@@ -1763,15 +1752,22 @@ async function getRelatedMediaRail(media: MediaItem) {
                 emptyBrowseResult(),
                 650,
               ),
+              withTimeout(
+                browseTmdbCatalog({ type: mediaType, page: 2, genre: secondaryGenre, sort: "discovery", seed: 11 + mediaTypeIndex }),
+                emptyBrowseResult(),
+                650,
+              ),
             ]
           : []),
-        ...franchiseSignals.slice(0, 2).map((query, index) =>
-          withTimeout(
-            browseTmdbCatalog({ type: mediaType, page: 1, query, sort: "rating", seed: 13 + mediaTypeIndex + index }),
-            emptyBrowseResult(),
-            650,
-          ),
-        ),
+        ...(tertiaryGenre
+          ? [
+              withTimeout(
+                browseTmdbCatalog({ type: mediaType, page: 1, genre: tertiaryGenre, sort: "discovery", seed: 13 + mediaTypeIndex }),
+                emptyBrowseResult(),
+                650,
+              ),
+            ]
+          : []),
       ]),
     );
 
@@ -1796,15 +1792,22 @@ async function getRelatedMediaRail(media: MediaItem) {
               emptyBrowseResult(),
               650,
             ),
+            withTimeout(
+              browseJikanAnime({ page: 2, genre: secondaryGenre, sort: "discovery", seed: 10 }),
+              emptyBrowseResult(),
+              650,
+            ),
           ]
         : []),
-      ...franchiseSignals.slice(0, 2).map((query, index) =>
-        withTimeout(
-          browseJikanAnime({ page: 1, query, sort: "rating", seed: 13 + index }),
-          emptyBrowseResult(),
-          650,
-        ),
-      ),
+      ...(tertiaryGenre
+        ? [
+            withTimeout(
+              browseJikanAnime({ page: 1, genre: tertiaryGenre, sort: "discovery", seed: 11 }),
+              emptyBrowseResult(),
+              650,
+            ),
+          ]
+        : []),
     ]);
 
     results.forEach((result) => {
@@ -1822,14 +1825,6 @@ async function getRelatedMediaRail(media: MediaItem) {
         900,
       );
       collected.push(...similarFromIgdb);
-
-      // Add franchise-based related games for better matching
-      const franchiseRelated = await withTimeout(
-        getIgdbRelatedGamesByFranchise(media.title, 8),
-        [] as MediaItem[],
-        1200,
-      );
-      collected.push(...franchiseRelated);
     }
 
     const results = await Promise.allSettled([
@@ -1886,13 +1881,6 @@ async function getRelatedMediaRail(media: MediaItem) {
         emptyBrowseResult(),
         700,
       ),
-      ...franchiseSignals.slice(0, 2).map((query, index) =>
-        withTimeout(
-          browseIgdbGames({ page: 1, query, sort: "rating", seed: 13 + index }),
-          emptyBrowseResult(),
-          650,
-        ),
-      ),
     ]);
 
     results.forEach((result) => {
@@ -1909,9 +1897,7 @@ async function getRelatedMediaRail(media: MediaItem) {
     .filter((candidate) => !isSameFranchiseProductLine(media, candidate))
     .map((candidate) => ({
       candidate,
-      score:
-        scoreMoreLikeThisCandidate(media, candidate) +
-        (candidateMatchesSignal(candidate, franchiseSignals) ? 26 : 0),
+      score: scoreMoreLikeThisCandidate(media, candidate),
     }));
 
   const strictMatches = scored
@@ -2052,6 +2038,11 @@ export default async function MediaDetailPage({
     getRelatedMediaRail(media).catch(() => [] as MediaItem[]),
     buildFranchiseSection(media, animeFranchise).catch(() => null),
   ]);
+  const franchiseIds = new Set([
+    ...(franchiseSection?.entries.map((entry) => entry.id) ?? []),
+    ...(franchiseSection?.secondaryEntries?.map((entry) => entry.id) ?? []),
+  ]);
+  const filteredRelated = related.filter((item) => !franchiseIds.has(item.id));
   const runtimeLabel =
     media.type === "game"
       ? "Platforms"
@@ -2311,7 +2302,7 @@ export default async function MediaDetailPage({
           ) : null}
 
           <ExpandableRelatedSection 
-            related={related}
+            related={filteredRelated}
             franchiseSection={franchiseSection || undefined}
             mediaTitle={media.title}
           />

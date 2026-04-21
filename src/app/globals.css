@@ -520,6 +520,33 @@ html {
   box-shadow: 0 26px 54px color-mix(in srgb, var(--detail-accent, #03fcbe) 32%, transparent) !important;
 }
 
+.franchise-subheader {
+  margin-bottom: 0.75rem !important;
+}
+
+.related-media-container {
+  overflow: visible;
+  max-height: none;
+  mask-image: none;
+}
+
+.related-media-section .catalog-grid {
+  margin-bottom: 0;
+}
+
+.expandable-count {
+  display: inline-flex;
+  min-width: 2.2rem;
+  min-height: 2.2rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.65rem;
+  border-radius: 999px;
+  background: rgba(4, 16, 24, 0.22);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
 .landing-page .landing-hero .landing-cta-primary,
 .landing-page .landing-final-cta .cta-primary {
   color: #071018 !important;
@@ -8600,6 +8627,18 @@ html {
 }
 
 @media (max-width: 900px) {
+  .franchise-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .related-actions-row {
+    width: 100%;
+  }
+
+  .detail-layout .related-actions-row .action-button {
+    width: 100%;
+  }
+
   .browse-live-search-row {
     grid-template-columns: 1fr;
   }

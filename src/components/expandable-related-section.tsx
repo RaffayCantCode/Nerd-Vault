@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { RelatedMediaSection } from "@/components/related-media-section";
 import { FranchiseRelatedSection } from "@/components/franchise-related-section";
+import { DetailBackButton } from "@/components/detail-back-button";
 import { MediaItem } from "@/lib/types";
-import { BrowseResetLink } from "@/components/browse-reset-link";
 
 // Import the FranchiseSectionData type from the media page
 type FranchiseSectionData = {
@@ -54,7 +54,40 @@ export function ExpandableRelatedSection({
   franchiseSection, 
   mediaTitle 
 }: ExpandableRelatedSectionProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [cardsPerRow, setCardsPerRow] = useState(4);
+  const [visibleRows, setVisibleRows] = useState(2);
+
+  useEffect(() => {
+    function syncCardsPerRow() {
+      if (window.innerWidth < 480) {
+        setCardsPerRow(1);
+        return;
+      }
+
+      if (window.innerWidth < 900) {
+        setCardsPerRow(2);
+        return;
+      }
+
+      if (window.innerWidth < 1200) {
+        setCardsPerRow(3);
+        return;
+      }
+
+      setCardsPerRow(4);
+    }
+
+    syncCardsPerRow();
+    window.addEventListener("resize", syncCardsPerRow);
+    return () => window.removeEventListener("resize", syncCardsPerRow);
+  }, []);
+
+  useEffect(() => {
+    setVisibleRows(2);
+  }, [cardsPerRow, related.length]);
+
+  const visibleCount = useMemo(() => cardsPerRow * visibleRows, [cardsPerRow, visibleRows]);
+  const hasMore = related.length > visibleCount;
 
   return (
     <section className="section-stack expandable-related-section" style={{ paddingTop: 0 }}>
@@ -89,28 +122,23 @@ export function ExpandableRelatedSection({
       </div>
 
       {/* Similar Media - Expandable Grid */}
-      <div className={`related-media-container ${isExpanded ? "is-expanded" : "is-collapsed"}`}>
-        <RelatedMediaSection items={related} />
+      <div className="related-media-container">
+        <RelatedMediaSection items={related} visibleCount={visibleCount} />
       </div>
 
       {/* Actions Row */}
       <div className="related-actions-row">
-        <BrowseResetLink className="action-button action-button-secondary">
-          Back to Browse
-        </BrowseResetLink>
+        <DetailBackButton className="action-button action-button-secondary" />
         
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className={`action-button ${isExpanded ? "action-button-gold" : "action-button-gold"}`}
-          aria-expanded={isExpanded}
-        >
-          {isExpanded ? "Close More" : "View More"}
-          <span className={`expandable-icon ${isExpanded ? "is-rotated" : ""}`}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M7 13l5 5 5-5M7 6l5 5 5-5" />
-            </svg>
-          </span>
-        </button>
+        {hasMore ? (
+          <button
+            onClick={() => setVisibleRows((current) => current + 2)}
+            className="action-button action-button-gold"
+          >
+            View More
+            <span className="expandable-count">+{Math.min(cardsPerRow * 2, related.length - visibleCount)}</span>
+          </button>
+        ) : null}
       </div>
     </section>
   );
