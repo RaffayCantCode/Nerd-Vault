@@ -22,6 +22,26 @@ export function DetailGallery({
   }, [images]);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [isMounted, setIsMounted] = useState(false);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [touchEndX, setTouchEndX] = useState<number | null>(null);
+
+  function closeLightbox() {
+    setActiveIndex(null);
+  }
+
+  function showPrevious() {
+    setActiveIndex((current) => {
+      if (current === null) return current;
+      return (current - 1 + galleryImages.length) % galleryImages.length;
+    });
+  }
+
+  function showNext() {
+    setActiveIndex((current) => {
+      if (current === null) return current;
+      return (current + 1) % galleryImages.length;
+    });
+  }
 
   useEffect(() => {
     setIsMounted(true);
@@ -35,22 +55,16 @@ export function DetailGallery({
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        setActiveIndex(null);
+        closeLightbox();
         return;
       }
 
       if (event.key === "ArrowRight") {
-        setActiveIndex((current) => {
-          if (current === null) return current;
-          return (current + 1) % galleryImages.length;
-        });
+        showNext();
       }
 
       if (event.key === "ArrowLeft") {
-        setActiveIndex((current) => {
-          if (current === null) return current;
-          return (current - 1 + galleryImages.length) % galleryImages.length;
-        });
+        showPrevious();
       }
     }
 
@@ -63,6 +77,17 @@ export function DetailGallery({
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [activeIndex, galleryImages.length]);
+
+  useEffect(() => {
+    if (activeIndex === null) {
+      setTouchStartX(null);
+      setTouchEndX(null);
+      return;
+    }
+
+    const activeThumb = document.querySelector<HTMLButtonElement>(".detail-lightbox-thumb.is-active");
+    activeThumb?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+  }, [activeIndex]);
 
   if (!galleryImages.length) {
     return null;
@@ -98,14 +123,14 @@ export function DetailGallery({
 
       {openSlide && isMounted
         ? createPortal(
-            <div className="detail-lightbox" role="dialog" aria-modal="true" aria-label={`${title} gallery`} onClick={() => setActiveIndex(null)}>
+            <div className="detail-lightbox" role="dialog" aria-modal="true" aria-label={`${title} gallery`} onClick={closeLightbox}>
               <button
                 type="button"
                 className="detail-lightbox-close"
                 aria-label="Close gallery"
-                onClick={() => setActiveIndex(null)}
+                onClick={closeLightbox}
               >
-                X
+                ×
               </button>
 
               {galleryImages.length > 1 ? (
@@ -116,10 +141,7 @@ export function DetailGallery({
                     aria-label="Previous image"
                     onClick={(event) => {
                       event.stopPropagation();
-                      setActiveIndex((current) => {
-                        if (current === null) return current;
-                        return (current - 1 + galleryImages.length) % galleryImages.length;
-                      });
+                      showPrevious();
                     }}
                   >
                     {"<"}
@@ -131,10 +153,7 @@ export function DetailGallery({
                     aria-label="Next image"
                     onClick={(event) => {
                       event.stopPropagation();
-                      setActiveIndex((current) => {
-                        if (current === null) return current;
-                        return (current + 1) % galleryImages.length;
-                      });
+                      showNext();
                     }}
                   >
                     {">"}
@@ -142,7 +161,35 @@ export function DetailGallery({
                 </>
               ) : null}
 
-              <div className="detail-lightbox-stage" onClick={(event) => event.stopPropagation()}>
+              <div
+                className="detail-lightbox-stage"
+                onClick={(event) => event.stopPropagation()}
+                onTouchStart={(event) => {
+                  const touch = event.changedTouches[0];
+                  setTouchStartX(touch?.clientX ?? null);
+                  setTouchEndX(null);
+                }}
+                onTouchMove={(event) => {
+                  const touch = event.changedTouches[0];
+                  setTouchEndX(touch?.clientX ?? null);
+                }}
+                onTouchEnd={() => {
+                  if (touchStartX === null || touchEndX === null || galleryImages.length <= 1) {
+                    return;
+                  }
+
+                  const delta = touchStartX - touchEndX;
+                  if (Math.abs(delta) < 42) {
+                    return;
+                  }
+
+                  if (delta > 0) {
+                    showNext();
+                  } else {
+                    showPrevious();
+                  }
+                }}
+              >
                 <img
                   src={optimizeMediaImageUrl(openSlide.raw, "lightbox") ?? openSlide.src}
                   alt={`${title} fullscreen still ${(activeIndex ?? 0) + 1}`}

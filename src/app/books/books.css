@@ -862,3 +862,49 @@
     line-height: 1.9;
   }
 }
+
+@media (max-width: 980px) {
+  .books-sidebar-shell {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 0;
+    z-index: 160;
+    pointer-events: none;
+  }
+
+  .books-sidebar-mobile-toggle,
+  .books-sidebar-mobile-backdrop,
+  .books-sidebar-shell.is-mobile-open .books-sidebar,
+  .books-sidebar-shell.is-mobile-open .books-reader-sidebar {
+    pointer-events: auto;
+  }
+
+  .books-sidebar-mobile-toggle {
+    position: fixed;
+    top: var(--books-sidebar-toggle-y, 50vh);
+    left: 4px;
+    z-index: 161;
+    width: 44px;
+    height: 84px;
+    display: grid;
+    place-items: center;
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(-50%);
+    border-radius: 0 20px 20px 0;
+  }
+
+  .books-sidebar-shell.is-mobile-open .books-sidebar-mobile-toggle {
+    left: min(82vw, 300px);
+    transform: translate(-14px, -50%);
+  }
+
+  .books-sidebar-mobile-backdrop {
+    z-index: 155;
+  }
+
+  .books-sidebar,
+  .books-reader-sidebar {
+    z-index: 160;
+  }
+}

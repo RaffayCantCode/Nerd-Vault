@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { BookTheme } from "@/lib/book-types";
 import { writeBookTheme } from "@/lib/book-client";
@@ -32,6 +32,7 @@ export function BooksSidebar({
 }) {
   const pathname = usePathname();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const toggleRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setIsMobileOpen(false);
@@ -76,14 +77,70 @@ export function BooksSidebar({
     };
   }, [isMobileOpen]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    let rafId = 0;
+
+    function setHandlePosition(clientY: number) {
+      if (window.innerWidth > 980 || !toggleRef.current) {
+        return;
+      }
+
+      const clamped = Math.max(84, Math.min(window.innerHeight - 84, clientY));
+      toggleRef.current.style.setProperty("--books-sidebar-toggle-y", `${clamped}px`);
+    }
+
+    function syncHandleToViewport() {
+      if (rafId) {
+        window.cancelAnimationFrame(rafId);
+      }
+
+      rafId = window.requestAnimationFrame(() => {
+        setHandlePosition(window.innerHeight / 2);
+      });
+    }
+
+    function handlePointerMove(event: PointerEvent) {
+      setHandlePosition(event.clientY);
+    }
+
+    function handleTouchMove(event: TouchEvent) {
+      const touch = event.touches[0];
+      if (touch) {
+        setHandlePosition(touch.clientY);
+      }
+    }
+
+    syncHandleToViewport();
+    window.addEventListener("scroll", syncHandleToViewport, { passive: true });
+    window.addEventListener("resize", syncHandleToViewport, { passive: true });
+    window.addEventListener("pointermove", handlePointerMove, { passive: true });
+    window.addEventListener("touchmove", handleTouchMove, { passive: true });
+
+    return () => {
+      if (rafId) {
+        window.cancelAnimationFrame(rafId);
+      }
+      window.removeEventListener("scroll", syncHandleToViewport);
+      window.removeEventListener("resize", syncHandleToViewport);
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("touchmove", handleTouchMove);
+    };
+  }, []);
+
   return (
     <div className={`books-sidebar-shell ${isMobileOpen ? "is-mobile-open" : ""}`}>
       <button
+        ref={toggleRef}
         type="button"
         className="books-sidebar-mobile-toggle"
         aria-label={isMobileOpen ? "Close books sidebar" : "Open books sidebar"}
         aria-expanded={isMobileOpen}
         onClick={() => setIsMobileOpen((current) => !current)}
+        style={{ top: "var(--books-sidebar-toggle-y, 50vh)" }}
       >
         <span className="books-sidebar-mobile-arrow">{isMobileOpen ? "<" : ">"}</span>
       </button>

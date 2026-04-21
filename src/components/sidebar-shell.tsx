@@ -58,6 +58,8 @@ export function SidebarShell({ children }: { children: ReactNode }) {
       return;
     }
 
+    let rafId = 0;
+
     function setHandlePosition(clientY: number) {
       if (window.innerWidth > 900 || !toggleRef.current) {
         return;
@@ -65,6 +67,16 @@ export function SidebarShell({ children }: { children: ReactNode }) {
 
       const clamped = Math.max(84, Math.min(window.innerHeight - 84, clientY));
       toggleRef.current.style.setProperty("--sidebar-toggle-y", `${clamped}px`);
+    }
+
+    function syncHandleToViewport() {
+      if (rafId) {
+        window.cancelAnimationFrame(rafId);
+      }
+
+      rafId = window.requestAnimationFrame(() => {
+        setHandlePosition(window.innerHeight / 2);
+      });
     }
 
     function handlePointerMove(event: PointerEvent) {
@@ -78,11 +90,18 @@ export function SidebarShell({ children }: { children: ReactNode }) {
       }
     }
 
-    setHandlePosition(window.innerHeight / 2);
+    syncHandleToViewport();
+    window.addEventListener("scroll", syncHandleToViewport, { passive: true });
+    window.addEventListener("resize", syncHandleToViewport, { passive: true });
     window.addEventListener("pointermove", handlePointerMove, { passive: true });
     window.addEventListener("touchmove", handleTouchMove, { passive: true });
 
     return () => {
+      if (rafId) {
+        window.cancelAnimationFrame(rafId);
+      }
+      window.removeEventListener("scroll", syncHandleToViewport);
+      window.removeEventListener("resize", syncHandleToViewport);
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("touchmove", handleTouchMove);
     };
