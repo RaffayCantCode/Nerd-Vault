@@ -49,13 +49,17 @@ export function ResilientMediaImage({
   const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
+    if (loading !== "eager" && fetchPriority !== "high") {
+      return;
+    }
+
     const warmTargets = [primaryCover, secondaryBackdrop].filter(Boolean) as string[];
     warmTargets.forEach((target) => {
       const image = new Image();
       image.decoding = "async";
       image.src = target;
     });
-  }, [primaryCover, secondaryBackdrop]);
+  }, [fetchPriority, loading, primaryCover, secondaryBackdrop]);
 
   useEffect(() => {
     setLoaded(false);

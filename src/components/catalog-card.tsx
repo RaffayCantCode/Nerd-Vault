@@ -57,17 +57,13 @@ export function CatalogCard({
     setIsNavigating(true);
     onBeforeNavigate?.();
     warmRoute();
-    
-    // Navigate programmatically after a short delay
-    setTimeout(() => {
-      try {
-        router.push(routeHref);
-      } catch (error) {
-        console.error('Navigation failed:', error);
-        // Reset navigation state on error
-        setIsNavigating(false);
-      }
-    }, 100);
+
+    try {
+      router.push(routeHref);
+    } catch (error) {
+      console.error("Navigation failed:", error);
+      setIsNavigating(false);
+    }
   }
 
   // Prefetch route for priority cards
@@ -135,6 +131,8 @@ export function CatalogCard({
       className={`catalog-card ${isNavigating ? "is-navigating" : ""} ${isVisible ? "is-visible" : ""} ${isImageLoaded ? "has-media-loaded" : ""}`}
       prefetch={false}
       onClick={handleNavigate}
+      onMouseEnter={warmRoute}
+      onFocus={warmRoute}
     >
       <ResilientMediaImage
         item={item}

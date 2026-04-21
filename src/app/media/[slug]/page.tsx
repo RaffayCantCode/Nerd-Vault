@@ -190,7 +190,11 @@ const DETAIL_EASTER_EGGS: Array<{
 ];
 
 function cleanNarrativeText(input?: string) {
-  const text = (input ?? "").replace(/\[[^\]]+\]/g, "").replace(/\s+/g, " ").trim();
+  const text = (input ?? "")
+    .replace(/\[[^\]]+\]/g, "")
+    .replace(/\b(written by|source:|courtesy of)\b.*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
 
   if (!text) return "No overview yet.";
   const sentences = text
@@ -198,8 +202,46 @@ function cleanNarrativeText(input?: string) {
     .map((sentence) => sentence.trim())
     .filter(Boolean);
   const limited = sentences.slice(0, 2).join(" ");
-  const clipped = (limited || text).slice(0, 220).trimEnd();
+  const clipped = (limited || text).slice(0, 210).trimEnd();
   return clipped.length < text.length ? `${clipped}...` : clipped;
+}
+
+function buildPremiseLine(media: MediaItem) {
+  const cleaned = cleanNarrativeText(media.overview);
+  const firstSentence = cleaned
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .find(Boolean);
+
+  if (firstSentence && firstSentence !== "No overview yet.") {
+    const compact = firstSentence.replace(/\s+/g, " ").trim();
+    return compact.length > 132 ? `${compact.slice(0, 129).trimEnd()}...` : compact;
+  }
+
+  const genreBlend = media.genres.slice(0, 2).join(" / ") || "Story-driven";
+  if (media.type === "game") {
+    return `${genreBlend} game with a clear hook and a world worth stepping into.`;
+  }
+
+  if (media.type === "movie") {
+    return `${genreBlend} film with a clear setup and a strong first impression.`;
+  }
+
+  return `${genreBlend} ${media.type === "show" ? "series" : "anime"} with a clear setup and an easy entry point.`;
+}
+
+function buildSynopsisPreview(media: MediaItem) {
+  const cleaned = cleanNarrativeText(media.overview);
+  if (cleaned === "No overview yet.") {
+    return cleaned;
+  }
+
+  const sentences = cleaned
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+  const preview = sentences.slice(0, 2).join(" ");
+  return preview.length > 185 ? `${preview.slice(0, 182).trimEnd()}...` : preview;
 }
 
 function normalizeCopyFingerprint(input: string) {
@@ -621,6 +663,14 @@ function sharedTopicTokenCount(base: MediaItem, candidate: MediaItem) {
 }
 
 function isCompatibleSimilarityType(base: MediaItem, candidate: MediaItem) {
+  const isAnimeFamily =
+    (base.type === "anime" || base.type === "anime_movie") &&
+    (candidate.type === "anime" || candidate.type === "anime_movie");
+
+  if (isAnimeFamily) {
+    return true;
+  }
+
   return candidate.type === base.type;
 }
 
@@ -714,7 +764,11 @@ function normalizeComparableFranchiseTitle(title: string, type: MediaItem["type"
 }
 
 function isSupplementalFranchiseCandidate(base: MediaItem, candidate: MediaItem) {
-  if (candidate.type !== base.type) {
+  const isAnimeFamily =
+    (base.type === "anime" || base.type === "anime_movie") &&
+    (candidate.type === "anime" || candidate.type === "anime_movie");
+
+  if (!isAnimeFamily && candidate.type !== base.type) {
     return true;
   }
 
@@ -726,7 +780,7 @@ function isSupplementalFranchiseCandidate(base: MediaItem, candidate: MediaItem)
     return true;
   }
 
-  if (base.type === "anime") {
+  if (base.type === "anime" || base.type === "anime_movie") {
     return /\b(ova|ona|special|recap|compilation|picture drama|music video|live action)\b/i.test(title);
   }
 
@@ -775,7 +829,11 @@ function hasStrongFranchiseConnection(base: MediaItem, candidate: MediaItem, sig
  * or comparable anime/game title roots (sequels in one sub-series).
  */
 function isSameFranchiseProductLine(base: MediaItem, candidate: MediaItem) {
-  if (base.type !== candidate.type) {
+  const isAnimeFamily =
+    (base.type === "anime" || base.type === "anime_movie") &&
+    (candidate.type === "anime" || candidate.type === "anime_movie");
+
+  if (!isAnimeFamily && base.type !== candidate.type) {
     return false;
   }
 
@@ -783,7 +841,7 @@ function isSameFranchiseProductLine(base: MediaItem, candidate: MediaItem) {
     return base.details.collectionId === candidate.details.collectionId;
   }
 
-  if (base.type !== "game" && base.type !== "anime") {
+  if (base.type !== "game" && base.type !== "anime" && base.type !== "anime_movie") {
     return false;
   }
 
@@ -1565,25 +1623,6 @@ function buildDeepDiveCards(
   ], media);
 }
 
-function buildMoodLine(media: MediaItem) {
-  const genreBlend = media.genres.slice(0, 3).join(", ").toLowerCase();
-
-  if (media.type === "anime") {
-    const audienceLens = getAnimeAudienceLens(media.genres);
-    return `An anime built around ${genreBlend || "emotion and atmosphere"}, with a sharper pull toward character energy and world mood than passive background watching.${audienceLens.length ? ` It leans toward ${audienceLens.join(", ")}.` : ""}`;
-  }
-
-  if (media.type === "game") {
-    return `A game driven by ${genreBlend || "strong atmosphere"}, where the fantasy matters as much as the mechanics and studio identity behind it.`;
-  }
-
-  if (media.type === "show") {
-    return `A series tuned for ${genreBlend || "strong momentum"}, built to keep you inside its tone over a longer stretch.`;
-  }
-
-  return `A film with a ${genreBlend || "strong cinematic"} identity, the kind of pick you open because the whole vibe already has you sold.`;
-}
-
 function uniqueGalleryImages(media: MediaItem) {
   const seen = new Set<string>();
   const gallery: string[] = [];
@@ -1779,6 +1818,14 @@ async function getRelatedMediaRail(media: MediaItem) {
   }
 
   if (media.type === "anime" || media.type === "anime_movie") {
+    const animeQueries = Array.from(
+      new Set([
+        media.details.collectionTitle ?? "",
+        ...buildQueryVariants(media.title),
+        ...buildTitleRoots(media),
+      ].filter((value) => value.length >= 3)),
+    ).slice(0, 4);
+
     const results = await Promise.allSettled([
       withTimeout(
         browseJikanAnime({ page: 1, genre: primaryGenre, sort: "rating" }),
@@ -1808,6 +1855,32 @@ async function getRelatedMediaRail(media: MediaItem) {
             ),
           ]
         : []),
+      withTimeout(
+        browseJikanAnime({ page: 1, sort: "rating", seed: 12 }),
+        emptyBrowseResult(),
+        750,
+      ),
+      withTimeout(
+        browseJikanAnime({ page: 2, sort: "discovery", seed: 13 }),
+        emptyBrowseResult(),
+        750,
+      ),
+      ...animeQueries.flatMap((query, index) => [
+        withTimeout(
+          browseJikanAnime({ page: 1, query, sort: "rating", seed: 20 + index }),
+          emptyBrowseResult(),
+          750,
+        ),
+        ...(index < 2
+          ? [
+              withTimeout(
+                browseJikanAnime({ page: 2, query, sort: "rating", seed: 30 + index }),
+                emptyBrowseResult(),
+                800,
+              ),
+            ]
+          : []),
+      ]),
     ]);
 
     results.forEach((result) => {
@@ -1912,7 +1985,7 @@ async function getRelatedMediaRail(media: MediaItem) {
       if (media.type === "movie" || media.type === "show") {
         return entry.score >= 20 && (sharedGenres >= 1 || sharedTags >= 1 || sharedTopics >= 2);
       }
-      return entry.score >= 26 && (sharedGenres >= 1 || sharedTags >= 1 || sharedTopics >= 2);
+      return entry.score >= 20 && (sharedGenres >= 1 || sharedTags >= 1 || sharedTopics >= 1);
     })
     .sort((left, right) => right.score - left.score)
     .map((entry) => entry.candidate)
@@ -1934,11 +2007,32 @@ async function getRelatedMediaRail(media: MediaItem) {
       if (media.type === "movie" || media.type === "show") {
         return entry.score >= 14 && (sharedGenres >= 1 || sharedTags >= 1 || sharedTopics >= 1);
       }
-      return entry.score >= 18 && (sharedGenres >= 1 || sharedTags >= 1 || sharedTopics >= 1);
+      return entry.score >= 12 && (sharedGenres >= 1 || sharedTags >= 1 || sharedTopics >= 1);
     })
     .sort((left, right) => right.score - left.score)
     .map((entry) => entry.candidate)
     .slice(0, media.type === "game" ? 8 : 10);
+
+  if ((media.type === "anime" || media.type === "anime_movie") && fallbackMatches.length) {
+    return dedupeItems(fallbackMatches);
+  }
+
+  if (media.type === "anime" || media.type === "anime_movie") {
+    const looseAnimeMatches = scored
+      .filter((entry) => {
+        const sharedGenres = sharedCanonicalGenreCount(media, entry.candidate);
+        const sharedTags = sharedSimilarityTagCount(media, entry.candidate);
+        const sharedTopics = sharedTopicTokenCount(media, entry.candidate);
+        return entry.score >= 6 && (sharedGenres >= 1 || sharedTags >= 1 || sharedTopics >= 1 || entry.candidate.rating >= 7);
+      })
+      .sort((left, right) => right.score - left.score)
+      .map((entry) => entry.candidate)
+      .slice(0, 12);
+
+    if (looseAnimeMatches.length) {
+      return dedupeItems(looseAnimeMatches);
+    }
+  }
 
   return dedupeItems(fallbackMatches);
 }
@@ -2073,7 +2167,8 @@ export default async function MediaDetailPage({
   const spotlightCredits = dedupeSpotlightCredits(media.credits).slice(0, 6);
   const gallery = uniqueGalleryImages(media).slice(0, 6);
   const storyGallery = buildStoryGallery(gallery, media.backdropUrl || media.coverUrl);
-  const moodLine = buildMoodLine(media);
+  const moodLine = buildPremiseLine(media);
+  const synopsisPreview = buildSynopsisPreview(media);
   const immersionScenes = buildImmersionScenes(media, storyGallery, deepDiveCards);
   const atlasGallery = buildAtlasGallery(gallery, storyGallery);
   const showAtlas = atlasGallery.length >= 1;
@@ -2114,7 +2209,7 @@ export default async function MediaDetailPage({
                   <p className="eyebrow">{media.type}</p>
                   <h1 className="display detail-display">{media.title}</h1>
                   <p className="detail-lead">{moodLine}</p>
-                  <p className="copy detail-overview-copy">{media.overview}</p>
+                  <p className="copy detail-overview-copy">{synopsisPreview}</p>
                   {easterEgg ? (
                     <div className="detail-favorite-note glass">
                       <p className="eyebrow">{easterEgg.kicker}</p>

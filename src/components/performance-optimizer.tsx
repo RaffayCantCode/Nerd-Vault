@@ -5,17 +5,33 @@ import { initializePerformanceOptimizer } from "@/lib/performance-optimizer";
 
 export function PerformanceOptimizer() {
   useEffect(() => {
-    // Initialize performance optimizer on client side only
-    const optimizer = initializePerformanceOptimizer();
-    
-    // Log performance info for debugging
-    const perfInfo = optimizer.getPerformanceInfo();
-    console.log("Performance Info:", perfInfo);
-    
-    // Add performance class to document
-    if (perfInfo.performanceMode) {
-      document.documentElement.classList.add('performance-mode');
+    function bootOptimizer() {
+      const optimizer = initializePerformanceOptimizer();
+      const perfInfo = optimizer.getPerformanceInfo();
+
+      if (perfInfo.performanceMode) {
+        document.documentElement.classList.add("performance-mode");
+      }
     }
+
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let idleId: number | undefined;
+
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      idleId = window.requestIdleCallback(bootOptimizer, { timeout: 1200 });
+    } else {
+      timeoutId = globalThis.setTimeout(bootOptimizer, 250);
+    }
+
+    return () => {
+      if (typeof idleId === "number" && typeof window !== "undefined" && "cancelIdleCallback" in window) {
+        window.cancelIdleCallback(idleId);
+      }
+
+      if (timeoutId) {
+        globalThis.clearTimeout(timeoutId);
+      }
+    };
   }, []);
 
   return null; // This component doesn't render anything
