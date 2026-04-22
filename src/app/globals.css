@@ -11679,3 +11679,95 @@ body {
 .media-action-hero-backdrop {
   filter: saturate(1.15) contrast(1.06);
 }
+
+/* Final readability and review-star polish pass */
+.catalog-card::after {
+  background:
+    linear-gradient(180deg, rgba(4, 7, 12, 0.04) 0%, rgba(4, 7, 12, 0.28) 36%, rgba(4, 7, 12, 0.94) 78%, rgba(4, 7, 12, 0.98) 100%),
+    linear-gradient(90deg, rgba(4, 7, 12, 0.16), transparent 24%, transparent 76%, rgba(4, 7, 12, 0.24)),
+    linear-gradient(0deg, rgba(94, 92, 255, 0.12), transparent 28%) !important;
+}
+
+.catalog-sheen {
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.06), transparent 20%, transparent 68%, rgba(57, 184, 255, 0.06)) !important;
+  opacity: 0.18 !important;
+}
+
+.catalog-copy {
+  gap: 0.42rem !important;
+}
+
+.catalog-title {
+  color: #f8fbff !important;
+  text-shadow:
+    0 2px 12px rgba(2, 6, 16, 0.82),
+    0 1px 2px rgba(2, 6, 16, 0.9) !important;
+}
+
+.meta-row .pill,
+.pill.rating {
+  background:
+    linear-gradient(180deg, rgba(11, 16, 29, 0.84), rgba(11, 16, 29, 0.66)),
+    linear-gradient(135deg, rgba(139, 92, 255, 0.18), rgba(57, 184, 255, 0.14)) !important;
+  border-color: rgba(171, 193, 255, 0.16) !important;
+  color: #f0f4ff !important;
+  box-shadow: 0 10px 22px rgba(2, 6, 16, 0.28) !important;
+}
+
+.review-stars-block {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.review-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.review-star {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 999px;
+  border: 1px solid rgba(128, 141, 188, 0.22);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015)),
+    rgba(9, 14, 28, 0.88);
+  color: rgba(180, 191, 224, 0.62);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 12px 24px rgba(2, 6, 16, 0.22);
+  transition: transform 140ms ease, border-color 140ms ease, color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+}
+
+.review-star span {
+  display: block;
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.review-star:hover,
+.review-star:focus-visible,
+.review-star.is-active {
+  border-color: rgba(99, 208, 255, 0.5);
+  color: #f6f8ff;
+  background:
+    linear-gradient(135deg, rgba(139, 92, 255, 0.92), rgba(84, 126, 255, 0.92) 54%, rgba(57, 184, 255, 0.9)),
+    rgba(9, 14, 28, 0.92);
+  box-shadow:
+    0 16px 34px rgba(70, 120, 255, 0.28),
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 640px) {
+  .review-stars {
+    gap: 0.5rem;
+  }
+
+  .review-star {
+    width: 2.65rem;
+    height: 2.65rem;
+  }
+}

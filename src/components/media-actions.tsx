@@ -437,18 +437,31 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
               </button>
             </div>
 
-            <label className="copy" htmlFor="review-rating-input">Your rating</label>
-            <input
-              id="review-rating-input"
-              type="range"
-              min={0}
-              max={5}
-              step={1}
-              value={reviewRating}
-              onChange={(event) => setReviewRating(Number(event.target.value))}
-            />
+            <div className="review-stars-block">
+              <span className="copy">Your rating</span>
+              <div className="review-stars" id="review-stars-input" role="radiogroup" aria-label="Choose a rating from one to five stars">
+                {Array.from({ length: 5 }, (_, index) => {
+                  const ratingValue = index + 1;
+                  const isActive = ratingValue <= reviewRating;
+
+                  return (
+                    <button
+                      key={ratingValue}
+                      type="button"
+                      role="radio"
+                      aria-checked={reviewRating === ratingValue}
+                      aria-label={`${ratingValue} star${ratingValue === 1 ? "" : "s"}`}
+                      className={`review-star${isActive ? " is-active" : ""}`}
+                      onClick={() => setReviewRating((current) => (current === ratingValue ? 0 : ratingValue))}
+                    >
+                      <span aria-hidden="true">★</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <div className="button-row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-              <span className="copy">{reviewRating ? renderStars(reviewRating) : "No rating selected"}</span>
+              <span className="copy">{reviewRating ? `${renderStars(reviewRating)} selected` : "Tap a star to rate it"}</span>
               {reviewRating ? (
                 <button type="button" className="button button-secondary" onClick={() => setReviewRating(0)}>
                   Clear stars

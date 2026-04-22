@@ -363,6 +363,83 @@ function normalizeTitleSignal(value: string) {
     .trim();
 }
 
+const TITLE_ROOT_STOP_WORDS = new Set([
+  "a",
+  "an",
+  "and",
+  "at",
+  "for",
+  "from",
+  "in",
+  "of",
+  "on",
+  "or",
+  "the",
+  "to",
+  "with",
+]);
+
+const TITLE_ROOT_GENERIC_WORDS = new Set([
+  "adventure",
+  "adventures",
+  "battle",
+  "boy",
+  "boys",
+  "chronicles",
+  "club",
+  "dream",
+  "dreams",
+  "edition",
+  "experience",
+  "family",
+  "final",
+  "game",
+  "games",
+  "generation",
+  "girls",
+  "group",
+  "hero",
+  "heroes",
+  "history",
+  "journey",
+  "king",
+  "life",
+  "love",
+  "movie",
+  "movies",
+  "origins",
+  "party",
+  "project",
+  "return",
+  "returns",
+  "school",
+  "show",
+  "special",
+  "story",
+  "stories",
+  "tale",
+  "tales",
+  "universe",
+  "war",
+  "world",
+]);
+
+function isUsefulTitleRoot(root: string) {
+  const words = root.split(/\s+/).filter(Boolean);
+  const meaningfulWords = words.filter((word) => !TITLE_ROOT_STOP_WORDS.has(word));
+  const specificWords = meaningfulWords.filter((word) => !TITLE_ROOT_GENERIC_WORDS.has(word));
+
+  if (specificWords.length >= 2) {
+    return true;
+  }
+
+  if (specificWords.length === 1 && meaningfulWords.length >= 2 && root.length >= 10) {
+    return true;
+  }
+
+  return false;
+}
+
 function buildTitleRoots(media: MediaItem) {
   const candidates = [
     media.title,
@@ -375,22 +452,22 @@ function buildTitleRoots(media: MediaItem) {
 
   for (const candidate of candidates) {
     const normalized = normalizeTitleSignal(candidate);
-    if (normalized.length >= 4) {
+    if (normalized.length >= 4 && isUsefulTitleRoot(normalized)) {
       roots.add(normalized);
     }
 
     const beforeSubtitle = normalized.split(/\s+(?:and|the)\s+/).join(" ");
-    if (beforeSubtitle.length >= 4) {
+    if (beforeSubtitle.length >= 4 && isUsefulTitleRoot(beforeSubtitle)) {
       roots.add(beforeSubtitle);
     }
 
     const prefix = normalized.split(/\s+/).slice(0, 3).join(" ");
-    if (prefix.length >= 4) {
+    if (prefix.length >= 4 && isUsefulTitleRoot(prefix)) {
       roots.add(prefix);
     }
 
     const shortPrefix = normalized.split(/\s+/).slice(0, 2).join(" ");
-    if (shortPrefix.length >= 4) {
+    if (shortPrefix.length >= 4 && isUsefulTitleRoot(shortPrefix)) {
       roots.add(shortPrefix);
     }
   }
@@ -430,6 +507,14 @@ const CURATED_UNIVERSE_RULES: CuratedUniverseRule[] = [
     aliases: ["game of thrones", "house of the dragon", "seven kingdoms", "westeros", "targaryen"],
     entries: {
       show: ["Game of Thrones", "House of the Dragon", "A Knight of the Seven Kingdoms"],
+    },
+  },
+  {
+    key: "the-boys",
+    title: "The Boys universe",
+    aliases: ["the boys", "gen v", "compound v", "vought", "the seven"],
+    entries: {
+      show: ["The Boys", "Gen V"],
     },
   },
   {
@@ -1228,12 +1313,13 @@ async function buildFranchiseSection(media: MediaItem, animeFranchise?: AnimeFra
 
   if (media.type === "show" && media.source === "tmdb") {
     const franchiseSignals = buildFranchiseSignals(media);
+    const hasCuratedMovies = Boolean(curatedUniverse?.entries.movie?.length);
     const [relations, curatedEntries, crossTypeMovies] = await Promise.all([
       getTmdbFranchiseEntries(Number(media.sourceId), "tv").catch(() => [] as MediaItem[]),
       curatedUniverse?.entries.show?.length
         ? findTmdbUniverseEntries(curatedUniverse.entries.show, "show").catch(() => [] as MediaItem[])
         : Promise.resolve([] as MediaItem[]),
-      getTmdbRelatedByFranchise(media.title, "movie", 8).catch(() => [] as MediaItem[]),
+      hasCuratedMovies ? getTmdbRelatedByFranchise(media.title, "movie", 8).catch(() => [] as MediaItem[]) : Promise.resolve([] as MediaItem[]),
     ]);
 
     const combined = dedupeItems([media, ...relations, ...curatedEntries, ...crossTypeMovies])
@@ -1866,6 +1952,21 @@ async function getRelatedMediaRail(media: MediaItem) {
               ),
             ]
           : []),
+        withTimeout(
+          browseTmdbCatalog({ type: mediaType, page: 2, genre: primaryGenre, sort: "discovery", seed: 15 + mediaTypeIndex }),
+          emptyBrowseResult(),
+          700,
+        ),
+        withTimeout(
+          browseTmdbCatalog({ type: mediaType, page: 1, sort: "discovery", seed: 17 + mediaTypeIndex }),
+          emptyBrowseResult(),
+          750,
+        ),
+        withTimeout(
+          browseTmdbCatalog({ type: mediaType, page: 2, sort: "discovery", seed: 19 + mediaTypeIndex }),
+          emptyBrowseResult(),
+          750,
+        ),
         ...(tertiaryGenre
           ? [
               withTimeout(
@@ -2059,7 +2160,7 @@ async function getRelatedMediaRail(media: MediaItem) {
     .map((entry) => entry.candidate)
     .slice(0, media.type === "game" ? 10 : 12);
 
-  if (strictMatches.length) {
+  if (strictMatches.length >= (media.type === "game" ? 8 : 10)) {
     return dedupeItems(strictMatches);
   }
 
@@ -2080,6 +2181,30 @@ async function getRelatedMediaRail(media: MediaItem) {
     .sort((left, right) => right.score - left.score)
     .map((entry) => entry.candidate)
     .slice(0, media.type === "game" ? 8 : 10);
+
+  const broadMatches = scored
+    .filter((entry) => {
+      const sharedGenres = sharedCanonicalGenreCount(media, entry.candidate);
+      const sharedTags = sharedSimilarityTagCount(media, entry.candidate);
+      const sharedPlatforms = sharedPlatformCount(media, entry.candidate);
+      const sharedTopics = sharedTopicTokenCount(media, entry.candidate);
+      if (media.type === "game") {
+        return entry.score >= 12 && (sharedGenres >= 1 || sharedTags >= 1 || sharedPlatforms >= 1 || sharedTopics >= 1);
+      }
+      if (media.type === "movie" || media.type === "show") {
+        return entry.score >= 10 && (sharedGenres >= 1 || sharedTags >= 1 || sharedTopics >= 1);
+      }
+      return entry.score >= 8 && (sharedGenres >= 1 || sharedTags >= 1 || sharedTopics >= 1 || entry.candidate.rating >= 7.2);
+    })
+    .sort((left, right) => right.score - left.score)
+    .map((entry) => entry.candidate)
+    .slice(0, media.type === "game" ? 12 : 14);
+
+  const mergedMatches = dedupeItems([...strictMatches, ...fallbackMatches, ...broadMatches]);
+
+  if (mergedMatches.length >= (media.type === "game" ? 8 : 10)) {
+    return mergedMatches.slice(0, media.type === "game" ? 10 : 12);
+  }
 
   if ((media.type === "anime" || media.type === "anime_movie") && fallbackMatches.length) {
     return dedupeItems(fallbackMatches);
@@ -2102,7 +2227,7 @@ async function getRelatedMediaRail(media: MediaItem) {
     }
   }
 
-  return dedupeItems(fallbackMatches);
+  return mergedMatches;
 }
 
 export default async function MediaDetailPage({
