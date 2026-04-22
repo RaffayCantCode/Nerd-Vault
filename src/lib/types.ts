@@ -31,6 +31,7 @@ export type MediaItem = {
     releaseDate?: string;
     nextEpisodeDate?: string;
     lastEpisodeDate?: string;
+    trailerUrl?: string;
     releaseInfo?: string;
     seasonCount?: number;
     episodeCount?: number;

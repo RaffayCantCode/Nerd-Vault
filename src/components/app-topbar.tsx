@@ -162,7 +162,7 @@ export function AppTopBar({
                     <div key={profile.id} className="topbar-user-result">
                       <Link href={`/profile?user=${profile.id}`} className="topbar-user-result-main">
                         {profile.avatarUrl ? (
-                          <img src={profile.avatarUrl} alt={profile.name} className="topbar-user-avatar" />
+                          <img src={profile.avatarUrl} alt={profile.name} className="topbar-user-avatar" loading="lazy" decoding="async" />
                         ) : (
                           <span className="topbar-user-avatar topbar-user-avatar-fallback">
                             {profile.name.charAt(0).toUpperCase()}
@@ -262,7 +262,7 @@ export function AppTopBar({
               onClick={() => void toggleProfileMenu()}
             >
               {topbarAvatar ? (
-                <img src={topbarAvatar} alt={topbarName} className="topbar-user-avatar" />
+                <img src={topbarAvatar} alt={topbarName} className="topbar-user-avatar" decoding="async" />
               ) : (
                 <span className="topbar-user-avatar topbar-user-avatar-fallback">
                   {topbarName.charAt(0).toUpperCase()}

@@ -3,6 +3,18 @@ import { browseJikanAnime } from "@/lib/sources/jikan";
 import { browseTmdbCatalog } from "@/lib/sources/tmdb";
 import { MediaItem } from "@/lib/types";
 
+const BOOTSTRAP_SOURCE_TTL_MS = 1000 * 60 * 30;
+
+type BootstrapSource = "movie" | "show" | "anime" | "game";
+
+const bootstrapSourceCache = new Map<
+  BootstrapSource,
+  {
+    expiresAt: number;
+    items: MediaItem[];
+  }
+>();
+
 type BrowsePayload = {
   page: number;
   totalPages: number;
@@ -64,73 +76,94 @@ function interleaveBootstrapBuckets(...buckets: MediaItem[][]) {
   return mixed;
 }
 
-export async function getBrowseBootstrapCatalog(seed: number) {
+function readBootstrapSourceCache(source: BootstrapSource) {
+  const cached = bootstrapSourceCache.get(source);
+  if (!cached || cached.expiresAt <= Date.now()) {
+    return null;
+  }
+
+  return cached.items;
+}
+
+function writeBootstrapSourceCache(source: BootstrapSource, items: MediaItem[]) {
+  if (!items.length) {
+    return;
+  }
+
+  bootstrapSourceCache.set(source, {
+    expiresAt: Date.now() + BOOTSTRAP_SOURCE_TTL_MS,
+    items: dedupeItems(items),
+  });
+}
+
+function rotateBySeed(items: MediaItem[], seed: number) {
+  if (!items.length) return items;
+  const offset = Math.abs(seed) % items.length;
+  return [...items.slice(offset), ...items.slice(0, offset)];
+}
+
+async function getBootstrapSource(source: BootstrapSource, seed: number) {
+  const cached = readBootstrapSourceCache(source);
+  if (cached?.length) {
+    return rotateBySeed(cached, seed);
+  }
+
   const fallback = emptyBrowsePayload();
-  
-  // Load all media types with generous timeouts to ensure complete data
+
+  if (source === "movie" || source === "show") {
+    const payload = await withTimeout(
+      browseTmdbCatalog({ type: source, page: 1, query: "", genre: "", sort: "discovery", seed }).catch(() => fallback),
+      fallback,
+      1800,
+    );
+    writeBootstrapSourceCache(source, payload.items);
+    return rotateBySeed(payload.items, seed);
+  }
+
+  if (source === "anime") {
+    const payload = await withTimeout(
+      browseJikanAnime({ page: 1, query: "", genre: "", sort: "discovery", seed }).catch(() => fallback),
+      fallback,
+      2200,
+    );
+    writeBootstrapSourceCache(source, payload.items);
+    return rotateBySeed(payload.items, seed);
+  }
+
+  const primary = await withTimeout(
+    browseIgdbGames({ page: 1, query: "", genre: "", sort: "discovery", seed }).catch(() => fallback),
+    fallback,
+    3000,
+  );
+
+  const gameItems = primary.items.length
+    ? primary.items
+    : (
+        await withTimeout(
+          browseIgdbGames({ page: 1, query: "", genre: "", sort: "rating", seed: seed + 17 }).catch(() => fallback),
+          fallback,
+          3800,
+        )
+      ).items;
+
+  writeBootstrapSourceCache("game", gameItems);
+  return rotateBySeed(gameItems, seed);
+}
+
+export async function getBrowseBootstrapCatalog(seed: number) {
   const [movies, shows, anime, games] = await Promise.all([
-    withTimeout(
-      browseTmdbCatalog({ type: "movie", page: 1, query: "", genre: "", sort: "discovery", seed: seed + 1 }).catch(() => fallback),
-      fallback,
-      3000, // Increased from 900ms
-    ),
-    withTimeout(
-      browseTmdbCatalog({ type: "show", page: 1, query: "", genre: "", sort: "discovery", seed: seed + 2 }).catch(() => fallback),
-      fallback,
-      3000, // Increased from 900ms
-    ),
-    withTimeout(
-      browseJikanAnime({ page: 1, query: "", genre: "", sort: "discovery", seed: seed + 3 }).catch(() => fallback),
-      fallback,
-      4000, // Increased from 1200ms
-    ),
-    withTimeout(
-      browseIgdbGames({ page: 1, query: "", genre: "", sort: "discovery", seed: seed + 4 }).catch(() => fallback),
-      fallback,
-      8000, // Increased from 2600ms to ensure games load
-    ),
+    getBootstrapSource("movie", seed + 1),
+    getBootstrapSource("show", seed + 2),
+    getBootstrapSource("anime", seed + 3),
+    getBootstrapSource("game", seed + 4),
   ]);
-
-  // Ensure we always have games by trying multiple strategies if needed
-  let guaranteedGameItems = games.items;
-  
-  if (!guaranteedGameItems.length) {
-    console.log("Primary games fetch failed, trying backup strategy...");
-    guaranteedGameItems = (
-      await withTimeout(
-        browseIgdbGames({ page: 1, query: "", genre: "", sort: "rating", seed: seed + 44 }).catch(() => fallback),
-        fallback,
-        10000, // Increased from 3600ms
-      )
-    ).items;
-  }
-  
-  // Final fallback - try with different parameters
-  if (!guaranteedGameItems.length) {
-    console.log("Backup games fetch failed, trying final fallback...");
-    guaranteedGameItems = (
-      await withTimeout(
-        browseIgdbGames({ page: 1, query: "", genre: "", sort: "newest", seed: seed + 88 }).catch(() => fallback),
-        fallback,
-        12000, // Extended timeout for final attempt
-      )
-    ).items;
-  }
-
-  // Ensure we have items from each category, use fallbacks if needed
-  const finalMovies = movies.items.length ? movies.items : fallback.items;
-  const finalShows = shows.items.length ? shows.items : fallback.items;
-  const finalAnime = anime.items.length ? anime.items : fallback.items;
-  const finalGames = guaranteedGameItems.length ? guaranteedGameItems : fallback.items;
-
-  console.log(`Browse catalog loaded - Movies: ${finalMovies.length}, Shows: ${finalShows.length}, Anime: ${finalAnime.length}, Games: ${finalGames.length}`);
 
   return dedupeItems(
     interleaveBootstrapBuckets(
-      pickFirstUnique(finalMovies, 3),
-      pickFirstUnique(finalShows, 3),
-      pickFirstUnique(finalAnime, 3),
-      pickFirstUnique(finalGames, 3),
+      pickFirstUnique(movies, 3),
+      pickFirstUnique(shows, 3),
+      pickFirstUnique(anime, 3),
+      pickFirstUnique(games, 3),
     ),
   ).slice(0, 12);
 }

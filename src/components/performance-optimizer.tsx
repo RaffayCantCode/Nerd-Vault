@@ -7,9 +7,7 @@ export function PerformanceOptimizer() {
   useEffect(() => {
     function bootOptimizer() {
       const optimizer = initializePerformanceOptimizer();
-      const perfInfo = optimizer.getPerformanceInfo();
-
-      if (perfInfo.performanceMode) {
+      if (optimizer.getPerformanceInfo().performanceMode) {
         document.documentElement.classList.add("performance-mode");
       }
     }

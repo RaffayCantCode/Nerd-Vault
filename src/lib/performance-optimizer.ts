@@ -15,6 +15,7 @@ export class PerformanceOptimizer {
   private static instance: PerformanceOptimizer;
   private isLowEndDevice: boolean = false;
   private performanceMode: boolean = false;
+  private injectedFlags = new Set<string>();
 
   private constructor() {
     this.detectPerformanceCapabilities();
@@ -66,18 +67,8 @@ export class PerformanceOptimizer {
   }
 
   private shouldForcePerformanceMode(): boolean {
-    // Force performance mode based on user agent or other indicators
     const userAgent = navigator.userAgent.toLowerCase();
-    
-    const lowEndIndicators = [
-      userAgent.includes('android') && userAgent.includes('mobile'),
-      userAgent.includes('iphone'),
-      userAgent.includes('ipad'),
-      userAgent.includes('windows phone'),
-      // Add more low-end device patterns
-    ];
-
-    return lowEndIndicators.some(Boolean);
+    return userAgent.includes('windows phone');
   }
 
   private applyOptimizations(): void {
@@ -102,7 +93,6 @@ export class PerformanceOptimizer {
     // Optimize scrolling
     this.optimizeScrolling();
     
-    console.log('Performance mode enabled for low-end device');
   }
 
   private optimizeImageLoading(): void {
@@ -113,20 +103,16 @@ export class PerformanceOptimizer {
     });
 
     // Reduce image quality for low-end devices
-    const style = document.createElement('style');
-    style.textContent = `
+    this.injectStyleOnce("performance-images", `
       .performance-mode img {
         image-rendering: optimizeSpeed;
         image-rendering: -webkit-optimize-contrast;
       }
-    `;
-    document.head.appendChild(style);
+    `);
   }
 
   private disableHeavyAnimations(): void {
-    // Disable CSS animations and transitions
-    const style = document.createElement('style');
-    style.textContent = `
+    this.injectStyleOnce("performance-motion", `
       .performance-mode * {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
@@ -141,20 +127,28 @@ export class PerformanceOptimizer {
       .performance-mode .action-button:hover {
         transform: none !important;
       }
-    `;
-    document.head.appendChild(style);
+    `);
   }
 
   private optimizeScrolling(): void {
-    // Enable smooth scrolling with performance considerations
-    const style = document.createElement('style');
-    style.textContent = `
+    this.injectStyleOnce("performance-scroll", `
       .performance-mode .workspace {
         scroll-behavior: auto;
         -webkit-overflow-scrolling: touch;
       }
-    `;
+    `);
+  }
+
+  private injectStyleOnce(flag: string, css: string): void {
+    if (this.injectedFlags.has(flag)) {
+      return;
+    }
+
+    const style = document.createElement('style');
+    style.setAttribute("data-performance-style", flag);
+    style.textContent = css;
     document.head.appendChild(style);
+    this.injectedFlags.add(flag);
   }
 
   private setupPerformanceMonitoring(): void {
@@ -172,16 +166,14 @@ export class PerformanceOptimizer {
 
       try {
         observer.observe({ entryTypes: ['longtask'] });
-      } catch (e) {
+      } catch {
         // PerformanceObserver not supported
-        console.log('Performance monitoring not available');
       }
     }
   }
 
   private handlePerformanceIssue(duration: number): void {
     if (!this.performanceMode && duration > 100) {
-      console.warn(`Performance issue detected: ${duration}ms task, enabling performance mode`);
       this.enablePerformanceMode();
       this.performanceMode = true;
     }

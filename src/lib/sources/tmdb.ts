@@ -61,6 +61,15 @@ type TmdbImages = {
   posters?: Array<{ file_path: string | null }>;
 };
 
+type TmdbVideos = {
+  results: Array<{
+    key: string;
+    site: string;
+    type: string;
+    official?: boolean;
+  }>;
+};
+
 type TmdbPagedResponse = {
   page: number;
   total_pages: number;
@@ -673,14 +682,29 @@ export async function browseTmdbCatalog(params: TmdbBrowseParams) {
 }
 
 export async function getTmdbMediaDetails(id: number, type: "movie" | "tv") {
-  const [genres, details, credits, images] = await Promise.all([
+  const [genres, details, credits, images, videos] = await Promise.all([
     getGenreMap(type === "movie" ? "movie" : "tv"),
     tmdbFetch<TmdbListItem>(`/${type}/${id}?language=en-US`),
     tmdbFetch<TmdbCredits>(`/${type}/${id}/credits?language=en-US`),
     tmdbFetch<TmdbImages>(`/${type}/${id}/images?include_image_language=en,null`),
+    tmdbFetch<TmdbVideos>(`/${type}/${id}/videos?language=en-US`).catch(() => ({ results: [] })),
   ]);
 
-  return mapMovieOrShow(details, type === "movie" ? "movie" : "show", genres, credits, images);
+  const media = mapMovieOrShow(details, type === "movie" ? "movie" : "show", genres, credits, images);
+  const trailer =
+    videos.results.find((entry) => entry.site === "YouTube" && entry.type === "Trailer" && entry.official) ??
+    videos.results.find((entry) => entry.site === "YouTube" && entry.type === "Trailer") ??
+    videos.results.find((entry) => entry.site === "YouTube" && entry.type === "Teaser");
+
+  return trailer?.key
+    ? {
+        ...media,
+        details: {
+          ...media.details,
+          trailerUrl: `https://www.youtube.com/embed/${trailer.key}`,
+        },
+      }
+    : media;
 }
 
 type TmdbCollectionResponse = {

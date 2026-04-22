@@ -1,4 +1,3 @@
-import { unstable_noStore as noStore } from "next/cache";
 import { auth } from "@/lib/auth";
 import { getBrowseBootstrapCatalog } from "@/lib/browse-bootstrap";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -11,7 +10,6 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function BrowsePage() {
-  noStore();
   const discoverySeed = Date.now() + Math.floor(Math.random() * 10_000);
   const bootstrapCatalog = await getBrowseBootstrapCatalog(discoverySeed);
   const session = await auth();

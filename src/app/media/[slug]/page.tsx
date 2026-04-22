@@ -1,4 +1,3 @@
-import { unstable_noStore as noStore } from "next/cache";
 import Link from "next/link";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopBar } from "@/components/app-topbar";
@@ -243,6 +242,30 @@ function buildSynopsisPreview(media: MediaItem) {
     .filter(Boolean);
   const preview = sentences.slice(0, 2).join(" ");
   return preview.length > 185 ? `${preview.slice(0, 182).trimEnd()}...` : preview;
+}
+
+function getTrailerEmbedUrl(url?: string) {
+  if (!url) return null;
+
+  if (url.includes("youtube.com/embed/")) {
+    return `${url}${url.includes("?") ? "&" : "?"}autoplay=1&mute=1&controls=1&rel=0&playsinline=1`;
+  }
+
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname.includes("youtu.be")) {
+      const id = parsed.pathname.replace("/", "");
+      return id ? `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&controls=1&rel=0&playsinline=1` : null;
+    }
+    if (parsed.hostname.includes("youtube.com")) {
+      const id = parsed.searchParams.get("v");
+      return id ? `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&controls=1&rel=0&playsinline=1` : null;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
 }
 
 function normalizeCopyFingerprint(input: string) {
@@ -2089,7 +2112,6 @@ export default async function MediaDetailPage({
   params: Promise<{ slug: string }>;
   searchParams: Promise<{ source?: string; sourceId?: string; type?: string }>;
 }) {
-  noStore();
   const session = await auth();
   const viewerName = session?.user?.name || "Guest vault";
   const viewerId = session?.user?.id || "guest-vault";
@@ -2220,6 +2242,7 @@ export default async function MediaDetailPage({
   const storyGallery = buildStoryGallery(gallery, media.backdropUrl || media.coverUrl);
   const moodLine = buildPremiseLine(media);
   const synopsisPreview = buildSynopsisPreview(media);
+  const trailerEmbedUrl = getTrailerEmbedUrl(media.details.trailerUrl);
   const immersionScenes = buildImmersionScenes(media, storyGallery, deepDiveCards);
   const atlasGallery = buildAtlasGallery(gallery, storyGallery);
   const showAtlas = atlasGallery.length >= 1;
@@ -2294,11 +2317,20 @@ export default async function MediaDetailPage({
                 </div>
 
                 <aside className="detail-side-poster glass">
-                  <div className="detail-side-poster-media">
-                    <ResilientMediaImage item={media} loading="eager" decoding="async" fetchPriority="high" />
+                  <div className={`detail-side-poster-media ${trailerEmbedUrl ? "detail-side-poster-media-trailer" : ""}`}>
+                    {trailerEmbedUrl ? (
+                      <iframe
+                        src={trailerEmbedUrl}
+                        title={`${media.title} trailer`}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    ) : (
+                      <ResilientMediaImage item={media} loading="eager" decoding="async" fetchPriority="high" />
+                    )}
                   </div>
                   <div className="detail-side-poster-copy">
-                    <p className="eyebrow">Field guide</p>
+                    <p className="eyebrow">{trailerEmbedUrl ? "Trailer" : "Field guide"}</p>
                     <div className="detail-side-stat">
                       <span>{runtimeLabel}</span>
                       <strong>{runtimeValue}</strong>

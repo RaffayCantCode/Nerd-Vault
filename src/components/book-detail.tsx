@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { AuthRequiredModal } from "@/components/auth-required-modal";
 import { BookCover } from "@/components/book-cover";
 import { BooksSidebar } from "@/components/books-sidebar";
 import { NVLoader } from "@/components/nv-loader";
@@ -27,6 +29,8 @@ export function BookDetail({
 }) {
   const [theme, setTheme] = useState<BookTheme>("dark");
   const [wishlist, setWishlist] = useState<number[]>([]);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     const sync = () => {
@@ -72,7 +76,17 @@ export function BookDetail({
               <Link href={`/books/${book.id}/read`} className="books-card-button books-card-button-primary">
                 {initialProgress ? "Resume reading" : "Read book"}
               </Link>
-              <button type="button" className="books-card-button" onClick={() => toggleBookWishlist(book.id)}>
+              <button
+                type="button"
+                className="books-card-button"
+                onClick={() => {
+                  if (!isSignedIn) {
+                    setShowAuthModal(true);
+                    return;
+                  }
+                  toggleBookWishlist(book.id);
+                }}
+              >
                 {isWishlisted ? "Saved to wishlist" : "Add to wishlist"}
               </button>
               <Link href="/books" className="books-card-button">
@@ -118,6 +132,13 @@ export function BookDetail({
           </div>
         </section>
       </main>
+      <AuthRequiredModal
+        isOpen={showAuthModal}
+        title="Save books to your wishlist"
+        message="You need to be logged in to add books to your wishlist and save them for later."
+        redirectTo={pathname}
+        onClose={() => setShowAuthModal(false)}
+      />
     </div>
   );
 }

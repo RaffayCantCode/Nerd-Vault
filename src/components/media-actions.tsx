@@ -1,7 +1,10 @@
 "use client";
 
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { Heart } from "lucide-react";
+import { AuthRequiredModal } from "@/components/auth-required-modal";
 import { ImageAdjusterModal } from "@/components/image-adjuster-modal";
 import { MediaItem } from "@/lib/types";
 import {
@@ -21,8 +24,10 @@ import { SocialProfile, StoredFolder } from "@/lib/vault-types";
 
 export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: string }) {
   const isGuest = viewerId === "guest-vault";
+  const pathname = usePathname();
   const [isWatched, setIsWatched] = useState(false);
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const [showGuestAuthModal, setShowGuestAuthModal] = useState(false);
   const [folderId, setFolderId] = useState("");
   const [folderName, setFolderName] = useState("");
   const [folderDescription, setFolderDescription] = useState("");
@@ -71,27 +76,6 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
     return () => unsubscribe();
   }, [isGuest, item.source, item.sourceId, viewerId]);
 
-  if (isGuest) {
-    return (
-      <div className="media-actions">
-        <div className="media-action-surface glass">
-          <div className="media-action-section">
-            <p className="eyebrow">Save to your vault</p>
-            <p className="copy">Guest browse is now read-only so account data stays private and separate. Sign in to log watched, wishlist, folders, profile image, friends, and inbox activity properly.</p>
-            <div className="button-row" style={{ marginTop: 16 }}>
-              <Link href="/sign-in" className="button button-primary">
-                Sign in to save
-              </Link>
-              <Link href="/browse" className="button button-secondary">
-                Keep browsing
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   useEffect(() => {
     if (!message) return;
     const timeout = window.setTimeout(() => setMessage(""), 2200);
@@ -101,6 +85,39 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
   const folderOptions = useMemo(() => folders, [folders]);
   const selectedFolder = folderOptions.find((folder) => folder.id === folderId);
   const selectedFolderContainsItem = selectedFolder?.items.some((entry) => entry.source === item.source && entry.sourceId === item.sourceId) ?? false;
+
+  if (isGuest) {
+    return (
+      <>
+        <div className="media-actions">
+          <div className="media-action-surface glass">
+            <div className="media-action-section">
+              <p className="eyebrow">Library</p>
+              <div className="button-row">
+                <button className="button button-secondary" type="button" onClick={() => setShowGuestAuthModal(true)}>
+                  Mark as {primaryLabel}
+                </button>
+                <button className="button button-secondary" type="button" onClick={() => setShowGuestAuthModal(true)}>
+                  <Heart size={16} />
+                  Add to wishlist
+                </button>
+              </div>
+              <p className="copy" style={{ marginTop: 14 }}>
+                Guest mode keeps library actions locked until you sign in.
+              </p>
+            </div>
+          </div>
+        </div>
+        <AuthRequiredModal
+          isOpen={showGuestAuthModal}
+          title="Save titles to your wishlist"
+          message="You need to be logged in to add media to your wishlist and save it for later."
+          redirectTo={pathname}
+          onClose={() => setShowGuestAuthModal(false)}
+        />
+      </>
+    );
+  }
 
   async function handleWatched() {
     if (isTogglingWatched) return;

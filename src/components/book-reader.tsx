@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
+import { AuthRequiredModal } from "@/components/auth-required-modal";
 import { BooksSidebar } from "@/components/books-sidebar";
 import { NVLoader } from "@/components/nv-loader";
 import { fetchPersistedBookProgress, readBookTheme, readBookWishlist, saveBookProgress, subscribeBooksChange, toggleBookWishlist } from "@/lib/book-client";
@@ -54,6 +56,8 @@ export function BookReader({
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(Math.max(1, initialProgress?.currentPage ?? 1));
   const [hasResolvedSavedPage, setHasResolvedSavedPage] = useState(Boolean(initialProgress));
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     const sync = () => {
@@ -223,7 +227,17 @@ export function BookReader({
             ) : null}
             <Link href={`/books/${bookId}`} className="books-card-button">Book info</Link>
             <Link href="/books" className="books-card-button">Library</Link>
-            <button type="button" className="books-card-button" onClick={() => toggleBookWishlist(bookId)}>
+            <button
+              type="button"
+              className="books-card-button"
+              onClick={() => {
+                if (!isSignedIn) {
+                  setShowAuthModal(true);
+                  return;
+                }
+                toggleBookWishlist(bookId);
+              }}
+            >
               {isWishlisted ? "Saved to wishlist" : "Add to wishlist"}
             </button>
           </div>
@@ -252,8 +266,27 @@ export function BookReader({
               </p>
             ))}
           </div>
+          <div className="books-reader-footer-nav">
+            <button type="button" className="books-card-button" disabled={currentPage <= 1} onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}>
+              Previous page
+            </button>
+            <div className="books-reader-footer-copy">
+              <strong>Page {currentPage}</strong>
+              <span>of {totalPages}</span>
+            </div>
+            <button type="button" className="books-card-button books-card-button-primary" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}>
+              Next page
+            </button>
+          </div>
         </section>
       </main>
+      <AuthRequiredModal
+        isOpen={showAuthModal}
+        title="Save books to your wishlist"
+        message="You need to be logged in to add books to your wishlist and save them for later."
+        redirectTo={pathname}
+        onClose={() => setShowAuthModal(false)}
+      />
     </div>
   );
 }

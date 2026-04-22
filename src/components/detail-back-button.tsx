@@ -1,30 +1,39 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { readDetailReturnTarget } from "@/lib/detail-return";
 
 const BROWSE_LAST_URL_KEY = "nerdvault-browse-last-url";
 
 export function DetailBackButton({ className }: { className?: string }) {
   const router = useRouter();
-  const fallbackBrowseUrl =
-    typeof window !== "undefined" ? window.sessionStorage.getItem(BROWSE_LAST_URL_KEY) || "/browse" : "/browse";
+  const fallbackBrowseUrl = typeof window !== "undefined" ? window.sessionStorage.getItem(BROWSE_LAST_URL_KEY) || "/browse" : "/browse";
+  const returnTarget = useMemo(
+    () => (typeof window !== "undefined" ? readDetailReturnTarget() : null),
+    [],
+  );
+  const targetHref = returnTarget?.href || fallbackBrowseUrl;
+  const targetLabel = returnTarget?.label || "Back to browse";
 
   useEffect(() => {
-    router.prefetch(fallbackBrowseUrl);
-  }, [fallbackBrowseUrl, router]);
+    router.prefetch(targetHref);
+  }, [router, targetHref]);
 
   return (
     <button
       type="button"
       className={`button button-secondary detail-back-button ${className ?? ""}`.trim()}
       onClick={() => {
-        const lastBrowseUrl = window.sessionStorage.getItem(BROWSE_LAST_URL_KEY);
-        const browseUrl = lastBrowseUrl || "/browse";
-        router.push(browseUrl);
+        if (typeof window !== "undefined" && returnTarget && window.history.length > 1) {
+          router.back();
+          return;
+        }
+
+        router.push(targetHref);
       }}
     >
-      Back to browse
+      {targetLabel}
     </button>
   );
 }

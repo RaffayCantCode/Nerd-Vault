@@ -51,6 +51,8 @@ type JikanAnime = {
     };
   };
   trailer?: {
+    url?: string | null;
+    embed_url?: string | null;
     images?: {
       maximum_image_url?: string;
       large_image_url?: string;
@@ -392,6 +394,7 @@ function mapAnime(
       studio: item.studios?.map((studio) => studio.name).join(", ") || undefined,
       status: item.status || "Unknown",
       releaseDate: item.aired?.from?.slice(0, 10) || undefined,
+      trailerUrl: item.trailer?.embed_url || item.trailer?.url || undefined,
       episodeCount: item.episodes ?? undefined,
       collectionTitle: canonicalTitle,
       entryCount: overrides?.entryCount,

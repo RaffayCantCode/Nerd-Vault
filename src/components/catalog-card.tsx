@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NVLoader } from "@/components/nv-loader";
+import { writeDetailReturnTarget } from "@/lib/detail-return";
 import { ResilientMediaImage } from "@/components/resilient-media-image";
 import { MediaItem } from "@/lib/types";
 
@@ -55,6 +56,7 @@ export function CatalogCard({
     if (isNavigating) return;
     
     setIsNavigating(true);
+    writeDetailReturnTarget();
     onBeforeNavigate?.();
     warmRoute();
 

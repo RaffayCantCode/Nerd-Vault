@@ -451,32 +451,27 @@ function createSmartDedupKey(item: MediaItem): string {
  * Enhanced deduplication that removes duplicates across different sources and platforms
  */
 export function dedupeMediaKey(items: MediaItem[]) {
-  const seen = new Set<string>();
-  const bestItems = new Map<string, MediaItem>(); // Store best version of each dedup key
-  
-  return items.filter((item) => {
-    // First check source-specific deduplication
+  const seenSourceKeys = new Set<string>();
+  const chosenBySmartKey = new Map<string, { item: MediaItem; index: number }>();
+
+  items.forEach((item, index) => {
     const sourceKey = `${item.source}-${item.sourceId}`;
-    if (seen.has(sourceKey)) return false;
-    seen.add(sourceKey);
-    
-    // Then check smart deduplication across sources
+    if (seenSourceKeys.has(sourceKey)) {
+      return;
+    }
+    seenSourceKeys.add(sourceKey);
+
     const smartKey = createSmartDedupKey(item);
-    const existing = bestItems.get(smartKey);
-    
-    if (!existing) {
-      bestItems.set(smartKey, item);
-      return true;
+    const existing = chosenBySmartKey.get(smartKey);
+
+    if (!existing || isBetterVersion(item, existing.item)) {
+      chosenBySmartKey.set(smartKey, { item, index });
     }
-    
-    // Keep the better version based on quality metrics
-    if (isBetterVersion(item, existing)) {
-      bestItems.set(smartKey, item);
-      return true;
-    }
-    
-    return false;
   });
+
+  return [...chosenBySmartKey.values()]
+    .sort((left, right) => left.index - right.index)
+    .map((entry) => entry.item);
 }
 
 /**
@@ -565,13 +560,6 @@ export function isValidMediaItem(item: MediaItem): boolean {
   if (item.type === 'game' && !item.details.platform) {
     // Allow games without platform if they have other strong indicators
     if (item.rating < 5 || item.genres.length < 2) return false;
-  }
-  
-  // For shows/anime, ensure episode/season info exists
-  if ((item.type === 'show' || item.type === 'anime') && 
-      (!item.details.seasonCount && !item.details.episodeCount)) {
-    // Allow if it's a very new show with high rating
-    if (item.year < currentYear - 2 || item.rating < 7) return false;
   }
   
   return true;

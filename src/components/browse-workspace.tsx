@@ -944,35 +944,8 @@ export function BrowseWorkspace({
       ? sortedVisible.filter((item) => `${item.source}-${item.sourceId}` !== featuredKey)
       : [...sortedVisible];
 
-    if (hasActiveSearch || baseItems.length >= pageSize) {
-      return baseItems;
-    }
-
-    const seen = new Set(baseItems.map((item) => `${item.source}-${item.sourceId}`));
-    const supplemented = [...baseItems];
-
-    for (let offset = 1; offset <= 3 && supplemented.length < pageSize; offset += 1) {
-      const cacheKey = buildCacheKey(filter, activePage + offset, genre, deferredQuery, sort, sessionSeedRef.current, pageSize);
-      const cachedPage = prefetchedPagesRef.current[cacheKey];
-      if (!cachedPage?.items?.length) {
-        continue;
-      }
-
-      for (const item of cachedPage.items) {
-        const key = `${item.source}-${item.sourceId}`;
-        if (seen.has(key) || key === featuredKey) {
-          continue;
-        }
-        seen.add(key);
-        supplemented.push(item);
-        if (supplemented.length >= pageSize) {
-          break;
-        }
-      }
-    }
-
-    return supplemented;
-  }, [activePage, deferredQuery, featured, featuredKey, filter, genre, hasActiveSearch, pageSize, sort, sortedVisible]);
+    return baseItems.slice(0, pageSize);
+  }, [featured, featuredKey, pageSize, sortedVisible]);
   const isPagePending = allowPaging && page !== activePage;
   const hasVisibleBrowseContent = visibleGridItems.length > 0 || Boolean(featured);
   const suppressInitialPendingChrome =
@@ -1030,7 +1003,7 @@ export function BrowseWorkspace({
     setIsLoading(true);
     shouldScrollToToolbarRef.current = false;
     shouldScrollToResultsRef.current = true;
-    scrollBehaviorRef.current = "auto";
+    scrollBehaviorRef.current = "smooth";
     pageScrollOffsetRef.current = window.innerWidth < 900 ? 96 : 104;
     startTransition(() => {
       setPage(clamped);

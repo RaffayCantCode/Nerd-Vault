@@ -12,5 +12,5 @@ export default async function BooksPage() {
   }));
   const initialContinue = userId ? await getContinueReading(userId).catch(() => null) : null;
 
-  return <BooksWorkspace initialPayload={initialPayload} initialGenre="All" initialQuery="" initialContinue={initialContinue} />;
+  return <BooksWorkspace initialPayload={initialPayload} initialGenre="All" initialQuery="" initialContinue={initialContinue} isSignedIn={Boolean(userId)} />;
 }

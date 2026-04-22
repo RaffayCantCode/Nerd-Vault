@@ -1,7 +1,13 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 import { CatalogCard } from "@/components/catalog-card";
 import { HomeFeed } from "@/lib/home-feed";
 import { NVLoader } from "@/components/nv-loader";
+import { writeDetailReturnTarget } from "@/lib/detail-return";
+
+const HOME_SECTION_PAGE_SIZE = 8;
 
 const SECTION_ORDER = [
   { key: "movie", label: "Movies" },
@@ -81,6 +87,59 @@ export function HomeWorkspace({
     return <HomeWorkspaceLoading />;
   }
 
+  const [sectionPages, setSectionPages] = useState<Record<string, number>>({
+    show: 1,
+    movie: 1,
+    anime: 1,
+    game: 1,
+  });
+
+  function setSectionPage(sectionKey: string, nextPage: number) {
+    setSectionPages((current) => ({
+      ...current,
+      [sectionKey]: nextPage,
+    }));
+  }
+
+  function renderShelfPager(sectionKey: string, totalItems: number) {
+    const totalPages = Math.max(1, Math.ceil(totalItems / HOME_SECTION_PAGE_SIZE));
+    const currentPage = sectionPages[sectionKey] ?? 1;
+
+    if (totalPages <= 1) {
+      return null;
+    }
+
+    return (
+      <div className="bottom-pager glass home-section-pager">
+        <div className="pager-copy">
+          <p className="eyebrow">Shelf pages</p>
+          <p className="copy">
+            Page {currentPage} of {totalPages}
+          </p>
+        </div>
+        <div className="pager-actions">
+          <button type="button" className="chip" disabled={currentPage <= 1} onClick={() => setSectionPage(sectionKey, Math.max(1, currentPage - 1))}>
+            Previous
+          </button>
+          <div className="page-indicator">
+            <span>{currentPage}</span>
+            <span>/</span>
+            <span>{totalPages}</span>
+          </div>
+          <button type="button" className="chip is-active" disabled={currentPage >= totalPages} onClick={() => setSectionPage(sectionKey, Math.min(totalPages, currentPage + 1))}>
+            Next
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  function pagedItems(sectionKey: keyof HomeFeed["sections"]) {
+    const items = feed.sections[sectionKey];
+    const currentPage = sectionPages[sectionKey] ?? 1;
+    return items.slice((currentPage - 1) * HOME_SECTION_PAGE_SIZE, currentPage * HOME_SECTION_PAGE_SIZE);
+  }
+
   return (
     <main className="workspace">
       <section className="workspace-hero glass home-hero">
@@ -93,19 +152,6 @@ export function HomeWorkspace({
             <p className="copy">
               This page watches your vault for returning series and builds a fresh recommendation lane around the stuff you actually save, finish, and organize.
             </p>
-            <div className="profile-jump-row home-jump-row">
-              <a href="#home-upcoming" className="button button-secondary profile-jump-button">
-                Coming soon
-              </a>
-              <a href="#home-tv-shows" className="button button-secondary profile-jump-button">
-                TV Shows
-              </a>
-              {SECTION_ORDER.map((section) => (
-                <a key={section.key} href={`#home-${section.key}`} className="button button-secondary profile-jump-button">
-                  {section.label}
-                </a>
-              ))}
-            </div>
           </div>
 
           <aside className="info-panel glass home-hero-panel">
@@ -163,88 +209,126 @@ export function HomeWorkspace({
             </div>
           </aside>
         </div>
+        <div className="profile-section-nav glass home-section-nav">
+          <a href="#home-upcoming" className="profile-section-nav-link">Coming soon</a>
+          <a href="#home-tv-shows" className="profile-section-nav-link">Series</a>
+          {SECTION_ORDER.map((section) => (
+            <a key={section.key} href={`#home-${section.key}`} className="profile-section-nav-link">
+              {section.label}
+            </a>
+          ))}
+        </div>
       </section>
 
-      <section id="home-upcoming" className="section-stack" style={{ paddingTop: 0 }}>
-        <div className="section-header">
-          <div>
-            <p className="eyebrow">Coming soon</p>
-            <h2 className="headline">You watched this. More of it is on the way.</h2>
-          </div>
-        </div>
+      <section className="section-stack home-board" style={{ paddingTop: 0 }}>
+        <div className="home-board-main">
+          <section id="home-upcoming" className="section-stack" style={{ paddingTop: 0 }}>
+            <div className="section-header">
+              <div>
+                <p className="eyebrow">Coming soon</p>
+                <h2 className="headline">You watched this. More of it is on the way.</h2>
+              </div>
+            </div>
 
-        {feed.upcoming.length ? (
-          <div className="home-upcoming-grid">
-            {feed.upcoming.map((entry) => (
-              <Link
-                key={`${entry.base.id}-${entry.continuation.id}-${entry.label}`}
-                href={{
-                  pathname: `/media/${entry.continuation.slug}`,
-                  query: {
-                    source: entry.continuation.source,
-                    sourceId: entry.continuation.sourceId,
-                    type: entry.continuation.type,
-                  },
-                }}
-                className="glass home-upcoming-card"
-              >
-                <p className="eyebrow">{entry.label}</p>
-                <h3 className="headline home-upcoming-title">{entry.continuation.title}</h3>
-                <p className="copy home-upcoming-copy">
-                  {entry.base.id === entry.continuation.id ? (
-                    <>You already added <strong>{entry.base.title}</strong>, and it still has episodes rolling out.</>
-                  ) : (
-                    <>Because you watched <strong>{entry.base.title}</strong>, this continuation stood out.</>
-                  )}
+            {feed.upcoming.length ? (
+              <div className="home-upcoming-grid">
+                {feed.upcoming.map((entry) => (
+                  <Link
+                    key={`${entry.base.id}-${entry.continuation.id}-${entry.label}`}
+                    href={{
+                      pathname: `/media/${entry.continuation.slug}`,
+                      query: {
+                        source: entry.continuation.source,
+                        sourceId: entry.continuation.sourceId,
+                        type: entry.continuation.type,
+                      },
+                    }}
+                    className="glass home-upcoming-card"
+                    onClick={() => writeDetailReturnTarget({ href: "/home", label: "Back to home" })}
+                  >
+                    <p className="eyebrow">{entry.label}</p>
+                    <h3 className="headline home-upcoming-title">{entry.continuation.title}</h3>
+                    <p className="copy home-upcoming-copy">
+                      {entry.base.id === entry.continuation.id ? (
+                        <>You already added <strong>{entry.base.title}</strong>, and it still has episodes rolling out.</>
+                      ) : (
+                        <>Because you watched <strong>{entry.base.title}</strong>, this continuation stood out.</>
+                      )}
+                    </p>
+                    <div className="home-upcoming-meta">
+                      <span className="detail-pill">{entry.dateLabel}</span>
+                      <span className="detail-pill">{entry.continuation.type}</span>
+                    </div>
+                    <p className="copy">{entry.reason}</p>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="folder-empty glass">
+                <p className="headline">No tracked continuations right now.</p>
+                <p className="copy">
+                  Once your watched list has series with upcoming seasons or connected anime entries, they'll show up here with the next date we can detect.
                 </p>
-                <div className="home-upcoming-meta">
-                  <span className="detail-pill">{entry.dateLabel}</span>
-                  <span className="detail-pill">{entry.continuation.type}</span>
-                </div>
-                <p className="copy">{entry.reason}</p>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <div className="folder-empty glass">
-            <p className="headline">No tracked continuations right now.</p>
-            <p className="copy">
-              Once your watched list has series with upcoming seasons or connected anime entries, they'll show up here with the next date we can detect.
-            </p>
-          </div>
-        )}
-      </section>
+              </div>
+            )}
+          </section>
 
-      {/* TV Shows Section - Series */}
-      <section id="home-tv-shows" className="section-stack" style={{ paddingTop: 0 }}>
-        <div className="section-header">
-          <div>
-            <p className="eyebrow">For you</p>
-            <h2 className="headline">Series you'll probably like</h2>
-            <p className="copy" style={{ marginTop: 8, maxWidth: 760 }}>
-              TV series picked from what you have actually marked as watched, so the lane gets better as you teach it your taste.
+          <section id="home-tv-shows" className="section-stack" style={{ paddingTop: 0 }}>
+            <div className="section-header">
+              <div>
+                <p className="eyebrow">For you</p>
+                <h2 className="headline">Series you'll probably like</h2>
+                <p className="copy" style={{ marginTop: 8, maxWidth: 760 }}>
+                  TV series picked from what you have actually marked as watched, so the lane gets better as you teach it your taste.
+                </p>
+              </div>
+            </div>
+            {feed.watchedCounts.show > 0 ? (
+              feed.sections.show.length ? (
+                <>
+                  <div className="catalog-grid home-media-grid">
+                    {pagedItems("show").map((item, index) => (
+                      <CatalogCard key={item.id} item={item} priority={index < 6} />
+                    ))}
+                  </div>
+                  {renderShelfPager("show", feed.sections.show.length)}
+                </>
+              ) : (
+                <div className="folder-empty glass">
+                  <p className="headline">We need a little more signal from your series history.</p>
+                  <p className="copy">Try adding another watched show and this lane should get much more useful.</p>
+                </div>
+              )
+            ) : (
+              <div className="folder-empty glass">
+                <p className="headline">{WATCHED_PROMPTS.show.title}</p>
+                <p className="copy">{WATCHED_PROMPTS.show.copy}</p>
+              </div>
+            )}
+          </section>
+        </div>
+        <aside className="home-board-side">
+          <div className="info-panel glass home-side-panel">
+            <p className="eyebrow">At a glance</p>
+            <div className="profile-stage-stats-grid home-side-stats">
+              <div className="profile-stage-stat">
+                <strong>{feed.upcoming.length}</strong>
+                <span>Upcoming</span>
+              </div>
+              <div className="profile-stage-stat">
+                <strong>{feed.watchedCounts.show}</strong>
+                <span>Shows watched</span>
+              </div>
+              <div className="profile-stage-stat">
+                <strong>{feed.sections.movie.length + feed.sections.anime.length + feed.sections.game.length}</strong>
+                <span>Fresh picks</span>
+              </div>
+            </div>
+            <p className="copy home-side-copy">
+              The home hub now works more like a shelf wall than a tall feed, so you can scan sideways before you commit.
             </p>
           </div>
-        </div>
-        {feed.watchedCounts.show > 0 ? (
-          feed.sections.show.length ? (
-            <div className="catalog-grid">
-              {feed.sections.show.slice(0, 12).map((item, index) => (
-                <CatalogCard key={item.id} item={item} priority={index < 6} />
-              ))}
-            </div>
-          ) : (
-            <div className="folder-empty glass">
-              <p className="headline">We need a little more signal from your series history.</p>
-              <p className="copy">Try adding another watched show and this lane should get much more useful.</p>
-            </div>
-          )
-        ) : (
-          <div className="folder-empty glass">
-            <p className="headline">{WATCHED_PROMPTS.show.title}</p>
-            <p className="copy">{WATCHED_PROMPTS.show.copy}</p>
-          </div>
-        )}
+        </aside>
       </section>
 
       {SECTION_ORDER.map((section) => {
@@ -260,11 +344,14 @@ export function HomeWorkspace({
             </div>
             {feed.watchedCounts[section.key] > 0 ? (
               items.length ? (
-                <div className="catalog-grid">
-                  {items.map((item, index) => (
+                <>
+                  <div className="catalog-grid home-media-grid">
+                  {pagedItems(section.key).map((item, index) => (
                     <CatalogCard key={item.id} item={item} priority={index < 8} />
                   ))}
-                </div>
+                  </div>
+                  {renderShelfPager(section.key, items.length)}
+                </>
               ) : (
                 <div className="folder-empty glass">
                   <p className="headline">We need a little more signal from your {section.label.toLowerCase()} history.</p>

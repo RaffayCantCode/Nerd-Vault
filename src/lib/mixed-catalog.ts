@@ -411,32 +411,7 @@ export async function browseMixedCatalog({
         safePageSize,
       );
 
-  let finalItems = rankedMixed;
-
-  // Enhanced pagination: Ensure NO media repeats across pages
-  if (!safeQuery && page > 1) {
-    const seenAcrossPages = new Set<string>();
-    
-    // Check if we have cached items from previous pages
-    for (let prevPage = 1; prevPage < page; prevPage++) {
-      const prevCacheKey = JSON.stringify({ page: prevPage, query: safeQuery, genre, sort, seed, pageSize: safePageSize });
-      const prevCached = mixedCatalogCache.get(prevCacheKey);
-      
-      if (prevCached && prevCached.expiresAt > Date.now()) {
-        prevCached.payload.items.forEach((item: MediaItem) => {
-          seenAcrossPages.add(`${item.source}-${item.sourceId}`);
-        });
-      }
-    }
-
-    // Filter out any items that have been seen in previous pages
-    if (seenAcrossPages.size > 0) {
-      finalItems = rankedMixed.filter((item: MediaItem) => {
-        const itemKey = `${item.source}-${item.sourceId}`;
-        return !seenAcrossPages.has(itemKey);
-      });
-    }
-  }
+  const finalItems = rankedMixed.slice(0, safePageSize);
 
   const maxSourcePages = pageResults.reduce((currentMax: number, entry: any) => {
     return Math.max(
@@ -455,7 +430,7 @@ export async function browseMixedCatalog({
     page: isSearch ? 1 : page,
     totalPages: isSearch ? 1 : Math.max(1, maxSourcePages),
     totalResults: validatedItems.length,
-    items: validatedItems,
+    items: validatedItems.slice(0, safePageSize),
   };
 
   mixedCatalogCache.set(cacheKey, {

@@ -12,7 +12,8 @@ import { PrivacyLevel, SocialProfile, StoredFolder, VaultProfilePayload } from "
 
 type LibrarySortMode = "recent" | "title" | "rating";
 type MediaFilterMode = "all" | "movie" | "show" | "anime" | "game";
-const PROFILE_MEDIA_PAGE_SIZE = 12;
+const PROFILE_MEDIA_PAGE_SIZE = 9;
+const PROFILE_FOLDER_PAGE_SIZE = 8;
 
 function sortMediaItems(items: MediaItem[], mode: LibrarySortMode) {
   const sorted = [...items];
@@ -153,6 +154,7 @@ export function ProfileWorkspace({
   const [folderSearch, setFolderSearch] = useState("");
   const [watchedPage, setWatchedPage] = useState(1);
   const [wishlistPage, setWishlistPage] = useState(1);
+  const [folderPage, setFolderPage] = useState(1);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isFolderOpening, setIsFolderOpening] = useState(false);
   const profileSettingsRef = useRef<HTMLDivElement | null>(null);
@@ -216,6 +218,10 @@ export function ProfileWorkspace({
   useEffect(() => {
     setWishlistPage(1);
   }, [viewedUserId, wishlistMediaFilter, wishlistSearch, wishlistSort]);
+
+  useEffect(() => {
+    setFolderPage(1);
+  }, [selectedFolderId, folderMediaFilter]);
 
   useEffect(() => {
     if (!showProfileSettings) return;
@@ -343,6 +349,22 @@ export function ProfileWorkspace({
     () => (selectedFolder ? filterMediaItems(selectedFolder.items, folderMediaFilter, "") : []),
     [folderMediaFilter, selectedFolder],
   );
+  const folderTotalPages = Math.max(1, Math.ceil(filteredFolderItems.length / PROFILE_FOLDER_PAGE_SIZE));
+  const pagedFolderItems = useMemo(
+    () => filteredFolderItems.slice((folderPage - 1) * PROFILE_FOLDER_PAGE_SIZE, folderPage * PROFILE_FOLDER_PAGE_SIZE),
+    [filteredFolderItems, folderPage],
+  );
+  const profileStats = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const thisYearCount = watched.filter((item) => item.year === currentYear).length;
+
+    return [
+      { label: "Logged", value: watched.length },
+      { label: "This year", value: thisYearCount },
+      { label: "Lists", value: folders.length },
+      { label: "Network", value: friends.length },
+    ];
+  }, [folders.length, friends.length, watched]);
 
   function renderMediaPager(currentPage: number, totalPages: number, onChange: (nextPage: number) => void, label: string) {
     if (totalPages <= 1) {
@@ -527,11 +549,14 @@ export function ProfileWorkspace({
           </div>
 
           {filteredFolderItems.length ? (
-            <div className="catalog-grid">
-              {filteredFolderItems.map((item, index) => (
+            <>
+            <div className="catalog-grid profile-media-grid">
+              {pagedFolderItems.map((item, index) => (
                 <CatalogCard key={item.id} item={item} priority={index < 8} />
               ))}
             </div>
+            {renderMediaPager(folderPage, folderTotalPages, setFolderPage, "Folder")}
+            </>
           ) : (
             <div className="folder-empty glass">
               <p className="headline">Nothing in this view yet.</p>
@@ -545,10 +570,10 @@ export function ProfileWorkspace({
 
   return (
     <main className="workspace">
-      <section className="workspace-hero glass folder-hero">
+      <section className="workspace-hero glass folder-hero profile-stage">
         <div className="folder-hero-media" style={getFolderBackdropStyle(viewedProfile.avatarUrl)} />
-        <div className="workspace-hero-grid">
-          <div className="workspace-copy">
+        <div className="workspace-hero-grid profile-stage-grid">
+          <div className="workspace-copy profile-stage-copy">
             <div className="profile-hero-topbar">
               <div className="profile-identity">
                 {viewingOwnProfile ? (
@@ -582,14 +607,41 @@ export function ProfileWorkspace({
                   <p className="eyebrow">{viewingOwnProfile ? (isDemo ? "Local vault" : "Your vault") : "Friend profile"}</p>
                   <h1 className="display profile-display">{viewedProfile.name || userName}</h1>
                   <p className="copy profile-hero-subcopy">
-                    {viewedProfile.handle} - {folders.length} folders - {watched.length} logged
+                    {viewedProfile.handle} - {folders.length} folders - {watched.length} logged - {wishlist.length} wishlisted
                   </p>
+                  {viewingOwnProfile ? (
+                    <div className="profile-stage-actions">
+                      <button
+                        type="button"
+                        className={`button ${showProfileSettings ? "button-secondary" : "button-primary"}`}
+                        onClick={() => setShowProfileSettings((current) => !current)}
+                      >
+                        {showProfileSettings ? "Hide settings" : "Edit profile"}
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
             <p className="copy">{loading ? "Loading your saved profile..." : headlineCopy}</p>
             {profileMessage ? <p className="media-action-message">{profileMessage}</p> : null}
           </div>
+          <aside className="info-panel glass profile-stage-stats">
+            <div className="profile-stage-stats-grid">
+              {profileStats.map((stat) => (
+                <div key={stat.label} className="profile-stage-stat">
+                  <strong>{stat.value}</strong>
+                  <span>{stat.label}</span>
+                </div>
+              ))}
+            </div>
+          </aside>
+        </div>
+        <div className="profile-section-nav glass">
+          <a href="#profile-friends" className="profile-section-nav-link">Network</a>
+          <a href="#profile-watched" className="profile-section-nav-link">Watched</a>
+          <a href="#profile-wishlist" className="profile-section-nav-link">Wishlist</a>
+          <a href="#profile-folders" className="profile-section-nav-link">Lists</a>
         </div>
       </section>
 
@@ -599,15 +651,6 @@ export function ProfileWorkspace({
             <div>
               <p className="eyebrow">Profile settings</p>
               <h2 className="headline">{showProfileSettings ? "Shape your vault" : "Open settings when you want to tweak your profile"}</h2>
-            </div>
-            <div className="button-row">
-              <button
-                type="button"
-                className={`button ${showProfileSettings ? "button-secondary" : "button-primary"}`}
-                onClick={() => setShowProfileSettings((current) => !current)}
-              >
-                {showProfileSettings ? "Hide profile settings" : "Profile settings"}
-              </button>
             </div>
           </div>
           {showProfileSettings ? (
@@ -691,21 +734,10 @@ export function ProfileWorkspace({
             </div>
           ) : null}
 
-          <div className="profile-jump-section">
-            <div className="profile-jump-copy">
-              <p className="eyebrow">Quick shortcuts</p>
-              <p className="copy">Here's the quick shortcut to where you wanna go.</p>
-            </div>
-            <div className="profile-jump-row profile-jump-row-outside">
-              <a href="#profile-watched" className="button button-secondary profile-jump-button">Watched</a>
-              <a href="#profile-wishlist" className="button button-secondary profile-jump-button">Wishlist</a>
-              <a href="#profile-folders" className="button button-secondary profile-jump-button">Folders</a>
-            </div>
-          </div>
         </section>
       ) : null}
 
-      <section className="section-stack" style={{ paddingTop: 0 }}>
+      <section id="profile-friends" className="section-stack" style={{ paddingTop: 0 }}>
         <div className="section-header">
           <div>
             <p className="eyebrow">Friends</p>

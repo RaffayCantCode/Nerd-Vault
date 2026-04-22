@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
+import { AuthRequiredModal } from "@/components/auth-required-modal";
 import { BookCover } from "@/components/book-cover";
 import { BooksSidebar } from "@/components/books-sidebar";
 import { NVLoader } from "@/components/nv-loader";
@@ -24,6 +26,7 @@ export function BooksWorkspace({
   initialQuery = "",
   initialGenre = "All",
   initialContinue = null,
+  isSignedIn = false,
 }: {
   initialPayload?: BookListPayload;
   initialQuery?: string;
@@ -37,6 +40,7 @@ export function BooksWorkspace({
     totalPages: number;
     percent: number;
   } | null;
+  isSignedIn?: boolean;
 }) {
   const [theme, setTheme] = useState<BookTheme>("dark");
   const [query, setQuery] = useState(initialQuery);
@@ -49,6 +53,8 @@ export function BooksWorkspace({
   const [error, setError] = useState<string | null>(null);
   const [continueReading, setContinueReading] = useState(initialContinue);
   const [clearingContinue, setClearingContinue] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     const sync = () => {
@@ -282,7 +288,17 @@ export function BooksWorkspace({
                   <Link href={`/books/${book.id}`} className="books-card-button books-card-button-primary">
                     Open book
                   </Link>
-                  <button type="button" className="books-card-button" onClick={() => toggleBookWishlist(book.id)}>
+                  <button
+                    type="button"
+                    className="books-card-button"
+                    onClick={() => {
+                      if (!isSignedIn) {
+                        setShowAuthModal(true);
+                        return;
+                      }
+                      toggleBookWishlist(book.id);
+                    }}
+                  >
                     {isWishlisted(book) ? "Saved" : "Wishlist"}
                   </button>
                 </div>
@@ -295,6 +311,13 @@ export function BooksWorkspace({
           ) : null}
         </section>
       </main>
+      <AuthRequiredModal
+        isOpen={showAuthModal}
+        title="Save books to your wishlist"
+        message="You need to be logged in to add books to your wishlist and save them for later."
+        redirectTo={pathname}
+        onClose={() => setShowAuthModal(false)}
+      />
     </div>
   );
 }

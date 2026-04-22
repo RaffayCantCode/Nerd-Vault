@@ -51,6 +51,10 @@ export function readBookWishlist() {
 }
 
 export function toggleBookWishlist(bookId: number) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
   const next = new Set(readBookWishlist());
   if (next.has(bookId)) {
     next.delete(bookId);
