@@ -129,21 +129,15 @@ export function ProfileWorkspace({
   const viewedUserId = searchParams.get("user") || viewerId;
   const [payload, setPayload] = useState<VaultProfilePayload>(initialPayload ?? emptyPayload(viewerId, userName, viewerAvatar));
   const [loading, setLoading] = useState(!initialPayload);
-  const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [isEditingFolder, setIsEditingFolder] = useState(false);
   const [draftAvatar, setDraftAvatar] = useState(initialPayload?.viewerProfile.avatarUrl ?? "");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [draftBio, setDraftBio] = useState(initialPayload?.viewerProfile.bio ?? "");
-  const [draftWatchedVisibility, setDraftWatchedVisibility] = useState<PrivacyLevel>(initialPayload?.viewerProfile.watchedVisibility ?? "public");
-  const [draftWishlistVisibility, setDraftWishlistVisibility] = useState<PrivacyLevel>(initialPayload?.viewerProfile.wishlistVisibility ?? "friends");
-  const [draftFoldersVisibility, setDraftFoldersVisibility] = useState<PrivacyLevel>(initialPayload?.viewerProfile.foldersDefaultVisibility ?? "public");
   const [draftFolderName, setDraftFolderName] = useState("");
   const [draftFolderDescription, setDraftFolderDescription] = useState("");
   const [draftFolderCover, setDraftFolderCover] = useState("");
   const [folderCoverFile, setFolderCoverFile] = useState<File | null>(null);
   const [draftFolderVisibility, setDraftFolderVisibility] = useState<PrivacyLevel>("public");
   const [profileMessage, setProfileMessage] = useState("");
-  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [watchedSort, setWatchedSort] = useState<LibrarySortMode>("recent");
   const [wishlistSort, setWishlistSort] = useState<LibrarySortMode>("recent");
   const [folderMediaFilter, setFolderMediaFilter] = useState<MediaFilterMode>("all");
@@ -157,7 +151,6 @@ export function ProfileWorkspace({
   const [folderPage, setFolderPage] = useState(1);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isFolderOpening, setIsFolderOpening] = useState(false);
-  const profileSettingsRef = useRef<HTMLDivElement | null>(null);
   const profileAvatarActionsRef = useRef<HTMLDivElement | null>(null);
   const previousFolderIdRef = useRef<string | null>(selectedFolderId);
 
@@ -180,10 +173,6 @@ export function ProfileWorkspace({
         .then((nextPayload) => {
           setPayload(nextPayload);
           setDraftAvatar(nextPayload.viewerProfile.avatarUrl ?? "");
-          setDraftBio(nextPayload.viewerProfile.bio ?? "");
-          setDraftWatchedVisibility(nextPayload.viewerProfile.watchedVisibility);
-          setDraftWishlistVisibility(nextPayload.viewerProfile.wishlistVisibility);
-          setDraftFoldersVisibility(nextPayload.viewerProfile.foldersDefaultVisibility);
         })
         .finally(() => setLoading(false));
     }
@@ -224,11 +213,6 @@ export function ProfileWorkspace({
   }, [selectedFolderId, folderMediaFilter]);
 
   useEffect(() => {
-    if (!showProfileSettings) return;
-    profileSettingsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [showProfileSettings]);
-
-  useEffect(() => {
     const previousFolderId = previousFolderIdRef.current;
     previousFolderIdRef.current = selectedFolderId;
 
@@ -251,23 +235,6 @@ export function ProfileWorkspace({
     const file = event.target.files?.[0];
     if (!file) return;
     setFolderCoverFile(file);
-  }
-
-  async function handleSaveProfile() {
-    setIsSavingProfile(true);
-    try {
-      await saveProfileSettings({
-        avatarUrl: draftAvatar,
-        bio: draftBio,
-        watchedVisibility: draftWatchedVisibility,
-        wishlistVisibility: draftWishlistVisibility,
-        foldersDefaultVisibility: draftFoldersVisibility,
-      });
-      setProfileMessage("Profile saved.");
-      setShowProfileSettings(false);
-    } finally {
-      setIsSavingProfile(false);
-    }
   }
 
   async function handleSaveFolder() {
@@ -611,13 +578,9 @@ export function ProfileWorkspace({
                   </p>
                   {viewingOwnProfile ? (
                     <div className="profile-stage-actions">
-                      <button
-                        type="button"
-                        className={`button ${showProfileSettings ? "button-secondary" : "button-primary"}`}
-                        onClick={() => setShowProfileSettings((current) => !current)}
-                      >
-                        {showProfileSettings ? "Hide settings" : "Edit profile"}
-                      </button>
+                      <a href="#profile-watched" className="button button-primary">Watched</a>
+                      <a href="#profile-wishlist" className="button button-secondary">Wishlist</a>
+                      <a href="#profile-folders" className="button button-secondary">Folders</a>
                     </div>
                   ) : null}
                 </div>
@@ -644,98 +607,6 @@ export function ProfileWorkspace({
           <a href="#profile-folders" className="profile-section-nav-link">Lists</a>
         </div>
       </section>
-
-      {viewingOwnProfile ? (
-        <section className="section-stack" style={{ paddingTop: 0 }}>
-          <div className="section-header">
-            <div>
-              <p className="eyebrow">Profile settings</p>
-              <h2 className="headline">{showProfileSettings ? "Shape your vault" : "Open settings when you want to tweak your profile"}</h2>
-            </div>
-          </div>
-          {showProfileSettings ? (
-            <div className="info-panel glass profile-settings-layout" ref={profileSettingsRef}>
-              <div className="profile-settings-side">
-                <div className="profile-settings-avatar-card">
-                  {draftAvatar ? (
-                    <img src={draftAvatar} alt="Profile preview" className="profile-avatar profile-avatar-large" />
-                  ) : (
-                    <span className="profile-avatar profile-avatar-fallback profile-avatar-large">{(viewedProfile.name || userName).charAt(0).toUpperCase()}</span>
-                  )}
-                  <div>
-                    <strong>Profile image</strong>
-                    <p className="copy">Images now persist in the database, so your avatar stays put after refresh.</p>
-                  </div>
-                </div>
-              </div>
-              <div className="profile-settings-main">
-                <textarea
-                  className="search-input folder-description-input"
-                  placeholder="Bio"
-                  value={draftBio}
-                  onChange={(event) => setDraftBio(event.target.value)}
-                  rows={3}
-                />
-
-                <div className="privacy-setting-block">
-                  <p className="eyebrow">Watched / Played</p>
-                  <div className="picker-grid">
-                    {privacyOptions().map((option) => (
-                      <button
-                        key={`watched-${option.value}`}
-                        type="button"
-                        className={`picker-chip ${draftWatchedVisibility === option.value ? "is-active" : ""}`}
-                        onClick={() => setDraftWatchedVisibility(option.value)}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="privacy-setting-block">
-                  <p className="eyebrow">Wishlist</p>
-                  <div className="picker-grid">
-                    {privacyOptions().map((option) => (
-                      <button
-                        key={`wishlist-${option.value}`}
-                        type="button"
-                        className={`picker-chip ${draftWishlistVisibility === option.value ? "is-active" : ""}`}
-                        onClick={() => setDraftWishlistVisibility(option.value)}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="privacy-setting-block">
-                  <p className="eyebrow">Folders</p>
-                  <div className="picker-grid">
-                    {privacyOptions().map((option) => (
-                      <button
-                        key={`folders-${option.value}`}
-                        type="button"
-                        className={`picker-chip ${draftFoldersVisibility === option.value ? "is-active" : ""}`}
-                        onClick={() => setDraftFoldersVisibility(option.value)}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="button-row">
-                  <button type="button" className="button button-primary" onClick={() => void handleSaveProfile()} disabled={isSavingProfile}>
-                    {isSavingProfile ? "Saving..." : "Save profile settings"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : null}
-
-        </section>
-      ) : null}
 
       <section id="profile-friends" className="section-stack" style={{ paddingTop: 0 }}>
         <div className="section-header">

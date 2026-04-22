@@ -637,19 +637,32 @@ export function BrowseWorkspace({
         return;
       }
 
-      setIsLoading(true);
+      const currentKey = buildCacheKey(filter, page, genre, deferredQuery, sort, sessionSeedRef.current, pageSize);
+      const hasCachedPage = Boolean(prefetchedPagesRef.current[currentKey]);
+      setIsLoading(!hasCachedPage);
 
       try {
         const primaryItems = await fetchPage(page);
-        if (!hasActiveSearch && !isInitialLoad) {
-          // Only prefetch additional pages when not initial load and not searching
+        if (!hasActiveSearch) {
+          const resolvedTotalPages = Math.max(1, prefetchedPagesRef.current[currentKey]?.totalPages ?? 1);
           const minimumVisible = Math.max(12, pageSize - 1);
-          if (primaryItems.length < minimumVisible) {
-            const nextItems = await fetchPage(page + 1, true).catch(() => [] as MediaItem[]);
-            if (primaryItems.length + nextItems.length < minimumVisible) {
+
+          if (!isInitialLoad && primaryItems.length < minimumVisible && page < resolvedTotalPages) {
+            void fetchPage(page + 1, true).catch(() => undefined);
+            if (page + 1 < resolvedTotalPages) {
               void fetchPage(page + 2, true).catch(() => undefined);
-              void fetchPage(page + 3, true).catch(() => undefined);
             }
+          } else {
+            if (page < resolvedTotalPages) {
+              void fetchPage(page + 1, true).catch(() => undefined);
+            }
+            if (page + 1 < resolvedTotalPages) {
+              void fetchPage(page + 2, true).catch(() => undefined);
+            }
+          }
+
+          if (page > 1) {
+            void fetchPage(page - 1, true).catch(() => undefined);
           }
         }
       } catch (error) {
@@ -1000,11 +1013,23 @@ export function BrowseWorkspace({
     if (clamped === activePage) {
       return;
     }
-    setIsLoading(true);
+
+    const targetKey = buildCacheKey(filter, clamped, genre, deferredQuery, sort, sessionSeedRef.current, pageSize);
+    const cachedPage = prefetchedPagesRef.current[targetKey];
+
+    if (cachedPage) {
+      setRemoteCatalog(cachedPage.items);
+      setTotalPages(Math.max(1, cachedPage.totalPages));
+      setActivePage(clamped);
+      setIsLoading(false);
+    } else {
+      setIsLoading(true);
+    }
+
     shouldScrollToToolbarRef.current = false;
     shouldScrollToResultsRef.current = true;
-    scrollBehaviorRef.current = "smooth";
-    pageScrollOffsetRef.current = window.innerWidth < 900 ? 96 : 104;
+    scrollBehaviorRef.current = cachedPage ? "auto" : "smooth";
+    pageScrollOffsetRef.current = window.innerWidth < 900 ? 88 : 96;
     startTransition(() => {
       setPage(clamped);
     });
