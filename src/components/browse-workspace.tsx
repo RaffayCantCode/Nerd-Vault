@@ -7,6 +7,7 @@ import { CatalogCard } from "@/components/catalog-card";
 import { FilterChipBar } from "@/components/filter-chip-bar";
 import { NVLoader } from "@/components/nv-loader";
 import { filterCatalog, itemGenreLabels, itemMatchesGenre } from "@/lib/catalog-utils";
+import { optimizeMediaImageUrl } from "@/lib/media-image";
 import { inclusiveSearchRank, validateSearchResults, dedupeMediaKey } from "@/lib/search-utils";
 import { MediaItem, MediaType } from "@/lib/types";
 import { addMediaToWishlist, fetchLibraryState, removeMediaFromWishlist, subscribeVaultChanges } from "@/lib/vault-client";
@@ -25,6 +26,7 @@ const BROWSE_LAST_URL_KEY = "nerdvault-browse-last-url";
 const BROWSE_BOOTSTRAP_CACHE_KEY = "nerdvault-browse-bootstrap-v1";
 const BROWSE_SEED_KEY = "nerdvault-browse-seed-v1";
 const BROWSE_CACHE_TTL_MS = 1000 * 60 * 10;
+const warmedImageUrls = new Set<string>();
 
 function isReloadNavigation() {
   if (typeof window === "undefined") {
@@ -53,6 +55,11 @@ function preloadImage(url?: string | null) {
   if (typeof window === "undefined" || !url) {
     return;
   }
+
+  if (warmedImageUrls.has(url)) {
+    return;
+  }
+  warmedImageUrls.add(url);
 
   const image = new Image();
   image.decoding = "async";
@@ -975,8 +982,8 @@ export function BrowseWorkspace({
     // Preload current page images first (priority)
     const nextVisible = visibleGridItems.slice(0, Math.min(18, visibleGridItems.length));
     nextVisible.forEach((item) => {
-      preloadImage(item.coverUrl);
-      preloadImage(item.backdropUrl);
+      preloadImage(optimizeMediaImageUrl(item.coverUrl, "thumb") ?? item.coverUrl);
+      preloadImage(optimizeMediaImageUrl(item.backdropUrl, "backdrop") ?? item.backdropUrl);
     });
 
     // After current page images are loaded, preload next page images for smooth transitions
@@ -989,8 +996,8 @@ export function BrowseWorkspace({
         if (nextPageData?.items?.length) {
           const nextVisible = nextPageData.items.slice(0, Math.min(12, nextPageData.items.length));
           nextVisible.forEach((item) => {
-            preloadImage(item.coverUrl);
-            preloadImage(item.backdropUrl);
+            preloadImage(optimizeMediaImageUrl(item.coverUrl, "thumb") ?? item.coverUrl);
+            preloadImage(optimizeMediaImageUrl(item.backdropUrl, "backdrop") ?? item.backdropUrl);
           });
         }
       }, 1000); // Start preloading after 1 second delay

@@ -230,6 +230,7 @@ export function AppTopBar({
                         <div className="topbar-inbox-copy">
                           <strong>{notification.message}</strong>
                           {notification.media ? <span>{notification.media.title}</span> : <span>{notification.type}</span>}
+                          {notification.ratingSnapshot ? <span>{`${"★".repeat(notification.ratingSnapshot)}${"☆".repeat(5 - notification.ratingSnapshot)}`}</span> : null}
                         </div>
                         <div className="topbar-inbox-actions">
                           {notification.type === "friend-request" ? (

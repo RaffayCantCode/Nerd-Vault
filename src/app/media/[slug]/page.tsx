@@ -2362,6 +2362,10 @@ export default async function MediaDetailPage({
                   <span className="muted">Status</span>
                   <strong>{statusValue}</strong>
                 </div>
+                <div className="credit-row">
+                  <span className="muted">Genres</span>
+                  <strong>{media.genres.length ? media.genres.slice(0, 4).join(" • ") : "Unknown"}</strong>
+                </div>
               </div>
             </div>
 

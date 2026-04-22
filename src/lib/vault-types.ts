@@ -24,6 +24,7 @@ export type SocialNotification = {
   fromUserName?: string;
   message: string;
   media?: MediaItem;
+  ratingSnapshot?: number | null;
   createdAt: number;
   status: "unread" | "read";
 };

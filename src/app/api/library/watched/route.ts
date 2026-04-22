@@ -4,8 +4,8 @@ import { addToWatched, removeFromWatched, requireSessionUser } from "@/lib/vault
 export async function POST(request: NextRequest) {
   try {
     const sessionUser = await requireSessionUser();
-    const { item } = await request.json();
-    await addToWatched(sessionUser.id, item);
+    const { item, review } = await request.json();
+    await addToWatched(sessionUser.id, item, review);
     return NextResponse.json({ ok: true });
   } catch (error) {
     return NextResponse.json({ ok: false, message: error instanceof Error ? error.message : "Watched update failed" }, { status: 400 });

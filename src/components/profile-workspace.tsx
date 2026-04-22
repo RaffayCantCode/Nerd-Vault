@@ -17,14 +17,15 @@ const PROFILE_FOLDER_PAGE_SIZE = 8;
 
 function sortMediaItems(items: MediaItem[], mode: LibrarySortMode) {
   const sorted = [...items];
+  const scoreForSort = (item: MediaItem) => item.userRating ?? item.rating;
 
   switch (mode) {
     case "title":
       return sorted.sort((left, right) => left.title.localeCompare(right.title));
     case "rating":
-      return sorted.sort((left, right) => right.rating - left.rating || right.year - left.year);
+      return sorted.sort((left, right) => scoreForSort(right) - scoreForSort(left) || right.year - left.year);
     default:
-      return sorted.sort((left, right) => right.year - left.year || right.rating - left.rating);
+      return sorted.sort((left, right) => (right.watchedAt ?? 0) - (left.watchedAt ?? 0) || right.year - left.year || scoreForSort(right) - scoreForSort(left));
   }
 }
 

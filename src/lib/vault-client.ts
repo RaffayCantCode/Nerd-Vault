@@ -4,7 +4,7 @@ import { MediaItem } from "@/lib/types";
 import { LibraryState, PrivacyLevel, StoredFolder, VaultProfilePayload } from "@/lib/vault-types";
 
 const VAULT_EVENT = "nerdvault-data-change";
-const CACHE_TTL_MS = 15000;
+const CACHE_TTL_MS = 60000;
 const requestCache = new Map<string, { expiresAt: number; value: unknown }>();
 const inflightRequests = new Map<string, Promise<unknown>>();
 
@@ -152,15 +152,22 @@ export async function saveProfileSettings(input: {
   });
 }
 
-export async function addMediaToWatched(item: MediaItem) {
+export async function addMediaToWatched(item: MediaItem, review?: { rating?: number | null; review?: string | null }) {
+  const nextWatchedItem: MediaItem = {
+    ...item,
+    userRating: review?.rating ?? null,
+    userReview: review?.review?.trim() ? review.review.trim() : null,
+    watchedAt: Date.now(),
+  };
+
   await mutate("/api/library/watched", {
     method: "POST",
-    body: JSON.stringify({ item }),
+    body: JSON.stringify({ item, review }),
   }, { emitChange: false });
   syncLibraryCache((current) => ({
     ...current,
     watched: [
-      item,
+      nextWatchedItem,
       ...current.watched.filter((entry) => !(entry.source === item.source && entry.sourceId === item.sourceId)),
     ],
     wishlist: current.wishlist.filter((entry) => !(entry.source === item.source && entry.sourceId === item.sourceId)),
@@ -299,10 +306,10 @@ export async function acceptFriend(fromUserId: string) {
   });
 }
 
-export async function recommendToFriend(targetId: string, item: MediaItem) {
+export async function recommendToFriend(targetIds: string[], item: MediaItem) {
   await mutate("/api/social/recommend", {
     method: "POST",
-    body: JSON.stringify({ targetId, item }),
+    body: JSON.stringify({ targetIds, item }),
   });
 }
 

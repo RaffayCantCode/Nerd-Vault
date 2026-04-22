@@ -23,6 +23,9 @@ export type MediaItem = {
   screenshots?: string[];
   overview: string;
   credits: MediaPerson[];
+  userRating?: number | null;
+  userReview?: string | null;
+  watchedAt?: number;
   details: {
     runtime?: string;
     studio?: string;

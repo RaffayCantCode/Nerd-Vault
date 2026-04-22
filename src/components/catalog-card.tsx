@@ -5,8 +5,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NVLoader } from "@/components/nv-loader";
 import { writeDetailReturnTarget } from "@/lib/detail-return";
+import { optimizeMediaImageUrl } from "@/lib/media-image";
 import { ResilientMediaImage } from "@/components/resilient-media-image";
 import { MediaItem } from "@/lib/types";
+
+function renderUserStars(rating?: number | null) {
+  if (!rating) return null;
+  return `${"★".repeat(rating)}${"☆".repeat(Math.max(0, 5 - rating))}`;
+}
 
 export function CatalogCard({
   item,
@@ -19,6 +25,7 @@ export function CatalogCard({
 }) {
   const router = useRouter();
   const cardRef = useRef<HTMLAnchorElement>(null);
+  const warmedRef = useRef(false);
   const [isNavigating, setIsNavigating] = useState(false);
   const [isVisible, setIsVisible] = useState(priority);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
@@ -39,15 +46,23 @@ export function CatalogCard({
   );
 
   function warmRoute() {
+    if (warmedRef.current) {
+      router.prefetch(routeHref);
+      return;
+    }
+
+    warmedRef.current = true;
     router.prefetch(routeHref);
     if (typeof window !== "undefined") {
       const cover = new Image();
       cover.decoding = "async";
-      cover.src = item.coverUrl;
+      cover.src = optimizeMediaImageUrl(item.coverUrl, priority ? "cover" : "thumb") ?? item.coverUrl;
 
-      const backdrop = new Image();
-      backdrop.decoding = "async";
-      backdrop.src = item.backdropUrl;
+      if (priority) {
+        const backdrop = new Image();
+        backdrop.decoding = "async";
+        backdrop.src = optimizeMediaImageUrl(item.backdropUrl, "backdrop") ?? item.backdropUrl;
+      }
     }
   }
 
@@ -154,11 +169,14 @@ export function CatalogCard({
           <span className="pill">{item.type}</span>
           <span className="pill">{item.year}</span>
           <span className="pill rating">{item.rating.toFixed(1)}</span>
+          {item.userRating ? <span className="pill rating">{renderUserStars(item.userRating)}</span> : null}
         </div>
         <h3 className="catalog-title">{item.title}</h3>
-        <p className="catalog-genres">
-          {(item.genres.length ? item.genres : ["More details"]).slice(0, 3).join(" \u2022 ")}
-        </p>
+        {item.userReview ? (
+          <p className="copy" style={{ marginTop: 10, fontSize: "0.88rem", lineHeight: 1.45, opacity: 0.84 }}>
+            {item.userReview.length > 96 ? `${item.userReview.slice(0, 93).trimEnd()}...` : item.userReview}
+          </p>
+        ) : null}
       </div>
     </Link>
   );

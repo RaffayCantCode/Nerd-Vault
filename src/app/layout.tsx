@@ -1,18 +1,14 @@
 import type { Metadata, Viewport } from "next";
-import { Bebas_Neue, Manrope } from "next/font/google";
+import { Poppins } from "next/font/google";
 import { AuthCookieReset } from "@/components/auth-cookie-reset";
 import { PerformanceOptimizer } from "@/components/performance-optimizer";
 import "./globals.css";
 
-const display = Bebas_Neue({
+const brandFont = Poppins({
   subsets: ["latin"],
-  weight: "400",
-  variable: "--font-display",
-});
-
-const sans = Manrope({
-  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
   variable: "--font-sans",
+  display: "swap",
 });
 
 export const viewport: Viewport = {
@@ -58,7 +54,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${display.variable} ${sans.variable}`}>
+      <body className={`${brandFont.variable}`} style={{ ["--font-display" as string]: "var(--font-sans)" }}>
         <AuthCookieReset />
         <PerformanceOptimizer />
         {children}

@@ -62,11 +62,12 @@ export async function GET(request: NextRequest) {
     }
 
     const contentType = upstream.headers.get("content-type") ?? "image/jpeg";
-    const arrayBuffer = await upstream.arrayBuffer();
+    const contentLength = upstream.headers.get("content-length");
 
-    return new NextResponse(arrayBuffer, {
+    return new NextResponse(upstream.body, {
       headers: {
         "Content-Type": contentType,
+        ...(contentLength ? { "Content-Length": contentLength } : {}),
         "Cache-Control": "public, max-age=21600, s-maxage=21600, stale-while-revalidate=86400",
       },
     });

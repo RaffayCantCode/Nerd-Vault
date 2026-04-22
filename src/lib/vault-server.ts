@@ -30,6 +30,20 @@ type NotificationRecord = Prisma.NotificationGetPayload<{
   };
 }>;
 
+type WatchedRowRecord = Prisma.WatchedItemGetPayload<{
+  include: {
+    media: {
+      include: {
+        genres: {
+          include: {
+            genre: true;
+          };
+        };
+      };
+    };
+  };
+}>;
+
 function slugify(input: string) {
   return input
     .toLowerCase()
@@ -74,6 +88,21 @@ function serializeMedia(media: MediaRecord): MediaItem {
   };
 }
 
+function serializeWatchedMedia(row: WatchedRowRecord): MediaItem {
+  return {
+    ...serializeMedia(row.media),
+    userRating: row.rating ?? null,
+    userReview: row.notes ?? null,
+    watchedAt: row.watchedAt.getTime(),
+  };
+}
+
+function extractRatingSnapshot(message: string) {
+  const match = message.match(/rated it ([★☆]{5})/);
+  if (!match) return null;
+  return match[1].split("").filter((char) => char === "★").length || null;
+}
+
 function serializeNotification(notification: NotificationRecord): SocialNotification {
   return {
     id: notification.id,
@@ -87,6 +116,7 @@ function serializeNotification(notification: NotificationRecord): SocialNotifica
     fromUserName: notification.fromUser?.name ?? undefined,
     message: notification.message,
     media: notification.media ? serializeMedia(notification.media) : undefined,
+    ratingSnapshot: extractRatingSnapshot(notification.message),
     createdAt: notification.createdAt.getTime(),
     status: notification.status,
   };
@@ -207,15 +237,34 @@ export async function ensureCurrentUserRecord() {
   const sessionUser = await requireSessionUser();
   const existingUser = await prisma.user.findUnique({
     where: { id: sessionUser.id },
-    select: { image: true },
+    select: { id: true, name: true, email: true, image: true },
   });
 
-  const user = await prisma.user.update({
+  const preservedImage = existingUser?.image ?? sessionUser.image ?? null;
+  const nextName = sessionUser.name ?? null;
+  const nextEmail = sessionUser.email ?? null;
+
+  if (
+    existingUser &&
+    existingUser.name === nextName &&
+    existingUser.email === nextEmail &&
+    existingUser.image === preservedImage
+  ) {
+    return existingUser;
+  }
+
+  const user = await prisma.user.upsert({
     where: { id: sessionUser.id },
-    data: {
-      name: sessionUser.name ?? undefined,
-      email: sessionUser.email ?? undefined,
-      image: existingUser?.image ?? sessionUser.image ?? undefined,
+    update: {
+      name: nextName ?? undefined,
+      email: nextEmail ?? undefined,
+      image: preservedImage ?? undefined,
+    },
+    create: {
+      id: sessionUser.id,
+      name: nextName ?? undefined,
+      email: nextEmail ?? undefined,
+      image: preservedImage ?? undefined,
     },
   });
 
@@ -341,7 +390,7 @@ export const getLibraryStateForUser = cache(async (userId: string): Promise<Libr
   ]);
 
   return {
-    watched: watchedRows.map((row) => serializeMedia(row.media)),
+    watched: watchedRows.map(serializeWatchedMedia),
     wishlist: wishlistRows.map((row) => serializeMedia(row.media)),
     folders: folders.map(serializeFolder),
   };
@@ -499,7 +548,23 @@ export async function updateProfile(userId: string, updates: {
   });
 }
 
-export async function addToWatched(userId: string, item: MediaItem) {
+function normalizeReviewInput(input: { rating?: number | null; review?: string | null }) {
+  const rating =
+    typeof input.rating === "number" && Number.isFinite(input.rating)
+      ? Math.min(5, Math.max(1, Math.round(input.rating)))
+      : null;
+  const review = input.review?.trim() ? input.review.trim() : null;
+
+  return { rating, review };
+}
+
+function renderStars(rating: number) {
+  return `${"★".repeat(rating)}${"☆".repeat(Math.max(0, 5 - rating))}`;
+}
+
+export async function addToWatched(userId: string, item: MediaItem, reviewInput?: { rating?: number | null; review?: string | null }) {
+  const { rating, review } = normalizeReviewInput(reviewInput ?? {});
+
   await prisma.$transaction(async (tx) => {
     const media = await persistMediaItem(item, tx);
     await tx.watchedItem.upsert({
@@ -511,10 +576,14 @@ export async function addToWatched(userId: string, item: MediaItem) {
       },
       update: {
         watchedAt: new Date(),
+        rating,
+        notes: review,
       },
       create: {
         userId,
         mediaId: media.id,
+        rating,
+        notes: review,
       },
     });
 
@@ -942,10 +1011,52 @@ export async function acceptFriendRequest(viewerId: string, fromUserId: string) 
 }
 
 export async function sendRecommendation(viewerId: string, targetId: string, item: MediaItem) {
-  const [viewer, media] = await Promise.all([
+  if (viewerId === targetId) {
+    return;
+  }
+
+  const [viewer, media, friendship, recentRecommendation] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: viewerId } }),
     persistMediaItem(item),
+    prisma.friendship.findUnique({
+      where: {
+        userId_friendId: {
+          userId: viewerId,
+          friendId: targetId,
+        },
+      },
+    }),
+    prisma.notification.findFirst({
+      where: {
+        userId: targetId,
+        fromUserId: viewerId,
+        type: "recommendation",
+        media: {
+          source: item.source as never,
+          sourceId: item.sourceId,
+        },
+        createdAt: {
+          gte: new Date(Date.now() - 1000 * 60 * 60 * 12),
+        },
+      },
+    }),
   ]);
+
+  if (!friendship) {
+    throw new Error("Recommendations are only available for friends.");
+  }
+
+  if (recentRecommendation) {
+    throw new Error("You already recommended this recently. Try again later.");
+  }
+
+  const review = normalizeReviewInput({
+    rating: item.userRating ?? null,
+    review: item.userReview ?? null,
+  });
+  const message = review.rating
+    ? `${viewer.name || "Someone"} watched ${item.title} and rated it ${renderStars(review.rating)}.`
+    : `${viewer.name || "Someone"} recommended ${item.title} to you.`;
 
   await Promise.all([
     createNotification({
@@ -953,14 +1064,14 @@ export async function sendRecommendation(viewerId: string, targetId: string, ite
       fromUserId: viewerId,
       mediaId: media.id,
       type: "recommendation",
-      message: `${viewer.name || "Someone"} recommended ${item.title}.`,
+      message,
     }),
     createNotification({
       userId: viewerId,
       fromUserId: targetId,
       mediaId: media.id,
       type: "info",
-      message: `You sent ${item.title} to a friend.`,
+      message: `You sent ${item.title} to a friend${review.rating ? ` with ${renderStars(review.rating)}` : ""}.`,
     }),
   ]);
 }
