@@ -33,6 +33,7 @@ import {
   getTmdbFranchiseEntries,
   getTmdbMediaDetails,
   getTmdbRelatedByFranchise,
+  getTmdbShowRelations,
   getTmdbStarterCatalog,
 } from "@/lib/sources/tmdb";
 import { matchesFranchise, normalizeAnimeBaseTitle, isLikelyAnime } from "@/lib/franchise-utils";
