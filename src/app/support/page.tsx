@@ -14,46 +14,63 @@ export default async function SupportPage() {
 
   const content = (
     <section className="support-page glass">
-      <div className="support-page-copy">
-        <p className="eyebrow">Support</p>
-        <h1 className="display support-title">Support and Product Feedback</h1>
-        <p className="copy support-lead">
-          NerdVault is actively being improved. If something breaks, feels confusing, or does not look right on your device, please report it and include as much context as possible.
-        </p>
+      <div className="support-shell">
+        <header className="support-hero">
+          <p className="eyebrow">Support</p>
+          <h1 className="display support-title">NerdVault Support Center</h1>
+          <p className="copy support-lead">
+            This page is the fastest path for reporting bugs, UX issues, and reliability problems. Clear reports directly improve release quality.
+          </p>
+        </header>
 
-        <div className="support-card-grid">
+        <div className="support-badge-row">
+          <span className="support-badge">Built with Codex</span>
+          <span className="support-badge">Developed in Cursor</span>
+          <span className="support-badge">Solo developer: Raffay</span>
+          <span className="support-badge">Active beta</span>
+        </div>
+
+        <div className="support-main-grid">
           <article className="support-card glass">
-            <h2 className="headline support-card-title">How this site is built</h2>
+            <h2 className="headline support-card-title">How NerdVault is built</h2>
             <p className="copy">
-              NerdVault is built fully with Codex, with development workflow and iteration support inside Cursor. That includes UI implementation, refactors, bug fixes, and ongoing quality improvements.
+              NerdVault is developed fully with Codex, with workflow, iteration, and debugging support from Cursor. Core page architecture, UI changes, and bug-fix cycles are all handled through that build process.
+            </p>
+            <p className="copy">
+              The project is maintained by one developer, Raffay, so feedback quality and reproducible reports make a huge difference in turnaround speed.
             </p>
           </article>
 
           <article className="support-card glass">
             <h2 className="headline support-card-title">Contact</h2>
             <p className="copy">
-              For support, bugs, or feedback, email{" "}
+              For support requests or feedback, email{" "}
               <a className="support-email" href="mailto:asifraffy@gmail.com">
                 asifraffy@gmail.com
               </a>.
             </p>
-            <p className="copy">Replies are prioritized for reproducible bugs and account-impacting issues.</p>
+            <p className="copy">Reports with steps to reproduce and device/browser details are prioritized first.</p>
+          </article>
+
+          <article className="support-guidelines glass">
+            <h2 className="headline support-card-title">What to include in a good report</h2>
+            <ul className="support-list">
+              <li>The exact page and action sequence that triggered the issue.</li>
+              <li>Expected result vs actual result.</li>
+              <li>Device type and browser version.</li>
+              <li>Screenshot or short recording if possible.</li>
+            </ul>
+          </article>
+
+          <article className="support-guidelines glass">
+            <h2 className="headline support-card-title">Response expectations</h2>
+            <ul className="support-list">
+              <li>Critical breakage issues are reviewed first.</li>
+              <li>UI polish requests are grouped into scheduled refinement passes.</li>
+              <li>Feedback quality affects turnaround speed.</li>
+            </ul>
           </article>
         </div>
-
-        <article className="support-guidelines glass">
-          <h2 className="headline support-card-title">What to include in a good report</h2>
-          <ul className="support-list">
-            <li>The exact page you were on and what you clicked.</li>
-            <li>What you expected to happen vs what actually happened.</li>
-            <li>Your device type (desktop/mobile) and browser.</li>
-            <li>A screenshot or short screen recording if available.</li>
-          </ul>
-        </article>
-
-        <p className="copy">
-          Thanks for helping improve NerdVault. High-quality reports directly speed up fixes and stability improvements across the app.
-        </p>
       </div>
     </section>
   );
