@@ -11920,3 +11920,88 @@ body {
     line-height: 1.35;
   }
 }
+
+/* Home page refinement pass */
+.home-route-loading {
+  min-height: calc(100svh - 170px) !important;
+  align-content: center;
+}
+
+.home-series-note {
+  padding: 12px 14px;
+  border-radius: 16px;
+}
+
+.home-board {
+  align-items: stretch;
+}
+
+.home-board-main {
+  gap: 14px;
+}
+
+.home-board-side {
+  position: sticky;
+  top: 14px;
+  align-self: start;
+}
+
+#home-tv-shows .home-media-grid .catalog-card,
+#home-movie .home-media-grid .catalog-card,
+#home-anime .home-media-grid .catalog-card,
+#home-game .home-media-grid .catalog-card {
+  aspect-ratio: 2 / 3;
+}
+
+@media (max-width: 1180px) {
+  .home-board-side {
+    position: static;
+  }
+}
+
+@media (max-width: 900px) {
+  .home-hero .workspace-hero-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .home-hero .workspace-copy {
+    padding: 20px 18px;
+  }
+
+  .home-hero-panel {
+    padding: 16px !important;
+  }
+
+  .home-route-loading {
+    min-height: calc(100svh - 145px) !important;
+    padding: 20px;
+  }
+}
+
+/* Desktop full-width layout pass */
+@media (min-width: 901px) {
+  .container {
+    width: calc(100% - 24px) !important;
+    max-width: none !important;
+    margin: 0 12px !important;
+  }
+
+  .topbar.container {
+    width: calc(100% - 24px) !important;
+    max-width: none !important;
+    margin-inline: 12px !important;
+  }
+
+  .app-shell-layout {
+    width: calc(100% - 24px) !important;
+    max-width: none !important;
+    margin: 12px !important;
+  }
+
+  .workspace {
+    max-width: none !important;
+    width: 100% !important;
+    padding-inline: clamp(12px, 1.2vw, 20px) !important;
+  }
+}

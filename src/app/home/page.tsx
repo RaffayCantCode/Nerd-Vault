@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopBar } from "@/components/app-topbar";
 import { HomeWorkspace } from "@/components/home-workspace";
+import { HomeScrollReset } from "@/components/home-scroll-reset";
 import { VaultClientPrimer } from "@/components/vault-client-primer";
 import { auth } from "@/lib/auth";
 import { buildHomeFeed } from "@/lib/home-feed";
@@ -22,6 +23,7 @@ export default async function HomeHubPage() {
         <div className="app-shell-layout home-layout">
           <AppSidebar active="home" />
           <main className="workspace home-workspace">
+          <HomeScrollReset />
             <AppTopBar viewerId={viewerId} viewerName={viewerName} viewerAvatar={viewerAvatar} />
             <section className="auth-screen">
               <div className="auth-screen-card glass" style={{ width: "min(100%, 760px)", gridTemplateColumns: "1fr" }}>
@@ -57,6 +59,7 @@ export default async function HomeHubPage() {
       <div className="app-shell-layout home-layout">
         <AppSidebar active="home" initialFolders={shellData.folders} />
         <main className="workspace home-workspace">
+          <HomeScrollReset />
           <VaultClientPrimer
             library={library}
             profile={shellData.viewerProfile ? { ...shellData, viewedProfile: shellData.viewerProfile, watched: library.watched, wishlist: library.wishlist, canSeeWatched: true, canSeeWishlist: true, viewingOwnProfile: true } : null}

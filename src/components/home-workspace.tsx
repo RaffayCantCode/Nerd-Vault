@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CatalogCard } from "@/components/catalog-card";
 import { HomeFeed } from "@/lib/home-feed";
 import { NVLoader } from "@/components/nv-loader";
@@ -83,6 +83,12 @@ export function HomeWorkspace({
   viewerName: string;
   feed: HomeFeed;
 }) {
+  useEffect(() => {
+    // Safety reset: if a mobile overlay previously left overflow locked,
+    // Home should always restore normal page scrolling.
+    document.body.style.removeProperty("overflow");
+  }, []);
+
   // Show loading state if feed is empty or still loading
   if (!feed) {
     return <HomeWorkspaceLoading />;
@@ -279,7 +285,7 @@ export function HomeWorkspace({
             )}
           </section>
 
-          <section id="home-tv-shows" className="section-stack" style={{ paddingTop: 0 }}>
+          <section className="section-stack" style={{ paddingTop: 0 }}>
             <div className="section-header">
               <div>
                 <p className="eyebrow">For you</p>
@@ -289,28 +295,11 @@ export function HomeWorkspace({
                 </p>
               </div>
             </div>
-            {feed.watchedCounts.show > 0 ? (
-              feed.sections.show.length ? (
-                <>
-                  <div className="catalog-grid home-media-grid">
-                    {pagedItems("show").map((item, index) => (
-                      <CatalogCard key={item.id} item={item} priority={index < 6} />
-                    ))}
-                  </div>
-                  {renderShelfPager("show", feed.sections.show.length)}
-                </>
-              ) : (
-                <div className="folder-empty glass">
-                  <p className="headline">We need a little more signal from your series history.</p>
-                  <p className="copy">Try adding another watched show and this lane should get much more useful.</p>
-                </div>
-              )
-            ) : (
-              <div className="folder-empty glass">
-                <p className="headline">{WATCHED_PROMPTS.show.title}</p>
-                <p className="copy">{WATCHED_PROMPTS.show.copy}</p>
-              </div>
-            )}
+            <div className="home-series-note glass">
+              <p className="copy">
+                Series picks live in the same shelf format as the other recommendation lanes below so covers and spacing stay consistent.
+              </p>
+            </div>
           </section>
         </div>
         <aside className="home-board-side">
@@ -335,6 +324,40 @@ export function HomeWorkspace({
             </p>
           </div>
         </aside>
+      </section>
+
+      <section id="home-tv-shows" className="section-stack" style={{ paddingTop: 0 }}>
+        <div className="section-header">
+          <div>
+            <p className="eyebrow">For you</p>
+            <h2 className="headline">Series you'll probably like</h2>
+            <p className="copy" style={{ marginTop: 8, maxWidth: 760 }}>
+              TV series picked from what you have actually marked as watched, so the lane gets better as you teach it your taste.
+            </p>
+          </div>
+        </div>
+        {feed.watchedCounts.show > 0 ? (
+          feed.sections.show.length ? (
+            <>
+              <div className="catalog-grid home-media-grid">
+                {pagedItems("show").map((item, index) => (
+                  <CatalogCard key={item.id} item={item} priority={index < 8} />
+                ))}
+              </div>
+              {renderShelfPager("show", feed.sections.show.length)}
+            </>
+          ) : (
+            <div className="folder-empty glass">
+              <p className="headline">We need a little more signal from your series history.</p>
+              <p className="copy">Try adding another watched show and this lane should get much more useful.</p>
+            </div>
+          )
+        ) : (
+          <div className="folder-empty glass">
+            <p className="headline">{WATCHED_PROMPTS.show.title}</p>
+            <p className="copy">{WATCHED_PROMPTS.show.copy}</p>
+          </div>
+        )}
       </section>
 
       {SECTION_ORDER.map((section) => {

@@ -6,6 +6,7 @@ import { signInWithCredentials, signInWithGoogle } from "@/app/sign-in/actions";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopBar } from "@/components/app-topbar";
 import { HomeWorkspace } from "@/components/home-workspace";
+import { HomeScrollReset } from "@/components/home-scroll-reset";
 import { HomeFeed } from "@/lib/home-feed";
 import { LibraryState } from "@/lib/vault-types";
 import { NVLoader } from "@/components/nv-loader";
@@ -50,8 +51,9 @@ function AuthenticatedHomeContent({
         <div className="app-shell-layout home-layout">
           <AppSidebar active="home" />
           <main className="workspace home-workspace">
+            <HomeScrollReset />
             <AppTopBar viewerId={viewerId} viewerName={viewerName} viewerAvatar={viewerAvatar} />
-            <section className="route-loading glass" style={{ minHeight: '50vh' }}>
+            <section className="route-loading route-loading-full glass home-route-loading">
               <NVLoader label="Loading your personalized home..." />
             </section>
           </main>
@@ -66,8 +68,9 @@ function AuthenticatedHomeContent({
         <div className="app-shell-layout home-layout">
           <AppSidebar active="home" />
           <main className="workspace home-workspace">
+            <HomeScrollReset />
             <AppTopBar viewerId={viewerId} viewerName={viewerName} viewerAvatar={viewerAvatar} />
-            <section className="route-loading glass" style={{ minHeight: '50vh' }}>
+            <section className="route-loading route-loading-full glass home-route-loading">
               <div style={{ textAlign: 'center', padding: '2rem' }}>
                 <h2 className="headline" style={{ marginBottom: '1rem' }}>Unable to load home feed</h2>
                 <p className="copy" style={{ marginBottom: '2rem' }}>{error || "Something went wrong"}</p>
@@ -87,6 +90,7 @@ function AuthenticatedHomeContent({
       <div className="app-shell-layout home-layout">
         <AppSidebar active="home" />
         <main className="workspace home-workspace">
+          <HomeScrollReset />
           <AppTopBar viewerId={viewerId} viewerName={viewerName} viewerAvatar={viewerAvatar} />
           <HomeWorkspace viewerName={viewerName} feed={feed} />
         </main>
@@ -194,8 +198,9 @@ export default function HomeHubPageClient() {
         <div className="app-shell-layout home-layout">
           <AppSidebar active="home" />
           <main className="workspace home-workspace">
+            <HomeScrollReset />
             <AppTopBar viewerId="guest-vault" viewerName="Loading..." />
-            <section className="route-loading glass" style={{ minHeight: '50vh' }}>
+            <section className="route-loading route-loading-full glass home-route-loading">
               <NVLoader label="Loading..." />
             </section>
           </main>
