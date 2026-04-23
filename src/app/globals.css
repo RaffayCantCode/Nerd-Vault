@@ -12127,4 +12127,16 @@ body {
     width: 100% !important;
     padding-inline: clamp(12px, 1.2vw, 20px) !important;
   }
+
+  /* With full-width desktop, keep covers comfortably large */
+  .catalog-grid {
+    grid-template-columns: repeat(auto-fill, minmax(208px, 1fr)) !important;
+    gap: 14px !important;
+  }
+
+  .home-media-grid,
+  .profile-media-grid {
+    grid-template-columns: repeat(auto-fill, minmax(194px, 1fr)) !important;
+    gap: 14px !important;
+  }
 }
