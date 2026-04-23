@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Poppins } from "next/font/google";
 import { AuthCookieReset } from "@/components/auth-cookie-reset";
 import { PerformanceOptimizer } from "@/components/performance-optimizer";
+import { RoutePrefetcher } from "@/components/route-prefetcher";
 import "./globals.css";
 
 const brandFont = Poppins({
@@ -57,6 +58,7 @@ export default function RootLayout({
       <body className={`${brandFont.variable}`} style={{ ["--font-display" as string]: "var(--font-sans)" }}>
         <AuthCookieReset />
         <PerformanceOptimizer />
+        <RoutePrefetcher />
         {children}
       </body>
     </html>

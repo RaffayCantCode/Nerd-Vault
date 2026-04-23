@@ -1314,17 +1314,23 @@ async function buildFranchiseSection(media: MediaItem, animeFranchise?: AnimeFra
   if (media.type === "show" && media.source === "tmdb") {
     const franchiseSignals = buildFranchiseSignals(media);
     const hasCuratedMovies = Boolean(curatedUniverse?.entries.movie?.length);
-    const [relations, curatedEntries, crossTypeMovies] = await Promise.all([
+    const [relations, directRelations, curatedEntries, crossTypeMovies] = await Promise.all([
       getTmdbFranchiseEntries(Number(media.sourceId), "tv").catch(() => [] as MediaItem[]),
+      getTmdbShowRelations(Number(media.sourceId)).catch(() => [] as MediaItem[]),
       curatedUniverse?.entries.show?.length
         ? findTmdbUniverseEntries(curatedUniverse.entries.show, "show").catch(() => [] as MediaItem[])
         : Promise.resolve([] as MediaItem[]),
       hasCuratedMovies ? getTmdbRelatedByFranchise(media.title, "movie", 8).catch(() => [] as MediaItem[]) : Promise.resolve([] as MediaItem[]),
     ]);
 
-    const combined = dedupeItems([media, ...relations, ...curatedEntries, ...crossTypeMovies])
+    // Treat direct TMDB relations (sequels/spinoffs) as explicit franchise links.
+    const combined = dedupeItems([media, ...directRelations, ...relations, ...curatedEntries, ...crossTypeMovies])
       .filter((candidate) => candidate.type === "show" || candidate.type === "movie")
-      .filter((candidate) => candidate.id === media.id || hasStrongFranchiseConnection(media, candidate, franchiseSignals));
+      .filter((candidate) =>
+        candidate.id === media.id ||
+        directRelations.some((entry) => entry.id === candidate.id) ||
+        hasStrongFranchiseConnection(media, candidate, franchiseSignals),
+      );
     
     if (combined.length >= 2) {
       const ordered = [...combined].sort(compareFranchiseItems);
@@ -1367,9 +1373,14 @@ async function buildFranchiseSection(media: MediaItem, animeFranchise?: AnimeFra
         : Promise.resolve([] as MediaItem[]),
     ]);
 
+    // IGDB neighbors are explicit franchise/collection links; keep them even if fuzzy heuristics miss.
     const combined = dedupeItems([media, ...neighbors, ...searchRelated, ...curatedEntries])
       .filter((candidate) => candidate.type === "game")
-      .filter((candidate) => candidate.id === media.id || hasStrongFranchiseConnection(media, candidate, franchiseSignals));
+      .filter((candidate) =>
+        candidate.id === media.id ||
+        neighbors.some((entry) => entry.id === candidate.id) ||
+        hasStrongFranchiseConnection(media, candidate, franchiseSignals),
+      );
 
     if (combined.length >= 2) {
       const ordered = [...combined].sort(compareFranchiseItems);
@@ -2200,7 +2211,19 @@ async function getRelatedMediaRail(media: MediaItem) {
     .map((entry) => entry.candidate)
     .slice(0, media.type === "game" ? 12 : 14);
 
-  const mergedMatches = dedupeItems([...strictMatches, ...fallbackMatches, ...broadMatches]);
+  const relevanceFloorMatches = scored
+    .filter((entry) => {
+      const sharedGenres = sharedCanonicalGenreCount(media, entry.candidate);
+      const sharedTags = sharedSimilarityTagCount(media, entry.candidate);
+      const sharedTopics = sharedTopicTokenCount(media, entry.candidate);
+      const minimumScore = media.type === "game" ? 12 : 10;
+      return entry.score >= minimumScore && (sharedGenres >= 1 || sharedTags >= 1 || sharedTopics >= 2);
+    })
+    .sort((left, right) => right.score - left.score)
+    .map((entry) => entry.candidate)
+    .slice(0, media.type === "game" ? 10 : 12);
+
+  const mergedMatches = dedupeItems([...strictMatches, ...fallbackMatches, ...broadMatches, ...relevanceFloorMatches]);
 
   if (mergedMatches.length >= (media.type === "game" ? 8 : 10)) {
     return mergedMatches.slice(0, media.type === "game" ? 10 : 12);
@@ -2623,12 +2646,6 @@ export default async function MediaDetailPage({
             franchiseSection={franchiseSection || undefined}
             mediaTitle={media.title}
           />
-
-          <section className="section-stack" style={{ paddingTop: 0 }}>
-            <div className="button-row">
-              <DetailBackButton className="detail-back-button-bottom" />
-            </div>
-          </section>
         </main>
       </div>
     </div>

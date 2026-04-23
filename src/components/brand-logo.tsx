@@ -21,17 +21,21 @@ export function BrandLogo({ className, alt = "NerdVault logo" }: BrandLogoProps)
           </linearGradient>
         </defs>
 
-        <rect x="8" y="8" width="104" height="104" rx="28" className="brand-logo-plate" />
-
+        {/* Recreated mark to match the provided NV gradient logo (no plate). */}
         <path
-          d="M24 85V34c0-4.4 5.3-6.6 8.4-3.6l27.1 27.1V34c0-4.4 5.3-6.6 8.4-3.6l16.5 16.2V34c0-4.4 5.3-6.6 8.4-3.6 3.1 3 3.1 8.1 0 11.1L68 86c-3 3-7.9 3-10.9.1L39.6 68.8V85c0 4.7-3.5 8-7.8 8-4.3 0-7.8-3.3-7.8-8Z"
-          fill="url(#nv-logo-gradient)"
+          d="M20 88V30c0-3.6 4.3-5.3 6.6-3l33.4 33.1V30c0-3.6 4.3-5.3 6.6-3l33.4 33.1V30"
+          fill="none"
+          stroke="url(#nv-logo-gradient)"
+          strokeWidth="14"
+          strokeLinecap="round"
+          strokeLinejoin="round"
         />
         <path
-          d="M24 85V34c0-4.4 5.3-6.6 8.4-3.6l27.1 27.1V34c0-4.4 5.3-6.6 8.4-3.6l16.5 16.2V34c0-4.4 5.3-6.6 8.4-3.6 3.1 3 3.1 8.1 0 11.1L68 86c-3 3-7.9 3-10.9.1L39.6 68.8V85c0 4.7-3.5 8-7.8 8-4.3 0-7.8-3.3-7.8-8Z"
+          d="M20 88V30c0-3.6 4.3-5.3 6.6-3l33.4 33.1V30c0-3.6 4.3-5.3 6.6-3l33.4 33.1V30"
           fill="none"
           stroke="url(#nv-logo-stroke)"
           strokeWidth="2.2"
+          strokeLinecap="round"
           strokeLinejoin="round"
           opacity="0.55"
         />

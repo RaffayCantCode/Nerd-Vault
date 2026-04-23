@@ -726,7 +726,7 @@ export function ProfileWorkspace({
             <>
               <div className="catalog-grid profile-media-grid" ref={watchedGridRef}>
                 {pagedWatched.map((item, index) => (
-                  <CatalogCard key={item.id} item={item} priority={index < 8} />
+                  <CatalogCard key={item.id} item={item} priority={index < 8} showUserRatingBelow />
                 ))}
               </div>
               {renderMediaPager(watchedPage, watchedTotalPages, setWatchedPage, "Watched")}

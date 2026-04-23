@@ -822,6 +822,61 @@ async function createNotification(data: {
   });
 }
 
+export async function ensureUpcomingInboxNotifications(userId: string, upcoming: Array<{
+  base: MediaItem;
+  continuation: MediaItem;
+  label: string;
+  dateLabel: string;
+  sortDate: string;
+}>) {
+  if (!upcoming.length) {
+    return;
+  }
+
+  // Avoid spamming: only create a new upcoming notification if the exact message
+  // hasn't been created recently for the same continuation media.
+  const recentCutoff = new Date(Date.now() - 1000 * 60 * 60 * 24 * 120); // 120 days
+
+  await prisma.$transaction(async (tx) => {
+    for (const entry of upcoming) {
+      // Only notify for future-dated entries.
+      if (!entry.sortDate) continue;
+      const today = new Date().toISOString().slice(0, 10);
+      if (entry.sortDate <= today) continue;
+
+      const persisted = await persistMediaItem(entry.continuation, tx);
+      const message = `Coming soon: ${entry.continuation.title} · ${entry.label} · ${entry.dateLabel}`;
+
+      const existing = await tx.notification.findFirst({
+        where: {
+          userId,
+          type: "info",
+          mediaId: persisted.id,
+          message,
+          createdAt: {
+            gte: recentCutoff,
+          },
+        },
+        select: { id: true },
+      });
+
+      if (existing) {
+        continue;
+      }
+
+      await tx.notification.create({
+        data: {
+          userId,
+          type: "info",
+          message,
+          mediaId: persisted.id,
+          status: "unread",
+        },
+      });
+    }
+  });
+}
+
 export async function searchUsers(viewerId: string, query: string) {
   const trimmed = query.trim();
   const viewerFriendIds = await getFriendIds(viewerId);

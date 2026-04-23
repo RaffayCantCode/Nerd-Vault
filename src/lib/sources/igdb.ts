@@ -289,6 +289,7 @@ export async function browseIgdbGames(params: {
   genre?: string;
   sort?: "discovery" | "newest" | "rating" | "title";
   seed?: number;
+  pageSize?: number;
 }): Promise<BrowsePayload> {
   if (!process.env?.TWITCH_APP_ACCESS_TOKEN && !process.env?.IGDB_CLIENT_ID) {
     return browseFallbackGames(params);
@@ -299,6 +300,7 @@ export async function browseIgdbGames(params: {
   const queryText = params.query?.trim();
   const sort = params.sort ?? "discovery";
   const discoverySeed = params.seed ?? 1;
+  const pageSize = Math.min(96, Math.max(10, params.pageSize ?? 24));
   const genreFilter = params.genre && params.genre !== "all" ? params.genre.replace(/"/g, '\\"') : null;
 
   const fields = [
@@ -341,9 +343,9 @@ export async function browseIgdbGames(params: {
     const fromSearch = searchRows.map(mapGame).filter((item) => (item.year || 0) >= 1970);
 
     const fallbackPages = await Promise.all([
-      browseIgdbGames({ page: 1, genre: params.genre, sort: "discovery", seed: discoverySeed + 51 }),
-      browseIgdbGames({ page: 2, genre: params.genre, sort: "discovery", seed: discoverySeed + 57 }),
-      browseIgdbGames({ page: 3, genre: params.genre, sort: "discovery", seed: discoverySeed + 63 }),
+      browseIgdbGames({ page: 1, genre: params.genre, sort: "discovery", seed: discoverySeed + 51, pageSize }),
+      browseIgdbGames({ page: 2, genre: params.genre, sort: "discovery", seed: discoverySeed + 57, pageSize }),
+      browseIgdbGames({ page: 3, genre: params.genre, sort: "discovery", seed: discoverySeed + 63, pageSize }),
     ]);
     const rankedItems = rankLocalSearchResults(
       [...fromSearch, ...fallbackPages.flatMap((entry) => entry.items)],
@@ -358,11 +360,9 @@ export async function browseIgdbGames(params: {
     };
   }
 
-  const requestPage =
-    !queryText && sort === "discovery"
-      ? ((Math.abs((discoverySeed * 17) % 18) + (page - 1) * 5) % 18) + 1
-      : page;
-  const offset = (requestPage - 1) * 24;
+  // Keep pagination stable and sequential to avoid duplicate titles across browse pages.
+  const requestPage = page;
+  const offset = (requestPage - 1) * pageSize;
   const escapedQuery = queryText?.replace(/"/g, '\\"');
 
   const discoverySorts = [
@@ -378,7 +378,7 @@ export async function browseIgdbGames(params: {
       : sort === "discovery"
         ? discoverySorts[discoverySeed % discoverySorts.length]
         : "sort total_rating_count desc;";
-  const query = `fields ${fields}; where ${whereParts.join(" & ")}; ${sortClause} limit 24; offset ${offset};`;
+  const query = `fields ${fields}; where ${whereParts.join(" & ")}; ${sortClause} limit ${pageSize}; offset ${offset};`;
   const games = await igdbFetch<IgdbGame[]>(query);
   const items = games.map(mapGame).filter(isUsefulGame);
 
@@ -386,7 +386,7 @@ export async function browseIgdbGames(params: {
     ? `search "${escapedQuery}"; where ${whereParts.join(" & ")};`
     : `where ${whereParts.join(" & ")};`;
   const countPayload = await igdbFetch<IgdbCountResponse>(countQuery, "games/count").catch(() => ({ count: items.length }));
-  const totalPages = Math.max(1, Math.ceil((countPayload.count || items.length || 1) / 24));
+  const totalPages = Math.max(1, Math.ceil((countPayload.count || items.length || 1) / pageSize));
 
   return {
     page,

@@ -25,6 +25,7 @@ const BROWSE_PAGE_CACHE_KEY = "nerdvault-browse-page-cache-v1";
 const BROWSE_LAST_URL_KEY = "nerdvault-browse-last-url";
 const BROWSE_BOOTSTRAP_CACHE_KEY = "nerdvault-browse-bootstrap-v1";
 const BROWSE_SEED_KEY = "nerdvault-browse-seed-v1";
+const BROWSE_FORCE_REFRESH_KEY = "nerdvault-browse-force-refresh-v1";
 const BROWSE_CACHE_TTL_MS = 1000 * 60 * 10;
 const warmedImageUrls = new Set<string>();
 
@@ -222,7 +223,7 @@ function buildSurfacingDeck(items: MediaItem[], seed: number, filter: MediaType 
   }
 
   // Single-type filter: still return up to 4 varied picks from that type
-  const pool = items.filter((item) => item.type === filter);
+  const pool = items.filter((item) => matchesBrowseFilterType(item, filter));
   if (!pool.length) return [];
   const shuffled = shuffleBySeed(pool, seed);
   return shuffled.slice(0, Math.min(4, shuffled.length));
@@ -231,6 +232,10 @@ function buildSurfacingDeck(items: MediaItem[], seed: number, filter: MediaType 
 function hasEverySurfacingType(items: MediaItem[]) {
   const requiredTypes: MediaType[] = ["movie", "show", "anime", "game"];
   return requiredTypes.every((type) => items.some((item) => item.type === type));
+}
+
+function matchesBrowseFilterType(item: MediaItem, filter: MediaType | "all") {
+  return filter === "all" || item.type === filter || (filter === "anime" && item.type === "anime_movie");
 }
 
 export function BrowseWorkspace({
@@ -461,6 +466,14 @@ export function BrowseWorkspace({
     setPage(1);
     setHeroIndex(0);
   }, [filter, sort]);
+
+  useEffect(() => {
+    if (!didInitBrowseStateRef.current) {
+      return;
+    }
+    setPage(1);
+    setHeroIndex(0);
+  }, [genre]);
 
   useEffect(() => {
     const normalizedQuery = query.trim();
@@ -706,7 +719,7 @@ export function BrowseWorkspace({
     const allItems = [...remoteCatalog, ...bootstrapCatalog, ...catalog];
     
     const filteredItems = allItems.filter((item) => {
-      return (filter === "all" || item.type === filter) && inclusiveSearchRank(item, deferredQuery) >= 10;
+      return matchesBrowseFilterType(item, filter) && inclusiveSearchRank(item, deferredQuery) >= 10;
     });
 
     // Apply enhanced deduplication and media validation
@@ -724,7 +737,7 @@ export function BrowseWorkspace({
       }
 
       seen.add(key);
-      return filter === "all" || item.type === filter;
+      return matchesBrowseFilterType(item, filter);
     });
   }, [bootstrapCatalog, catalog, filter, remoteCatalog]);
 
@@ -757,7 +770,10 @@ export function BrowseWorkspace({
       : hasActiveSearch
         ? immediateLocalMatches
         : typedVisible;
-  const visible = visibleSource.filter((item) => itemMatchesGenre(item, genre));
+  const visible = useMemo(
+    () => dedupeMediaKey(visibleSource.filter((item) => itemMatchesGenre(item, genre))),
+    [genre, visibleSource],
+  );
   const queryVisible = useMemo(() => {
     if (!hasActiveSearch) {
       return visible;
@@ -766,11 +782,7 @@ export function BrowseWorkspace({
     const merged = [...remoteCatalog, ...bootstrapCatalog, ...catalog];
 
     const filteredItems = merged.filter((item) => {
-      return (
-        (filter === "all" || item.type === filter) &&
-        inclusiveSearchRank(item, deferredQuery) >= 10 &&
-        itemMatchesGenre(item, genre)
-      );
+      return matchesBrowseFilterType(item, filter) && inclusiveSearchRank(item, deferredQuery) >= 10 && itemMatchesGenre(item, genre);
     });
 
     // Apply enhanced deduplication and media validation
@@ -978,6 +990,21 @@ export function BrowseWorkspace({
     hasVisibleBrowseContent;
   const showPendingState = (isLoading && !suppressInitialPendingChrome) || isPagePending;
   const showGridSkeletons = showPendingState && !remoteCatalog.length && !hasVisibleBrowseContent;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (isLoading || hasActiveSearch || page !== 1 || activePage !== 1 || filter === "all") return;
+    if (sortedVisible.length > 0) return;
+
+    const refreshMarker = `${filter}-${genre}-${sort}`;
+    const refreshed = window.sessionStorage.getItem(BROWSE_FORCE_REFRESH_KEY);
+    if (refreshed === refreshMarker) return;
+
+    // Last-resort self-heal: if a type lane (e.g. games) fails to render anything on
+    // first page, force one hard refresh so data/bootstrap caches reset.
+    window.sessionStorage.setItem(BROWSE_FORCE_REFRESH_KEY, refreshMarker);
+    window.location.reload();
+  }, [activePage, filter, genre, hasActiveSearch, isLoading, page, sort, sortedVisible.length]);
 
   useEffect(() => {
     // Preload current page images first (priority)

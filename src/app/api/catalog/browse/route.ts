@@ -3,9 +3,17 @@ import { browseIgdbGames } from "@/lib/sources/igdb";
 import { browseJikanAnime } from "@/lib/sources/jikan";
 import { browseMixedCatalog } from "@/lib/mixed-catalog";
 import { browseTmdbCatalog } from "@/lib/sources/tmdb";
+import { MediaItem } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
+type BrowsePayload = {
+  page: number;
+  totalPages: number;
+  totalResults: number;
+  items: MediaItem[];
+};
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -39,40 +47,81 @@ export async function GET(request: NextRequest) {
 
   try {
     const page = Number.isFinite(pageParam) ? pageParam : 1;
-    const payload =
-      type === "anime"
-        ? await browseJikanAnime({
-            page,
-            query,
-            genre,
-            sort,
-            seed,
-          })
-        : type === "game"
-          ? await browseIgdbGames({
-              page,
-              query,
-              genre,
-              sort,
-              seed,
-            })
-        : type === "all"
-          ? await browseMixedCatalog({
-              page,
-              query,
-              genre,
-              sort,
-              seed,
-              pageSize,
-            })
-          : await browseTmdbCatalog({
-              type,
-              page,
-              query,
-              genre,
-              sort,
-              seed,
-            });
+    const dedupeBySource = (items: MediaItem[]) => {
+      const seen = new Set<string>();
+      return items.filter((item) => {
+        const key = `${item.source}-${item.sourceId}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    };
+
+    const fetchByType = async (targetPage: number): Promise<BrowsePayload> => {
+      if (type === "anime") {
+        return browseJikanAnime({
+          page: targetPage,
+          query,
+          genre,
+          sort,
+          seed,
+        });
+      }
+
+      if (type === "game") {
+        return browseIgdbGames({
+          page: targetPage,
+          query,
+          genre,
+          sort,
+          seed,
+          pageSize,
+        });
+      }
+
+      if (type === "all") {
+        return browseMixedCatalog({
+          page: targetPage,
+          query,
+          genre,
+          sort,
+          seed,
+          pageSize,
+        });
+      }
+
+      return browseTmdbCatalog({
+        type,
+        page: targetPage,
+        query,
+        genre,
+        sort,
+        seed,
+      });
+    };
+
+    let payload = await fetchByType(page);
+
+    // Top up sparse pages (especially after media-type + genre filters) so each page
+    // remains visually full instead of shrinking to tiny result counts.
+    if (type !== "all" && !query.trim() && payload.items.length < pageSize) {
+      const merged = [...payload.items];
+      let nextPage = page + 1;
+      let attempts = 0;
+      const maxAttempts = 4;
+
+      while (merged.length < pageSize && nextPage <= payload.totalPages && attempts < maxAttempts) {
+        const nextPayload = await fetchByType(nextPage);
+        merged.push(...nextPayload.items);
+        nextPage += 1;
+        attempts += 1;
+      }
+
+      payload = {
+        ...payload,
+        items: dedupeBySource(merged).slice(0, pageSize),
+      };
+    }
 
     return NextResponse.json(
       {

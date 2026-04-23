@@ -99,12 +99,13 @@ export function browseFallbackGames(params: {
   query?: string;
   genre?: string;
   sort?: "discovery" | "newest" | "rating" | "title";
+  pageSize?: number;
 }) {
   const page = Math.max(1, params.page ?? 1);
   const query = params.query?.trim().toLowerCase() ?? "";
   const genre = params.genre && params.genre !== "all" ? params.genre.toLowerCase() : "";
   const sort = params.sort ?? "discovery";
-  const pageSize = 24;
+  const pageSize = Math.min(96, Math.max(10, params.pageSize ?? 24));
 
   let items = [...fallbackGameCatalog];
 

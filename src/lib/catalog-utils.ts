@@ -118,11 +118,15 @@ export function filterCatalog(
   query: string,
 ) {
   const trimmed = query.trim();
+  const matchesType = (item: MediaItem) =>
+    type === "all" ||
+    item.type === type ||
+    (type === "anime" && item.type === "anime_movie");
 
   return catalog.filter((item) => {
-    const matchesType = type === "all" || item.type === type;
-    if (!trimmed) return matchesType;
-    return matchesType && itemMatchesSearch(item, trimmed);
+    const typeMatch = matchesType(item);
+    if (!trimmed) return typeMatch;
+    return typeMatch && itemMatchesSearch(item, trimmed);
   });
 }
 
@@ -131,7 +135,7 @@ export function groupCounts(catalog: MediaItem[]) {
     all: catalog.length,
     movie: catalog.filter((item) => item.type === "movie").length,
     show: catalog.filter((item) => item.type === "show").length,
-    anime: catalog.filter((item) => item.type === "anime").length,
+    anime: catalog.filter((item) => item.type === "anime" || item.type === "anime_movie").length,
     game: catalog.filter((item) => item.type === "game").length,
   };
 }

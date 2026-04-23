@@ -18,10 +18,12 @@ export function CatalogCard({
   item,
   priority = false,
   onBeforeNavigate,
+  showUserRatingBelow = false,
 }: {
   item: MediaItem;
   priority?: boolean;
   onBeforeNavigate?: () => void;
+  showUserRatingBelow?: boolean;
 }) {
   const router = useRouter();
   const cardRef = useRef<HTMLAnchorElement>(null);
@@ -169,9 +171,15 @@ export function CatalogCard({
           <span className="pill">{item.type}</span>
           <span className="pill">{item.year}</span>
           <span className="pill rating">{item.rating.toFixed(1)}</span>
-          {item.userRating ? <span className="pill rating">{renderUserStars(item.userRating)}</span> : null}
+          {item.userRating && !showUserRatingBelow ? <span className="pill rating">{renderUserStars(item.userRating)}</span> : null}
         </div>
         <h3 className="catalog-title">{item.title}</h3>
+        {item.userRating && showUserRatingBelow ? (
+          <div className="catalog-user-rating-row" aria-label={`Your rating: ${item.userRating} out of 5`}>
+            <span className="catalog-user-rating-label">Your rating</span>
+            <span className="catalog-user-rating-stars">{renderUserStars(item.userRating)}</span>
+          </div>
+        ) : null}
         {item.userReview ? (
           <p className="copy" style={{ marginTop: 10, fontSize: "0.88rem", lineHeight: 1.45, opacity: 0.84 }}>
             {item.userReview.length > 96 ? `${item.userReview.slice(0, 93).trimEnd()}...` : item.userReview}

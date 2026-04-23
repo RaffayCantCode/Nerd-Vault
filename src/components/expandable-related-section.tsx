@@ -105,8 +105,8 @@ export function ExpandableRelatedSection({
           <div className="section-header">
             <div>
               <p className="eyebrow">Franchise</p>
-              <h2 className="headline" style={{ opacity: 0.5 }}>Not a part of any franchise</h2>
-              <p className="copy">This title is a standalone entry in our vault.</p>
+              <h2 className="headline" style={{ opacity: 0.7 }}>Standalone title</h2>
+              <p className="copy">This one isn’t part of a larger franchise or connected storyline (based on the sources we have).</p>
             </div>
           </div>
         )}

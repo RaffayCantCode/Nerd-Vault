@@ -276,7 +276,7 @@ export async function browseMixedCatalog({
   seed: number;
   pageSize?: number;
 }) {
-  const safePageSize = Math.min(36, Math.max(10, pageSize));
+  const safePageSize = Math.min(96, Math.max(10, pageSize));
   const safeQuery = query.trim();
   const isSearch = Boolean(safeQuery);
   const cacheKey = JSON.stringify({ page, query: safeQuery, genre, sort, seed, pageSize: safePageSize });

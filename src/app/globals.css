@@ -2761,7 +2761,19 @@ input {
 }
 
 .catalog-card:hover {
-  /* Hover effects disabled to prevent scroll locking */
+  /* Default: no-op (enabled below for hover-capable devices). */
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .catalog-card:hover {
+    transform: translateY(-6px) scale(1.02);
+    border-color: rgba(122, 240, 199, 0.26);
+    box-shadow: 0 14px 46px rgba(0, 0, 0, 0.32);
+  }
+
+  .catalog-card:hover img {
+    transform: scale(1.06);
+  }
 }
 
 body {
@@ -5110,12 +5122,16 @@ body {
 }
 
 .route-loading {
-  min-height: 42vh;
+  min-height: 70vh;
   border-radius: 30px;
   padding: 28px;
   display: grid;
-  align-content: center;
+  place-items: center;
   gap: 14px;
+}
+
+.route-loading-full {
+  min-height: calc(100svh - 140px);
 }
 
 .route-loading-badge,
@@ -11748,6 +11764,39 @@ body {
   border-color: rgba(171, 193, 255, 0.16) !important;
   color: #f0f4ff !important;
   box-shadow: 0 10px 22px rgba(2, 6, 16, 0.28) !important;
+}
+
+.catalog-user-rating-row {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+}
+
+.catalog-user-rating-label {
+  font-size: 0.8rem;
+  letter-spacing: 0.03em;
+  color: rgba(236, 240, 248, 0.86);
+  text-transform: uppercase;
+}
+
+.catalog-user-rating-stars {
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+  color: #f6f8ff;
+  font-weight: 700;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+}
+
+/* Final speed pass: remove expensive card stagger animations globally. */
+.catalog-card,
+.catalog-grid .catalog-card {
+  animation: none !important;
 }
 
 .review-stars-block {

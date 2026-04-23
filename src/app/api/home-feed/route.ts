@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { buildHomeFeed } from "@/lib/home-feed";
-import { ensureCurrentUserRecord, getLibraryStateForUser, getViewerShellData } from "@/lib/vault-server";
+import { ensureCurrentUserRecord, ensureUpcomingInboxNotifications, getLibraryStateForUser, getViewerShellData } from "@/lib/vault-server";
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,6 +19,9 @@ export async function GET(request: NextRequest) {
     ]);
     
     const feed = await buildHomeFeed(library);
+
+    // Turn "coming soon" continuations into inbox notifications (deduped server-side).
+    await ensureUpcomingInboxNotifications(session.user.id, feed.upcoming).catch(() => undefined);
 
     return NextResponse.json(feed);
   } catch (error) {
