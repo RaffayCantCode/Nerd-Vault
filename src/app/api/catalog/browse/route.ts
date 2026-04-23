@@ -24,7 +24,9 @@ export async function GET(request: NextRequest) {
       ? sortParam
       : "discovery";
   const seed = Number.isFinite(seedParam) ? seedParam : 1;
-  const pageSize = Number.isFinite(pageSizeParam) ? Math.min(36, Math.max(10, pageSizeParam)) : 24;
+  // The client dynamically sizes browse pages based on viewport width (up to ~96).
+  // Keep the API aligned so paging doesn't look "half-empty" after filters/sorts.
+  const pageSize = Number.isFinite(pageSizeParam) ? Math.min(96, Math.max(10, pageSizeParam)) : 24;
 
   const type =
     typeParam === "movie" ||

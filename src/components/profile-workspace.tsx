@@ -12,8 +12,19 @@ import { PrivacyLevel, SocialProfile, StoredFolder, VaultProfilePayload } from "
 
 type LibrarySortMode = "recent" | "title" | "rating";
 type MediaFilterMode = "all" | "movie" | "show" | "anime" | "game";
-const PROFILE_MEDIA_PAGE_SIZE = 9;
 const PROFILE_FOLDER_PAGE_SIZE = 8;
+
+function readGridColumnCount(element: HTMLElement | null) {
+  if (!element || typeof window === "undefined") {
+    return 0;
+  }
+
+  const value = window.getComputedStyle(element).gridTemplateColumns;
+  if (!value) return 0;
+  // `grid-template-columns` can be a list of tracks like: "1fr 1fr 1fr"
+  // or can include functions/spaces. Split on whitespace and keep non-empty tokens.
+  return value.split(/\s+/).filter(Boolean).length;
+}
 
 function sortMediaItems(items: MediaItem[], mode: LibrarySortMode) {
   const sorted = [...items];
@@ -150,9 +161,13 @@ export function ProfileWorkspace({
   const [watchedPage, setWatchedPage] = useState(1);
   const [wishlistPage, setWishlistPage] = useState(1);
   const [folderPage, setFolderPage] = useState(1);
+  const [watchedPageSize, setWatchedPageSize] = useState(9);
+  const [wishlistPageSize, setWishlistPageSize] = useState(9);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isFolderOpening, setIsFolderOpening] = useState(false);
   const profileAvatarActionsRef = useRef<HTMLDivElement | null>(null);
+  const watchedGridRef = useRef<HTMLDivElement | null>(null);
+  const wishlistGridRef = useRef<HTMLDivElement | null>(null);
   const previousFolderIdRef = useRef<string | null>(selectedFolderId);
 
   useEffect(() => {
@@ -226,6 +241,24 @@ export function ProfileWorkspace({
     return () => window.clearTimeout(timeout);
   }, [selectedFolder, selectedFolderId]);
 
+  useEffect(() => {
+    function syncPagedGridSizes() {
+      const rows = 3;
+      const watchedCols = readGridColumnCount(watchedGridRef.current);
+      const wishlistCols = readGridColumnCount(wishlistGridRef.current);
+
+      const nextWatchedPageSize = watchedCols ? Math.max(1, watchedCols * rows) : 9;
+      const nextWishlistPageSize = wishlistCols ? Math.max(1, wishlistCols * rows) : 9;
+
+      setWatchedPageSize(nextWatchedPageSize);
+      setWishlistPageSize(nextWishlistPageSize);
+    }
+
+    syncPagedGridSizes();
+    window.addEventListener("resize", syncPagedGridSizes);
+    return () => window.removeEventListener("resize", syncPagedGridSizes);
+  }, []);
+
   function handleAvatarFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -296,15 +329,15 @@ export function ProfileWorkspace({
     () => sortMediaItems(filterMediaItems(wishlist, wishlistMediaFilter, deferredWishlistSearch), wishlistSort),
     [deferredWishlistSearch, wishlist, wishlistMediaFilter, wishlistSort],
   );
-  const watchedTotalPages = Math.max(1, Math.ceil(sortedWatched.length / PROFILE_MEDIA_PAGE_SIZE));
-  const wishlistTotalPages = Math.max(1, Math.ceil(sortedWishlist.length / PROFILE_MEDIA_PAGE_SIZE));
+  const watchedTotalPages = Math.max(1, Math.ceil(sortedWatched.length / watchedPageSize));
+  const wishlistTotalPages = Math.max(1, Math.ceil(sortedWishlist.length / wishlistPageSize));
   const pagedWatched = useMemo(
-    () => sortedWatched.slice((watchedPage - 1) * PROFILE_MEDIA_PAGE_SIZE, watchedPage * PROFILE_MEDIA_PAGE_SIZE),
-    [sortedWatched, watchedPage],
+    () => sortedWatched.slice((watchedPage - 1) * watchedPageSize, watchedPage * watchedPageSize),
+    [sortedWatched, watchedPage, watchedPageSize],
   );
   const pagedWishlist = useMemo(
-    () => sortedWishlist.slice((wishlistPage - 1) * PROFILE_MEDIA_PAGE_SIZE, wishlistPage * PROFILE_MEDIA_PAGE_SIZE),
-    [sortedWishlist, wishlistPage],
+    () => sortedWishlist.slice((wishlistPage - 1) * wishlistPageSize, wishlistPage * wishlistPageSize),
+    [sortedWishlist, wishlistPage, wishlistPageSize],
   );
   const visibleFolders = useMemo(
     () =>
@@ -691,7 +724,7 @@ export function ProfileWorkspace({
         {canSeeWatched || viewingOwnProfile ? (
           sortedWatched.length ? (
             <>
-              <div className="catalog-grid profile-media-grid">
+              <div className="catalog-grid profile-media-grid" ref={watchedGridRef}>
                 {pagedWatched.map((item, index) => (
                   <CatalogCard key={item.id} item={item} priority={index < 8} />
                 ))}
@@ -760,7 +793,7 @@ export function ProfileWorkspace({
         {canSeeWishlist || viewingOwnProfile ? (
           sortedWishlist.length ? (
             <>
-              <div className="catalog-grid profile-media-grid">
+              <div className="catalog-grid profile-media-grid" ref={wishlistGridRef}>
                 {pagedWishlist.map((item, index) => (
                   <CatalogCard key={item.id} item={item} priority={index < 8} />
                 ))}

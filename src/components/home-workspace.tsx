@@ -6,6 +6,7 @@ import { CatalogCard } from "@/components/catalog-card";
 import { HomeFeed } from "@/lib/home-feed";
 import { NVLoader } from "@/components/nv-loader";
 import { writeDetailReturnTarget } from "@/lib/detail-return";
+import { ResilientMediaImage } from "@/components/resilient-media-image";
 
 const HOME_SECTION_PAGE_SIZE = 8;
 
@@ -246,6 +247,10 @@ export function HomeWorkspace({
                     className="glass home-upcoming-card"
                     onClick={() => writeDetailReturnTarget({ href: "/home", label: "Back to home" })}
                   >
+                    <div className="home-upcoming-poster" aria-hidden="true">
+                      <ResilientMediaImage item={entry.continuation} loading="lazy" decoding="async" />
+                    </div>
+                    <div className="home-upcoming-copy-stack">
                     <p className="eyebrow">{entry.label}</p>
                     <h3 className="headline home-upcoming-title">{entry.continuation.title}</h3>
                     <p className="copy home-upcoming-copy">
@@ -260,6 +265,7 @@ export function HomeWorkspace({
                       <span className="detail-pill">{entry.continuation.type}</span>
                     </div>
                     <p className="copy">{entry.reason}</p>
+                    </div>
                   </Link>
                 ))}
               </div>

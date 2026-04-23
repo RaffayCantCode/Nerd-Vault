@@ -496,8 +496,9 @@ export function BrowseWorkspace({
     if (sort !== "discovery") {
       lastBrowseParams.set("sort", sort);
     }
-    if (query.trim()) {
-      lastBrowseParams.set("query", query.trim());
+    const debouncedQuery = urlUpdateQuery.trim();
+    if (debouncedQuery) {
+      lastBrowseParams.set("query", debouncedQuery);
     }
     lastBrowseParams.set("seed", String(sessionSeedRef.current));
     const nextUrl = lastBrowseParams.toString() ? `/browse?${lastBrowseParams.toString()}` : "/browse";
@@ -505,7 +506,7 @@ export function BrowseWorkspace({
       BROWSE_STATE_KEY,
       JSON.stringify({
         filter,
-        query,
+        query: urlUpdateQuery,
         genre,
         sort,
         page: activePage,

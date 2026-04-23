@@ -2623,6 +2623,12 @@ export default async function MediaDetailPage({
             franchiseSection={franchiseSection || undefined}
             mediaTitle={media.title}
           />
+
+          <section className="section-stack" style={{ paddingTop: 0 }}>
+            <div className="button-row">
+              <DetailBackButton className="detail-back-button-bottom" />
+            </div>
+          </section>
         </main>
       </div>
     </div>
