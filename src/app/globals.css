@@ -7350,6 +7350,10 @@ html {
   color: rgba(246, 247, 251, 0.82);
 }
 
+.route-loading {
+  contain: layout paint style;
+}
+
 .profile-media-grid {
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
   gap: 14px;
@@ -7374,6 +7378,15 @@ html {
   }
   to {
     transform: rotate(0deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nv-loader-ring-outer::before,
+  .nv-loader-ring-outer::after,
+  .nv-loader-ring-inner::before,
+  .nv-loader-ring-inner::after {
+    animation: none !important;
   }
 }
 

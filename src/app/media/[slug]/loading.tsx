@@ -1,4 +1,4 @@
-import { NVLoader } from "@/components/nv-loader";
+import { RouteLoader } from "@/components/route-loader";
 
 export default function MediaLoading() {
   return (
@@ -6,9 +6,7 @@ export default function MediaLoading() {
       <div className="app-shell-layout">
         <aside className="sidebar sidebar-rail glass media-loading-sidebar" aria-hidden="true" />
         <main className="workspace">
-          <section className="route-loading route-loading-full glass">
-            <NVLoader label="Loading details..." />
-          </section>
+          <RouteLoader label="Loading details..." />
         </main>
       </div>
     </div>

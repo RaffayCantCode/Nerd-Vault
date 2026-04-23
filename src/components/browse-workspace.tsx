@@ -371,6 +371,27 @@ export function BrowseWorkspace({
   const previousQueryRef = useRef(queryFromUrl.trim());
   const hasActiveSearch = Boolean(deferredQuery.trim());
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReducedMotion) {
+      return;
+    }
+
+    const previousHtmlBehavior = document.documentElement.style.scrollBehavior;
+    const previousBodyBehavior = document.body.style.scrollBehavior;
+    document.documentElement.style.scrollBehavior = "smooth";
+    document.body.style.scrollBehavior = "smooth";
+
+    return () => {
+      document.documentElement.style.scrollBehavior = previousHtmlBehavior;
+      document.body.style.scrollBehavior = previousBodyBehavior;
+    };
+  }, []);
+
   const supportsRemotePaging =
     filter === "all" ||
     filter === "movie" ||
@@ -666,25 +687,12 @@ export function BrowseWorkspace({
         const primaryItems = await fetchPage(page);
         if (!hasActiveSearch) {
           const resolvedTotalPages = Math.max(1, prefetchedPagesRef.current[currentKey]?.totalPages ?? 1);
-          const minimumVisible = Math.max(12, pageSize - 1);
+          const prefetchTargets = [page + 1, page + 2, page + 3].filter((nextPage) => nextPage <= resolvedTotalPages);
+          prefetchTargets.forEach((nextPage) => {
+            void fetchPage(nextPage, true).catch(() => undefined);
+          });
 
-          if (!isInitialLoad && primaryItems.length < minimumVisible && page < resolvedTotalPages) {
-            void fetchPage(page + 1, true).catch(() => undefined);
-            if (page + 1 < resolvedTotalPages) {
-              void fetchPage(page + 2, true).catch(() => undefined);
-            }
-          } else {
-            if (page < resolvedTotalPages) {
-              void fetchPage(page + 1, true).catch(() => undefined);
-            }
-            if (page + 1 < resolvedTotalPages) {
-              void fetchPage(page + 2, true).catch(() => undefined);
-            }
-          }
-
-          if (page > 1) {
-            void fetchPage(page - 1, true).catch(() => undefined);
-          }
+          if (page > 1) void fetchPage(page - 1, true).catch(() => undefined);
         }
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
@@ -1014,21 +1022,22 @@ export function BrowseWorkspace({
       preloadImage(optimizeMediaImageUrl(item.backdropUrl, "backdrop") ?? item.backdropUrl);
     });
 
-    // After current page images are loaded, preload next page images for smooth transitions
+    // After current page images are loaded, warm next pages for near-instant transitions.
     if (!isInitialLoad && !isLoading && visibleGridItems.length > 0) {
-      setTimeout(() => {
-        // Preload next page items if available
-        const nextPageKey = buildCacheKey(filter, activePage + 1, genre, deferredQuery, sort, sessionSeedRef.current, pageSize);
-        const nextPageData = prefetchedPagesRef.current[nextPageKey];
-        
-        if (nextPageData?.items?.length) {
-          const nextVisible = nextPageData.items.slice(0, Math.min(12, nextPageData.items.length));
-          nextVisible.forEach((item) => {
+      const timer = setTimeout(() => {
+        [activePage + 1, activePage + 2].forEach((nextPage) => {
+          const nextPageKey = buildCacheKey(filter, nextPage, genre, deferredQuery, sort, sessionSeedRef.current, pageSize);
+          const nextPageData = prefetchedPagesRef.current[nextPageKey];
+          if (!nextPageData?.items?.length) return;
+
+          nextPageData.items.slice(0, Math.min(18, nextPageData.items.length)).forEach((item) => {
             preloadImage(optimizeMediaImageUrl(item.coverUrl, "thumb") ?? item.coverUrl);
             preloadImage(optimizeMediaImageUrl(item.backdropUrl, "backdrop") ?? item.backdropUrl);
           });
-        }
-      }, 1000); // Start preloading after 1 second delay
+        });
+      }, 120);
+
+      return () => clearTimeout(timer);
     }
   }, [visibleGridItems, isInitialLoad, isLoading, activePage, filter, genre, deferredQuery, sort, pageSize]);
 
@@ -1053,9 +1062,11 @@ export function BrowseWorkspace({
     const cachedPage = prefetchedPagesRef.current[targetKey];
 
     if (cachedPage) {
-      setRemoteCatalog(cachedPage.items);
-      setTotalPages(Math.max(1, cachedPage.totalPages));
-      setActivePage(clamped);
+      startTransition(() => {
+        setRemoteCatalog(cachedPage.items);
+        setTotalPages(Math.max(1, cachedPage.totalPages));
+        setActivePage(clamped);
+      });
       setIsLoading(false);
     } else {
       setIsLoading(true);
@@ -1063,7 +1074,7 @@ export function BrowseWorkspace({
 
     shouldScrollToToolbarRef.current = false;
     shouldScrollToResultsRef.current = true;
-    scrollBehaviorRef.current = cachedPage ? "auto" : "smooth";
+    scrollBehaviorRef.current = "smooth";
     pageScrollOffsetRef.current = window.innerWidth < 900 ? 88 : 96;
     startTransition(() => {
       setPage(clamped);

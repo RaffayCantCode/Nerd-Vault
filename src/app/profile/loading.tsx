@@ -1,11 +1,9 @@
-import { NVLoader } from "@/components/nv-loader";
+import { RouteLoader } from "@/components/route-loader";
 
 export default function ProfileLoading() {
   return (
     <div className="workspace">
-      <section className="route-loading route-loading-full glass">
-        <NVLoader label="Loading profile..." />
-      </section>
+      <RouteLoader label="Loading profile..." />
     </div>
   );
 }

@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "tsc --noEmit",
     "clean": "node -e \"const fs=require('fs');['.next','tsconfig.tsbuildinfo'].forEach((p)=>fs.rmSync(p,{recursive:true,force:true}));\"",
     "clean:deep": "node -e \"const fs=require('fs');['.next','tsconfig.tsbuildinfo','node_modules'].forEach((p)=>fs.rmSync(p,{recursive:true,force:true}));\"",
     "prisma:generate": "prisma generate",
