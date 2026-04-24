@@ -95,7 +95,7 @@ export async function AppSidebar({ active, initialFolders = [] }: AppSidebarProp
 
   return (
     <SidebarShell>
-      <aside className="sidebar sidebar-rail glass">
+      <aside className="sidebar sidebar-rail nv-sidebar-panel glass">
         <Link href="/" className="brand brand-rail" aria-label="NerdVault home" title="NerdVault">
           <BrandLogo className="brand-mark brand-mark-logo" />
         </Link>

@@ -1836,6 +1836,165 @@ function buildAtlasGallery(gallery: string[], usedImages: string[]) {
   return dedupeGalleryImageUrls(fresh).slice(0, 10);
 }
 
+function buildFeelingTags(media: MediaItem) {
+  const tags = new Set<string>();
+  const genres = media.genres.map((genre) => genre.toLowerCase());
+  const overview = `${media.title} ${media.originalTitle ?? ""} ${media.overview}`.toLowerCase();
+
+  if (genres.some((genre) => ["action", "martial arts", "fighting", "shounen"].includes(genre)) || /\b(chase|battle|fight|war|survival)\b/.test(overview)) {
+    tags.add("Fast-paced");
+  }
+  if (genres.some((genre) => ["drama", "romance", "tragedy"].includes(genre)) || /\b(loss|grief|heart|relationship|friendship)\b/.test(overview)) {
+    tags.add("Emotional");
+  }
+  if (genres.some((genre) => ["thriller", "horror", "mystery", "psychological"].includes(genre)) || /\b(secret|murder|fear|nightmare|danger)\b/.test(overview)) {
+    tags.add("Dark");
+    tags.add("Tense");
+  }
+  if (genres.some((genre) => ["fantasy", "adventure", "rpg", "sci-fi", "science fiction", "isekai"].includes(genre)) || /\b(world|kingdom|galaxy|future|realm|quest)\b/.test(overview)) {
+    tags.add("World-heavy");
+  }
+  if (genres.some((genre) => ["comedy", "slice of life", "family"].includes(genre)) || /\b(fun|chaos|awkward|everyday)\b/.test(overview)) {
+    tags.add("Easy to sink into");
+  }
+  if (media.type === "game") {
+    tags.add("Hands-on");
+  }
+  if (media.rating >= 8.5) {
+    tags.add("Critic-loved");
+  } else if (media.rating >= 7.4) {
+    tags.add("Easy recommendation");
+  }
+
+  return Array.from(tags).slice(0, 6);
+}
+
+function buildWhyYouMightLikeIt(media: MediaItem, feelingTags: string[]) {
+  const genres = media.genres.map((genre) => genre.toLowerCase());
+
+  if (media.type === "game" && genres.some((genre) => ["rpg", "adventure", "open world"].includes(genre))) {
+    return "You like worlds that are fun to inhabit, not just finish.";
+  }
+  if (genres.some((genre) => ["thriller", "mystery", "horror", "psychological"].includes(genre))) {
+    return "You want tension, atmosphere, and that one-more-episode or one-more-hour pull.";
+  }
+  if (genres.some((genre) => ["drama", "romance", "slice of life"].includes(genre)) || feelingTags.includes("Emotional")) {
+    return "You stay for chemistry, payoff, and characters that actually leave a mark.";
+  }
+  if (genres.some((genre) => ["fantasy", "sci-fi", "adventure", "isekai"].includes(genre)) || feelingTags.includes("World-heavy")) {
+    return "You like learning a world’s rules fast and getting rewarded for leaning in.";
+  }
+  if (genres.some((genre) => ["action", "martial arts", "fighting"].includes(genre)) || feelingTags.includes("Fast-paced")) {
+    return "You want clean momentum, pressure, and a strong payoff without a slow ramp.";
+  }
+
+  return media.type === "game"
+    ? "You want a clear hook, a strong atmosphere, and something that feels good to spend time inside."
+    : "You want something with identity right away instead of waiting forever for it to click.";
+}
+
+function buildWorldLine(media: MediaItem, animeFranchise?: AnimeFranchiseData) {
+  const genres = media.genres.slice(0, 2).join(" / ") || "story-led";
+
+  if (media.details.collectionTitle) {
+    return `Set inside the ${media.details.collectionTitle} universe, with a ${genres.toLowerCase()} lens.`;
+  }
+  if ((media.type === "anime" || media.type === "anime_movie") && animeFranchise?.seasonCount) {
+    return `A stylized world with ${animeFranchise.seasonCount} connected season${animeFranchise.seasonCount === 1 ? "" : "s"} already shaping the bigger picture.`;
+  }
+  if (media.type === "game") {
+    return `${genres} spaces, systems, and encounters shape the experience more than one single set-piece does.`;
+  }
+  if (media.type === "movie") {
+    return `A ${genres.toLowerCase()} setting built to land fast and leave a strong first impression.`;
+  }
+
+  return `A ${genres.toLowerCase()} world with enough identity to click quickly, even before the story fully opens up.`;
+}
+
+function buildMainCharacterLine(media: MediaItem, credits: MediaItem["credits"]) {
+  const characterNames = credits
+    .filter((credit) => credit.character)
+    .slice(0, 3)
+    .map((credit) => credit.character as string);
+
+  if (characterNames.length) {
+    return characterNames.join(" • ");
+  }
+
+  const leadNames = credits.slice(0, 3).map((credit) => credit.name);
+  if (leadNames.length) {
+    return leadNames.join(" • ");
+  }
+
+  return media.type === "game"
+    ? "The world and the playstyle do most of the talking here."
+    : "The cast is part of the draw, even if this source is thin on names.";
+}
+
+function buildVibeSummary(media: MediaItem, animeFranchise: AnimeFranchiseData | undefined, feelingTags: string[]) {
+  return [
+    {
+      label: "Main Character(s)",
+      value: buildMainCharacterLine(media, media.credits),
+    },
+    {
+      label: "Setting / World",
+      value: buildWorldLine(media, animeFranchise),
+    },
+    {
+      label: "Tone / Mood",
+      value: feelingTags.join(" • ") || "Clear, readable, and easy to get a feel for fast.",
+    },
+    {
+      label: "Core Idea / Hook",
+      value: buildPremiseLine(media),
+    },
+    {
+      label: "Why You Might Like It",
+      value: buildWhyYouMightLikeIt(media, feelingTags),
+    },
+  ];
+}
+
+function buildCharacterHighlights(media: MediaItem, credits: MediaItem["credits"]) {
+  return credits.slice(0, 6).map((credit) => ({
+    name: credit.character ?? credit.name,
+    role:
+      media.type === "game"
+        ? credit.role
+        : credit.character
+          ? `${credit.name} • ${credit.role}`
+          : credit.role,
+    summary:
+      media.type === "game"
+        ? "A key name tied to how the experience was built and how it lands."
+        : credit.character
+          ? "Part of the face, voice, or chemistry that gives the story its pull."
+          : "One of the people shaping the tone on screen or behind it.",
+  }));
+}
+
+function buildRelatedTasteLine(media: MediaItem, related: MediaItem[], feelingTags: string[]) {
+  const nextPick = related[0];
+  if (nextPick) {
+    const overlap = buildFeelingTags(nextPick)
+      .filter((tag) => feelingTags.includes(tag))
+      .slice(0, 2)
+      .join(" • ");
+
+    if (overlap) {
+      return `${nextPick.title} is the closest nearby match here, especially if you want more of the ${overlap.toLowerCase()} side of this page.`;
+    }
+
+    return `${nextPick.title} is the nearest next stop if you want the same lane with a slightly different angle.`;
+  }
+
+  return media.type === "game"
+    ? "Think atmosphere first, then systems, then whether you want to live in this loop for a while."
+    : "Think identity first: if the tone and hook work for you, the rest usually follows quickly.";
+}
+
 function buildImmersionScenes(media: MediaItem, storyGallery: string[], deepDiveCards: ReturnType<typeof buildDeepDiveCards>) {
   const genreBlend = media.genres.slice(0, 3).join(" / ") || "Atmosphere-first";
   const factualCards = [
@@ -2387,6 +2546,9 @@ export default async function MediaDetailPage({
   const statusValue = media.details.status ?? media.details.releaseInfo ?? "Unknown";
   const deepDiveCards = buildDeepDiveCards(media, animeFranchise);
   const spotlightCredits = dedupeSpotlightCredits(media.credits).slice(0, 6);
+  const feelingTags = buildFeelingTags(media);
+  const vibeSummary = buildVibeSummary(media, animeFranchise, feelingTags);
+  const characterHighlights = buildCharacterHighlights(media, spotlightCredits);
   const gallery = uniqueGalleryImages(media).slice(0, 6);
   const storyGallery = buildStoryGallery(gallery, media.backdropUrl || media.coverUrl);
   const moodLine = buildPremiseLine(media);
@@ -2398,6 +2560,7 @@ export default async function MediaDetailPage({
   const detailIdentity = normalizeTitleSignal([media.title, media.originalTitle ?? "", media.details.collectionTitle ?? ""].join(" "));
   const easterEgg = DETAIL_EASTER_EGGS.find((entry) => entry.matches.some((match) => detailIdentity.includes(normalizeTitleSignal(match))));
   const palette = easterEgg?.palette ?? DETAIL_PALETTES[hashPaletteKey(`${media.id}-${media.title}`) % DETAIL_PALETTES.length];
+  const relatedTasteLine = buildRelatedTasteLine(media, filteredRelated, feelingTags);
   const detailPaletteStyle = {
     "--detail-accent": palette.accent,
     "--detail-accent-soft": palette.accentSoft,
@@ -2443,6 +2606,15 @@ export default async function MediaDetailPage({
                   <h1 className="display detail-display">{media.title}</h1>
                   <p className="detail-lead">{moodLine}</p>
                   <p className="copy detail-overview-copy">{synopsisPreview}</p>
+                  <div className="detail-hook-card glass">
+                    <p className="eyebrow">Instant hook</p>
+                    <h2 className="headline detail-hook-title">{buildWhyYouMightLikeIt(media, feelingTags)}</h2>
+                    <p className="copy detail-hook-copy">
+                      {media.type === "game"
+                        ? "The detail page should make the loop, the tone, and the world feel worth your time in under a minute."
+                        : "The point here is simple: you should know very quickly whether this feels like your kind of watch."}
+                    </p>
+                  </div>
                   {easterEgg ? (
                     <div className="detail-favorite-note glass">
                       <p className="eyebrow">{easterEgg.kicker}</p>
@@ -2495,6 +2667,34 @@ export default async function MediaDetailPage({
                   </div>
                 </aside>
               </div>
+            </div>
+          </section>
+
+          <section className="info-grid detail-summary-grid">
+            <div className="info-panel glass detail-vibe-panel">
+              <p className="eyebrow">Vibe summary</p>
+              <h2 className="headline">The fast no-BS read</h2>
+              <div className="detail-vibe-list">
+                {vibeSummary.map((item) => (
+                  <div key={item.label} className="detail-vibe-row">
+                    <span className="detail-vibe-label">{item.label}</span>
+                    <p className="copy detail-vibe-value">{item.value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="info-panel glass">
+              <p className="eyebrow">What this feels like</p>
+              <h2 className="headline">The vibe in plain English</h2>
+              <div className="detail-feel-tags">
+                {feelingTags.map((tag) => (
+                  <span key={tag} className="detail-feel-tag">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+              <p className="copy detail-feel-copy">{relatedTasteLine}</p>
             </div>
           </section>
 
@@ -2555,13 +2755,40 @@ export default async function MediaDetailPage({
             </div>
           </section>
 
+          {characterHighlights.length ? (
+            <section className="section-stack detail-character-section" style={{ paddingTop: 0 }}>
+              <div className="section-header">
+                <div>
+                  <p className="eyebrow">{media.type === "game" ? "Key creatives" : "Character highlights"}</p>
+                  <h2 className="headline">
+                    {media.type === "game" ? "The names behind the feel" : "The names and faces worth knowing"}
+                  </h2>
+                  <p className="copy" style={{ maxWidth: 760, marginTop: 10 }}>
+                    {media.type === "game"
+                      ? "A spoiler-free read on the people and studios most tied to how this one plays."
+                      : "A spoiler-free glance at the characters, cast, and creators most likely to shape the experience."}
+                  </p>
+                </div>
+              </div>
+              <div className="detail-character-scroll">
+                {characterHighlights.map((highlight) => (
+                  <article key={`${highlight.name}-${highlight.role}`} className="glass detail-character-card">
+                    <p className="eyebrow">{highlight.role}</p>
+                    <h3 className="headline detail-character-name">{highlight.name}</h3>
+                    <p className="copy detail-character-copy">{highlight.summary}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
           <section className="section-stack detail-world-stage" style={{ paddingTop: 0 }}>
             <div className="section-header">
               <div>
-                <p className="eyebrow">Visuals</p>
-                <h2 className="headline">Real stills and quick facts</h2>
+                <p className="eyebrow">Smart visual gallery</p>
+                <h2 className="headline">The world, tone, and texture at a glance</h2>
                 <p className="copy" style={{ maxWidth: 700, marginTop: 10 }}>
-                  This section now sticks to actual images we have for the title instead of dressing weak data up as something it is not.
+                  High-signal stills only: real backdrops, real scene shots, and a cleaner spread that helps you decide quickly instead of repeating the same frame.
                 </p>
               </div>
             </div>
@@ -2599,8 +2826,8 @@ export default async function MediaDetailPage({
           <section className="section-stack detail-deep-dive" style={{ paddingTop: 0 }}>
             <div className="section-header">
               <div>
-                <p className="eyebrow">Read the room</p>
-                <h2 className="headline">The parts that make this one stick</h2>
+                <p className="eyebrow">Decision guide</p>
+                <h2 className="headline">The parts that make this one click fast</h2>
               </div>
             </div>
             <div className="detail-dive-grid">
@@ -2613,34 +2840,6 @@ export default async function MediaDetailPage({
               ))}
             </div>
           </section>
-
-          {spotlightCredits.length ? (
-            <section className="section-stack" style={{ paddingTop: 0 }}>
-              <div className="section-header">
-                <div>
-                  <p className="eyebrow">Spotlight</p>
-                  <h2 className="headline">
-                    {media.type === "game" ? "Studios and key people" : "Cast, voices, and creators"}
-                  </h2>
-                </div>
-              </div>
-              <div className="detail-spotlight-grid">
-                {spotlightCredits.map((credit) => (
-                  <article key={`${credit.name}-${credit.role}`} className="glass detail-spotlight-card">
-                    <p className="eyebrow">{credit.role}</p>
-                    <h3 className="headline detail-spotlight-title">{credit.name}</h3>
-                    <p className="copy">
-                      {credit.character
-                        ? `Known here for ${credit.character}.`
-                        : media.type === "game"
-                          ? "A key name connected to how this game was made."
-                          : "One of the names shaping the feel of this title."}
-                    </p>
-                  </article>
-                ))}
-              </div>
-            </section>
-          ) : null}
 
           <ExpandableRelatedSection 
             related={filteredRelated}

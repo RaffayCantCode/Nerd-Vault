@@ -1070,3 +1070,110 @@
     pointer-events: auto;
   }
 }
+
+/* Hard books/reader sidebar fix: dedicated classes so old rules do not fight */
+@media (min-width: 981px) {
+  .books-sidebar-shell-fixed {
+    position: relative !important;
+    align-self: start !important;
+    width: 232px !important;
+    min-width: 232px !important;
+    height: 1px !important;
+    min-height: 1px !important;
+    z-index: 180 !important;
+  }
+
+  .books-sidebar-mobile-toggle-fixed,
+  .books-sidebar-mobile-backdrop-fixed {
+    display: none !important;
+  }
+
+  .books-sidebar-panel {
+    position: fixed !important;
+    top: 12px !important;
+    bottom: 12px !important;
+    left: 12px !important;
+    width: 208px !important;
+    min-width: 208px !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: calc(100svh - 24px) !important;
+    border-radius: 28px !important;
+    border: 1px solid var(--books-line) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    box-shadow: var(--books-shadow) !important;
+    z-index: 181 !important;
+  }
+
+  .books-shell,
+  .books-reader-shell {
+    grid-template-columns: 232px minmax(0, 1fr) !important;
+    align-items: start !important;
+  }
+}
+
+@media (max-width: 980px) {
+  .books-sidebar-shell-fixed {
+    position: fixed !important;
+    inset: 0 auto 0 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    z-index: 190 !important;
+    pointer-events: none !important;
+  }
+
+  .books-sidebar-mobile-toggle-fixed {
+    position: fixed !important;
+    top: var(--books-sidebar-toggle-y, 50vh) !important;
+    left: 8px !important;
+    bottom: auto !important;
+    z-index: 191 !important;
+    width: 46px !important;
+    height: 86px !important;
+    display: grid !important;
+    place-items: center !important;
+    transform: translateY(-50%) !important;
+    border-radius: 0 20px 20px 0 !important;
+    pointer-events: auto !important;
+  }
+
+  .books-sidebar-shell-fixed.is-mobile-open .books-sidebar-mobile-toggle-fixed {
+    left: min(82vw, 300px) !important;
+    transform: translate(-14px, -50%) !important;
+  }
+
+  .books-sidebar-mobile-backdrop-fixed {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 189 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: opacity 220ms ease !important;
+  }
+
+  .books-sidebar-shell-fixed.is-mobile-open .books-sidebar-mobile-backdrop-fixed {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  .books-sidebar-panel {
+    position: fixed !important;
+    inset: 12px auto 12px 12px !important;
+    width: min(82vw, 300px) !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: calc(100svh - 24px) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    transform: translateX(-112%) !important;
+    transition: transform 260ms ease, opacity 220ms ease !important;
+    z-index: 190 !important;
+  }
+
+  .books-sidebar-shell-fixed.is-mobile-open .books-sidebar-panel {
+    transform: translateX(0) !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+}

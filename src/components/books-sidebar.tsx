@@ -133,11 +133,11 @@ export function BooksSidebar({
   }, []);
 
   return (
-    <div className={`books-sidebar-shell ${isMobileOpen ? "is-mobile-open" : ""}`}>
+    <div className={`books-sidebar-shell books-sidebar-shell-fixed ${isMobileOpen ? "is-mobile-open" : ""}`}>
       <button
         ref={toggleRef}
         type="button"
-        className="books-sidebar-mobile-toggle"
+        className="books-sidebar-mobile-toggle books-sidebar-mobile-toggle-fixed"
         aria-label={isMobileOpen ? "Close books sidebar" : "Open books sidebar"}
         aria-expanded={isMobileOpen}
         onClick={() => setIsMobileOpen((current) => !current)}
@@ -145,9 +145,9 @@ export function BooksSidebar({
       >
         <span className="books-sidebar-mobile-arrow">{isMobileOpen ? "<" : ">"}</span>
       </button>
-      <div className="books-sidebar-mobile-backdrop" aria-hidden={!isMobileOpen} onClick={() => setIsMobileOpen(false)} />
+      <div className="books-sidebar-mobile-backdrop books-sidebar-mobile-backdrop-fixed" aria-hidden={!isMobileOpen} onClick={() => setIsMobileOpen(false)} />
 
-      <aside className="books-sidebar books-sidebar-rich">
+      <aside className="books-sidebar books-sidebar-rich books-sidebar-panel">
         <Link href="/books" className="books-brand" aria-label="Open books library">
           <span className="books-brand-mark">NV</span>
         </Link>

@@ -18,7 +18,7 @@ export function CatalogCard({
   item,
   priority = false,
   onBeforeNavigate,
-  showUserRatingBelow = false,
+  showUserRatingBelow = true,
 }: {
   item: MediaItem;
   priority?: boolean;
@@ -169,25 +169,26 @@ export function CatalogCard({
       onMouseEnter={warmRoute}
       onFocus={warmRoute}
     >
-      <ResilientMediaImage
-        item={item}
-        loading={priority ? "eager" : "lazy"}
-        fetchPriority={priority ? "high" : "auto"}
-        decoding="async"
-        onLoadStateChange={setIsImageLoaded}
-      />
-      <div className="catalog-sheen" />
-      {isNavigating ? (
-        <div className="catalog-card-loader" aria-hidden="true">
-          <NVLoader compact label="Opening..." />
-        </div>
-      ) : null}
+      <div className="catalog-card-media">
+        <ResilientMediaImage
+          item={item}
+          loading={priority ? "eager" : "lazy"}
+          fetchPriority={priority ? "high" : "auto"}
+          decoding="async"
+          onLoadStateChange={setIsImageLoaded}
+        />
+        <div className="catalog-sheen" />
+        {isNavigating ? (
+          <div className="catalog-card-loader" aria-hidden="true">
+            <NVLoader compact label="Opening..." />
+          </div>
+        ) : null}
+      </div>
       <div className="catalog-copy">
         <div className="meta-row">
           <span className="pill">{item.type}</span>
           <span className="pill">{item.year}</span>
           <span className="pill rating">{item.rating.toFixed(1)}</span>
-          {item.userRating && !showUserRatingBelow ? <span className="pill rating user-rating-pill">{renderUserStars(item.userRating)}</span> : null}
         </div>
         <h3 className="catalog-title">{item.title}</h3>
         {item.userRating && showUserRatingBelow ? (

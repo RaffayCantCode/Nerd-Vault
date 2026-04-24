@@ -9,7 +9,7 @@ import { NVLoader } from "@/components/nv-loader";
 import { filterCatalog, itemGenreLabels, itemMatchesGenre } from "@/lib/catalog-utils";
 import { clearBrowseReturnContext, readBrowseReturnContext } from "@/lib/detail-return";
 import { optimizeMediaImageUrl } from "@/lib/media-image";
-import { inclusiveSearchRank, validateSearchResults, dedupeMediaKey } from "@/lib/search-utils";
+import { dedupeMediaKey, rankCandidatesForQuery } from "@/lib/search-utils";
 import { MediaItem, MediaType } from "@/lib/types";
 import { addMediaToWishlist, fetchLibraryState, removeMediaFromWishlist, subscribeVaultChanges } from "@/lib/vault-client";
 
@@ -22,9 +22,9 @@ type CachedPage = {
 
 const BROWSE_SCROLL_KEY = "nerdvault-browse-scroll";
 const BROWSE_STATE_KEY = "nerdvault-browse-state";
-const BROWSE_PAGE_CACHE_KEY = "nerdvault-browse-page-cache-v1";
+const BROWSE_PAGE_CACHE_KEY = "nerdvault-browse-page-cache-v3";
 const BROWSE_LAST_URL_KEY = "nerdvault-browse-last-url";
-const BROWSE_BOOTSTRAP_CACHE_KEY = "nerdvault-browse-bootstrap-v1";
+const BROWSE_BOOTSTRAP_CACHE_KEY = "nerdvault-browse-bootstrap-v3";
 const BROWSE_SEED_KEY = "nerdvault-browse-seed-v1";
 const BROWSE_FORCE_REFRESH_KEY = "nerdvault-browse-force-refresh-v1";
 const BROWSE_CACHE_TTL_MS = 1000 * 60 * 10;
@@ -729,16 +729,15 @@ export function BrowseWorkspace({
       return typedVisible;
     }
 
-    // Better deduplication: prioritize remote catalog, then bootstrap, then initial catalog
-    const allItems = [...remoteCatalog, ...bootstrapCatalog, ...catalog];
-    
-    const filteredItems = allItems.filter((item) => {
-      return matchesBrowseFilterType(item, filter) && inclusiveSearchRank(item, deferredQuery) >= 10;
+    const mergedItems = dedupeMediaKey([...remoteCatalog, ...bootstrapCatalog, ...catalog]).filter((item) => {
+      return matchesBrowseFilterType(item, filter) && itemMatchesGenre(item, genre);
     });
 
-    // Apply enhanced deduplication and media validation
-    return validateSearchResults(dedupeMediaKey(filteredItems));
-  }, [bootstrapCatalog, catalog, deferredQuery, filter, hasActiveSearch, remoteCatalog, typedVisible]);
+    return rankCandidatesForQuery(mergedItems, deferredQuery, {
+      limit: Math.max(pageSize * 3, 144),
+      minRank: 6,
+    });
+  }, [bootstrapCatalog, catalog, deferredQuery, filter, genre, hasActiveSearch, pageSize, remoteCatalog, typedVisible]);
 
   const knownGenreCatalog = useMemo(() => {
     const seen = new Set<string>();
@@ -776,14 +775,7 @@ export function BrowseWorkspace({
     }
   }, [availableGenres, genre]);
 
-  const visibleSource =
-    hasActiveSearch && supportsRemotePaging
-      ? remoteCatalog.length
-        ? typedVisible
-        : immediateLocalMatches
-      : hasActiveSearch
-        ? immediateLocalMatches
-        : typedVisible;
+  const visibleSource = hasActiveSearch ? immediateLocalMatches : typedVisible;
   const visible = useMemo(
     () => dedupeMediaKey(visibleSource.filter((item) => itemMatchesGenre(item, genre))),
     [genre, visibleSource],
@@ -793,15 +785,8 @@ export function BrowseWorkspace({
       return visible;
     }
 
-    const merged = [...remoteCatalog, ...bootstrapCatalog, ...catalog];
-
-    const filteredItems = merged.filter((item) => {
-      return matchesBrowseFilterType(item, filter) && inclusiveSearchRank(item, deferredQuery) >= 10 && itemMatchesGenre(item, genre);
-    });
-
-    // Apply enhanced deduplication and media validation
-    return validateSearchResults(dedupeMediaKey(filteredItems));
-  }, [bootstrapCatalog, catalog, deferredQuery, filter, genre, hasActiveSearch, remoteCatalog, visible]);
+    return immediateLocalMatches;
+  }, [hasActiveSearch, immediateLocalMatches, visible]);
 
   const bootstrapHeroBaseCatalog = useMemo(() => {
     const typeScoped = filterCatalog(bootstrapCatalog, filter, "");
@@ -854,11 +839,7 @@ export function BrowseWorkspace({
     const normalizedQuery = deferredQuery.trim();
 
     if (normalizedQuery) {
-      return items.sort((left, right) => {
-        const scoreGap = inclusiveSearchRank(right, normalizedQuery) - inclusiveSearchRank(left, normalizedQuery);
-        if (scoreGap !== 0) return scoreGap;
-        return right.rating - left.rating || right.year - left.year;
-      });
+      return items;
     }
 
     let sortedItems: MediaItem[];

@@ -108,11 +108,11 @@ export function SidebarShell({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div className={`sidebar-shell ${isMobileOpen ? "is-mobile-open" : ""}`}>
+    <div className={`sidebar-shell nv-sidebar-shell ${isMobileOpen ? "is-mobile-open nv-sidebar-mobile-open" : ""}`}>
       <button
         ref={toggleRef}
         type="button"
-        className="sidebar-mobile-toggle glass"
+        className="sidebar-mobile-toggle nv-sidebar-mobile-toggle glass"
         aria-label={isMobileOpen ? "Close sidebar" : "Open sidebar"}
         aria-expanded={isMobileOpen}
         onClick={() => setIsMobileOpen((current) => !current)}
@@ -120,7 +120,7 @@ export function SidebarShell({ children }: { children: ReactNode }) {
       >
         <span className="sidebar-mobile-toggle-arrow">{isMobileOpen ? "<" : ">"}</span>
       </button>
-      <div className="sidebar-mobile-backdrop" aria-hidden={!isMobileOpen} onClick={() => setIsMobileOpen(false)} />
+      <div className="sidebar-mobile-backdrop nv-sidebar-mobile-backdrop" aria-hidden={!isMobileOpen} onClick={() => setIsMobileOpen(false)} />
       {children}
     </div>
   );
