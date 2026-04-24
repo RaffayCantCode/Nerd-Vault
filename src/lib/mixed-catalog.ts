@@ -63,6 +63,10 @@ function interleaveBuckets(...buckets: MediaItem[][]) {
   return mixed;
 }
 
+function flattenBuckets(buckets: MediaItem[][]) {
+  return buckets.flatMap((bucket) => bucket);
+}
+
 function hashString(input: string) {
   return input.split("").reduce((total, char) => total + char.charCodeAt(0), 0);
 }
@@ -135,6 +139,52 @@ function rotateBuckets<T>(items: T[], offset: number) {
   const normalizedOffset = ((offset % items.length) + items.length) % items.length;
   if (normalizedOffset === 0) return items;
   return [...items.slice(normalizedOffset), ...items.slice(0, normalizedOffset)];
+}
+
+function buildBalancedPageFromBuckets(
+  buckets: Record<"movie" | "show" | "anime" | "game", MediaItem[]>,
+  page: number,
+  pageSize: number,
+) {
+  const types: Array<"movie" | "show" | "anime" | "game"> = ["movie", "show", "anime", "game"];
+  const perTypeTarget = Math.max(1, Math.floor(pageSize / types.length));
+  const remainderTarget = Math.max(0, pageSize - perTypeTarget * types.length);
+  const startIndex = Math.max(0, (page - 1) * perTypeTarget);
+
+  const selectedByType = types.map((type) => buckets[type].slice(startIndex, startIndex + perTypeTarget));
+  const underfilled = selectedByType.some((bucket) => bucket.length < perTypeTarget);
+  const selectedKeys = new Set(
+    flattenBuckets(selectedByType).map((item) => `${item.source}-${item.sourceId}`),
+  );
+  const overflow = interleaveBuckets(
+    ...types.map((type) => buckets[type].filter((item) => !selectedKeys.has(`${item.source}-${item.sourceId}`))),
+  );
+  const filledTypes = selectedByType.map((bucket) => [...bucket]);
+
+  if (underfilled) {
+    for (const bucket of filledTypes) {
+      while (bucket.length < perTypeTarget && overflow.length) {
+        bucket.push(overflow.shift() as MediaItem);
+      }
+    }
+  }
+
+  const interleaved = interleaveBuckets(...filledTypes);
+  if (remainderTarget <= 0) {
+    return interleaved.slice(0, pageSize);
+  }
+
+  return [...interleaved, ...overflow.slice(0, remainderTarget)].slice(0, pageSize);
+}
+
+function estimateBalancedTotalPages(
+  buckets: Record<"movie" | "show" | "anime" | "game", MediaItem[]>,
+  pageSize: number,
+) {
+  const perTypeTarget = Math.max(1, Math.floor(pageSize / 4));
+  const typeCounts = [buckets.movie.length, buckets.show.length, buckets.anime.length, buckets.game.length];
+  const guaranteedPages = Math.max(1, Math.floor(Math.min(...typeCounts) / perTypeTarget));
+  return guaranteedPages;
 }
 
 function buildDiscoverySlice(items: MediaItem[], seed: number, targetSize: number) {
@@ -411,8 +461,6 @@ export async function browseMixedCatalog({
         safePageSize,
       );
 
-  const finalItems = rankedMixed.slice(0, safePageSize);
-
   const maxSourcePages = pageResults.reduce((currentMax: number, entry: any) => {
     return Math.max(
       currentMax,
@@ -423,12 +471,55 @@ export async function browseMixedCatalog({
     );
   }, 1);
 
-  // Apply media validation to filter out placeholder media
+  const finalItems = safeQuery
+    ? rankedMixed.slice(0, safePageSize)
+    : (() => {
+        const allBuckets = {
+          movie: dedupeBySource(
+            rotateBuckets(
+              shuffleBySeed(filteredMixed.filter((item) => item.type === "movie"), seed + 101),
+              seed + 11,
+            ),
+          ),
+          show: dedupeBySource(
+            rotateBuckets(
+              shuffleBySeed(filteredMixed.filter((item) => item.type === "show"), seed + 202),
+              seed + 17,
+            ),
+          ),
+          anime: dedupeBySource(
+            rotateBuckets(
+              shuffleBySeed(filteredMixed.filter((item) => item.type === "anime"), seed + 303),
+              seed + 23,
+            ),
+          ),
+          game: dedupeBySource(
+            rotateBuckets(
+              shuffleBySeed(filteredMixed.filter((item) => item.type === "game"), seed + 404),
+              seed + 29,
+            ),
+          ),
+        };
+
+        return buildBalancedPageFromBuckets(allBuckets, page, safePageSize);
+      })();
+
   const validatedItems = validateSearchResults(finalItems);
+  const totalPages = safeQuery
+    ? 1
+    : estimateBalancedTotalPages(
+        {
+          movie: dedupeBySource(filteredMixed.filter((item) => item.type === "movie")),
+          show: dedupeBySource(filteredMixed.filter((item) => item.type === "show")),
+          anime: dedupeBySource(filteredMixed.filter((item) => item.type === "anime")),
+          game: dedupeBySource(filteredMixed.filter((item) => item.type === "game")),
+        },
+        safePageSize,
+      );
 
   const payload = {
     page: isSearch ? 1 : page,
-    totalPages: isSearch ? 1 : Math.max(1, maxSourcePages),
+    totalPages: isSearch ? 1 : Math.max(1, Math.min(maxSourcePages, totalPages)),
     totalResults: validatedItems.length,
     items: validatedItems.slice(0, safePageSize),
   };

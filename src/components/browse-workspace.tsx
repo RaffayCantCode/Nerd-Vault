@@ -7,6 +7,7 @@ import { CatalogCard } from "@/components/catalog-card";
 import { FilterChipBar } from "@/components/filter-chip-bar";
 import { NVLoader } from "@/components/nv-loader";
 import { filterCatalog, itemGenreLabels, itemMatchesGenre } from "@/lib/catalog-utils";
+import { clearBrowseReturnContext, readBrowseReturnContext } from "@/lib/detail-return";
 import { optimizeMediaImageUrl } from "@/lib/media-image";
 import { inclusiveSearchRank, validateSearchResults, dedupeMediaKey } from "@/lib/search-utils";
 import { MediaItem, MediaType } from "@/lib/types";
@@ -268,6 +269,7 @@ export function BrowseWorkspace({
                   genre?: string;
                   sort?: SortMode;
                   page?: number;
+                  heroIndex?: number;
                 }
               | null;
           } catch {
@@ -345,7 +347,9 @@ export function BrowseWorkspace({
   const [pageSize, setPageSize] = useState(
     typeof window === "undefined" ? 24 : getBrowsePageSize(window.innerWidth),
   );
-  const [heroIndex, setHeroIndex] = useState(0);
+  const [heroIndex, setHeroIndex] = useState(
+    shouldResetForReload ? 0 : Math.max(0, Number(initialState?.heroIndex ?? 0)),
+  );
   const [wishlistedKeys, setWishlistedKeys] = useState<string[]>([]);
   const prefetchedPagesRef = useRef<Record<string, CachedPage>>(
     typeof window !== "undefined" ? readBrowsePageCache() : {},
@@ -369,6 +373,7 @@ export function BrowseWorkspace({
   const didInitBrowseStateRef = useRef(false);
   const didSyncUrlStateRef = useRef(false);
   const previousQueryRef = useRef(queryFromUrl.trim());
+  const pendingReturnContextRef = useRef<ReturnType<typeof readBrowseReturnContext>>(null);
   const hasActiveSearch = Boolean(deferredQuery.trim());
 
   useEffect(() => {
@@ -544,6 +549,7 @@ export function BrowseWorkspace({
         genre,
         sort,
         page: activePage,
+        heroIndex,
       }),
     );
     window.sessionStorage.setItem(BROWSE_LAST_URL_KEY, nextUrl);
@@ -551,7 +557,7 @@ export function BrowseWorkspace({
     if (`${window.location.pathname}${window.location.search}` !== nextUrl) {
       window.history.replaceState(null, "", nextUrl);
     }
-  }, [activePage, filter, genre, urlUpdateQuery, sort]);
+  }, [activePage, filter, genre, heroIndex, urlUpdateQuery, sort]);
 
   // Debounced URL updates to prevent typing glitches
   useEffect(() => {
@@ -595,7 +601,7 @@ export function BrowseWorkspace({
       window.sessionStorage.setItem(BROWSE_SEED_KEY, String(seedFromUrl));
     }
     setPage(Number.isFinite(pageFromUrl) && pageFromUrl > 0 ? pageFromUrl : 1);
-    setHeroIndex(0);
+    setHeroIndex(Math.max(0, Number(initialState?.heroIndex ?? 0)));
   }, [genreFromUrl, mediaTypeFromUrl, pageFromUrl, queryFromUrl, seedFromUrl, shouldResetForReload, sortFromUrl]);
 
   useEffect(() => {
@@ -881,7 +887,7 @@ export function BrowseWorkspace({
 
   const featuredDeck = useMemo(() => {
     const source = heroBaseCatalog;
-    const deckSeed = sessionSeedRef.current + hashString(`${filter}-${genre}-${sort}-${activePage}`);
+    const deckSeed = sessionSeedRef.current + hashString(`${filter}-${genre}-${sort}`);
     const deck = buildSurfacingDeck(source, deckSeed, filter);
 
     if (filter !== "all" || deck.length === 4) {
@@ -908,7 +914,7 @@ export function BrowseWorkspace({
       seen.add(key);
       return true;
     }).slice(0, 4);
-  }, [activePage, bootstrapCatalog, filter, genre, heroBaseCatalog, knownGenreCatalog, sort]);
+  }, [bootstrapCatalog, filter, genre, heroBaseCatalog, knownGenreCatalog, sort]);
 
   useEffect(() => {
     if (!shouldScrollToToolbarRef.current || isLoading) {
@@ -936,11 +942,53 @@ export function BrowseWorkspace({
 
   useEffect(() => {
     setHeroIndex(0);
-  }, [activePage, filter, genre, sort]);
+  }, [filter, genre, sort]);
+
+  useEffect(() => {
+    if (!featuredDeck.length) {
+      return;
+    }
+
+    setHeroIndex((current) => (current >= featuredDeck.length ? 0 : current));
+  }, [featuredDeck.length]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    pendingReturnContextRef.current = readBrowseReturnContext();
+  }, []);
 
   useEffect(() => {
     if (didRestoreScrollRef.current || isLoading) {
       return;
+    }
+
+    const currentHref = `${window.location.pathname}${window.location.search}`;
+    const pendingReturnContext = pendingReturnContextRef.current;
+    if (pendingReturnContext && pendingReturnContext.href === currentHref) {
+      const selector = pendingReturnContext.cardId ? `[data-browse-card-id="${pendingReturnContext.cardId}"]` : "";
+      const targetCard = selector ? document.querySelector<HTMLElement>(selector) : null;
+
+      if (targetCard) {
+        const desiredTop =
+          typeof pendingReturnContext.cardTop === "number"
+            ? pendingReturnContext.cardTop
+            : Math.max(92, window.innerWidth < 900 ? 108 : 132);
+        const nextTop = Math.max(0, window.scrollY + targetCard.getBoundingClientRect().top - desiredTop);
+        const fallbackTop = Number.isFinite(pendingReturnContext.scrollY) ? pendingReturnContext.scrollY : nextTop;
+
+        const timer = setTimeout(() => {
+          window.scrollTo({ top: Math.max(0, Math.min(nextTop, fallbackTop + 8)), behavior: "auto" });
+          clearBrowseReturnContext();
+          pendingReturnContextRef.current = null;
+          window.sessionStorage.removeItem(BROWSE_SCROLL_KEY);
+          didRestoreScrollRef.current = true;
+        }, 60);
+
+        return () => clearTimeout(timer);
+      }
     }
 
     const stored = window.sessionStorage.getItem(BROWSE_SCROLL_KEY);
@@ -954,6 +1002,8 @@ export function BrowseWorkspace({
       const timer = setTimeout(() => {
         window.scrollTo({ top: nextScroll, behavior: "auto" });
         window.sessionStorage.removeItem(BROWSE_SCROLL_KEY);
+        clearBrowseReturnContext();
+        pendingReturnContextRef.current = null;
         didRestoreScrollRef.current = true;
       }, 50);
       
@@ -1013,6 +1063,13 @@ export function BrowseWorkspace({
     window.sessionStorage.setItem(BROWSE_FORCE_REFRESH_KEY, refreshMarker);
     window.location.reload();
   }, [activePage, filter, genre, hasActiveSearch, isLoading, page, sort, sortedVisible.length]);
+
+  useEffect(() => {
+    featuredDeck.forEach((item) => {
+      preloadImage(optimizeMediaImageUrl(item.coverUrl, "cover") ?? item.coverUrl);
+      preloadImage(optimizeMediaImageUrl(item.backdropUrl, "backdrop") ?? item.backdropUrl);
+    });
+  }, [featuredDeck]);
 
   useEffect(() => {
     // Preload current page images first (priority)

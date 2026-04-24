@@ -5184,6 +5184,9 @@ body {
 }
 
 .brand-logo-image {
+  width: 100%;
+  height: 100%;
+  display: block;
   object-fit: cover;
   object-position: center;
 }
@@ -6936,10 +6939,11 @@ html {
 .catalog-card {
   transform: none !important;
   overflow: hidden;
-}
-
-.catalog-card:hover {
-  transform: translateY(-2px) !important;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    filter 180ms ease !important;
 }
 
 .catalog-card::before {
@@ -11487,9 +11491,14 @@ body {
 }
 
 .detail-side-poster-media img {
-  width: min(100%, 224px) !important;
-  max-height: 340px !important;
+  width: min(100%, 284px) !important;
+  height: min(68vh, 430px) !important;
+  max-height: 430px !important;
   border-radius: 22px !important;
+  object-fit: contain !important;
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.08), transparent 48%),
+    linear-gradient(180deg, rgba(8, 11, 17, 0.72), rgba(8, 11, 17, 0.18)) !important;
 }
 
 .folder-row,
@@ -11792,10 +11801,12 @@ body {
 .catalog-sheen {
   background: linear-gradient(140deg, rgba(255, 255, 255, 0.06), transparent 20%, transparent 68%, rgba(57, 184, 255, 0.06)) !important;
   opacity: 0.18 !important;
+  transition: opacity 180ms ease !important;
 }
 
 .catalog-copy {
   gap: 0.42rem !important;
+  transition: transform 180ms ease !important;
 }
 
 .catalog-title {
@@ -11803,6 +11814,7 @@ body {
   text-shadow:
     0 2px 12px rgba(2, 6, 16, 0.82),
     0 1px 2px rgba(2, 6, 16, 0.9) !important;
+  transition: filter 180ms ease !important;
 }
 
 .meta-row .pill,
@@ -11846,6 +11858,75 @@ body {
 .catalog-card,
 .catalog-grid .catalog-card {
   animation: none !important;
+}
+
+.user-rating-pill {
+  font-size: 0.84rem !important;
+  letter-spacing: 0.08em;
+  color: #ffe48b !important;
+  border-color: rgba(255, 221, 115, 0.32) !important;
+  background:
+    linear-gradient(180deg, rgba(31, 23, 6, 0.92), rgba(31, 23, 6, 0.72)),
+    linear-gradient(135deg, rgba(255, 210, 79, 0.24), rgba(255, 156, 67, 0.14)) !important;
+  box-shadow:
+    0 10px 22px rgba(0, 0, 0, 0.28),
+    0 0 0 1px rgba(255, 221, 115, 0.06) inset !important;
+}
+
+.user-rating-pill::before {
+  content: "Your rating";
+  display: block;
+  margin-bottom: 0.16rem;
+  font-size: 0.52rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 238, 191, 0.76);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .catalog-card:hover,
+  .catalog-card:focus-visible {
+    transform: translateY(-4px) scale(1.012) !important;
+    border-color: rgba(106, 202, 255, 0.34) !important;
+    box-shadow:
+      0 26px 46px rgba(2, 6, 16, 0.42),
+      0 0 0 1px rgba(115, 132, 255, 0.08) inset !important;
+  }
+
+  .catalog-card:hover::before,
+  .catalog-card:focus-visible::before {
+    opacity: 0.24;
+    background-position: 76% 0, 0 0;
+  }
+
+  .catalog-card:hover::after,
+  .catalog-card:focus-visible::after {
+    background:
+      linear-gradient(180deg, rgba(4, 7, 12, 0.02) 0%, rgba(4, 7, 12, 0.16) 32%, rgba(4, 7, 12, 0.82) 76%, rgba(4, 7, 12, 0.96) 100%),
+      linear-gradient(90deg, rgba(4, 7, 12, 0.08), transparent 24%, transparent 76%, rgba(4, 7, 12, 0.12)),
+      linear-gradient(0deg, rgba(57, 184, 255, 0.16), transparent 34%) !important;
+  }
+
+  .catalog-card:hover img,
+  .catalog-card:focus-visible img {
+    transform: scale(1.045) !important;
+    filter: saturate(1.06) contrast(1.03) brightness(1.02) !important;
+  }
+
+  .catalog-card:hover .catalog-sheen,
+  .catalog-card:focus-visible .catalog-sheen {
+    opacity: 0.32 !important;
+  }
+
+  .catalog-card:hover .catalog-copy,
+  .catalog-card:focus-visible .catalog-copy {
+    transform: translateY(-2px);
+  }
+
+  .catalog-card:hover .catalog-title,
+  .catalog-card:focus-visible .catalog-title {
+    filter: brightness(1.08);
+  }
 }
 
 .review-stars-block {
@@ -11903,6 +11984,95 @@ body {
   .review-star {
     width: 2.65rem;
     height: 2.65rem;
+  }
+}
+
+/* Final sidebar behavior pass: keep sidebars attached to the viewport */
+@media (min-width: 901px) {
+  .sidebar-shell {
+    position: relative !important;
+    align-self: start !important;
+    width: clamp(82px, 8vw, 96px) !important;
+    height: 1px !important;
+    min-height: 1px !important;
+    overflow: visible !important;
+    z-index: 140 !important;
+  }
+
+  .sidebar.sidebar-rail {
+    position: fixed !important;
+    top: 12px !important;
+    bottom: 12px !important;
+    left: 12px !important;
+    width: clamp(82px, 8vw, 96px) !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: calc(100svh - 24px) !important;
+    border-radius: 28px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+
+  .sidebar.sidebar-rail:hover,
+  .sidebar.sidebar-rail:focus-within {
+    width: 232px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .sidebar-shell {
+    position: fixed !important;
+    inset: 0 auto 0 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    z-index: 170 !important;
+    pointer-events: none !important;
+  }
+
+  .sidebar-mobile-toggle {
+    position: fixed !important;
+    top: var(--sidebar-toggle-y, 50vh) !important;
+    bottom: auto !important;
+    left: 10px !important;
+    z-index: 171 !important;
+    width: 46px !important;
+    height: 84px !important;
+    border-radius: 0 20px 20px 0 !important;
+    transform: translateY(-50%) !important;
+    pointer-events: auto !important;
+  }
+
+  .sidebar-shell.is-mobile-open .sidebar-mobile-toggle {
+    left: min(84vw, 320px) !important;
+    transform: translate(-14px, -50%) !important;
+  }
+
+  .sidebar-mobile-toggle-arrow {
+    font-size: 1.2rem !important;
+  }
+
+  .sidebar-mobile-backdrop {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 165 !important;
+  }
+
+  .sidebar.sidebar-rail {
+    position: fixed !important;
+    inset: 12px auto 12px 12px !important;
+    width: min(84vw, 320px) !important;
+    max-height: calc(100svh - 24px) !important;
+    min-height: auto !important;
+    height: auto !important;
+    z-index: 170 !important;
+    border-radius: 28px !important;
+    overflow-y: auto !important;
+    transform: translateX(-112%) !important;
+    transition: transform 260ms ease, opacity 220ms ease !important;
+  }
+
+  .sidebar-shell.is-mobile-open .sidebar.sidebar-rail {
+    transform: translateX(0) !important;
   }
 }
 

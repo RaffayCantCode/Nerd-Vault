@@ -25,11 +25,6 @@ export function DetailBackButton({ className }: { className?: string }) {
       type="button"
       className={`button button-secondary detail-back-button ${className ?? ""}`.trim()}
       onClick={() => {
-        if (typeof window !== "undefined" && returnTarget && window.history.length > 1) {
-          router.back();
-          return;
-        }
-
         router.push(targetHref);
       }}
     >

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NVLoader } from "@/components/nv-loader";
-import { writeDetailReturnTarget } from "@/lib/detail-return";
+import { writeBrowseReturnContext, writeDetailReturnTarget } from "@/lib/detail-return";
 import { optimizeMediaImageUrl } from "@/lib/media-image";
 import { ResilientMediaImage } from "@/components/resilient-media-image";
 import { MediaItem } from "@/lib/types";
@@ -31,6 +31,7 @@ export function CatalogCard({
   const [isNavigating, setIsNavigating] = useState(false);
   const [isVisible, setIsVisible] = useState(priority);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const browseCardId = useMemo(() => `browse-card-${item.source}-${item.sourceId}`, [item.source, item.sourceId]);
   const href = useMemo(
     () => ({
       pathname: `/media/${item.slug}`,
@@ -71,9 +72,22 @@ export function CatalogCard({
   function handleNavigate(e: React.MouseEvent) {
     e.preventDefault();
     if (isNavigating) return;
-    
+
     setIsNavigating(true);
-    writeDetailReturnTarget();
+    writeDetailReturnTarget({
+      href:
+        typeof window !== "undefined"
+          ? `${window.location.pathname}${window.location.search}#${browseCardId}`
+          : undefined,
+    });
+    if (typeof window !== "undefined") {
+      writeBrowseReturnContext({
+        href: `${window.location.pathname}${window.location.search}`,
+        scrollY: window.scrollY,
+        cardId: browseCardId,
+        cardTop: cardRef.current?.getBoundingClientRect().top ?? 0,
+      });
+    }
     onBeforeNavigate?.();
     warmRoute();
 
@@ -147,6 +161,8 @@ export function CatalogCard({
       ref={cardRef}
       href={href}
       title={`Open ${item.title}`}
+      id={browseCardId}
+      data-browse-card-id={browseCardId}
       className={`catalog-card ${isNavigating ? "is-navigating" : ""} ${isVisible ? "is-visible" : ""} ${isImageLoaded ? "has-media-loaded" : ""}`}
       prefetch={false}
       onClick={handleNavigate}
@@ -171,7 +187,7 @@ export function CatalogCard({
           <span className="pill">{item.type}</span>
           <span className="pill">{item.year}</span>
           <span className="pill rating">{item.rating.toFixed(1)}</span>
-          {item.userRating && !showUserRatingBelow ? <span className="pill rating">{renderUserStars(item.userRating)}</span> : null}
+          {item.userRating && !showUserRatingBelow ? <span className="pill rating user-rating-pill">{renderUserStars(item.userRating)}</span> : null}
         </div>
         <h3 className="catalog-title">{item.title}</h3>
         {item.userRating && showUserRatingBelow ? (
