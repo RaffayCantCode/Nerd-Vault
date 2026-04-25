@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { ActionFeedbackContainer } from "@/components/action-feedback";
 import { AuthCookieReset } from "@/components/auth-cookie-reset";
 import { PageLoadingOverlay } from "@/components/page-loading-overlay";
@@ -46,11 +47,13 @@ export function ClientRoot({
       <AuthCookieReset />
       <PerformanceOptimizer />
       <RoutePrefetcher />
-      <PageTransitionProvider>
-        <PageTransitionWrapper>
-          {children}
-        </PageTransitionWrapper>
-      </PageTransitionProvider>
+      <Suspense fallback={null}>
+        <PageTransitionProvider>
+          <PageTransitionWrapper>
+            {children}
+          </PageTransitionWrapper>
+        </PageTransitionProvider>
+      </Suspense>
       <ActionFeedbackContainer />
     </body>
   );
