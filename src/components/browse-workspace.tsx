@@ -26,7 +26,6 @@ const BROWSE_PAGE_CACHE_KEY = "nerdvault-browse-page-cache-v3";
 const BROWSE_LAST_URL_KEY = "nerdvault-browse-last-url";
 const BROWSE_BOOTSTRAP_CACHE_KEY = "nerdvault-browse-bootstrap-v3";
 const BROWSE_SEED_KEY = "nerdvault-browse-seed-v1";
-const BROWSE_FORCE_REFRESH_KEY = "nerdvault-browse-force-refresh-v1";
 const BROWSE_CACHE_TTL_MS = 1000 * 60 * 10;
 const warmedImageUrls = new Set<string>();
 
@@ -781,14 +780,26 @@ export function BrowseWorkspace({
 
   const availableGenres = useMemo(() => {
     const counts = new Map<string, number>();
+    const mediaTypesByGenre = new Map<string, Set<MediaType>>();
 
     for (const item of knownGenreCatalog) {
       for (const label of itemGenreLabels(item, filter)) {
         counts.set(label, (counts.get(label) ?? 0) + 1);
+        const typeSet = mediaTypesByGenre.get(label) ?? new Set<MediaType>();
+        typeSet.add(item.type === "anime_movie" ? "anime" : item.type);
+        mediaTypesByGenre.set(label, typeSet);
       }
     }
 
     return [...counts.entries()]
+      .filter(([label]) => {
+        if (filter !== "all") {
+          return true;
+        }
+
+        const typeSet = mediaTypesByGenre.get(label);
+        return (typeSet?.size ?? 0) >= 2;
+      })
       .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
       .map(([label]) => label)
       .slice(0, 18);
@@ -1054,21 +1065,6 @@ export function BrowseWorkspace({
     hasVisibleBrowseContent;
   const showPendingState = (isLoading && !suppressInitialPendingChrome) || isPagePending;
   const showGridSkeletons = showPendingState && !remoteCatalog.length && !hasVisibleBrowseContent;
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (isLoading || hasActiveSearch || page !== 1 || activePage !== 1 || filter === "all") return;
-    if (sortedVisible.length > 0) return;
-
-    const refreshMarker = `${filter}-${genre}-${sort}`;
-    const refreshed = window.sessionStorage.getItem(BROWSE_FORCE_REFRESH_KEY);
-    if (refreshed === refreshMarker) return;
-
-    // Last-resort self-heal: if a type lane (e.g. games) fails to render anything on
-    // first page, force one hard refresh so data/bootstrap caches reset.
-    window.sessionStorage.setItem(BROWSE_FORCE_REFRESH_KEY, refreshMarker);
-    window.location.reload();
-  }, [activePage, filter, genre, hasActiveSearch, isLoading, page, sort, sortedVisible.length]);
 
   useEffect(() => {
     featuredDeck.forEach((item) => {

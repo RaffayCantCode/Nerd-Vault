@@ -181,10 +181,14 @@ function estimateBalancedTotalPages(
   buckets: Record<"movie" | "show" | "anime" | "game", MediaItem[]>,
   pageSize: number,
 ) {
-  const perTypeTarget = Math.max(1, Math.floor(pageSize / 4));
-  const typeCounts = [buckets.movie.length, buckets.show.length, buckets.anime.length, buckets.game.length];
-  const guaranteedPages = Math.max(1, Math.floor(Math.min(...typeCounts) / perTypeTarget));
-  return guaranteedPages;
+  const uniqueItems = dedupeBySource([
+    ...buckets.movie,
+    ...buckets.show,
+    ...buckets.anime,
+    ...buckets.game,
+  ]);
+
+  return Math.max(1, Math.ceil(uniqueItems.length / Math.max(1, pageSize)));
 }
 
 function buildTypeBucket(
