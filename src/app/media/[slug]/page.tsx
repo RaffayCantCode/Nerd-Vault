@@ -2661,32 +2661,38 @@ export default async function MediaDetailPage({
                       <ResilientMediaImage item={media} loading="eager" decoding="async" fetchPriority="high" />
                     )}
                   </div>
-                  <div className="detail-side-poster-copy">
-                    <p className="eyebrow">{trailerEmbedUrl ? "Trailer" : "Field guide"}</p>
-                    <div className="detail-side-stat-grid">
-                      <div className="detail-side-stat detail-side-stat-emphasis">
-                        <span>Release date</span>
-                        <strong>{releaseValue}</strong>
-                      </div>
-                      <div className="detail-side-stat detail-side-stat-emphasis">
-                        <span>{runtimeLabel}</span>
-                        <strong>{runtimeValue}</strong>
-                      </div>
-                      <div className="detail-side-stat detail-side-stat-wide">
-                        <span>Genres</span>
-                        <strong>{genreValue}</strong>
-                      </div>
-                      <div className="detail-side-stat">
-                        <span>Status</span>
-                        <strong>{statusValue}</strong>
-                      </div>
-                      <div className="detail-side-stat">
-                        <span>{studioLabel}</span>
-                        <strong>{studioValue}</strong>
-                      </div>
-                    </div>
-                  </div>
                 </aside>
+              </div>
+            </div>
+          </section>
+
+          <section className="info-panel glass detail-facts-panel">
+            <div className="detail-facts-head">
+              <div>
+                <p className="eyebrow">Quick facts</p>
+                <h2 className="headline">The details you should catch at a glance</h2>
+              </div>
+            </div>
+            <div className="detail-side-stat-grid">
+              <div className="detail-side-stat detail-side-stat-emphasis">
+                <span>Release date</span>
+                <strong>{releaseValue}</strong>
+              </div>
+              <div className="detail-side-stat detail-side-stat-emphasis">
+                <span>{runtimeLabel}</span>
+                <strong>{runtimeValue}</strong>
+              </div>
+              <div className="detail-side-stat detail-side-stat-wide">
+                <span>Genres</span>
+                <strong>{genreValue}</strong>
+              </div>
+              <div className="detail-side-stat">
+                <span>Status</span>
+                <strong>{statusValue}</strong>
+              </div>
+              <div className="detail-side-stat">
+                <span>{studioLabel}</span>
+                <strong>{studioValue}</strong>
               </div>
             </div>
           </section>

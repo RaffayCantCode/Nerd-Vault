@@ -508,12 +508,16 @@ export async function browseMixedCatalog({
   const validatedItems = validateSearchResults(finalItems);
   const totalPages = safeQuery
     ? 1
-    : estimateBalancedTotalPages(allBuckets, safePageSize);
+    : Math.max(
+        page,
+        maxSourcePages,
+        estimateBalancedTotalPages(allBuckets, safePageSize),
+      );
 
   const payload = {
     page: isSearch ? 1 : page,
-    totalPages: isSearch ? 1 : Math.max(1, Math.min(maxSourcePages, totalPages)),
-    totalResults: validatedItems.length,
+    totalPages: isSearch ? 1 : Math.max(1, totalPages),
+    totalResults: safeQuery ? rankedMixed.length : filteredMixed.length,
     items: validatedItems.slice(0, safePageSize),
   };
 

@@ -76,6 +76,7 @@ export function CatalogCard({
     if (isNavigating) return;
 
     setIsNavigating(true);
+    onBeforeNavigate?.();
     const currentHref =
       typeof window !== "undefined"
         ? window.sessionStorage.getItem(BROWSE_LAST_URL_KEY) || `${window.location.pathname}${window.location.search}`
@@ -91,7 +92,6 @@ export function CatalogCard({
         cardTop: cardRef.current?.getBoundingClientRect().top ?? 0,
       });
     }
-    onBeforeNavigate?.();
     warmRoute();
 
     try {

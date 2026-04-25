@@ -12645,17 +12645,37 @@ body {
 
 /* Batch 1 detail fixes: browse return polish, stronger facts, centered loader, and calmer spacing */
 
+.media-loading-shell {
+  grid-template-columns: minmax(0, 1fr) !important;
+  width: min(calc(100% - 24px), 1440px) !important;
+  margin: 12px auto !important;
+  padding: 0 !important;
+}
+
 .media-loading-workspace {
   display: grid;
   place-items: center;
-  min-height: calc(100svh - 2rem);
+  min-height: calc(100svh - 24px);
+  padding: 0 !important;
 }
 
 .media-loading-route-loader {
-  width: min(100%, 720px);
-  min-height: min(62svh, 520px);
+  width: min(100%, 760px);
+  min-height: min(70svh, 620px);
   display: grid;
   place-items: center;
+}
+
+.detail-facts-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.detail-facts-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .detail-side-poster-copy {
