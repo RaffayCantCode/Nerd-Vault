@@ -166,11 +166,12 @@ export function CatalogCard({
       title={`Open ${item.title}`}
       id={browseCardId}
       data-browse-card-id={browseCardId}
-      className={`catalog-card ${isNavigating ? "is-navigating" : ""} ${isVisible ? "is-visible" : ""} ${isImageLoaded ? "has-media-loaded" : ""}`}
+      className={`catalog-card hover-lift hover-bounce ${isNavigating ? "is-navigating" : ""} ${isVisible ? "is-visible" : ""} ${isImageLoaded ? "has-media-loaded" : ""}`}
       prefetch={false}
       onClick={handleNavigate}
       onMouseEnter={warmRoute}
       onFocus={warmRoute}
+      style={{ willChange: "transform, opacity" }}
     >
       <div className="catalog-card-media">
         <ResilientMediaImage
@@ -181,6 +182,9 @@ export function CatalogCard({
           onLoadStateChange={setIsImageLoaded}
         />
         <div className="catalog-sheen" />
+        <div className="catalog-card-hover-overlay">
+          <span className="catalog-card-hover-text">View Details</span>
+        </div>
         {isNavigating ? (
           <div className="catalog-card-loader" aria-hidden="true">
             <NVLoader compact label="Opening..." />
@@ -195,7 +199,7 @@ export function CatalogCard({
         </div>
         <h3 className="catalog-title">{item.title}</h3>
         {item.userRating && showUserRatingBelow ? (
-          <div className="catalog-user-rating-row" aria-label={`Your rating: ${item.userRating} out of 5`}>
+          <div className="catalog-user-rating-row animate-star" aria-label={`Your rating: ${item.userRating} out of 5`}>
             <span className="catalog-user-rating-label">Your rating</span>
             <span className="catalog-user-rating-stars">{renderUserStars(item.userRating)}</span>
           </div>

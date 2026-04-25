@@ -6,6 +6,7 @@ import { Heart } from "lucide-react";
 import { AuthRequiredModal } from "@/components/auth-required-modal";
 import { ImageAdjusterModal } from "@/components/image-adjuster-modal";
 import { ResilientMediaImage } from "@/components/resilient-media-image";
+import { showFeedback } from "@/components/action-feedback";
 import { MediaItem } from "@/lib/types";
 import {
   addMediaToFolder,
@@ -168,17 +169,19 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
       setReviewRating(payload.rating ?? 0);
       setReviewText(payload.review ?? "");
       setReviewOpen(false);
-      setMessage(
-        mode === "skip"
-          ? `${item.title} marked as ${primaryLabel.toLowerCase()}.`
-          : mode === "clear"
-            ? `Review cleared for ${item.title}.`
-            : payload.rating
-              ? `Saved ${renderStars(payload.rating)} for ${item.title}.`
-              : `Saved your note for ${item.title}.`,
-      );
+      
+      // Show rewarding feedback
+      if (mode === "skip") {
+        showFeedback("success", `${item.title} marked as ${primaryLabel.toLowerCase()}`);
+      } else if (mode === "clear") {
+        showFeedback("info", `Review cleared for ${item.title}`);
+      } else if (payload.rating) {
+        showFeedback("star", `Rated ${renderStars(payload.rating)} for ${item.title}`);
+      } else if (payload.review) {
+        showFeedback("success", `Review saved for ${item.title}`);
+      }
     } catch {
-      setMessage(`Could not save your ${primaryLabel.toLowerCase()} entry yet. Try again.`);
+      showFeedback("info", `Could not save your ${primaryLabel.toLowerCase()} entry yet. Try again.`);
     } finally {
       setIsSavingReview(false);
     }
@@ -196,9 +199,9 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
       setReviewText("");
       setRecommendOpen(false);
       setSelectedFriendIds([]);
-      setMessage(`${item.title} removed from ${primaryLabel.toLowerCase()}.`);
+      showFeedback("info", `${item.title} removed from ${primaryLabel.toLowerCase()}`);
     } catch {
-      setMessage(`Could not remove ${item.title} yet. Try again.`);
+      showFeedback("info", `Could not remove ${item.title} yet. Try again.`);
     } finally {
       setIsSavingReview(false);
     }
@@ -210,7 +213,13 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
     const nextValue = !isWishlisted;
     setIsTogglingWishlist(true);
     setIsWishlisted(nextValue);
-    setMessage(nextValue ? `${item.title} added to wishlist.` : `${item.title} removed from wishlist.`);
+    
+    // Show heart feedback with animation
+    if (nextValue) {
+      showFeedback("heart", `${item.title} added to wishlist`);
+    } else {
+      showFeedback("info", `${item.title} removed from wishlist`);
+    }
 
     try {
       if (nextValue) {
@@ -220,7 +229,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
       }
     } catch {
       setIsWishlisted(!nextValue);
-      setMessage("Could not update wishlist yet. Try again.");
+      showFeedback("info", "Could not update wishlist yet. Try again.");
     } finally {
       setIsTogglingWishlist(false);
     }
@@ -253,7 +262,13 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
 
     setIsUpdatingFolder(true);
     setFolders(nextFolders);
-    setMessage(`${nextContainsItem ? "Added to" : "Removed from"} ${selectedFolder?.name ?? "folder"}.`);
+    
+    // Show feedback for folder action
+    if (nextContainsItem) {
+      showFeedback("success", `Added to ${selectedFolder?.name ?? "folder"}`);
+    } else {
+      showFeedback("info", `Removed from ${selectedFolder?.name ?? "folder"}`);
+    }
 
     try {
       if (nextContainsItem) {
@@ -263,7 +278,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
       }
     } catch {
       setFolders(folders);
-      setMessage(`Could not update ${selectedFolder?.name ?? "folder"} yet. Try again.`);
+      showFeedback("info", `Could not update ${selectedFolder?.name ?? "folder"} yet. Try again.`);
     } finally {
       setIsUpdatingFolder(false);
     }
@@ -309,14 +324,17 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
         },
       );
       setRecommendOpen(false);
-      setMessage(
-        reviewRating
-          ? `Sent ${item.title} with your ${renderStars(reviewRating)} take.`
-          : `Recommended ${item.title} to ${selectedFriendIds.length} ${selectedFriendIds.length === 1 ? "friend" : "friends"}.`,
-      );
+      
+      // Show milestone-style feedback for recommendations
+      if (reviewRating) {
+        showFeedback("milestone", `Recommended with ${renderStars(reviewRating)} to ${selectedFriendIds.length} ${selectedFriendIds.length === 1 ? "friend" : "friends"}`);
+      } else {
+        showFeedback("success", `Recommended to ${selectedFriendIds.length} ${selectedFriendIds.length === 1 ? "friend" : "friends"}`);
+      }
+      
       setSelectedFriendIds([]);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not send recommendation yet. Try again.");
+      showFeedback("info", error instanceof Error ? error.message : "Could not send recommendation yet. Try again.");
     } finally {
       setIsSendingRecommendation(false);
     }

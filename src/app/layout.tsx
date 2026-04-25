@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Poppins } from "next/font/google";
+import { ActionFeedbackContainer } from "@/components/action-feedback";
 import { AuthCookieReset } from "@/components/auth-cookie-reset";
 import { PerformanceOptimizer } from "@/components/performance-optimizer";
 import { RoutePrefetcher } from "@/components/route-prefetcher";
@@ -60,6 +61,7 @@ export default function RootLayout({
         <PerformanceOptimizer />
         <RoutePrefetcher />
         {children}
+        <ActionFeedbackContainer />
       </body>
     </html>
   );

@@ -36,7 +36,7 @@ import {
   getTmdbShowRelations,
   getTmdbStarterCatalog,
 } from "@/lib/sources/tmdb";
-import { matchesFranchise, normalizeAnimeBaseTitle, isLikelyAnime } from "@/lib/franchise-utils";
+import { matchesFranchise, normalizeAnimeBaseTitle, isLikelyAnime, extractFranchiseRoot, isSameFranchise } from "@/lib/franchise-utils";
 import { MediaItem } from "@/lib/types";
 
 type AnimeFranchiseData =
@@ -1981,7 +1981,51 @@ function buildRelatedTasteLine(media: MediaItem, related: MediaItem[], feelingTa
     : "Think identity first: if the tone and hook work for you, the rest usually follows quickly.";
 }
 
+function isFranchiseParentEntry(media: MediaItem, franchiseSection: FranchiseSectionData | null): boolean {
+  if (!franchiseSection) return false;
+
+  // Get the franchise root for comparison
+  const mediaRoot = extractFranchiseRoot(media.title, media.type).toLowerCase();
+  const franchiseRoot = extractFranchiseRoot(franchiseSection.title, media.type).toLowerCase();
+
+  // If media title's root matches the franchise root, this is likely the parent
+  if (mediaRoot === franchiseRoot && mediaRoot.length > 2) {
+    return true;
+  }
+
+  // Check if this is the earliest entry by year in the franchise
+  const allEntries = [...franchiseSection.entries, ...(franchiseSection.secondaryEntries ?? [])];
+  if (allEntries.length > 0) {
+    const currentYear = media.year || Number.MAX_SAFE_INTEGER;
+    const earliestYear = Math.min(...allEntries.map(e => {
+      // Parse year from meta string (format: "Year / Rating / Episodes")
+      const yearMatch = e.meta.match(/^(\d{4})/);
+      return yearMatch ? parseInt(yearMatch[1], 10) : Number.MAX_SAFE_INTEGER;
+    }).filter(y => y > 0));
+
+    // If this media is the earliest entry, it's the parent
+    if (currentYear <= earliestYear && currentYear > 0) {
+      return true;
+    }
+  }
+
+  // Check if the media title is a direct match to the franchise title
+  const normalizedMedia = normalizeAnimeBaseTitle(media.title, media.type).toLowerCase();
+  const normalizedFranchise = normalizeAnimeBaseTitle(franchiseSection.title, media.type).toLowerCase();
+
+  if (normalizedMedia === normalizedFranchise) {
+    return true;
+  }
+
+  return false;
+}
+
 function buildSeriesContext(media: MediaItem, franchiseSection: FranchiseSectionData | null) {
+  // Check if this media IS the parent/root entry - if so, don't show "part of series" box
+  if (isFranchiseParentEntry(media, franchiseSection)) {
+    return null;
+  }
+
   const parentSeriesTitle =
     media.details.parentSeriesTitle && media.details.parentSeriesTitle !== media.title
       ? media.details.parentSeriesTitle

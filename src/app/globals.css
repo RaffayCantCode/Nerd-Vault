@@ -3,6 +3,7 @@
 @import './premium-browse.css';
 @import './performance-optimized.css';
 @import './landing-mobile-fixes.css';
+@import './reward-animations.css';
 
 :root {
   --bg: #060911;

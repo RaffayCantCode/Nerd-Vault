@@ -1,0 +1,692 @@
+/* Rewarding Animations - Makes media tracking feel satisfying and addictive */
+
+/* ============================================
+   CORE ACTION FEEDBACK ANIMATIONS
+   ============================================ */
+
+/* Success Pop Animation - Used when marking as watched/wishlist */
+@keyframes successPop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(0.92);
+  }
+  60% {
+    transform: scale(1.08);
+  }
+  80% {
+    transform: scale(0.98);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Glow Pulse - Emitted after successful action */
+@keyframes glowPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(3, 252, 190, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(3, 252, 190, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(3, 252, 190, 0);
+  }
+}
+
+/* Heart Burst - For wishlist action */
+@keyframes heartBurst {
+  0% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 0 rgba(255, 71, 87, 0));
+  }
+  25% {
+    transform: scale(1.3);
+    filter: drop-shadow(0 0 8px rgba(255, 71, 87, 0.8));
+  }
+  50% {
+    transform: scale(0.9);
+    filter: drop-shadow(0 0 4px rgba(255, 71, 87, 0.4));
+  }
+  75% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 0 rgba(255, 71, 87, 0));
+  }
+}
+
+/* Star Shine - For rating actions */
+@keyframes starShine {
+  0% {
+    transform: scale(1) rotate(0deg);
+    filter: brightness(1);
+  }
+  25% {
+    transform: scale(1.4) rotate(-10deg);
+    filter: brightness(1.5) drop-shadow(0 0 8px rgba(255, 193, 7, 0.8));
+  }
+  50% {
+    transform: scale(1.2) rotate(5deg);
+    filter: brightness(1.3) drop-shadow(0 0 6px rgba(255, 193, 7, 0.6));
+  }
+  75% {
+    transform: scale(1.1) rotate(-3deg);
+    filter: brightness(1.1) drop-shadow(0 0 4px rgba(255, 193, 7, 0.4));
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    filter: brightness(1);
+  }
+}
+
+/* Checkmark Draw - For completion */
+@keyframes checkmarkDraw {
+  0% {
+    stroke-dashoffset: 24;
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  40% {
+    stroke-dashoffset: 24;
+    transform: scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Button Ripple Effect */
+@keyframes buttonRipple {
+  0% {
+    transform: scale(0);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+/* ============================================
+   MICRO-INTERACTIONS
+   ============================================ */
+
+/* Hover Lift with Glow */
+.hover-lift {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.3s ease,
+              border-color 0.2s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 40px rgba(3, 252, 190, 0.15),
+              0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Magnetic Button Effect Base */
+.magnetic-button {
+  transition: transform 0.15s ease-out;
+}
+
+/* Pulse Ring for Important Actions */
+@keyframes pulseRing {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+.pulse-ring::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  border: 2px solid currentColor;
+  animation: pulseRing 1.5s ease-out infinite;
+}
+
+/* ============================================
+   CATALOG CARD ENHANCEMENTS
+   ============================================ */
+
+/* Card Entry Animation - Staggered fade in */
+@keyframes cardEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(30px) scale(0.96);
+  }
+  60% {
+    transform: translateY(-4px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.catalog-card.is-visible {
+  animation: cardEnter 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Card Hover Overlay */
+.catalog-card-hover-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(3, 252, 190, 0.1) 0%,
+    rgba(158, 135, 255, 0.15) 100%
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.catalog-card:hover .catalog-card-hover-overlay {
+  opacity: 1;
+}
+
+.catalog-card-hover-text {
+  padding: 10px 20px;
+  background: rgba(6, 9, 17, 0.8);
+  border: 1px solid rgba(3, 252, 190, 0.4);
+  border-radius: 20px;
+  color: var(--gold);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  transform: translateY(10px);
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 4px 20px rgba(3, 252, 190, 0.2);
+}
+
+.catalog-card:hover .catalog-card-hover-text {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* Card border glow on hover */
+.catalog-card {
+  position: relative;
+}
+
+.catalog-card::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgba(3, 252, 190, 0) 0%,
+    rgba(3, 252, 190, 0) 50%,
+    rgba(158, 135, 255, 0) 100%
+  );
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.catalog-card:hover::before {
+  background: linear-gradient(
+    135deg,
+    rgba(3, 252, 190, 0.4) 0%,
+    rgba(158, 135, 255, 0.3) 50%,
+    rgba(3, 252, 190, 0.4) 100%
+  );
+  opacity: 1;
+}
+
+/* Card Sheen Effect on Hover */
+@keyframes sheenSweep {
+  0% {
+    transform: translateX(-100%) rotate(25deg);
+  }
+  100% {
+    transform: translateX(200%) rotate(25deg);
+  }
+}
+
+.catalog-sheen {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.catalog-sheen::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 50%;
+  height: 200%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 45%,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(255, 255, 255, 0.1) 55%,
+    transparent 100%
+  );
+  transform: translateX(-100%) rotate(25deg);
+  transition: none;
+}
+
+.catalog-card:hover .catalog-sheen::after {
+  animation: sheenSweep 0.8s ease-out;
+}
+
+/* Card Selection Pulse */
+@keyframes selectionPulse {
+  0%, 100% {
+    border-color: rgba(3, 252, 190, 0.4);
+    box-shadow: 0 0 0 0 rgba(3, 252, 190, 0.2);
+  }
+  50% {
+    border-color: rgba(3, 252, 190, 0.8);
+    box-shadow: 0 0 20px 4px rgba(3, 252, 190, 0.3);
+  }
+}
+
+.catalog-card.is-selected {
+  animation: selectionPulse 2s ease-in-out infinite;
+  border-color: rgba(3, 252, 190, 0.6);
+}
+
+/* ============================================
+   FEEDBACK INDICATORS
+   ============================================ */
+
+/* Floating Toast Animation */
+@keyframes toastSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  60% {
+    transform: translateY(-4px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toastSlideOut {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+  }
+}
+
+.feedback-toast {
+  animation: toastSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.feedback-toast.is-leaving {
+  animation: toastSlideOut 0.3s ease-out forwards;
+}
+
+/* Progress Bar Fill Animation */
+@keyframes progressFill {
+  0% {
+    width: 0%;
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.progress-bar-fill {
+  background: linear-gradient(
+    90deg,
+    var(--gold) 0%,
+    #9e87ff 50%,
+    var(--gold) 100%
+  );
+  background-size: 200% 100%;
+  animation: progressFill 2s linear infinite;
+}
+
+/* ============================================
+   CELEBRATION EFFECTS
+   ============================================ */
+
+/* Confetti Particle */
+@keyframes confettiFall {
+  0% {
+    transform: translateY(-20px) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(200px) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+.confetti-particle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  animation: confettiFall 1.2s ease-out forwards;
+}
+
+/* Sparkle Burst */
+@keyframes sparkleBurst {
+  0% {
+    transform: scale(0) rotate(0deg);
+    opacity: 1;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.5) rotate(180deg);
+    opacity: 0;
+  }
+}
+
+.sparkle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: var(--gold);
+  border-radius: 50%;
+  box-shadow: 0 0 6px var(--gold);
+}
+
+/* Collection Milestone Animation */
+@keyframes milestonePop {
+  0% {
+    transform: scale(0) rotate(-10deg);
+    opacity: 0;
+  }
+  40% {
+    transform: scale(1.2) rotate(3deg);
+    opacity: 1;
+  }
+  60% {
+    transform: scale(0.95) rotate(-2deg);
+  }
+  80% {
+    transform: scale(1.05) rotate(1deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.milestone-badge {
+  animation: milestonePop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* ============================================
+   BUTTON ENHANCEMENTS
+   ============================================ */
+
+/* Success Button State */
+.button-success-state {
+  position: relative;
+  overflow: hidden;
+}
+
+.button-success-state::after {
+  content: '✓';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: inherit;
+  animation: successPop 0.5s ease-out;
+}
+
+/* Button Ripple Effect */
+.button {
+  position: relative;
+  overflow: hidden;
+}
+
+.button::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100px;
+  height: 100px;
+  background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.button:active::after {
+  animation: buttonRipple 0.5s ease-out;
+}
+
+/* Primary Button Glow Pulse */
+.button-primary {
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.button-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(3, 252, 190, 0.3),
+              0 0 20px rgba(3, 252, 190, 0.15);
+}
+
+.button-primary:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 4px 15px rgba(3, 252, 190, 0.2);
+}
+
+/* Secondary Button Hover Glow */
+.button-secondary {
+  transition: all 0.2s ease;
+}
+
+.button-secondary:hover {
+  border-color: rgba(3, 252, 190, 0.4);
+  background: rgba(3, 252, 190, 0.08);
+  transform: translateY(-1px);
+}
+
+.button-secondary:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Accent Button (for wishlist/favorites) */
+.button-accent {
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.button-accent:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(255, 71, 87, 0.25),
+              0 0 20px rgba(255, 71, 87, 0.1);
+}
+
+.button-accent::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  padding: 2px;
+  background: linear-gradient(135deg, rgba(255, 71, 87, 0.5), rgba(255, 107, 129, 0.3));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.button-accent:hover::before {
+  opacity: 1;
+}
+
+/* ============================================
+   LOADING & TRANSITION STATES
+   ============================================ */
+
+/* Smooth Page Transition */
+.page-transition-enter {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.page-transition-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.page-transition-exit {
+  opacity: 1;
+}
+
+.page-transition-exit-active {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+/* Skeleton Shimmer */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.03) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
+/* Apply success animation */
+.animate-success {
+  animation: successPop 0.5s ease-out, glowPulse 0.8s ease-out 0.3s;
+}
+
+/* Apply heart animation */
+.animate-heart {
+  animation: heartBurst 0.6s ease-out;
+}
+
+/* Apply star animation */
+.animate-star {
+  animation: starShine 0.5s ease-out;
+}
+
+/* Hover scale with bounce */
+.hover-bounce {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.hover-bounce:hover {
+  transform: scale(1.05);
+}
+
+.hover-bounce:active {
+  transform: scale(0.98);
+}
+
+/* Focus ring animation */
+.focus-ring-animated:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(3, 252, 190, 0.4);
+  animation: glowPulse 1s ease-out;
+}
+
+/* Status indicator pulse */
+.status-pulse {
+  position: relative;
+}
+
+.status-pulse::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -8px;
+  width: 8px;
+  height: 8px;
+  background: var(--gold);
+  border-radius: 50%;
+  transform: translateY(-50%);
+  animation: pulseRing 1.5s ease-out infinite;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .animate-success,
+  .animate-heart,
+  .animate-star,
+  .milestone-badge,
+  .catalog-card.is-visible,
+  .feedback-toast {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  
+  .hover-lift:hover,
+  .hover-bounce:hover {
+    transform: none;
+  }
+  
+  .catalog-sheen::after {
+    animation: none;
+  }
+}

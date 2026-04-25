@@ -2,7 +2,7 @@ import { writeBrowsePageCache, writeBrowsePageCacheV2 } from "@/lib/browse-cache
 import { rankCandidatesForQuery } from "@/lib/search-utils";
 import { enrichAnimeImagesFromTmdb, TmdbAnimeImageEnrichment } from "@/lib/sources/tmdb";
 import { MediaItem } from "@/lib/types";
-import { getAnimeSeriesContext, matchesFranchise, normalizeAnimeBaseTitle, isAnimeMovie, groupAnimeByFranchise, isLikelyAnime } from "@/lib/franchise-utils";
+import { getAnimeSeriesContext, matchesFranchise, normalizeAnimeBaseTitle, isAnimeMovie, groupAnimeByFranchise, isLikelyAnime, isSameFranchise, extractFranchiseRoot } from "@/lib/franchise-utils";
 
 const JIKAN_BASE_URL = "https://api.jikan.moe/v4";
 const JIKAN_CACHE_TTL_MS = 1000 * 60 * 30;
@@ -205,10 +205,16 @@ function slugify(input: string) {
     .replace(/(^-|-$)/g, "");
 }
 
-function getDiscoveryPage(page: number, seed = 1, windowSize = 250, salt = 0) {
+function getDiscoveryPage(page: number, seed = 1, windowSize = 500, salt = 0) {
   const offset = Math.abs((seed * 29 + salt * 11) % windowSize);
   const stride = 43;
-  return ((offset + (page - 1) * stride) % windowSize) + 1;
+  // Don't cycle - if we exceed window, use direct page mapping for fresh content
+  const calculatedPage = ((offset + (page - 1) * stride) % windowSize) + 1;
+  // For pages beyond window size, use direct mapping to avoid cycling duplicates
+  if (page > windowSize) {
+    return Math.min(page, 1000); // Cap at 1000 to avoid API limits
+  }
+  return calculatedPage;
 }
 
 function cleanWhitespace(input: string) {
@@ -275,9 +281,23 @@ function buildAnimeFranchiseKeys(titles: string[], type?: string | null) {
   );
 }
 
-function hasStrictAnimeFranchiseKeyMatch(item: JikanAnime, primaryKeys: string[]) {
+function hasStrictAnimeFranchiseKeyMatch(item: JikanAnime, primaryKeys: string[], primaryTitles?: string[]) {
   const itemKeys = buildAnimeFranchiseKeys(animeTitleVariants(item), item.type);
+  const itemTitles = animeTitleVariants(item);
 
+  // First check using the new isSameFranchise for better sequel detection
+  if (primaryTitles && primaryTitles.length > 0) {
+    const itemTypeStr = item.type ?? undefined;
+    for (const itemTitle of itemTitles) {
+      for (const primaryTitle of primaryTitles) {
+        if (isSameFranchise(itemTitle, primaryTitle, itemTypeStr, itemTypeStr)) {
+          return true;
+        }
+      }
+    }
+  }
+
+  // Fallback to the original key-based matching
   return itemKeys.some((itemKey) =>
     primaryKeys.some((primaryKey) => {
       if (!itemKey || !primaryKey) {
@@ -285,6 +305,13 @@ function hasStrictAnimeFranchiseKeyMatch(item: JikanAnime, primaryKeys: string[]
       }
 
       if (itemKey === primaryKey) {
+        return true;
+      }
+
+      // Use franchise root for matching (handles Naruto/Naruto Shippuden)
+      const itemRoot = extractFranchiseRoot(itemKey, item.type ?? undefined).toLowerCase();
+      const primaryRoot = extractFranchiseRoot(primaryKey).toLowerCase();
+      if (itemRoot === primaryRoot && itemRoot.length > 2) {
         return true;
       }
 
@@ -598,7 +625,7 @@ export async function browseJikanAnime(params: JikanBrowseParams) {
   }
 
   const discoveryOrder = ["members", "score", "favorites"][discoverySeed % 3];
-  const requestPage = !query && sort === "discovery" ? getDiscoveryPage(page, discoverySeed, 180, 17) : page;
+  const requestPage = !query && sort === "discovery" ? getDiscoveryPage(page, discoverySeed, 500, 17) : page;
 
   const path = sort === "newest"
     ? `/anime?page=${page}&limit=25&sfw=true&order_by=start_date&sort=desc${genreParam}`
@@ -719,21 +746,34 @@ export async function getJikanAnimeFranchise(id: number) {
   const explicitEntries = explicitRelationResponses.filter((entry): entry is JikanAnime => Boolean(entry));
 
   // To avoid missing niche results, keep a search supplement for cases where the relation graph is sparse.
+  // Use franchise root to find related movies and series
+  const franchiseRoot = extractFranchiseRoot(primaryTitle, details.data.type ?? undefined);
   const queries = Array.from(
     new Set([
+      franchiseRoot, // Use root name (e.g., "Bleach" instead of "Bleach: Memories of Nobody")
       primaryTitle,
       cleanWhitespace(details.data.title),
       ...animeTitleVariants(details.data),
     ].filter(Boolean)),
-  ).slice(0, 6);
+  ).slice(0, 8);
 
-  const searches = await Promise.all(
-    queries.map((query) =>
+  // Search with multiple strategies: exact franchise root, and with movie type filter
+  const searches = await Promise.all([
+    // Primary searches by franchise name
+    ...queries.map((query) =>
       jikanFetch<JikanListResponse>(
         `/anime?q=${encodeURIComponent(query)}&limit=25&sfw=true&order_by=start_date&sort=asc`,
       ),
     ),
-  );
+    // Additional search specifically for movies if this might be a franchise with movies
+    jikanFetch<JikanListResponse>(
+      `/anime?q=${encodeURIComponent(franchiseRoot)}&limit=25&type=movie&sfw=true`,
+    ).catch(() => ({ data: [], pagination: { current_page: 1, last_visible_page: 1 } })),
+    // Search for TV series specifically
+    jikanFetch<JikanListResponse>(
+      `/anime?q=${encodeURIComponent(franchiseRoot)}&limit=25&type=tv&sfw=true`,
+    ).catch(() => ({ data: [], pagination: { current_page: 1, last_visible_page: 1 } })),
+  ]);
 
   const searchResults = searches.flatMap((result) => result.data);
   const seen = new Set<number>();
@@ -745,7 +785,7 @@ export async function getJikanAnimeFranchise(id: number) {
       return false;
     }
     seen.add(item.mal_id);
-    return relatedIds.has(item.mal_id) || (animeMatchesFranchise(item, franchiseTitles) && hasStrictAnimeFranchiseKeyMatch(item, primaryKeys));
+    return relatedIds.has(item.mal_id) || (animeMatchesFranchise(item, franchiseTitles) && hasStrictAnimeFranchiseKeyMatch(item, primaryKeys, franchiseTitles));
   });
 
   const entries = sortFranchiseEntries(

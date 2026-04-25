@@ -19,6 +19,7 @@ export function normalizeBaseTitle(rawTitle: string): string {
 
 /**
  * Enhanced anime title normalization that properly separates series from movies
+ * and handles sequels/spin-offs for franchise grouping
  */
 export function normalizeAnimeBaseTitle(rawTitle: string, type?: string): string {
   const original = rawTitle.trim().toLowerCase();
@@ -37,7 +38,8 @@ export function normalizeAnimeBaseTitle(rawTitle: string, type?: string): string
       ? colonParts[0]
       : cleaned;
 
-  return baseFromColon
+  // Get base franchise name by removing sequel/spin-off/season indicators
+  const normalized = baseFromColon
     .replace(/\s*-\s*thousand year blood war(?: arc)?$/i, "")
     .replace(/\s+thousand year blood war(?: arc)?$/i, "")
     .replace(/\s+the final chapters(?:\s+special\s+\d+)?$/i, "")
@@ -53,6 +55,95 @@ export function normalizeAnimeBaseTitle(rawTitle: string, type?: string): string
     .replace(/[^\w\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+
+  return normalized;
+}
+
+/**
+ * Extracts the root franchise name for matching related series
+ * This is more aggressive than normalizeAnimeBaseTitle to catch sequels like
+ * "Naruto" and "Naruto Shippuden" or "Attack on Titan" and "Shingeki no Kyojin"
+ */
+export function extractFranchiseRoot(rawTitle: string, type?: string): string {
+  const baseTitle = normalizeAnimeBaseTitle(rawTitle, type);
+  const normalized = baseTitle.toLowerCase();
+
+  // Remove common sequel/spin-off suffixes that indicate a continuation
+  // but keep the root franchise name intact
+  const sequelPatterns = [
+    /\s+shippuden\s*$/i,              // Naruto Shippuden -> Naruto
+    /\s+brotherhood\s*$/i,           // Fullmetal Alchemist Brotherhood
+    /\s+the\s+animation\s*$/i,        // Various "the animation" suffixes
+    /\s+\d+\s*$/i,                    // Trailing numbers like "Series 2"
+    /\s+second\s+season\s*$/i,        // Explicit second season
+    /\s+third\s+season\s*$/i,         // Explicit third season
+    /\s+rebuild\s+of\s*$/i,           // Rebuild of Evangelion -> Evangelion
+    /\s+progressive\s*$/i,            // Made in Abyss Progressive
+    /\s+dawn\s+of\s+the\s+deep\s+soul\s*$/i, // Made in Abyss movies
+    /\s+journeys\s+dawn\s*$/i,
+    /\s+wanee\s*$/i,
+    /\s+sunohara\s+so\s+no\s+.*$/i,
+    /\s+so\s+no\s+.*$/i,              // "So no [character]" spin-offs
+    /\s+ga\s+.*$/i,                    // "Ga [something]" spin-offs
+    /\s+new\s+.*$/i,                   // "New [series]" sequels
+    /\s+super\s*$/i,                   // Dragon Ball Super
+    /\s+z\s*$/i,                       // Dragon Ball Z
+    /\s+gt\s*$/i,                      // Dragon Ball GT
+    /\s+kai\s*$/i,                     // Dragon Ball Kai
+  ];
+
+  let result = baseTitle;
+  for (const pattern of sequelPatterns) {
+    result = result.replace(pattern, "").trim();
+  }
+
+  // If we stripped too much and got an empty string, return the base
+  if (!result || result.length < 2) {
+    return baseTitle;
+  }
+
+  return result;
+}
+
+/**
+ * Checks if two anime titles likely belong to the same franchise
+ * Uses multiple matching strategies for better accuracy
+ */
+export function isSameFranchise(title1: string, title2: string, type1?: string, type2?: string): boolean {
+  const norm1 = normalizeAnimeBaseTitle(title1, type1).toLowerCase();
+  const norm2 = normalizeAnimeBaseTitle(title2, type2).toLowerCase();
+
+  // Direct match after normalization
+  if (norm1 === norm2) return true;
+
+  // Check franchise root match (handles Naruto/Naruto Shippuden)
+  const root1 = extractFranchiseRoot(title1, type1).toLowerCase();
+  const root2 = extractFranchiseRoot(title2, type2).toLowerCase();
+
+  if (root1 === root2 && root1.length > 2) return true;
+
+  // One contains the other (e.g., "Naruto" and "Naruto Shippuden")
+  if (norm1.includes(norm2) || norm2.includes(norm1)) {
+    // Make sure it's not just a partial word match
+    const longer = norm1.length > norm2.length ? norm1 : norm2;
+    const shorter = norm1.length > norm2.length ? norm2 : norm1;
+    // Ensure the shorter is a complete word boundary in the longer
+    const regex = new RegExp(`\\b${shorter}\\b`);
+    if (regex.test(longer)) return true;
+  }
+
+  // Check word overlap for titles that might be translations
+  const words1 = norm1.split(/\s+/).filter(w => w.length > 2);
+  const words2 = norm2.split(/\s+/).filter(w => w.length > 2);
+
+  if (words1.length > 0 && words2.length > 0) {
+    const common = words1.filter(w => words2.includes(w));
+    const overlap = common.length / Math.min(words1.length, words2.length);
+    // High overlap (80%+) suggests same franchise
+    if (overlap >= 0.8 && common.length >= 2) return true;
+  }
+
+  return false;
 }
 
 export function getAnimeSeriesContext(rawTitle: string, type?: string) {

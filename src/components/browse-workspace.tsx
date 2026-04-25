@@ -11,7 +11,6 @@ import { clearBrowseReturnContext, readBrowseReturnContext, writeBrowseReturnCon
 import { optimizeMediaImageUrl } from "@/lib/media-image";
 import { dedupeMediaKey, rankCandidatesForQuery } from "@/lib/search-utils";
 import { MediaItem, MediaType } from "@/lib/types";
-import { addMediaToWishlist, fetchLibraryState, removeMediaFromWishlist, subscribeVaultChanges } from "@/lib/vault-client";
 
 type SortMode = "discovery" | "newest" | "rating" | "title";
 type CachedPage = {
@@ -374,7 +373,6 @@ export function BrowseWorkspace({
   const [heroIndex, setHeroIndex] = useState(
     shouldResetForReload ? 0 : Math.max(0, Number(initialState?.heroIndex ?? 0)),
   );
-  const [wishlistedKeys, setWishlistedKeys] = useState<string[]>([]);
   const prefetchedPagesRef = useRef<Record<string, CachedPage>>(
     typeof window !== "undefined" ? readBrowsePageCache() : {},
   );
@@ -631,16 +629,6 @@ export function BrowseWorkspace({
     setHeroIndex(Math.max(0, Number(initialState?.heroIndex ?? 0)));
   }, [genreFromUrl, mediaTypeFromUrl, pageFromUrl, queryFromUrl, seedFromUrl, shouldResetForReload, sortFromUrl]);
 
-  useEffect(() => {
-    function syncWishlist() {
-      fetchLibraryState()
-        .then((library) => setWishlistedKeys(library.wishlist.map((item) => `${item.source}-${item.sourceId}`)))
-        .catch(() => setWishlistedKeys([]));
-    }
-
-    syncWishlist();
-    return subscribeVaultChanges(syncWishlist);
-  }, [catalog]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1049,7 +1037,6 @@ export function BrowseWorkspace({
   const featured =
     featuredDeck[heroIndex] ?? sortedVisible[0] ?? typedVisible[0] ?? baseCatalog[0] ?? bootstrapCatalog[0] ?? catalog[0];
   const featuredKey = featured ? `${featured.source}-${featured.sourceId}` : "";
-  const featuredWishlisted = featured ? wishlistedKeys.includes(featuredKey) : false;
   const visibleGridItems = useMemo(() => {
     const baseItems = featured
       ? sortedVisible.filter((item) => `${item.source}-${item.sourceId}` !== featuredKey)
@@ -1103,16 +1090,6 @@ export function BrowseWorkspace({
     }
   }, [visibleGridItems, isInitialLoad, isLoading, activePage, filter, genre, deferredQuery, sort, pageSize]);
 
-  function toggleWishlist(item: MediaItem) {
-    const key = `${item.source}-${item.sourceId}`;
-
-    if (wishlistedKeys.includes(key)) {
-      void removeMediaFromWishlist(item);
-      return;
-    }
-
-    void addMediaToWishlist(item);
-  }
 
   function handlePageChange(targetPage: number, source?: string) {
     const clamped = Math.max(1, Math.min(totalPages, targetPage));
@@ -1300,13 +1277,6 @@ export function BrowseWorkspace({
                 >
                   Open
                 </Link>
-                <button
-                  type="button"
-                  className={`button ${featuredWishlisted ? "button-accent" : "button-secondary"}`}
-                  onClick={() => toggleWishlist(featured)}
-                >
-                  {featuredWishlisted ? "Wishlisted" : "Wishlist"}
-                </button>
               </div>
             </div>
 

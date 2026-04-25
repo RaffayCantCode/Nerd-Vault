@@ -404,12 +404,17 @@ export async function browseMixedCatalog({
   }
 
   const needsBroaderPool = Boolean((genre && genre !== "all") || safeQuery);
+  // Calculate how many items we need to fill the requested page
+  const itemsNeeded = page * safePageSize;
+  // Each source returns ~20-25 items per page, account for deduplication/franchise collapsing (~40% reduction)
+  const effectiveItemsPerSourcePage = 15;
+  const pagesNeededPerSource = Math.ceil(itemsNeeded / effectiveItemsPerSourcePage);
   const targetPoolSize = Math.max(safePageSize * Math.max(page + 2, 4), 96);
   const sourcePageSpan = isSearch
     ? 1
     : needsBroaderPool
-      ? Math.max(5, page + 3)
-      : Math.max(3, page + 2);
+      ? Math.max(8, pagesNeededPerSource + 2)
+      : Math.max(5, pagesNeededPerSource);
   const sourcePages = Array.from({ length: sourcePageSpan }, (_, index) => index + 1);
 
   const pageResults = await Promise.all(
@@ -547,13 +552,20 @@ export async function browseMixedCatalog({
     : rankedMixed.slice(pageStart, pageStart + safePageSize);
 
   const validatedItems = validateSearchResults(finalItems);
+  // Calculate realistic total pages based on actual available items
+  const actualTotalItems = rankedMixed.length;
+  const calculatedTotalPages = Math.ceil(actualTotalItems / Math.max(1, safePageSize));
+  // Ensure we don't report more pages than we can actually fill with content
+  const realisticTotalPages = Math.max(1, calculatedTotalPages);
   const totalPages = safeQuery
     ? 1
-    : Math.max(
-        page,
-        maxSourcePages,
-        Math.ceil(Math.max(rankedMixed.length, targetPoolSize) / Math.max(1, safePageSize)),
-        estimateBalancedTotalPages(allBuckets, safePageSize),
+    : Math.min(
+        500, // Cap at 500 pages max
+        Math.max(
+          page,
+          realisticTotalPages,
+          Math.ceil(targetPoolSize / safePageSize),
+        ),
       );
 
   const payload = {
