@@ -9,6 +9,8 @@ import { optimizeMediaImageUrl } from "@/lib/media-image";
 import { ResilientMediaImage } from "@/components/resilient-media-image";
 import { MediaItem } from "@/lib/types";
 
+const BROWSE_LAST_URL_KEY = "nerdvault-browse-last-url";
+
 function renderUserStars(rating?: number | null) {
   if (!rating) return null;
   return `${"★".repeat(rating)}${"☆".repeat(Math.max(0, 5 - rating))}`;
@@ -74,15 +76,16 @@ export function CatalogCard({
     if (isNavigating) return;
 
     setIsNavigating(true);
+    const currentHref =
+      typeof window !== "undefined"
+        ? window.sessionStorage.getItem(BROWSE_LAST_URL_KEY) || `${window.location.pathname}${window.location.search}`
+        : undefined;
     writeDetailReturnTarget({
-      href:
-        typeof window !== "undefined"
-          ? `${window.location.pathname}${window.location.search}#${browseCardId}`
-          : undefined,
+      href: currentHref,
     });
     if (typeof window !== "undefined") {
       writeBrowseReturnContext({
-        href: `${window.location.pathname}${window.location.search}`,
+        href: currentHref || `${window.location.pathname}${window.location.search}`,
         scrollY: window.scrollY,
         cardId: browseCardId,
         cardTop: cardRef.current?.getBoundingClientRect().top ?? 0,
@@ -92,7 +95,7 @@ export function CatalogCard({
     warmRoute();
 
     try {
-      router.push(routeHref);
+      router.push(routeHref, { scroll: false });
     } catch (error) {
       console.error("Navigation failed:", error);
       setIsNavigating(false);

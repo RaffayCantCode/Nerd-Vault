@@ -124,15 +124,6 @@ export function DetailGallery({
       {openSlide && isMounted
         ? createPortal(
             <div className="detail-lightbox" role="dialog" aria-modal="true" aria-label={`${title} gallery`} onClick={closeLightbox}>
-              <button
-                type="button"
-                className="detail-lightbox-close"
-                aria-label="Close gallery"
-                onClick={closeLightbox}
-              >
-                ×
-              </button>
-
               {galleryImages.length > 1 ? (
                 <>
                   <button
@@ -190,6 +181,23 @@ export function DetailGallery({
                   }
                 }}
               >
+                <div className="detail-lightbox-topbar">
+                  <div className="detail-lightbox-heading">
+                    <span className="detail-lightbox-kicker">More stills</span>
+                    <strong>{title}</strong>
+                  </div>
+                  <button
+                    type="button"
+                    className="detail-lightbox-close"
+                    aria-label="Close gallery"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      closeLightbox();
+                    }}
+                  >
+                    X
+                  </button>
+                </div>
                 <img
                   src={optimizeMediaImageUrl(openSlide.raw, "lightbox") ?? openSlide.src}
                   alt={`${title} fullscreen still ${(activeIndex ?? 0) + 1}`}

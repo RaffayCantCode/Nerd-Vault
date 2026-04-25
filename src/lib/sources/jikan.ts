@@ -293,12 +293,17 @@ function hasStrictAnimeFranchiseKeyMatch(item: JikanAnime, primaryKeys: string[]
       const commonWords = itemWords.filter((word) => primaryWords.includes(word));
       const firstWordMatches = itemWords[0] && primaryWords[0] && itemWords[0] === primaryWords[0];
       const shorterLength = Math.min(itemKey.length, primaryKey.length);
+      const overlapRatio = commonWords.length / Math.max(1, Math.min(itemWords.length, primaryWords.length));
 
-      if (!firstWordMatches || commonWords.length < 2 || shorterLength < 8) {
+      if (commonWords.length < 2 || shorterLength < 8) {
         return false;
       }
 
-      return itemKey.includes(primaryKey) || primaryKey.includes(itemKey);
+      if (itemKey.includes(primaryKey) || primaryKey.includes(itemKey)) {
+        return true;
+      }
+
+      return firstWordMatches ? overlapRatio >= 0.7 : overlapRatio >= 0.85;
     }),
   );
 }
@@ -338,6 +343,7 @@ function mapAnime(
     collectionTitle?: string;
     entryCount?: number;
     entryLabel?: string;
+    seasonCount?: number;
   },
 ): MediaItem {
   const title = overrides?.title || getDisplayTitle(item);
@@ -399,6 +405,7 @@ function mapAnime(
       collectionTitle: canonicalTitle,
       entryCount: overrides?.entryCount,
       entryLabel: overrides?.entryLabel,
+      seasonCount: overrides?.seasonCount,
     },
   };
 }
@@ -468,6 +475,16 @@ function inferSeasonKey(entry: AnimeFranchiseEntry) {
   return undefined;
 }
 
+function countDistinctSeasons(entries: AnimeFranchiseEntry[]) {
+  const seasonKeys = new Set(
+    entries
+      .map((entry) => entry.seasonKey)
+      .filter((seasonKey): seasonKey is string => Boolean(seasonKey)),
+  );
+
+  return seasonKeys.size || entries.length;
+}
+
 function collapseAnimeFranchises(items: JikanAnime[]): MediaItem[] {
   // Use enhanced franchise grouping that separates movies from series
   const animeItems = items.map(item => ({
@@ -494,6 +511,16 @@ function collapseAnimeFranchises(items: JikanAnime[]): MediaItem[] {
     const years = entries.map((entry: any) => entry.year).filter((year: any): year is number => year !== undefined);
     const earliestYear = years.length ? Math.min(...years) : (representative.year ?? 0);
     const franchiseEntries = sortFranchiseEntries(entries.map((entry: any) => toFranchiseEntry(entry.originalItem)));
+    const seasonEntries = franchiseEntries.filter((entry) => {
+      const type = cleanWhitespace(entry.type ?? "").toLowerCase();
+      return type === "tv" && !isSupplementalAnimeEntry(entry);
+    });
+    const seasonCount = countDistinctSeasons(
+      seasonEntries.map((entry) => ({
+        ...entry,
+        seasonKey: inferSeasonKey(entry),
+      })),
+    );
 
     // Determine if this is mixed content (movies + series)
     const hasMovies = entries.some((entry: any) => entry.type === 'movie' || isAnimeMovie(entry.title, entry.episodes, entry.type));
@@ -506,12 +533,13 @@ function collapseAnimeFranchises(items: JikanAnime[]): MediaItem[] {
         title: collectionTitle,
         collectionTitle,
         entryCount: entries.length,
+        seasonCount: hasSeries ? seasonCount : undefined,
         entryLabel: hasMovies && hasSeries 
           ? `${entries.length} entries` 
           : hasMovies 
             ? `${entries.length} movies`
-            : entries.length > 1
-              ? `${entries.length} entries`
+            : seasonCount > 1
+              ? `${seasonCount} seasons`
               : representative.originalItem.episodes
                 ? `${representative.originalItem.episodes} episodes`
                 : undefined,
@@ -692,8 +720,9 @@ export async function getJikanAnimeFranchise(id: number) {
     new Set([
       primaryTitle,
       cleanWhitespace(details.data.title),
+      ...animeTitleVariants(details.data),
     ].filter(Boolean)),
-  );
+  ).slice(0, 6);
 
   const searches = await Promise.all(
     queries.map((query) =>
@@ -737,7 +766,7 @@ export async function getJikanAnimeFranchise(id: number) {
       !/\b(recap|compilation|summary|digest)\b/i.test(title)
     );
   });
-  const seasonCount = seasonEntries.length;
+  const seasonCount = countDistinctSeasons(seasonEntries);
 
   return {
     title: primaryTitle,

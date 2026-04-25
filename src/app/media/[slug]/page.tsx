@@ -249,24 +249,39 @@ function getTrailerEmbedUrl(url?: string) {
   if (!url) return null;
 
   if (url.includes("youtube.com/embed/")) {
-    return `${url}${url.includes("?") ? "&" : "?"}autoplay=1&mute=1&controls=1&rel=0&playsinline=1`;
+    return `${url}${url.includes("?") ? "&" : "?"}autoplay=0&mute=0&controls=1&rel=0&playsinline=1&modestbranding=1&vq=hd1080`;
   }
 
   try {
     const parsed = new URL(url);
     if (parsed.hostname.includes("youtu.be")) {
       const id = parsed.pathname.replace("/", "");
-      return id ? `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&controls=1&rel=0&playsinline=1` : null;
+      return id ? `https://www.youtube.com/embed/${id}?autoplay=0&mute=0&controls=1&rel=0&playsinline=1&modestbranding=1&vq=hd1080` : null;
     }
     if (parsed.hostname.includes("youtube.com")) {
       const id = parsed.searchParams.get("v");
-      return id ? `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&controls=1&rel=0&playsinline=1` : null;
+      return id ? `https://www.youtube.com/embed/${id}?autoplay=0&mute=0&controls=1&rel=0&playsinline=1&modestbranding=1&vq=hd1080` : null;
     }
   } catch {
     return null;
   }
 
   return null;
+}
+
+function formatDetailDate(date?: string, fallbackYear?: number) {
+  if (date) {
+    const parsed = new Date(`${date}T00:00:00`);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    }
+  }
+
+  return fallbackYear ? String(fallbackYear) : "Unknown";
 }
 
 function normalizeCopyFingerprint(input: string) {
@@ -2538,12 +2553,14 @@ export default async function MediaDetailPage({
       : media.type === "show"
         ? media.details.releaseInfo ?? media.details.runtime ?? "Unknown"
         : media.type === "anime" || media.type === "anime_movie"
-          ? animeFranchise?.seasonCount
-            ? `${animeFranchise.seasonCount} seasons released`
+          ? (animeFranchise?.seasonCount ?? media.details.seasonCount)
+            ? `${animeFranchise?.seasonCount ?? media.details.seasonCount} seasons released`
             : media.details.runtime ?? media.details.entryLabel ?? media.details.releaseInfo ?? "Unknown"
           : media.details.runtime ?? media.details.entryLabel ?? media.details.releaseInfo ?? "Unknown";
   const studioValue = media.details.studio ?? media.details.platform ?? "Unknown";
   const statusValue = media.details.status ?? media.details.releaseInfo ?? "Unknown";
+  const releaseValue = formatDetailDate(media.details.releaseDate, media.year);
+  const genreValue = media.genres.length ? media.genres.slice(0, 4).join(" • ") : "Unknown";
   const deepDiveCards = buildDeepDiveCards(media, animeFranchise);
   const spotlightCredits = dedupeSpotlightCredits(media.credits).slice(0, 6);
   const feelingTags = buildFeelingTags(media);
@@ -2606,15 +2623,6 @@ export default async function MediaDetailPage({
                   <h1 className="display detail-display">{media.title}</h1>
                   <p className="detail-lead">{moodLine}</p>
                   <p className="copy detail-overview-copy">{synopsisPreview}</p>
-                  <div className="detail-hook-card glass">
-                    <p className="eyebrow">Instant hook</p>
-                    <h2 className="headline detail-hook-title">{buildWhyYouMightLikeIt(media, feelingTags)}</h2>
-                    <p className="copy detail-hook-copy">
-                      {media.type === "game"
-                        ? "The detail page should make the loop, the tone, and the world feel worth your time in under a minute."
-                        : "The point here is simple: you should know very quickly whether this feels like your kind of watch."}
-                    </p>
-                  </div>
                   {easterEgg ? (
                     <div className="detail-favorite-note glass">
                       <p className="eyebrow">{easterEgg.kicker}</p>
@@ -2628,6 +2636,9 @@ export default async function MediaDetailPage({
                   <div className="detail-meta-row">
                     <span className="detail-pill">{media.year}</span>
                     <span className="detail-pill">{media.rating.toFixed(1)}</span>
+                    {(animeFranchise?.seasonCount ?? media.details.seasonCount) ? (
+                      <span className="detail-pill">{animeFranchise?.seasonCount ?? media.details.seasonCount} seasons</span>
+                    ) : null}
                     {media.details.entryLabel ? <span className="detail-pill">{media.details.entryLabel}</span> : null}
                     {media.genres.map((genre) => (
                       <span key={genre} className="detail-pill">
@@ -2652,17 +2663,27 @@ export default async function MediaDetailPage({
                   </div>
                   <div className="detail-side-poster-copy">
                     <p className="eyebrow">{trailerEmbedUrl ? "Trailer" : "Field guide"}</p>
-                    <div className="detail-side-stat">
-                      <span>{runtimeLabel}</span>
-                      <strong>{runtimeValue}</strong>
-                    </div>
-                    <div className="detail-side-stat">
-                      <span>{studioLabel}</span>
-                      <strong>{studioValue}</strong>
-                    </div>
-                    <div className="detail-side-stat">
-                      <span>Status</span>
-                      <strong>{statusValue}</strong>
+                    <div className="detail-side-stat-grid">
+                      <div className="detail-side-stat detail-side-stat-emphasis">
+                        <span>Release date</span>
+                        <strong>{releaseValue}</strong>
+                      </div>
+                      <div className="detail-side-stat detail-side-stat-emphasis">
+                        <span>{runtimeLabel}</span>
+                        <strong>{runtimeValue}</strong>
+                      </div>
+                      <div className="detail-side-stat detail-side-stat-wide">
+                        <span>Genres</span>
+                        <strong>{genreValue}</strong>
+                      </div>
+                      <div className="detail-side-stat">
+                        <span>Status</span>
+                        <strong>{statusValue}</strong>
+                      </div>
+                      <div className="detail-side-stat">
+                        <span>{studioLabel}</span>
+                        <strong>{studioValue}</strong>
+                      </div>
                     </div>
                   </div>
                 </aside>
@@ -2684,7 +2705,7 @@ export default async function MediaDetailPage({
               </div>
             </div>
 
-            <div className="info-panel glass">
+            <div className="info-panel glass detail-feel-panel">
               <p className="eyebrow">What this feels like</p>
               <h2 className="headline">The vibe in plain English</h2>
               <div className="detail-feel-tags">
@@ -2702,21 +2723,25 @@ export default async function MediaDetailPage({
             <div className="info-panel glass">
               <p className="eyebrow">Essentials</p>
               <h2 className="headline">The quick read before you commit</h2>
-              <div className="credit-list" style={{ marginTop: 18 }}>
-                <div className="credit-row">
-                  <span className="muted">{runtimeLabel}</span>
-                  <strong>{runtimeValue}</strong>
-                </div>
-                <div className="credit-row">
-                  <span className="muted">Status</span>
-                  <strong>{statusValue}</strong>
-                </div>
-                <div className="credit-row">
-                  <span className="muted">Genres</span>
-                  <strong>{media.genres.length ? media.genres.slice(0, 4).join(" • ") : "Unknown"}</strong>
+                <div className="credit-list" style={{ marginTop: 18 }}>
+                  <div className="credit-row">
+                    <span className="muted">{runtimeLabel}</span>
+                    <strong>{runtimeValue}</strong>
+                  </div>
+                  <div className="credit-row">
+                    <span className="muted">Release date</span>
+                    <strong>{releaseValue}</strong>
+                  </div>
+                  <div className="credit-row">
+                    <span className="muted">Status</span>
+                    <strong>{statusValue}</strong>
+                  </div>
+                  <div className="credit-row">
+                    <span className="muted">Genres</span>
+                    <strong>{genreValue}</strong>
+                  </div>
                 </div>
               </div>
-            </div>
 
             <div className="info-panel glass">
               <p className="eyebrow">

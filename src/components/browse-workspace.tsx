@@ -7,7 +7,7 @@ import { CatalogCard } from "@/components/catalog-card";
 import { FilterChipBar } from "@/components/filter-chip-bar";
 import { NVLoader } from "@/components/nv-loader";
 import { filterCatalog, itemGenreLabels, itemMatchesGenre } from "@/lib/catalog-utils";
-import { clearBrowseReturnContext, readBrowseReturnContext } from "@/lib/detail-return";
+import { clearBrowseReturnContext, readBrowseReturnContext, writeBrowseReturnContext, writeDetailReturnTarget } from "@/lib/detail-return";
 import { optimizeMediaImageUrl } from "@/lib/media-image";
 import { dedupeMediaKey, rankCandidatesForQuery } from "@/lib/search-utils";
 import { MediaItem, MediaType } from "@/lib/types";
@@ -112,6 +112,31 @@ function writeBrowsePageCache(cache: Record<string, CachedPage>) {
 
 function buildCacheKey(filter: MediaType | "all", page: number, genre: string, query: string, sort: SortMode, seed: number, pageSize: number) {
   return `${filter}-${page}-${genre}-${query.trim().toLowerCase()}-${sort}-${seed}-${pageSize}`;
+}
+
+function buildBrowseHref(filter: MediaType | "all", page: number, genre: string, query: string, sort: SortMode, seed: number) {
+  const params = new URLSearchParams();
+
+  if (page > 1) {
+    params.set("page", String(page));
+  }
+  if (filter !== "all") {
+    params.set("mediaType", filter);
+  }
+  if (genre !== "all") {
+    params.set("genre", genre);
+  }
+  if (sort !== "discovery") {
+    params.set("sort", sort);
+  }
+
+  const trimmedQuery = query.trim();
+  if (trimmedQuery) {
+    params.set("query", trimmedQuery);
+  }
+
+  params.set("seed", String(seed));
+  return params.toString() ? `/browse?${params.toString()}` : "/browse";
 }
 
 function hashString(input: string) {
@@ -1120,8 +1145,29 @@ export function BrowseWorkspace({
   }
 
   function persistBrowseSnapshot() {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const href = buildBrowseHref(filter, activePage, genre, query, sort, sessionSeedRef.current);
     window.sessionStorage.setItem(BROWSE_SCROLL_KEY, String(window.scrollY));
-    window.sessionStorage.setItem(BROWSE_LAST_URL_KEY, `${window.location.pathname}${window.location.search}`);
+    window.sessionStorage.setItem(BROWSE_LAST_URL_KEY, href);
+    window.sessionStorage.setItem(
+      BROWSE_STATE_KEY,
+      JSON.stringify({
+        filter,
+        query,
+        genre,
+        sort,
+        page: activePage,
+        heroIndex,
+      }),
+    );
+    writeDetailReturnTarget({ href });
+    writeBrowseReturnContext({
+      href,
+      scrollY: window.scrollY,
+    });
   }
 
   function handleSearchJump(event?: FormEvent) {
