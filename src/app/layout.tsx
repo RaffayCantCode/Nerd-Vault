@@ -1,17 +1,8 @@
-"use client";
-
 import type { Metadata, Viewport } from "next";
 import { Poppins } from "next/font/google";
-import { ActionFeedbackContainer } from "@/components/action-feedback";
-import { AuthCookieReset } from "@/components/auth-cookie-reset";
-import { PageLoadingOverlay } from "@/components/page-loading-overlay";
-import { PageTransitionProvider, usePageTransition } from "@/components/page-transition-provider";
-import { PerformanceOptimizer } from "@/components/performance-optimizer";
-import { RoutePrefetcher } from "@/components/route-prefetcher";
+import { ClientRoot } from "./client-root";
 import "./globals.css";
 
-// Metadata needs to be exported from a Server Component
-// We'll define it separately
 export const metadata: Metadata = {
   title: {
     default: "NerdVault",
@@ -57,49 +48,14 @@ const brandFont = Poppins({
   display: "swap",
 });
 
-function PageTransitionWrapper({ children }: { children: React.ReactNode }) {
-  const { isNavigating, navigationProgress } = usePageTransition();
-  
-  return (
-    <>
-      {/* Top Progress Bar */}
-      {isNavigating && (
-        <div className="top-progress-bar">
-          <div 
-            className="top-progress-bar-fill" 
-            style={{ width: `${navigationProgress}%` }}
-          />
-        </div>
-      )}
-      
-      {/* Full Page Loading Overlay for slower transitions */}
-      <PageLoadingOverlay 
-        isLoading={isNavigating && navigationProgress < 50}
-        progress={navigationProgress}
-        message="Loading your vault"
-      />
-      
-      {children}
-    </>
-  );
-}
-
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${brandFont.variable}`} style={{ ["--font-display" as string]: "var(--font-sans)" }}>
-        <AuthCookieReset />
-        <PerformanceOptimizer />
-        <RoutePrefetcher />
-        <PageTransitionProvider>
-          <PageTransitionWrapper>
-            {children}
-          </PageTransitionWrapper>
-        </PageTransitionProvider>
-        <ActionFeedbackContainer />
-      </body>
+      <ClientRoot fontVariable={brandFont.variable}>
+        {children}
+      </ClientRoot>
     </html>
   );
 }
