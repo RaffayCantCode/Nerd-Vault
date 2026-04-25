@@ -404,17 +404,17 @@ export async function browseMixedCatalog({
   }
 
   const needsBroaderPool = Boolean((genre && genre !== "all") || safeQuery);
-  // Calculate how many items we need to fill the requested page
-  const itemsNeeded = page * safePageSize;
-  // Each source returns ~20-25 items per page, account for deduplication/franchise collapsing (~40% reduction)
-  const effectiveItemsPerSourcePage = 15;
-  const pagesNeededPerSource = Math.ceil(itemsNeeded / effectiveItemsPerSourcePage);
-  const targetPoolSize = Math.max(safePageSize * Math.max(page + 2, 4), 96);
-  const sourcePageSpan = isSearch
-    ? 1
-    : needsBroaderPool
-      ? Math.max(8, pagesNeededPerSource + 2)
-      : Math.max(5, pagesNeededPerSource);
+  // FETCH ALL DATA: Always fetch a massive catalog for complete browse experience
+  // This ensures the vault feels complete and browsing is smooth across all pages
+  // Each source typically has 500+ pages available, we fetch enough to provide
+  // a substantial catalog (50+ source pages = ~750-1000 items after dedup)
+  const MASSIVE_SOURCE_SPAN = 50; // Fetch 50 pages from each source = ~1000 items per source
+  const SEARCH_SOURCE_SPAN = 10;  // For search, fetch less but still substantial
+  
+  const sourcePageSpan = isSearch ? SEARCH_SOURCE_SPAN : MASSIVE_SOURCE_SPAN;
+  const targetPoolSize = safePageSize * 50; // Target 50 pages worth of content (1200 items at 24/page)
+  
+  // Generate source page numbers (1, 2, 3, ... 50)
   const sourcePages = Array.from({ length: sourcePageSpan }, (_, index) => index + 1);
 
   const pageResults = await Promise.all(
@@ -529,22 +529,16 @@ export async function browseMixedCatalog({
   const filteredMixed = safeQuery
     ? (genre && genre !== "all" ? searchPool.filter((item) => itemMatchesGenre(item, genre)) : searchPool)
     : dedupeMediaKey(
-        interleaveBuckets(allBuckets.movie, allBuckets.show, allBuckets.anime, allBuckets.game),
+        // Use interleaveTypePriority for EQUAL distribution: 6 movies, 6 shows, 6 anime, 6 games per 24 items
+        interleaveTypePriority(
+          [...allBuckets.movie, ...allBuckets.show, ...allBuckets.anime, ...allBuckets.game],
+          targetPoolSize,
+        ),
       ).filter((item): item is MediaItem => Boolean(item));
 
   const rankedMixed = safeQuery
     ? rankSearchItems(filteredMixed, safeQuery, Math.max(safePageSize * 6, 180))
-    : sortMediaItems(filteredMixed, sort, seed + page * 13);
-
-  const maxSourcePages = pageResults.reduce((currentMax: number, entry: any) => {
-    return Math.max(
-      currentMax,
-      entry.movieEntry.totalPages ?? 1,
-      entry.showEntry.totalPages ?? 1,
-      entry.animeEntry.totalPages ?? 1,
-      entry.gameEntry.totalPages ?? 1,
-    );
-  }, 1);
+    : sortMediaItems(filteredMixed, sort, seed); // Use consistent seed so order is stable across pages
 
   const pageStart = Math.max(0, (page - 1) * safePageSize);
   const finalItems = safeQuery
@@ -552,21 +546,18 @@ export async function browseMixedCatalog({
     : rankedMixed.slice(pageStart, pageStart + safePageSize);
 
   const validatedItems = validateSearchResults(finalItems);
-  // Calculate realistic total pages based on actual available items
+  
+  // Calculate total pages based on ACTUAL fetched items
+  // With 50 source pages × 4 sources × ~20 items = ~4000 items before dedup
+  // After deduplication: ~2000-2500 items = ~80-100 pages at 24/page
   const actualTotalItems = rankedMixed.length;
   const calculatedTotalPages = Math.ceil(actualTotalItems / Math.max(1, safePageSize));
-  // Ensure we don't report more pages than we can actually fill with content
-  const realisticTotalPages = Math.max(1, calculatedTotalPages);
+  
+  // For browse (non-search), report all available pages
+  // Minimum 20 pages, maximum based on actual content (up to 100+)
   const totalPages = safeQuery
     ? 1
-    : Math.min(
-        500, // Cap at 500 pages max
-        Math.max(
-          page,
-          realisticTotalPages,
-          Math.ceil(targetPoolSize / safePageSize),
-        ),
-      );
+    : Math.max(20, Math.min(100, calculatedTotalPages));
 
   const payload = {
     page: isSearch ? 1 : page,

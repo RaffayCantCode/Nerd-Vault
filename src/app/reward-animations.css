@@ -186,14 +186,14 @@
   inset: 0;
   background: linear-gradient(
     135deg,
-    rgba(3, 252, 190, 0.1) 0%,
-    rgba(158, 135, 255, 0.15) 100%
+    rgba(3, 252, 190, 0.08) 0%,
+    rgba(158, 135, 255, 0.12) 100%
   );
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.45s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: inherit;
   pointer-events: none;
 }
@@ -204,23 +204,28 @@
 
 .catalog-card-hover-text {
   padding: 10px 20px;
-  background: rgba(6, 9, 17, 0.8);
-  border: 1px solid rgba(3, 252, 190, 0.4);
+  background: rgba(6, 9, 17, 0.85);
+  border: 1px solid rgba(3, 252, 190, 0.35);
   border-radius: 20px;
   color: var(--gold);
   font-size: 0.85rem;
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  transform: translateY(10px);
+  transform: translateY(8px);
   opacity: 0;
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  box-shadow: 0 4px 20px rgba(3, 252, 190, 0.2);
+  transition: all 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  box-shadow: 0 4px 20px rgba(3, 252, 190, 0.15);
 }
 
 .catalog-card:hover .catalog-card-hover-text {
   transform: translateY(0);
   opacity: 1;
+}
+
+/* Smooth transition for hover effects */
+.catalog-card {
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s ease;
 }
 
 /* Card border glow on hover */
@@ -563,6 +568,293 @@
 
 .button-accent:hover::before {
   opacity: 1;
+}
+
+/* ============================================
+   PAGE TRANSITION ANIMATIONS
+   ============================================ */
+
+/* Page Loading Overlay */
+.page-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(
+    135deg,
+    rgba(6, 9, 17, 0.98) 0%,
+    rgba(14, 20, 32, 0.98) 100%
+  );
+  backdrop-filter: blur(20px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+.page-loading-overlay.is-active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.page-loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 40px;
+}
+
+/* Animated Vault Logo for Loading */
+.page-loading-logo {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-loading-logo .vault-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid transparent;
+}
+
+.page-loading-logo .vault-ring-outer {
+  width: 80px;
+  height: 80px;
+  border-top-color: var(--gold);
+  border-right-color: var(--gold);
+  animation: vaultSpin 2s linear infinite;
+}
+
+.page-loading-logo .vault-ring-middle {
+  width: 60px;
+  height: 60px;
+  border-bottom-color: var(--blue);
+  border-left-color: var(--blue);
+  animation: vaultSpin 1.5s linear infinite reverse;
+}
+
+.page-loading-logo .vault-ring-inner {
+  width: 40px;
+  height: 40px;
+  border-top-color: rgba(3, 252, 190, 0.5);
+  animation: vaultSpin 1s linear infinite;
+}
+
+.page-loading-logo .vault-text {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.05em;
+  animation: vaultPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes vaultSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes vaultPulse {
+  0%, 100% { 
+    opacity: 1;
+    transform: scale(1);
+    text-shadow: 0 0 10px rgba(3, 252, 190, 0.5);
+  }
+  50% { 
+    opacity: 0.8;
+    transform: scale(0.95);
+    text-shadow: 0 0 20px rgba(3, 252, 190, 0.8);
+  }
+}
+
+/* Progress Bar */
+.page-loading-progress-container {
+  width: 240px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.page-loading-progress-bar {
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    var(--gold) 0%,
+    var(--blue) 50%,
+    var(--gold) 100%
+  );
+  background-size: 200% 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease-out;
+  animation: progressShimmer 2s linear infinite;
+  box-shadow: 0 0 10px rgba(3, 252, 190, 0.4);
+}
+
+.page-loading-progress-glow {
+  position: absolute;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  background: var(--gold);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  filter: blur(8px);
+  opacity: 0.6;
+  transition: left 0.3s ease-out;
+}
+
+@keyframes progressShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Loading Text */
+.page-loading-text-container {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.page-loading-dots {
+  display: inline-flex;
+}
+
+.page-loading-dots .dot {
+  animation: dotPulse 1.4s ease-in-out infinite;
+  opacity: 0.3;
+}
+
+.page-loading-dots .dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.page-loading-dots .dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes dotPulse {
+  0%, 60%, 100% { opacity: 0.3; }
+  30% { opacity: 1; }
+}
+
+/* Progress Percentage */
+.page-loading-percentage {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* Background Particles */
+.page-loading-particles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.page-loading-particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: var(--gold);
+  border-radius: 50%;
+  opacity: 0;
+  animation: particleFloat 3s ease-in-out infinite;
+}
+
+.page-loading-particle:nth-child(1) { left: 10%; top: 20%; }
+.page-loading-particle:nth-child(2) { left: 20%; top: 60%; animation-delay: 0.5s; }
+.page-loading-particle:nth-child(3) { left: 30%; top: 40%; animation-delay: 1s; }
+.page-loading-particle:nth-child(4) { left: 70%; top: 30%; animation-delay: 1.5s; }
+.page-loading-particle:nth-child(5) { left: 80%; top: 70%; animation-delay: 2s; }
+.page-loading-particle:nth-child(6) { left: 90%; top: 50%; animation-delay: 2.5s; }
+
+@keyframes particleFloat {
+  0%, 100% {
+    transform: translateY(0) scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: translateY(-100px) scale(1);
+    opacity: 0.5;
+  }
+}
+
+/* Top Progress Bar (for subtle loading indication) */
+.top-progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 10000;
+  background: rgba(3, 252, 190, 0.1);
+  overflow: hidden;
+}
+
+.top-progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    var(--gold) 0%,
+    var(--blue) 50%,
+    var(--gold) 100%
+  );
+  background-size: 200% 100%;
+  box-shadow: 0 0 10px rgba(3, 252, 190, 0.5);
+  transition: width 0.3s ease-out;
+  animation: progressShimmer 1.5s linear infinite;
+}
+
+/* Page Content Transitions */
+.page-content {
+  animation: pageEnter 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes pageEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Staggered content entry */
+.page-content-stagger > * {
+  animation: staggerEnter 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  opacity: 0;
+}
+
+.page-content-stagger > *:nth-child(1) { animation-delay: 0.05s; }
+.page-content-stagger > *:nth-child(2) { animation-delay: 0.1s; }
+.page-content-stagger > *:nth-child(3) { animation-delay: 0.15s; }
+.page-content-stagger > *:nth-child(4) { animation-delay: 0.2s; }
+.page-content-stagger > *:nth-child(5) { animation-delay: 0.25s; }
+.page-content-stagger > *:nth-child(6) { animation-delay: 0.3s; }
+
+@keyframes staggerEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ============================================

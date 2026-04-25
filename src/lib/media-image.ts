@@ -1,18 +1,20 @@
 export type MediaImageIntent = "thumb" | "cover" | "backdrop" | "gallery" | "lightbox";
 
+// Optimized sizes for faster loading
 const TMDB_SIZES: Record<MediaImageIntent, string> = {
-  thumb: "w342",
-  cover: "w500",
-  backdrop: "original",
-  gallery: "w1280",
+  thumb: "w300",      // Reduced from w342 for faster thumbs
+  cover: "w400",      // Reduced from w500 for faster covers
+  backdrop: "w1280",  // Use w1280 instead of original for backdrops
+  gallery: "w780",    // Reduced from w1280 for gallery
   lightbox: "original",
 };
 
+// IGDB uses progressive loading
 const IGDB_SIZES: Record<MediaImageIntent, string> = {
-  thumb: "t_cover_big",
-  cover: "t_720p",
-  backdrop: "t_1080p",
-  gallery: "t_1080p",
+  thumb: "t_cover_small",  // Smaller thumbs
+  cover: "t_cover_big",    // Good balance for covers
+  backdrop: "t_720p",      // 720p for faster backdrops
+  gallery: "t_720p",
   lightbox: "t_1080p",
 };
 

@@ -56,6 +56,7 @@ export async function GET(request: NextRequest) {
           genre,
           sort,
           seed,
+          pageSize,
         });
       }
 
@@ -88,6 +89,7 @@ export async function GET(request: NextRequest) {
         genre,
         sort,
         seed,
+        pageSize,
       });
     };
 

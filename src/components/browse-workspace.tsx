@@ -38,10 +38,9 @@ function isReloadNavigation() {
   return firstEntry?.type === "reload";
 }
 
-function getBrowsePageSize(viewportWidth: number) {
-  if (viewportWidth < 768) return 48;
-  if (viewportWidth < 1680) return 72;
-  return 96;
+function getBrowsePageSize(_viewportWidth: number) {
+  // Fixed at 24 titles per page as requested
+  return 24;
 }
 
 function scrollToElementWithOffset(element: HTMLElement | null, offset: number, behavior: ScrollBehavior = "auto") {
