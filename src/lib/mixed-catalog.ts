@@ -211,9 +211,47 @@ function buildTypeBucket(
   const orderedItems =
     sort === "discovery"
       ? buildDiscoverySlice(uniqueItems, seed, Math.min(uniqueItems.length, Math.max(minTarget, 18)))
-      : rotateBuckets(shuffleBySeed(uniqueItems, seed), seed);
+      : sortMediaItems(uniqueItems, sort, seed);
 
   return dedupeBySource(orderedItems);
+}
+
+function sortMediaItems(
+  items: MediaItem[],
+  sort: "discovery" | "newest" | "rating" | "title",
+  seed: number,
+) {
+  const uniqueItems = dedupeBySource(items);
+
+  if (sort === "discovery") {
+    return buildDiscoverySlice(uniqueItems, seed, uniqueItems.length);
+  }
+
+  if (sort === "rating") {
+    return [...uniqueItems].sort((left, right) => {
+      const ratingGap = right.rating - left.rating;
+      if (ratingGap !== 0) return ratingGap;
+      const yearGap = (right.year || 0) - (left.year || 0);
+      if (yearGap !== 0) return yearGap;
+      return left.title.localeCompare(right.title);
+    });
+  }
+
+  if (sort === "newest") {
+    return [...uniqueItems].sort((left, right) => {
+      const yearGap = (right.year || 0) - (left.year || 0);
+      if (yearGap !== 0) return yearGap;
+      const ratingGap = right.rating - left.rating;
+      if (ratingGap !== 0) return ratingGap;
+      return left.title.localeCompare(right.title);
+    });
+  }
+
+  return [...uniqueItems].sort((left, right) => {
+    const titleGap = left.title.localeCompare(right.title);
+    if (titleGap !== 0) return titleGap;
+    return (right.year || 0) - (left.year || 0);
+  });
 }
 
 function buildDiscoverySlice(items: MediaItem[], seed: number, targetSize: number) {
@@ -366,7 +404,12 @@ export async function browseMixedCatalog({
   }
 
   const needsBroaderPool = Boolean((genre && genre !== "all") || safeQuery);
-  const sourcePageSpan = isSearch ? 1 : Math.max(2, page + (needsBroaderPool ? 1 : 0));
+  const targetPoolSize = Math.max(safePageSize * Math.max(page + 2, 4), 96);
+  const sourcePageSpan = isSearch
+    ? 1
+    : needsBroaderPool
+      ? Math.max(5, page + 3)
+      : Math.max(3, page + 2);
   const sourcePages = Array.from({ length: sourcePageSpan }, (_, index) => index + 1);
 
   const pageResults = await Promise.all(
@@ -486,10 +529,7 @@ export async function browseMixedCatalog({
 
   const rankedMixed = safeQuery
     ? rankSearchItems(filteredMixed, safeQuery, Math.max(safePageSize * 6, 180))
-    : interleaveTypePriority(
-        rotateBuckets(shuffleBySeed(filteredMixed, seed + page * 13), seed * 7 + page * 11),
-        safePageSize,
-      );
+    : sortMediaItems(filteredMixed, sort, seed + page * 13);
 
   const maxSourcePages = pageResults.reduce((currentMax: number, entry: any) => {
     return Math.max(
@@ -501,9 +541,10 @@ export async function browseMixedCatalog({
     );
   }, 1);
 
+  const pageStart = Math.max(0, (page - 1) * safePageSize);
   const finalItems = safeQuery
     ? rankedMixed.slice(0, safePageSize)
-    : buildBalancedPageFromBuckets(allBuckets, page, safePageSize);
+    : rankedMixed.slice(pageStart, pageStart + safePageSize);
 
   const validatedItems = validateSearchResults(finalItems);
   const totalPages = safeQuery
@@ -511,6 +552,7 @@ export async function browseMixedCatalog({
     : Math.max(
         page,
         maxSourcePages,
+        Math.ceil(Math.max(rankedMixed.length, targetPoolSize) / Math.max(1, safePageSize)),
         estimateBalancedTotalPages(allBuckets, safePageSize),
       );
 
