@@ -43,5 +43,7 @@ export type MediaItem = {
     collectionId?: number;
     entryCount?: number;
     entryLabel?: string;
+    parentSeriesTitle?: string;
+    parentSeriesLabel?: string;
   };
 };

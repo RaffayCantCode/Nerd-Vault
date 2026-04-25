@@ -47,15 +47,6 @@ export async function GET(request: NextRequest) {
 
   try {
     const page = Number.isFinite(pageParam) ? pageParam : 1;
-    const dedupeBySource = (items: MediaItem[]) => {
-      const seen = new Set<string>();
-      return items.filter((item) => {
-        const key = `${item.source}-${item.sourceId}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-    };
 
     const fetchByType = async (targetPage: number): Promise<BrowsePayload> => {
       if (type === "anime") {
@@ -100,28 +91,7 @@ export async function GET(request: NextRequest) {
       });
     };
 
-    let payload = await fetchByType(page);
-
-    // Top up sparse pages (especially after media-type + genre filters) so each page
-    // remains visually full instead of shrinking to tiny result counts.
-    if (type !== "all" && !query.trim() && payload.items.length < pageSize) {
-      const merged = [...payload.items];
-      let nextPage = page + 1;
-      let attempts = 0;
-      const maxAttempts = 4;
-
-      while (merged.length < pageSize && nextPage <= payload.totalPages && attempts < maxAttempts) {
-        const nextPayload = await fetchByType(nextPage);
-        merged.push(...nextPayload.items);
-        nextPage += 1;
-        attempts += 1;
-      }
-
-      payload = {
-        ...payload,
-        items: dedupeBySource(merged).slice(0, pageSize),
-      };
-    }
+    const payload = await fetchByType(page);
 
     return NextResponse.json(
       {

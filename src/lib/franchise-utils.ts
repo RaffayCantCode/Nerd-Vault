@@ -21,13 +21,27 @@ export function normalizeBaseTitle(rawTitle: string): string {
  * Enhanced anime title normalization that properly separates series from movies
  */
 export function normalizeAnimeBaseTitle(rawTitle: string, type?: string): string {
-  const cleaned = rawTitle
-    .trim()
-    .toLowerCase()
-    .replace(/\s*:\s*the final chapters(?:\s+special\s+\d+)?$/i, "")
+  const original = rawTitle.trim().toLowerCase();
+  const cleaned = original
+    .replace(/[^\w\s:]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (type === "movie" || /\b(movie|film)\b/.test(cleaned)) {
+    return cleaned.replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
+  }
+
+  const colonParts = cleaned.split(/\s*:\s*/).map((part) => part.trim()).filter(Boolean);
+  const baseFromColon =
+    colonParts.length > 1 && !/\b(movie|film)\b/.test(colonParts[colonParts.length - 1])
+      ? colonParts[0]
+      : cleaned;
+
+  return baseFromColon
+    .replace(/\s*-\s*thousand year blood war(?: arc)?$/i, "")
+    .replace(/\s+thousand year blood war(?: arc)?$/i, "")
     .replace(/\s+the final chapters(?:\s+special\s+\d+)?$/i, "")
     .replace(/\s+final chapters(?:\s+special\s+\d+)?$/i, "")
-    .replace(/\s*:\s*the final season(?:\s+part\s+\d+)?$/i, "")
     .replace(/\s+the final season(?:\s+part\s+\d+)?$/i, "")
     .replace(/\s+final season(?:\s+part\s+\d+)?$/i, "")
     .replace(/\s+\d+(?:st|nd|rd|th)\s+season$/i, "")
@@ -35,21 +49,42 @@ export function normalizeAnimeBaseTitle(rawTitle: string, type?: string): string
     .replace(/\s+part\s+\d+$/i, "")
     .replace(/\s+cour\s+\d+$/i, "")
     .replace(/\s+special\s+\d+$/i, "")
+    .replace(/\s+(?:arc|chapter|episode)\s+\d+$/i, "")
     .replace(/[^\w\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-  
-  // For movies, be more conservative - don't remove as much
-  if (type === 'movie' || cleaned.includes('movie') || cleaned.includes('film')) {
-    return rawTitle
-      .trim()
-      .toLowerCase()
-      .replace(/[^\w\s]/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
+}
+
+export function getAnimeSeriesContext(rawTitle: string, type?: string) {
+  const title = rawTitle.trim();
+  const normalizedTitle = title.toLowerCase();
+  const parentSeriesTitle = normalizeAnimeBaseTitle(title, type);
+  const normalizedParent = parentSeriesTitle.toLowerCase();
+  const isMovie = type === "movie" || /\b(movie|film)\b/.test(normalizedTitle);
+  const isSameAsParent = normalizedTitle.replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim() === normalizedParent;
+
+  let parentSeriesLabel: string | undefined;
+  if (!isSameAsParent) {
+    if (/\bthousand year blood war\b/.test(normalizedTitle)) {
+      parentSeriesLabel = "Arc continuation";
+    } else if (/\bfinal season\b/.test(normalizedTitle)) {
+      parentSeriesLabel = "Final season";
+    } else if (/\bseason\b/.test(normalizedTitle)) {
+      parentSeriesLabel = "Season continuation";
+    } else if (/\bpart\b/.test(normalizedTitle)) {
+      parentSeriesLabel = "Series continuation";
+    } else if (isMovie) {
+      parentSeriesLabel = "Franchise movie";
+    } else {
+      parentSeriesLabel = "Series continuation";
+    }
   }
-  
-  return cleaned;
+
+  return {
+    parentSeriesTitle,
+    parentSeriesLabel,
+    isContinuation: Boolean(parentSeriesLabel),
+  };
 }
 
 /**

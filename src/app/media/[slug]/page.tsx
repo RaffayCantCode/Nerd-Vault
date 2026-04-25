@@ -1418,38 +1418,6 @@ async function buildFranchiseSection(media: MediaItem, animeFranchise?: AnimeFra
     }
   }
 
-  const genericFallbackSignals = buildFranchiseSignals(media);
-  const genericFallbackEntries = await getFranchiseFallback(media, genericFallbackSignals).catch(() => [] as MediaItem[]);
-  const genericFranchiseCandidates = dedupeItems([media, ...genericFallbackEntries])
-    .filter((candidate) => candidate.type === media.type || (media.type === "anime_movie" && candidate.type === "anime"))
-    .filter((candidate) => candidate.id === media.id || hasStrongFranchiseConnection(media, candidate, genericFallbackSignals));
-
-  if (genericFranchiseCandidates.length >= 2) {
-    const ordered = [...genericFranchiseCandidates].sort(compareFranchiseItems);
-    const activeIndex = Math.max(0, ordered.findIndex((candidate) => candidate.id === media.id));
-
-    return {
-      title: normalizeDisplayTitle(media.details.collectionTitle ?? media.title),
-      summary: buildFranchiseSummary(media.details.collectionTitle ?? media.title, activeIndex, ordered.length),
-      entries: ordered.map((entry) => ({
-        id: entry.id,
-        title: normalizeDisplayTitle(entry.title),
-        meta: [
-          entry.year || "Year TBD",
-          `${entry.rating.toFixed(1)} / 10`,
-          entry.details.releaseInfo ?? entry.details.runtime ?? entry.details.platform ?? entry.details.status ?? entry.type,
-        ]
-          .filter(Boolean)
-          .join(" / "),
-        href: buildMediaHref(entry),
-        badge: buildFranchiseBadge(entry.title, parseInstallmentOrder(entry.title)),
-        isActive: entry.id === media.id,
-      })),
-    };
-  }
-
-  // If no official source-specific franchise found, return null to show "Not a part of any franchise"
-  // Removing loose keyword-based fallback to maintain strictness
   return null;
 }
 
@@ -1911,6 +1879,9 @@ function buildWhyYouMightLikeIt(media: MediaItem, feelingTags: string[]) {
 function buildWorldLine(media: MediaItem, animeFranchise?: AnimeFranchiseData) {
   const genres = media.genres.slice(0, 2).join(" / ") || "story-led";
 
+  if (media.details.parentSeriesTitle && media.details.parentSeriesTitle !== media.title) {
+    return `Part of ${media.details.parentSeriesTitle}, with this entry taking a ${genres.toLowerCase()} angle on the larger story.`;
+  }
   if (media.details.collectionTitle) {
     return `Set inside the ${media.details.collectionTitle} universe, with a ${genres.toLowerCase()} lens.`;
   }
@@ -2008,6 +1979,41 @@ function buildRelatedTasteLine(media: MediaItem, related: MediaItem[], feelingTa
   return media.type === "game"
     ? "Think atmosphere first, then systems, then whether you want to live in this loop for a while."
     : "Think identity first: if the tone and hook work for you, the rest usually follows quickly.";
+}
+
+function buildSeriesContext(media: MediaItem, franchiseSection: FranchiseSectionData | null) {
+  const parentSeriesTitle =
+    media.details.parentSeriesTitle && media.details.parentSeriesTitle !== media.title
+      ? media.details.parentSeriesTitle
+      : franchiseSection?.title && franchiseSection.title !== media.title
+        ? franchiseSection.title
+        : null;
+
+  if (!parentSeriesTitle) {
+    return null;
+  }
+
+  const relationshipLabel =
+    media.details.parentSeriesLabel ??
+    (media.type === "anime_movie"
+      ? "Franchise movie"
+      : media.type === "anime"
+        ? "Part of a larger anime series"
+        : media.type === "show"
+          ? "Series continuation"
+          : "Part of a larger franchise");
+
+  const franchiseEntryCount =
+    (franchiseSection?.entries.length ?? 0) + (franchiseSection?.secondaryEntries?.length ?? 0);
+
+  return {
+    parentSeriesTitle,
+    relationshipLabel,
+    summary:
+      franchiseEntryCount >= 2
+        ? `${media.title} belongs to ${parentSeriesTitle}. The franchise section below keeps the connected entries grouped so you can move through them without losing the series context.`
+        : `${media.title} belongs to ${parentSeriesTitle}, even if the connected-entry rail is still thin for this exact source item.`,
+  };
 }
 
 function buildImmersionScenes(media: MediaItem, storyGallery: string[], deepDiveCards: ReturnType<typeof buildDeepDiveCards>) {
@@ -2528,6 +2534,7 @@ export default async function MediaDetailPage({
     getRelatedMediaRail(media).catch(() => [] as MediaItem[]),
     buildFranchiseSection(media, animeFranchise).catch(() => null),
   ]);
+  const seriesContext = buildSeriesContext(media, franchiseSection);
   const franchiseIds = new Set([
     ...(franchiseSection?.entries.map((entry) => entry.id) ?? []),
     ...(franchiseSection?.secondaryEntries?.map((entry) => entry.id) ?? []),
@@ -2623,6 +2630,13 @@ export default async function MediaDetailPage({
                   <h1 className="display detail-display">{media.title}</h1>
                   <p className="detail-lead">{moodLine}</p>
                   <p className="copy detail-overview-copy">{synopsisPreview}</p>
+                  {seriesContext ? (
+                    <div className="detail-favorite-note glass">
+                      <p className="eyebrow">{seriesContext.relationshipLabel}</p>
+                      <h2 className="headline detail-favorite-title">Connected to {seriesContext.parentSeriesTitle}</h2>
+                      <p className="copy">{seriesContext.summary}</p>
+                    </div>
+                  ) : null}
                   {easterEgg ? (
                     <div className="detail-favorite-note glass">
                       <p className="eyebrow">{easterEgg.kicker}</p>

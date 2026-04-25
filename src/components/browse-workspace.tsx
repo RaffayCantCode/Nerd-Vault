@@ -510,7 +510,6 @@ export function BrowseWorkspace({
 
   useEffect(() => {
     if (!didInitBrowseStateRef.current) {
-      didInitBrowseStateRef.current = true;
       return;
     }
     setPage(1);
@@ -543,6 +542,10 @@ export function BrowseWorkspace({
     setPage(1);
     setHeroIndex(0);
   }, [query]);
+
+  useEffect(() => {
+    didInitBrowseStateRef.current = true;
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

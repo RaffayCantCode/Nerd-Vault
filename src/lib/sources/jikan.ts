@@ -2,7 +2,7 @@ import { writeBrowsePageCache, writeBrowsePageCacheV2 } from "@/lib/browse-cache
 import { rankCandidatesForQuery } from "@/lib/search-utils";
 import { enrichAnimeImagesFromTmdb, TmdbAnimeImageEnrichment } from "@/lib/sources/tmdb";
 import { MediaItem } from "@/lib/types";
-import { matchesFranchise, normalizeAnimeBaseTitle, isAnimeMovie, groupAnimeByFranchise, isLikelyAnime } from "@/lib/franchise-utils";
+import { getAnimeSeriesContext, matchesFranchise, normalizeAnimeBaseTitle, isAnimeMovie, groupAnimeByFranchise, isLikelyAnime } from "@/lib/franchise-utils";
 
 const JIKAN_BASE_URL = "https://api.jikan.moe/v4";
 const JIKAN_CACHE_TTL_MS = 1000 * 60 * 30;
@@ -347,11 +347,13 @@ function mapAnime(
   },
 ): MediaItem {
   const title = overrides?.title || getDisplayTitle(item);
-  const canonicalTitle = overrides?.collectionTitle || normalizeAnimeBaseTitle(getDisplayTitle(item));
+  const animeKind = item.type ?? undefined;
+  const seriesContext = getAnimeSeriesContext(getDisplayTitle(item), animeKind);
+  const canonicalTitle = overrides?.collectionTitle || seriesContext.parentSeriesTitle || normalizeAnimeBaseTitle(getDisplayTitle(item));
 
   // Determine if this is an anime movie or series
   const isMovie = isAnimeMovie(title, item.episodes ?? undefined, item.type ?? undefined);
-  const animeType = isMovie ? 'anime_movie' : 'anime'; // Use specific anime_movie type for movies
+  const animeType = isMovie ? "anime_movie" : "anime";
 
   return {
     id: `jikan-anime-${item.mal_id}`,
@@ -406,6 +408,8 @@ function mapAnime(
       entryCount: overrides?.entryCount,
       entryLabel: overrides?.entryLabel,
       seasonCount: overrides?.seasonCount,
+      parentSeriesTitle: canonicalTitle,
+      parentSeriesLabel: seriesContext.isContinuation ? seriesContext.parentSeriesLabel : undefined,
     },
   };
 }
@@ -635,7 +639,6 @@ export async function getJikanAnimeDetails(id: number) {
 
   const canonicalTitle = normalizeAnimeBaseTitle(getDisplayTitle(details.data));
   const media = mapAnime(details.data, characters.data, {
-    title: canonicalTitle,
     collectionTitle: canonicalTitle,
   });
 
