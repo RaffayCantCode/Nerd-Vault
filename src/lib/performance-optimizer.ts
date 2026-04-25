@@ -46,6 +46,17 @@ export class PerformanceOptimizer {
   }
 
   private getPerformanceMetrics(): PerformanceMetrics {
+    // Only access navigator in browser environment
+    if (typeof window === "undefined" || typeof navigator === "undefined") {
+      return {
+        memory: 8,
+        cores: 4,
+        connection: '4g',
+        deviceMemory: 8,
+        hardwareConcurrency: 4,
+      };
+    }
+
     // Get device memory if available
     const deviceMemory = (navigator as any).deviceMemory || 8; // Default to 8GB
     const hardwareConcurrency = navigator.hardwareConcurrency || 4; // Default to 4 cores
@@ -67,11 +78,20 @@ export class PerformanceOptimizer {
   }
 
   private shouldForcePerformanceMode(): boolean {
+    if (typeof window === "undefined" || typeof navigator === "undefined") {
+      return false;
+    }
+
     const userAgent = navigator.userAgent.toLowerCase();
     return userAgent.includes('windows phone');
   }
 
   private applyOptimizations(): void {
+    // Skip browser-specific optimizations during SSR
+    if (typeof window === "undefined" || typeof document === "undefined") {
+      return;
+    }
+
     if (this.performanceMode) {
       this.enablePerformanceMode();
     }
@@ -81,6 +101,9 @@ export class PerformanceOptimizer {
   }
 
   private enablePerformanceMode(): void {
+    // Skip if not in browser
+    if (typeof document === "undefined") return;
+
     // Add performance mode class to body
     document.body.classList.add('performance-mode');
     
@@ -96,6 +119,8 @@ export class PerformanceOptimizer {
   }
 
   private optimizeImageLoading(): void {
+    if (typeof document === "undefined") return;
+    
     // Add loading="lazy" to all images that don't have it
     const images = document.querySelectorAll('img:not([loading])');
     images.forEach(img => {
@@ -140,11 +165,12 @@ export class PerformanceOptimizer {
   }
 
   private injectStyleOnce(flag: string, css: string): void {
+    if (typeof document === "undefined") return;
     if (this.injectedFlags.has(flag)) {
       return;
     }
 
-    const style = document.createElement('style');
+    const style = document.createElement("style");
     style.setAttribute("data-performance-style", flag);
     style.textContent = css;
     document.head.appendChild(style);
@@ -152,6 +178,8 @@ export class PerformanceOptimizer {
   }
 
   private setupPerformanceMonitoring(): void {
+    if (typeof window === "undefined") return;
+    
     // Monitor performance and adjust if needed
     if ('performance' in window) {
       // Monitor long tasks
