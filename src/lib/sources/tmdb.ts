@@ -84,6 +84,7 @@ export type TmdbBrowseParams = {
   genre?: string;
   sort?: "discovery" | "newest" | "rating" | "title";
   seed?: number;
+  pageSize?: number;
 };
 
 export type TmdbAnimeImageEnrichment = {

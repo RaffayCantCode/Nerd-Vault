@@ -147,6 +147,7 @@ export type JikanBrowseParams = {
   genre?: string;
   sort?: "discovery" | "newest" | "rating" | "title";
   seed?: number;
+  pageSize?: number;
 };
 
 export type AnimeFranchiseEntry = {
