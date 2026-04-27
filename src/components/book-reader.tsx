@@ -1,13 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { CSSProperties, useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { AuthRequiredModal } from "@/components/auth-required-modal";
 import { BooksSidebar } from "@/components/books-sidebar";
 import { NVLoader } from "@/components/nv-loader";
-import { fetchPersistedBookProgress, readBookTheme, readBookWishlist, saveBookProgress, subscribeBooksChange, toggleBookWishlist } from "@/lib/book-client";
-import { BookReaderPayload, BookTheme } from "@/lib/book-types";
+import {
+  fetchPersistedBookProgress,
+  readBookReaderSettings,
+  readBookTheme,
+  readBookWishlist,
+  resetBookReaderSettings,
+  saveBookProgress,
+  subscribeBooksChange,
+  toggleBookWishlist,
+  writeBookReaderSettings,
+} from "@/lib/book-client";
+import { BookReaderPayload, BookReaderSettings } from "@/lib/book-types";
 
 function paginateParagraphs(paragraphs: string[], targetSize = 2600) {
   const pages: string[][] = [];
@@ -34,6 +44,12 @@ function paginateParagraphs(paragraphs: string[], targetSize = 2600) {
   return pages;
 }
 
+function clampPage(page: number, totalPages: number) {
+  return Math.max(1, Math.min(totalPages, page));
+}
+
+const QUICK_ZOOM_LEVELS = [90, 100, 112, 124, 136, 150];
+
 export function BookReader({
   bookId,
   initialPayload = null,
@@ -49,12 +65,14 @@ export function BookReader({
   } | null;
   isSignedIn?: boolean;
 }) {
-  const [theme, setTheme] = useState<BookTheme>("dark");
+  const [theme, setTheme] = useState(readBookTheme);
+  const [readerSettings, setReaderSettings] = useState<BookReaderSettings>(readBookReaderSettings);
   const [payload, setPayload] = useState<BookReaderPayload | null>(initialPayload);
   const [wishlist, setWishlist] = useState<number[]>([]);
   const [loading, setLoading] = useState(!initialPayload);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(Math.max(1, initialProgress?.currentPage ?? 1));
+  const [draftPage, setDraftPage] = useState(String(Math.max(1, initialProgress?.currentPage ?? 1)));
   const [hasResolvedSavedPage, setHasResolvedSavedPage] = useState(Boolean(initialProgress));
   const [showAuthModal, setShowAuthModal] = useState(false);
   const pathname = usePathname();
@@ -62,6 +80,7 @@ export function BookReader({
   useEffect(() => {
     const sync = () => {
       setTheme(readBookTheme());
+      setReaderSettings(readBookReaderSettings());
       setWishlist(readBookWishlist());
     };
 
@@ -111,12 +130,28 @@ export function BookReader({
     };
   }, [bookId, initialPayload]);
 
-  const pages = useMemo(() => (payload ? paginateParagraphs(payload.paragraphs) : []), [payload]);
+  const pageTargetSize = useMemo(() => {
+    const fontDensity = readerSettings.fontScale / 100;
+    const widthDensity = readerSettings.pageWidth / 760;
+    const lineDensity = readerSettings.lineHeight / 1.8;
+    const spacingDensity = readerSettings.paragraphSpacing / 1.15;
+    const density = Math.max(0.62, Math.min(1.45, fontDensity * widthDensity * lineDensity * spacingDensity));
+    return Math.round(2600 / density);
+  }, [readerSettings.fontScale, readerSettings.lineHeight, readerSettings.pageWidth, readerSettings.paragraphSpacing]);
+
+  const pages = useMemo(
+    () => (payload ? paginateParagraphs(payload.paragraphs, pageTargetSize) : []),
+    [pageTargetSize, payload],
+  );
   const totalPages = Math.max(1, pages.length);
 
   useEffect(() => {
-    setCurrentPage((page) => Math.max(1, Math.min(initialProgress?.currentPage ?? page, totalPages)));
+    setCurrentPage((page) => clampPage(initialProgress?.currentPage ?? page, totalPages));
   }, [initialProgress?.currentPage, totalPages]);
+
+  useEffect(() => {
+    setDraftPage(String(currentPage));
+  }, [currentPage]);
 
   useEffect(() => {
     if (!payload) {
@@ -138,7 +173,7 @@ export function BookReader({
         }
 
         if (saved.progress?.currentPage) {
-          setCurrentPage(Math.max(1, Math.min(saved.progress.currentPage, totalPages)));
+          setCurrentPage(clampPage(saved.progress.currentPage, totalPages));
         }
       } catch {
         // Ignore and keep current page fallback.
@@ -173,15 +208,79 @@ export function BookReader({
     });
   }, [bookId, currentPage, hasResolvedSavedPage, pages.length, payload, totalPages]);
 
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      const isTypingTarget =
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.isContentEditable;
+
+      if (isTypingTarget) {
+        return;
+      }
+
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        setCurrentPage((page) => clampPage(page + 1, totalPages));
+      } else if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        setCurrentPage((page) => clampPage(page - 1, totalPages));
+      } else if (event.key === "+" || event.key === "=") {
+        event.preventDefault();
+        updateSettings({ fontScale: Math.min(170, readerSettings.fontScale + 6) });
+      } else if (event.key === "-" || event.key === "_") {
+        event.preventDefault();
+        updateSettings({ fontScale: Math.max(85, readerSettings.fontScale - 6) });
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [readerSettings.fontScale, totalPages]);
+
+  function updateSettings(partial: Partial<BookReaderSettings>) {
+    setReaderSettings((current) => {
+      const next = { ...current, ...partial };
+      writeBookReaderSettings(next);
+      setTheme(next.theme);
+      return readBookReaderSettings();
+    });
+  }
+
+  function jumpToPage(nextPage: number) {
+    setCurrentPage(clampPage(nextPage, totalPages));
+  }
+
+  function handleDraftPageSubmit() {
+    const parsed = Number(draftPage);
+    if (!Number.isFinite(parsed)) {
+      setDraftPage(String(currentPage));
+      return;
+    }
+
+    jumpToPage(parsed);
+  }
+
+  function handleResetReader() {
+    resetBookReaderSettings();
+    const next = readBookReaderSettings();
+    setReaderSettings(next);
+    setTheme(next.theme);
+  }
+
   const isWishlisted = wishlist.includes(bookId);
+  const readingPercent = totalPages <= 1 ? 100 : Math.round(((currentPage - 1) / (totalPages - 1)) * 100);
+  const visiblePage = pages[Math.max(0, currentPage - 1)] ?? [];
+  const quickZoomActive = QUICK_ZOOM_LEVELS.find((level) => level === Math.round(readerSettings.fontScale));
 
   if (loading) {
     return (
-      <div className="books-reader-shell" data-theme={theme}>
+      <div className="books-reader-shell books-reader-shell-premium" data-theme={theme}>
         <BooksSidebar theme={theme} active="reader" />
-        <main className="books-reader-main">
-          <section className="books-loading-shell">
-            <NVLoader label="Preparing your reading room..." />
+        <main className="books-reader-main books-reader-main-premium">
+          <section className="books-loading-shell books-loading-shell-reader">
+            <NVLoader label="Preparing your premium reading room..." />
           </section>
         </main>
       </div>
@@ -190,96 +289,239 @@ export function BookReader({
 
   if (error || !payload) {
     return (
-      <div className="books-reader-shell" data-theme={theme}>
+      <div className="books-reader-shell books-reader-shell-premium" data-theme={theme}>
         <BooksSidebar theme={theme} active="reader" />
-        <main className="books-reader-main">
+        <main className="books-reader-main books-reader-main-premium">
           <div className="books-empty-state">{error || "This book could not be loaded."}</div>
         </main>
       </div>
     );
   }
 
-  const visiblePage = pages[Math.max(0, currentPage - 1)] ?? [];
-
   return (
-    <div className="books-reader-shell" data-theme={theme}>
+    <div className="books-reader-shell books-reader-shell-premium" data-theme={theme}>
       <BooksSidebar theme={theme} active="reader" currentBookTitle={payload.book.title} />
 
-      <main className="books-reader-main">
-        <section className="books-reader-topbar">
-          <div className="books-reader-copy">
-            <p className="books-eyebrow">Reader</p>
-            <h1 className="books-reader-title">{payload.book.title}</h1>
-            <p className="books-copy">
-              {payload.book.authors.join(", ") || "Unknown author"} · page {currentPage} of {totalPages}
-            </p>
-            {!isSignedIn ? (
-              <p className="books-reader-guest-note">
-                Sign in to keep this page saved and continue later from exactly where you stop.
+      <main className="books-reader-main books-reader-main-premium">
+        <section className="books-reader-stage">
+          <header className="books-reader-command">
+            <div className="books-reader-command-copy">
+              <p className="books-eyebrow">Dedicated reader</p>
+              <h1 className="books-reader-title">{payload.book.title}</h1>
+              <p className="books-copy books-reader-subcopy">
+                {payload.book.authors.join(", ") || "Unknown author"} · page {currentPage} of {totalPages} · {readingPercent}% read
               </p>
-            ) : null}
-          </div>
-          <div className="books-reader-actions">
-            {!isSignedIn ? (
-              <Link href={`/sign-in?redirectTo=${encodeURIComponent(`/books/${bookId}/read`)}`} className="books-card-button books-card-button-primary">
-                Sign in to save
-              </Link>
-            ) : null}
-            <Link href={`/books/${bookId}`} className="books-card-button">Book info</Link>
-            <Link href="/books" className="books-card-button">Library</Link>
-            <button
-              type="button"
-              className="books-card-button"
-              onClick={() => {
-                if (!isSignedIn) {
-                  setShowAuthModal(true);
-                  return;
-                }
-                toggleBookWishlist(bookId);
-              }}
-            >
-              {isWishlisted ? "Saved to wishlist" : "Add to wishlist"}
-            </button>
-          </div>
-        </section>
+              {!isSignedIn ? (
+                <p className="books-reader-guest-note">
+                  Sign in to keep this exact page synced so you can come back later without losing your place.
+                </p>
+              ) : null}
+            </div>
 
-        <section className="books-reader-panel books-reader-panel-immersive">
-          <div className="books-reader-toolbar">
-            <div>
-              <p className="books-eyebrow">Paged reader</p>
-              <strong>Turn pages and resume exactly from the saved page.</strong>
-            </div>
-            <div className="books-page-controls">
-              <button type="button" className="books-card-button" disabled={currentPage <= 1} onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}>
-                Previous page
+            <div className="books-reader-command-actions">
+              {!isSignedIn ? (
+                <Link href={`/sign-in?redirectTo=${encodeURIComponent(`/books/${bookId}/read`)}`} className="books-card-button books-card-button-primary">
+                  Sign in to save
+                </Link>
+              ) : null}
+              <Link href={`/books/${bookId}`} className="books-card-button">Book info</Link>
+              <Link href="/books" className="books-card-button">Library</Link>
+              <button
+                type="button"
+                className="books-card-button"
+                onClick={() => {
+                  if (!isSignedIn) {
+                    setShowAuthModal(true);
+                    return;
+                  }
+                  toggleBookWishlist(bookId);
+                }}
+              >
+                {isWishlisted ? "Saved to wishlist" : "Add to wishlist"}
               </button>
-              <span className="books-page-indicator">{currentPage} / {totalPages}</span>
-              <button type="button" className="books-card-button books-card-button-primary" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}>
-                Next page
-              </button>
             </div>
-          </div>
-          <div className="books-reader-content books-reader-content-paged">
-            {visiblePage.map((paragraph, index) => (
-              <p key={`${currentPage}-${index}-${paragraph.slice(0, 20)}`} className="books-reader-paragraph">
-                {paragraph}
-              </p>
-            ))}
-          </div>
-          <div className="books-reader-footer-nav">
-            <button type="button" className="books-card-button" disabled={currentPage <= 1} onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}>
-              Previous page
-            </button>
-            <div className="books-reader-footer-copy">
-              <strong>Page {currentPage}</strong>
-              <span>of {totalPages}</span>
+          </header>
+
+          <section className="books-reader-control-deck">
+            <div className="books-reader-control-grid">
+              <div className="books-reader-control-card">
+                <span className="books-feature-label">Theme</span>
+                <div className="books-segmented">
+                  <button type="button" className={`books-segmented-chip ${readerSettings.theme === "dark" ? "is-active" : ""}`} onClick={() => updateSettings({ theme: "dark" })}>
+                    Dark
+                  </button>
+                  <button type="button" className={`books-segmented-chip ${readerSettings.theme === "light" ? "is-active" : ""}`} onClick={() => updateSettings({ theme: "light" })}>
+                    Light
+                  </button>
+                </div>
+              </div>
+
+              <div className="books-reader-control-card">
+                <span className="books-feature-label">Typeface</span>
+                <div className="books-segmented">
+                  <button type="button" className={`books-segmented-chip ${readerSettings.fontFamily === "serif" ? "is-active" : ""}`} onClick={() => updateSettings({ fontFamily: "serif" })}>
+                    Serif
+                  </button>
+                  <button type="button" className={`books-segmented-chip ${readerSettings.fontFamily === "sans" ? "is-active" : ""}`} onClick={() => updateSettings({ fontFamily: "sans" })}>
+                    Sans
+                  </button>
+                </div>
+              </div>
+
+              <div className="books-reader-control-card books-reader-control-card-wide">
+                <div className="books-reader-slider-head">
+                  <span className="books-feature-label">Text zoom</span>
+                  <strong>{Math.round(readerSettings.fontScale)}%</strong>
+                </div>
+                <input
+                  type="range"
+                  min={85}
+                  max={170}
+                  step={1}
+                  value={readerSettings.fontScale}
+                  onChange={(event) => updateSettings({ fontScale: Number(event.target.value) })}
+                />
+                <div className="books-reader-quick-zoom">
+                  {QUICK_ZOOM_LEVELS.map((level) => (
+                    <button
+                      key={level}
+                      type="button"
+                      className={`books-reader-preset ${quickZoomActive === level ? "is-active" : ""}`}
+                      onClick={() => updateSettings({ fontScale: level })}
+                    >
+                      {level}%
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="books-reader-control-card">
+                <div className="books-reader-slider-head">
+                  <span className="books-feature-label">Line spacing</span>
+                  <strong>{readerSettings.lineHeight.toFixed(2)}</strong>
+                </div>
+                <input
+                  type="range"
+                  min={1.4}
+                  max={2.3}
+                  step={0.05}
+                  value={readerSettings.lineHeight}
+                  onChange={(event) => updateSettings({ lineHeight: Number(event.target.value) })}
+                />
+              </div>
+
+              <div className="books-reader-control-card">
+                <div className="books-reader-slider-head">
+                  <span className="books-feature-label">Paragraph space</span>
+                  <strong>{readerSettings.paragraphSpacing.toFixed(2)}x</strong>
+                </div>
+                <input
+                  type="range"
+                  min={0.75}
+                  max={1.8}
+                  step={0.05}
+                  value={readerSettings.paragraphSpacing}
+                  onChange={(event) => updateSettings({ paragraphSpacing: Number(event.target.value) })}
+                />
+              </div>
+
+              <div className="books-reader-control-card books-reader-control-card-wide">
+                <div className="books-reader-slider-head">
+                  <span className="books-feature-label">Reading width</span>
+                  <strong>{Math.round(readerSettings.pageWidth)}px</strong>
+                </div>
+                <input
+                  type="range"
+                  min={620}
+                  max={1120}
+                  step={10}
+                  value={readerSettings.pageWidth}
+                  onChange={(event) => updateSettings({ pageWidth: Number(event.target.value) })}
+                />
+              </div>
+
+              <div className="books-reader-control-card">
+                <span className="books-feature-label">Page jump</span>
+                <div className="books-reader-page-jump">
+                  <input
+                    type="number"
+                    min={1}
+                    max={totalPages}
+                    value={draftPage}
+                    onChange={(event) => setDraftPage(event.target.value)}
+                    onBlur={handleDraftPageSubmit}
+                  />
+                  <button type="button" className="books-card-button" onClick={handleDraftPageSubmit}>
+                    Go
+                  </button>
+                </div>
+              </div>
+
+              <div className="books-reader-control-card">
+                <span className="books-feature-label">Reader reset</span>
+                <button type="button" className="books-card-button" onClick={handleResetReader}>
+                  Reset layout
+                </button>
+              </div>
             </div>
-            <button type="button" className="books-card-button books-card-button-primary" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}>
-              Next page
+          </section>
+
+          <section className="books-reader-progress-rail">
+            <button type="button" className="books-card-button" disabled={currentPage <= 1} onClick={() => jumpToPage(currentPage - 1)}>
+              Previous
             </button>
-          </div>
+            <div className="books-reader-progress-bar">
+              <input
+                type="range"
+                min={1}
+                max={totalPages}
+                step={1}
+                value={currentPage}
+                onChange={(event) => jumpToPage(Number(event.target.value))}
+                aria-label="Reader progress"
+              />
+              <div className="books-reader-progress-meta">
+                <span>Page {currentPage}</span>
+                <span>{totalPages} pages</span>
+              </div>
+            </div>
+            <button type="button" className="books-card-button books-card-button-primary" disabled={currentPage >= totalPages} onClick={() => jumpToPage(currentPage + 1)}>
+              Next
+            </button>
+          </section>
+
+          <section
+            className={`books-reader-paper books-reader-paper-${readerSettings.fontFamily}`}
+            style={
+              {
+                "--reader-width": `${readerSettings.pageWidth}px`,
+                "--reader-font-scale": String(readerSettings.fontScale / 100),
+                "--reader-line-height": String(readerSettings.lineHeight),
+                "--reader-paragraph-gap": `${readerSettings.paragraphSpacing}rem`,
+              } as CSSProperties
+            }
+          >
+            <div className="books-reader-paper-inner">
+              <div className="books-reader-paper-topline">
+                <span>{payload.book.title}</span>
+                <span>{payload.book.authors[0] || "Unknown author"}</span>
+              </div>
+              <article className="books-reader-content books-reader-content-premium">
+                {visiblePage.map((paragraph, index) => (
+                  <p key={`${currentPage}-${index}-${paragraph.slice(0, 24)}`} className="books-reader-paragraph">
+                    {paragraph}
+                  </p>
+                ))}
+              </article>
+              <div className="books-reader-paper-footer">
+                <span>{payload.book.languages.join(", ").toUpperCase() || "EN"}</span>
+                <strong>{currentPage}</strong>
+              </div>
+            </div>
+          </section>
         </section>
       </main>
+
       <AuthRequiredModal
         isOpen={showAuthModal}
         title="Save books to your wishlist"

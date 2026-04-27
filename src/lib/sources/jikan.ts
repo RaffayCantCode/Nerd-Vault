@@ -438,6 +438,8 @@ function mapAnime(
       seasonCount: overrides?.seasonCount,
       parentSeriesTitle: canonicalTitle,
       parentSeriesLabel: seriesContext.isContinuation ? seriesContext.parentSeriesLabel : undefined,
+      sourceLabel: "MyAnimeList",
+      sourceUrl: `https://myanimelist.net/anime/${item.mal_id}`,
     },
   };
 }

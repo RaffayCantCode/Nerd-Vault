@@ -56,6 +56,8 @@ export function ExpandableRelatedSection({
 }: ExpandableRelatedSectionProps) {
   const [cardsPerRow, setCardsPerRow] = useState(4);
   const [visibleRows, setVisibleRows] = useState(2);
+  const initialRows = 2;
+  const additionalRowsPerExpand = 1;
 
   useEffect(() => {
     function syncCardsPerRow() {
@@ -83,7 +85,7 @@ export function ExpandableRelatedSection({
   }, []);
 
   useEffect(() => {
-    setVisibleRows(2);
+    setVisibleRows(initialRows);
   }, [cardsPerRow, related.length]);
 
   const visibleCount = useMemo(() => cardsPerRow * visibleRows, [cardsPerRow, visibleRows]);
@@ -132,11 +134,11 @@ export function ExpandableRelatedSection({
         
         {hasMore ? (
           <button
-            onClick={() => setVisibleRows((current) => current + 2)}
+            onClick={() => setVisibleRows((current) => current + additionalRowsPerExpand)}
             className="action-button action-button-gold"
           >
             View More
-            <span className="expandable-count">+{Math.min(cardsPerRow * 2, related.length - visibleCount)}</span>
+            <span className="expandable-count">+{Math.min(cardsPerRow * additionalRowsPerExpand, related.length - visibleCount)}</span>
           </button>
         ) : null}
       </div>

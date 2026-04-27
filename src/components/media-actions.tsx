@@ -422,7 +422,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
         </div>
       </div>
 
-      {isWatched && friends.length ? (
+      {isWatched ? (
         <div className="media-action-surface glass">
           <div className="media-action-section">
             <p className="eyebrow">Recommend</p>
@@ -431,7 +431,11 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
                 Recommend
               </button>
               <p className="copy" style={{ margin: 0 }}>
-                {reviewRating ? `Your current signal is ${renderStars(reviewRating)}.` : "Recommendation goes out without a rating if you skip review."}
+                {friends.length
+                  ? reviewRating
+                    ? `Your current signal is ${renderStars(reviewRating)}.`
+                    : "Recommendation goes out without a rating if you skip review."
+                  : "Add a friend and this title is ready to send."}
               </p>
             </div>
           </div>
@@ -527,16 +531,20 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
               </button>
             </div>
             <div className="picker-grid">
-              {friends.map((friend) => (
-                <button
-                  key={friend.id}
-                  type="button"
-                  className={`picker-chip ${selectedFriendIds.includes(friend.id) ? "is-active" : ""}`}
-                  onClick={() => toggleFriend(friend.id)}
-                >
-                  {friend.name}
-                </button>
-              ))}
+              {friends.length ? (
+                friends.map((friend) => (
+                  <button
+                    key={friend.id}
+                    type="button"
+                    className={`picker-chip ${selectedFriendIds.includes(friend.id) ? "is-active" : ""}`}
+                    onClick={() => toggleFriend(friend.id)}
+                  >
+                    {friend.name}
+                  </button>
+                ))
+              ) : (
+                <p className="copy">No friends added yet. Once you add one, this recommendation panel is ready to use.</p>
+              )}
             </div>
             <div className="sidebar-folder-actions">
               <button className="button button-primary" type="button" onClick={() => void handleRecommend()} disabled={!selectedFriendIds.length || isSendingRecommendation}>

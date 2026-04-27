@@ -261,6 +261,8 @@ function mapGame(game: IgdbGame): MediaItem {
       studio: developers[0]?.name,
       collectionTitle: game.collection?.name ?? game.franchises?.[0]?.name,
       collectionId: game.collection?.id,
+      sourceLabel: "IGDB",
+      sourceUrl: `https://www.igdb.com/games/${game.slug}`,
     },
   };
 }
@@ -538,9 +540,26 @@ export async function getIgdbRelatedGamesByFranchise(gameName: string, maxResult
   const items = searchResults.map(mapGame).filter(isUsefulGame);
   
   // Use improved franchise matching to filter results
-  const filteredItems = items.filter(item => 
-    matchesFranchise(item.title, undefined, undefined, [gameName])
-  );
+  const normalizedBase = gameName
+    .toLowerCase()
+    .replace(/[^\w\s]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const filteredItems = items.filter((item) => {
+    const normalizedCandidate = item.title
+      .toLowerCase()
+      .replace(/[^\w\s]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    const strongTitleAffinity =
+      normalizedBase.length >= 4 &&
+      normalizedCandidate.length >= 4 &&
+      (normalizedCandidate.includes(normalizedBase) || normalizedBase.includes(normalizedCandidate));
+
+    return strongTitleAffinity && matchesFranchise(item.title, undefined, undefined, [gameName]);
+  });
 
   return filteredItems.slice(0, maxResults);
 }

@@ -35,10 +35,7 @@ export function EnhancedLink({
     // Show loading state
     setIsLoading(true);
 
-    // Navigate after a brief delay to show loading state
-    setTimeout(() => {
-      router.push(href);
-    }, 300);
+    router.push(href);
   };
 
   return (

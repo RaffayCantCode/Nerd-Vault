@@ -5,6 +5,8 @@ import { getMediaFallbackImage } from "@/lib/media-fallbacks";
 import { optimizeMediaImageUrl } from "@/lib/media-image";
 import { MediaItem } from "@/lib/types";
 
+const warmedImageUrls = new Set<string>();
+
 type ResilientMediaImageProps = {
   item: Pick<MediaItem, "type" | "coverUrl" | "backdropUrl" | "title">;
   className?: string;
@@ -55,6 +57,11 @@ export function ResilientMediaImage({
 
     const warmTargets = [primaryCover, secondaryBackdrop].filter(Boolean) as string[];
     warmTargets.forEach((target) => {
+      if (warmedImageUrls.has(target)) {
+        return;
+      }
+
+      warmedImageUrls.add(target);
       const image = new Image();
       image.decoding = "async";
       image.src = target;

@@ -93,11 +93,6 @@ export type TmdbAnimeImageEnrichment = {
   screenshots: string[];
 };
 
-type TmdbKeyword = {
-  id: number;
-  name: string;
-};
-
 type BrowsePayload = {
   page: number;
   totalPages: number;
@@ -358,7 +353,7 @@ function mapMovieOrShow(
     credits: [...cast, ...creators],
     details: {
       runtime,
-      status: item.status || "Released",
+      status: item.status || undefined,
       releaseDate: cleanReleaseDate(type === "movie" ? item.release_date : item.first_air_date),
       nextEpisodeDate: cleanReleaseDate(item.next_episode_to_air?.air_date),
       lastEpisodeDate: cleanReleaseDate(item.last_episode_to_air?.air_date),
@@ -368,6 +363,8 @@ function mapMovieOrShow(
       episodeCount,
       collectionTitle: item.belongs_to_collection?.name ?? undefined,
       collectionId: item.belongs_to_collection?.id,
+      sourceLabel: "TMDB",
+      sourceUrl: `https://www.themoviedb.org/${type === "movie" ? "movie" : "tv"}/${item.id}`,
     },
   };
 }
@@ -751,12 +748,6 @@ export async function getTmdbShowRelations(showId: number): Promise<MediaItem[]>
     .filter(item => item.year >= 1900 && item.rating >= 4.0);
 }
 
-function extractTmdbKeywordNames(payload?: { keywords?: TmdbKeyword[]; results?: TmdbKeyword[] } | null) {
-  return Array.from(
-    new Set([...(payload?.keywords ?? []), ...(payload?.results ?? [])].map((entry) => entry.name.trim()).filter(Boolean)),
-  );
-}
-
 function normalizeFranchiseKey(input: string) {
   return input
     .toLowerCase()
@@ -793,11 +784,10 @@ export async function getTmdbFranchiseEntries(id: number, type: "movie" | "tv"):
   const mappedType = type === "movie" ? "movie" : "show";
   const genres = await getGenreMap(type === "movie" ? "movie" : "tv");
 
-  const [details, recommendations, similar, keywordsPayload] = await Promise.all([
+  const [details, recommendations, similar] = await Promise.all([
     tmdbFetch<TmdbListItem>(`/${type}/${id}?language=en-US`).catch(() => null),
     tmdbFetch<TmdbPagedResponse>(`/${type}/${id}/recommendations?language=en-US&page=1`).catch(() => null),
     tmdbFetch<TmdbPagedResponse>(`/${type}/${id}/similar?language=en-US&page=1`).catch(() => null),
-    tmdbFetch<{ keywords?: TmdbKeyword[]; results?: TmdbKeyword[] }>(`/${type}/${id}/keywords`).catch(() => null),
   ]);
 
   if (!details) {
@@ -825,7 +815,6 @@ export async function getTmdbFranchiseEntries(id: number, type: "movie" | "tv"):
       : Promise.resolve(null),
   ]);
   const normalizedTitleVariants = Array.from(new Set(titleVariants.map((value) => normalizeFranchiseKey(value)).filter(Boolean)));
-  const keywordNames = extractTmdbKeywordNames(keywordsPayload).map((value) => normalizeFranchiseKey(value)).filter((value) => value.length >= 4);
   const candidatePool = [
     ...(recommendations?.results ?? []),
     ...(similar?.results ?? []),
@@ -840,20 +829,7 @@ export async function getTmdbFranchiseEntries(id: number, type: "movie" | "tv"):
   );
 
   const filtered = mapped.filter((item) => {
-    const titleAffinity = hasStrongTmdbTitleAffinity(normalizedTitleVariants, item);
-    if (titleAffinity) {
-      return true;
-    }
-
-    if (!keywordNames.length) {
-      return false;
-    }
-
-    const haystack = normalizeFranchiseKey(
-      [item.title, item.originalTitle ?? "", item.overview, item.details.studio ?? ""].join(" "),
-    );
-
-    return keywordNames.some((keyword) => keyword.length >= 5 && haystack.includes(keyword));
+    return hasStrongTmdbTitleAffinity(normalizedTitleVariants, item);
   });
 
   return filtered.sort((left, right) => {
@@ -878,8 +854,9 @@ export async function getTmdbRelatedByFranchise(title: string, type: "movie" | "
     .filter(item => item.year >= 1900 && item.rating >= 3.5);
 
   // Use improved franchise matching to filter results
-  const filteredItems = items.filter(item => 
-    matchesFranchise(item.title, item.originalTitle, undefined, [title])
+  const filteredItems = items.filter((item) =>
+    hasStrongTmdbTitleAffinity([normalizeFranchiseKey(title)], item) &&
+    matchesFranchise(item.title, item.originalTitle, undefined, [title]),
   );
 
   return filteredItems.slice(0, maxResults);

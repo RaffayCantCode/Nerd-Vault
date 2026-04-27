@@ -26,7 +26,21 @@ const BROWSE_LAST_URL_KEY = "nerdvault-browse-last-url";
 const BROWSE_BOOTSTRAP_CACHE_KEY = "nerdvault-browse-bootstrap-v3";
 const BROWSE_SEED_KEY = "nerdvault-browse-seed-v1";
 const BROWSE_CACHE_TTL_MS = 1000 * 60 * 10;
+const MAX_BROWSE_PAGE_COUNT = 100;
+const HERO_AUTO_ROTATE_MS = 3000;
 const warmedImageUrls = new Set<string>();
+
+function normalizeBrowseTotalPages(totalPages: number, isSearch = false) {
+  if (isSearch) {
+    return 1;
+  }
+
+  if (!Number.isFinite(totalPages)) {
+    return 1;
+  }
+
+  return Math.max(1, Math.min(MAX_BROWSE_PAGE_COUNT, Math.floor(totalPages)));
+}
 
 function isReloadNavigation() {
   if (typeof window === "undefined") {
@@ -362,7 +376,7 @@ export function BrowseWorkspace({
         : 1;
   const [page, setPage] = useState(initialPage);
   const [activePage, setActivePage] = useState(initialPage);
-  const [totalPages, setTotalPages] = useState(Math.max(1, initialTotalPages));
+  const [totalPages, setTotalPages] = useState(normalizeBrowseTotalPages(initialTotalPages));
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [cacheVersion, setCacheVersion] = useState(0);
@@ -384,6 +398,7 @@ export function BrowseWorkspace({
         ? Number(window.sessionStorage.getItem(BROWSE_SEED_KEY) || "") || discoverySeed
         : discoverySeed,
   );
+  const heroSectionRef = useRef<HTMLElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const shouldScrollToResultsRef = useRef(false);
@@ -396,6 +411,7 @@ export function BrowseWorkspace({
   const previousQueryRef = useRef(queryFromUrl.trim());
   const pendingReturnContextRef = useRef<ReturnType<typeof readBrowseReturnContext>>(null);
   const hasActiveSearch = Boolean(deferredQuery.trim());
+  const [isHeroInView, setIsHeroInView] = useState(true);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -463,7 +479,7 @@ export function BrowseWorkspace({
     if (!prefetchedPagesRef.current[initialKey] && bootstrapCatalog.length) {
       prefetchedPagesRef.current[initialKey] = {
         items: bootstrapCatalog,
-        totalPages: Math.max(1, initialTotalPages),
+        totalPages: normalizeBrowseTotalPages(initialTotalPages),
         cachedAt: Date.now(),
       };
       writeBrowsePageCache(prefetchedPagesRef.current);
@@ -510,6 +526,7 @@ export function BrowseWorkspace({
       return;
     }
     setPage(1);
+    setActivePage(1);
     setHeroIndex(0);
   }, [filter, sort]);
 
@@ -518,6 +535,7 @@ export function BrowseWorkspace({
       return;
     }
     setPage(1);
+    setActivePage(1);
     setHeroIndex(0);
   }, [genre]);
 
@@ -533,10 +551,8 @@ export function BrowseWorkspace({
     }
 
     previousQueryRef.current = normalizedQuery;
-    setFilter("all");
-    setGenre("all");
-    setSort("discovery");
     setPage(1);
+    setActivePage(1);
     setHeroIndex(0);
   }, [query]);
 
@@ -637,7 +653,7 @@ export function BrowseWorkspace({
       if (prefetchedPagesRef.current[targetKey]) {
         if (!cacheOnly) {
           setRemoteCatalog(prefetchedPagesRef.current[targetKey].items);
-          setTotalPages(Math.max(1, prefetchedPagesRef.current[targetKey].totalPages));
+          setTotalPages(normalizeBrowseTotalPages(prefetchedPagesRef.current[targetKey].totalPages, hasActiveSearch));
           setActivePage(targetPage);
         }
         return prefetchedPagesRef.current[targetKey].items;
@@ -673,7 +689,7 @@ export function BrowseWorkspace({
 
       prefetchedPagesRef.current[targetKey] = {
         items: payload.items,
-        totalPages: Math.max(1, payload.totalPages ?? 1),
+        totalPages: normalizeBrowseTotalPages(payload.totalPages ?? 1, hasActiveSearch),
         cachedAt: Date.now(),
       };
       writeBrowsePageCache(prefetchedPagesRef.current);
@@ -682,7 +698,7 @@ export function BrowseWorkspace({
       if (!cacheOnly) {
         startTransition(() => {
           setRemoteCatalog(payload.items);
-          setTotalPages(Math.max(1, payload.totalPages ?? 1));
+          setTotalPages(normalizeBrowseTotalPages(payload.totalPages ?? 1, hasActiveSearch));
           setActivePage(targetPage);
         });
       }
@@ -719,7 +735,7 @@ export function BrowseWorkspace({
           return;
         }
         setRemoteCatalog(bootstrapCatalog);
-        setTotalPages(Math.max(1, initialTotalPages));
+        setTotalPages(normalizeBrowseTotalPages(initialTotalPages));
         setActivePage(1);
       } finally {
         setIsLoading(false);
@@ -960,6 +976,50 @@ export function BrowseWorkspace({
   }, [featuredDeck.length]);
 
   useEffect(() => {
+    if (typeof window === "undefined" || !featuredDeck.length) {
+      return;
+    }
+
+    const heroSection = heroSectionRef.current;
+    if (!heroSection) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsHeroInView(entry?.isIntersecting ?? false);
+      },
+      {
+        threshold: 0.35,
+        rootMargin: "-8% 0px -14% 0px",
+      },
+    );
+
+    observer.observe(heroSection);
+    return () => observer.disconnect();
+  }, [featuredDeck.length]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (featuredDeck.length <= 1 || !isHeroInView) {
+      return;
+    }
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      setHeroIndex((current) => (current + 1) % featuredDeck.length);
+    }, HERO_AUTO_ROTATE_MS);
+
+    return () => window.clearInterval(interval);
+  }, [featuredDeck.length, isHeroInView]);
+
+  useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
@@ -1102,7 +1162,7 @@ export function BrowseWorkspace({
     if (cachedPage) {
       startTransition(() => {
         setRemoteCatalog(cachedPage.items);
-        setTotalPages(Math.max(1, cachedPage.totalPages));
+          setTotalPages(normalizeBrowseTotalPages(cachedPage.totalPages, hasActiveSearch));
         setActivePage(clamped);
       });
       setIsLoading(false);
@@ -1197,7 +1257,7 @@ export function BrowseWorkspace({
   return (
     <div className="workspace">
       {featured && !isInitialLoad ? (
-      <section className="workspace-hero glass">
+      <section className="workspace-hero glass browse-surfacing-hero" ref={heroSectionRef}>
           {/* Full-bleed backdrop */}
           <div className="hero-media" key={`bg-${featuredKey}`}>
             <img

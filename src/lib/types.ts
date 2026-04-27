@@ -45,5 +45,7 @@ export type MediaItem = {
     entryLabel?: string;
     parentSeriesTitle?: string;
     parentSeriesLabel?: string;
+    sourceLabel?: string;
+    sourceUrl?: string;
   };
 };

@@ -166,7 +166,7 @@ export function CatalogCard({
       title={`Open ${item.title}`}
       id={browseCardId}
       data-browse-card-id={browseCardId}
-      className={`catalog-card hover-lift hover-bounce ${isNavigating ? "is-navigating" : ""} ${isVisible ? "is-visible" : ""} ${isImageLoaded ? "has-media-loaded" : ""}`}
+      className={`catalog-card hover-lift hover-bounce ${showUserRatingBelow && item.userRating ? "has-user-rating" : ""} ${isNavigating ? "is-navigating" : ""} ${isVisible ? "is-visible" : ""} ${isImageLoaded ? "has-media-loaded" : ""}`}
       prefetch={false}
       onClick={handleNavigate}
       onMouseEnter={warmRoute}

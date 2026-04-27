@@ -284,6 +284,23 @@ function formatDetailDate(date?: string, fallbackYear?: number) {
   return fallbackYear ? String(fallbackYear) : "Unknown";
 }
 
+function buildSourceReference(media: MediaItem) {
+  const sourceLabel =
+    media.details.sourceLabel ??
+    (media.source === "tmdb"
+      ? "TMDB"
+      : media.source === "jikan"
+        ? "MyAnimeList"
+        : media.source === "igdb"
+          ? "IGDB"
+          : "Source");
+
+  return {
+    label: sourceLabel,
+    url: media.details.sourceUrl,
+  };
+}
+
 function normalizeCopyFingerprint(input: string) {
   return input.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
@@ -1667,6 +1684,17 @@ function scoreMoreLikeThisCandidate(base: MediaItem, candidate: MediaItem) {
   const sharedTopics = sharedTopicTokenCount(base, candidate);
   const sharedTags = sharedSimilarityTagCount(base, candidate);
   const sharedPlatforms = sharedPlatformCount(base, candidate);
+  const baseTitleRoots = buildTitleRoots(base);
+  const candidateTitleSignals = [
+    candidate.title,
+    candidate.originalTitle ?? "",
+    candidate.details.collectionTitle ?? "",
+  ]
+    .map((value) => normalizeTitleSignal(value))
+    .filter(Boolean);
+  const sharesTitleRoot = baseTitleRoots.some((root) =>
+    candidateTitleSignals.some((signal) => signal.includes(root) || root.includes(signal)),
+  );
   const sharedCredits = candidate.credits.filter((credit) =>
     base.credits.some((baseCredit) => baseCredit.name.trim().toLowerCase() === credit.name.trim().toLowerCase()),
   ).length;
@@ -1679,6 +1707,9 @@ function scoreMoreLikeThisCandidate(base: MediaItem, candidate: MediaItem) {
   score += Math.min(sharedTopics, 5) * 6;
   score += Math.min(sharedPlatforms, 3) * (base.type === "game" ? 6 : 2);
   score += sharedCredits * 6;
+  if (sharesTitleRoot) {
+    score += 10;
+  }
 
   if (base.details.studio && candidate.details.studio && base.details.studio === candidate.details.studio) {
     score += 8;
@@ -1699,6 +1730,10 @@ function scoreMoreLikeThisCandidate(base: MediaItem, candidate: MediaItem) {
 
   if (sharedGenres === 1 && sharedTags === 0 && sharedTopics < 2) {
     score -= 24;
+  }
+
+  if (sharedGenres === 0 && sharedTopics < 2 && !sharesTitleRoot) {
+    score -= 32;
   }
 
   if (base.type === "game" && sharedPlatforms === 0) {
@@ -2181,11 +2216,6 @@ async function getRelatedMediaRail(media: MediaItem) {
                 emptyBrowseResult(),
                 650,
               ),
-              withTimeout(
-                browseTmdbCatalog({ type: mediaType, page: 2, genre: secondaryGenre, sort: "discovery", seed: 11 + mediaTypeIndex }),
-                emptyBrowseResult(),
-                650,
-              ),
             ]
           : []),
         withTimeout(
@@ -2195,11 +2225,6 @@ async function getRelatedMediaRail(media: MediaItem) {
         ),
         withTimeout(
           browseTmdbCatalog({ type: mediaType, page: 1, sort: "discovery", seed: 17 + mediaTypeIndex }),
-          emptyBrowseResult(),
-          750,
-        ),
-        withTimeout(
-          browseTmdbCatalog({ type: mediaType, page: 2, sort: "discovery", seed: 19 + mediaTypeIndex }),
           emptyBrowseResult(),
           750,
         ),
@@ -2244,11 +2269,6 @@ async function getRelatedMediaRail(media: MediaItem) {
               emptyBrowseResult(),
               650,
             ),
-            withTimeout(
-              browseJikanAnime({ page: 2, genre: secondaryGenre, sort: "discovery", seed: 10 }),
-              emptyBrowseResult(),
-              650,
-            ),
           ]
         : []),
       ...(tertiaryGenre
@@ -2265,26 +2285,12 @@ async function getRelatedMediaRail(media: MediaItem) {
         emptyBrowseResult(),
         750,
       ),
-      withTimeout(
-        browseJikanAnime({ page: 2, sort: "discovery", seed: 13 }),
-        emptyBrowseResult(),
-        750,
-      ),
       ...animeQueries.flatMap((query, index) => [
         withTimeout(
           browseJikanAnime({ page: 1, query, sort: "rating", seed: 20 + index }),
           emptyBrowseResult(),
           750,
         ),
-        ...(index < 2
-          ? [
-              withTimeout(
-                browseJikanAnime({ page: 2, query, sort: "rating", seed: 30 + index }),
-                emptyBrowseResult(),
-                800,
-              ),
-            ]
-          : []),
       ]),
     ]);
 
@@ -2316,11 +2322,6 @@ async function getRelatedMediaRail(media: MediaItem) {
         emptyBrowseResult(),
         700,
       ),
-      withTimeout(
-        browseIgdbGames({ page: 3, genre: primaryGenre, sort: "discovery", seed: 8 }),
-        emptyBrowseResult(),
-        700,
-      ),
       ...(secondaryGenre
         ? [
             withTimeout(
@@ -2330,11 +2331,6 @@ async function getRelatedMediaRail(media: MediaItem) {
             ),
             withTimeout(
               browseIgdbGames({ page: 2, genre: secondaryGenre, sort: "discovery", seed: 10 }),
-              emptyBrowseResult(),
-              650,
-            ),
-            withTimeout(
-              browseIgdbGames({ page: 3, genre: secondaryGenre, sort: "discovery", seed: 12 }),
               emptyBrowseResult(),
               650,
             ),
@@ -2351,11 +2347,6 @@ async function getRelatedMediaRail(media: MediaItem) {
         : []),
       withTimeout(
         browseIgdbGames({ page: 1, sort: "discovery", seed: 15 }),
-        emptyBrowseResult(),
-        700,
-      ),
-      withTimeout(
-        browseIgdbGames({ page: 2, sort: "discovery", seed: 16 }),
         emptyBrowseResult(),
         700,
       ),
@@ -2475,7 +2466,23 @@ async function getRelatedMediaRail(media: MediaItem) {
     }
   }
 
-  return mergedMatches;
+  const emergencyFallback = scored
+    .filter((entry) => {
+      const sharedGenres = sharedCanonicalGenreCount(media, entry.candidate);
+      const sharedTags = sharedSimilarityTagCount(media, entry.candidate);
+      const sharedTopics = sharedTopicTokenCount(media, entry.candidate);
+      const sameStudio =
+        Boolean(media.details.studio) &&
+        Boolean(entry.candidate.details.studio) &&
+        media.details.studio === entry.candidate.details.studio;
+
+      return entry.score >= 4 && (sharedGenres >= 1 || sharedTags >= 1 || sharedTopics >= 2 || sameStudio);
+    })
+    .sort((left, right) => right.score - left.score)
+    .map((entry) => entry.candidate)
+    .slice(0, media.type === "game" ? 8 : 10);
+
+  return dedupeItems([...mergedMatches, ...emergencyFallback]).slice(0, media.type === "game" ? 10 : 12);
 }
 
 export default async function MediaDetailPage({
@@ -2612,6 +2619,7 @@ export default async function MediaDetailPage({
   const statusValue = media.details.status ?? media.details.releaseInfo ?? "Unknown";
   const releaseValue = formatDetailDate(media.details.releaseDate, media.year);
   const genreValue = media.genres.length ? media.genres.slice(0, 4).join(" • ") : "Unknown";
+  const sourceReference = buildSourceReference(media);
   const deepDiveCards = buildDeepDiveCards(media, animeFranchise);
   const spotlightCredits = dedupeSpotlightCredits(media.credits).slice(0, 6);
   const feelingTags = buildFeelingTags(media);
@@ -2752,6 +2760,16 @@ export default async function MediaDetailPage({
                 <span>{studioLabel}</span>
                 <strong>{studioValue}</strong>
               </div>
+              {sourceReference.url ? (
+                <div className="detail-side-stat detail-side-stat-wide">
+                  <span>Source data</span>
+                  <strong>
+                    <a href={sourceReference.url} target="_blank" rel="noreferrer" className="detail-source-link">
+                      Open {sourceReference.label}
+                    </a>
+                  </strong>
+                </div>
+              ) : null}
             </div>
           </section>
 

@@ -10,6 +10,7 @@ interface ImagePreloaderProps {
 export function ImagePreloader({ imageUrls, priority = false }: ImagePreloaderProps) {
   useEffect(() => {
     if (typeof window === "undefined" || imageUrls.length === 0) return;
+    const insertedLinks: HTMLLinkElement[] = [];
 
     const preloadImage = (url: string) => {
       if (!url) return;
@@ -20,6 +21,7 @@ export function ImagePreloader({ imageUrls, priority = false }: ImagePreloaderPr
       link.href = url;
       link.crossOrigin = "anonymous";
       document.head.appendChild(link);
+      insertedLinks.push(link);
     };
 
     // Preload priority images immediately
@@ -33,8 +35,15 @@ export function ImagePreloader({ imageUrls, priority = false }: ImagePreloaderPr
       const timer = setTimeout(() => {
         urlsToPreload.forEach(preloadImage);
       }, 100);
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        insertedLinks.forEach((link) => link.remove());
+      };
     }
+
+    return () => {
+      insertedLinks.forEach((link) => link.remove());
+    };
   }, [imageUrls, priority]);
 
   return null;

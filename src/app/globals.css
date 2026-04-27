@@ -12803,3 +12803,124 @@ body {
     max-width: 20ch;
   }
 }
+
+.detail-source-link {
+  color: var(--detail-accent, #9ed6ff);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--detail-accent, #9ed6ff) 42%, transparent);
+}
+
+.detail-source-link:hover {
+  border-bottom-color: currentColor;
+}
+
+/* Browse + profile cleanup pass */
+.browse-surfacing-hero {
+  scroll-margin-top: 96px;
+}
+
+.browse-surfacing-hero .workspace-copy-browse,
+.browse-surfacing-hero .hero-art-image,
+.browse-surfacing-hero .hero-media img {
+  transition:
+    opacity 320ms ease,
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 320ms ease;
+}
+
+.browse-surfacing-hero .hero-nav-arrow,
+.browse-surfacing-hero .surfacing-pill {
+  transition:
+    transform 180ms ease,
+    background 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.catalog-card::after {
+  background:
+    linear-gradient(180deg, transparent 0%, transparent 58%, rgba(4, 7, 12, 0.18) 78%, rgba(4, 7, 12, 0.34) 100%),
+    linear-gradient(90deg, rgba(4, 7, 12, 0.03), transparent 18%, transparent 82%, rgba(4, 7, 12, 0.06)),
+    linear-gradient(0deg, rgba(57, 184, 255, 0.05), transparent 24%) !important;
+}
+
+.catalog-copy {
+  padding: 12px 14px 15px !important;
+  background:
+    linear-gradient(180deg, rgba(8, 11, 18, 0.18) 0%, rgba(8, 11, 18, 0.82) 22%, rgba(8, 11, 18, 0.94) 100%) !important;
+}
+
+.catalog-card.has-user-rating .catalog-copy {
+  gap: 0.72rem !important;
+}
+
+.catalog-card.has-user-rating .catalog-user-rating-row {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 11px 12px;
+}
+
+.catalog-card.has-user-rating .catalog-user-rating-label {
+  font-size: 0.74rem;
+  letter-spacing: 0.14em;
+}
+
+.catalog-card.has-user-rating .catalog-user-rating-stars {
+  font-size: 1.16rem;
+  letter-spacing: 0.08em;
+  line-height: 1;
+}
+
+.profile-media-grid .catalog-card {
+  align-self: stretch;
+}
+
+.profile-media-grid .catalog-card .catalog-card-media {
+  min-height: clamp(212px, 28vw, 330px);
+}
+
+.media-action-hero {
+  grid-template-columns: 88px minmax(0, 1fr);
+  align-items: start;
+}
+
+.media-action-hero::after {
+  background:
+    linear-gradient(120deg, rgba(5, 8, 14, 0.1), rgba(5, 8, 14, 0.56) 48%, rgba(5, 8, 14, 0.82)),
+    radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.12), transparent 28%);
+}
+
+.media-action-hero-image {
+  width: 88px;
+  height: 132px;
+  border-radius: 16px;
+  object-fit: cover;
+  object-position: center;
+}
+
+.media-action-hero-copy {
+  gap: 6px;
+  padding-top: 2px;
+}
+
+@media (max-width: 640px) {
+  .catalog-copy {
+    padding: 11px 12px 14px !important;
+  }
+
+  .catalog-card.has-user-rating .catalog-user-rating-row {
+    padding: 10px 11px;
+  }
+
+  .media-action-hero {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .media-action-hero-image {
+    width: 72px;
+    height: 108px;
+  }
+}

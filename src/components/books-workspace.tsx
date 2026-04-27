@@ -120,6 +120,7 @@ export function BooksWorkspace({
 
         if (active) {
           setPayload(nextPayload);
+          setPage(nextPayload.page || 1);
         }
       } catch (loadError) {
         if (active) {

@@ -8,6 +8,7 @@ import { getLibraryStateForUser, getViewerShellData } from "@/lib/vault-server";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+const INITIAL_BROWSE_TOTAL_PAGES = 100;
 
 export default async function BrowsePage() {
   const discoverySeed = Date.now() + Math.floor(Math.random() * 10_000);
@@ -43,7 +44,7 @@ export default async function BrowsePage() {
             catalog={bootstrapCatalog}
             discoverySeed={discoverySeed}
             initialBootstrapPageSize={bootstrapCatalog.length || 12}
-            initialTotalPages={24}
+            initialTotalPages={INITIAL_BROWSE_TOTAL_PAGES}
           />
         </main>
       </div>

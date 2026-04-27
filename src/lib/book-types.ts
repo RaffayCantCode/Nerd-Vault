@@ -1,5 +1,16 @@
 export type BookTheme = "dark" | "light";
 
+export type BookReaderFont = "serif" | "sans";
+
+export type BookReaderSettings = {
+  theme: BookTheme;
+  fontScale: number;
+  lineHeight: number;
+  pageWidth: number;
+  paragraphSpacing: number;
+  fontFamily: BookReaderFont;
+};
+
 export type BookSummary = {
   id: number;
   title: string;
