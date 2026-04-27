@@ -2,7 +2,8 @@ import { BookListPayload, BookReaderPayload, BookSummary } from "@/lib/book-type
 
 const GUTENDEX_API_URL = "https://gutendex.com/books";
 const GUTENDEX_PAGE_SIZE = 32;
-const MAX_GUTENDEX_SCAN_PAGES = 12;
+const BOOK_CATALOG_CACHE_MS = 1000 * 60 * 60 * 6;
+const BOOK_CATALOG_CONCURRENCY = 8;
 
 type GutendexAuthor = {
   name?: string;
@@ -26,6 +27,13 @@ type GutendexResponse = {
   results: GutendexBook[];
 };
 
+type BookCatalogIndex = {
+  availableGenres: string[];
+  books: BookSummary[];
+  totalSourceCount: number;
+  cachedAt: number;
+};
+
 const BOOK_GENRE_RULES = [
   { label: "Fiction", terms: ["fiction", "novel", "stories", "literature"] },
   { label: "Classics", terms: ["classic", "classics"] },
@@ -39,6 +47,9 @@ const BOOK_GENRE_RULES = [
   { label: "Poetry", terms: ["poetry", "poems"] },
   { label: "Drama", terms: ["drama", "plays", "tragedies", "comedy"] },
 ] as const;
+
+let cachedBookCatalog: BookCatalogIndex | null = null;
+let loadingBookCatalogPromise: Promise<BookCatalogIndex> | null = null;
 
 function deriveGenres(subjects: string[]) {
   const normalized = subjects.join(" ").toLowerCase();
@@ -72,12 +83,7 @@ function cleanBookTitle(title: string) {
     })
     .join(" ");
 
-  const clipped = titleCase
-    .replace(/\s+[:\-–]\s*$/g, "")
-    .replace(/\s{2,}/g, " ")
-    .trim();
-
-  return clipped || "Untitled";
+  return titleCase.replace(/\s+[:\-–]\s*$/g, "").trim() || "Untitled";
 }
 
 function mapBook(book: GutendexBook): BookSummary {
@@ -95,7 +101,7 @@ function mapBook(book: GutendexBook): BookSummary {
     authors,
     summary,
     coverUrl: book.formats?.["image/jpeg"] ?? null,
-    subjects: (book.subjects ?? []).slice(0, 8),
+    subjects: (book.subjects ?? []).slice(0, 10),
     genres: deriveGenres(book.subjects ?? []),
     languages: book.languages ?? [],
     downloadCount,
@@ -118,15 +124,124 @@ async function fetchGutendex(url: URL) {
   return response.json() as Promise<GutendexResponse>;
 }
 
-async function fetchGutendexPage(page: number, searchTerms: string) {
+async function fetchGutendexPage(page: number, searchTerms = "") {
   const url = new URL(GUTENDEX_API_URL);
   url.searchParams.set("page", String(Math.max(1, page)));
 
-  if (searchTerms) {
-    url.searchParams.set("search", searchTerms);
+  if (searchTerms.trim()) {
+    url.searchParams.set("search", searchTerms.trim());
   }
 
   return fetchGutendex(url);
+}
+
+function chunk<T>(items: T[], size: number) {
+  const groups: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    groups.push(items.slice(index, index + size));
+  }
+  return groups;
+}
+
+function dedupeBooks(items: BookSummary[]) {
+  const seen = new Set<number>();
+  return items.filter((item) => {
+    if (seen.has(item.id)) {
+      return false;
+    }
+    seen.add(item.id);
+    return true;
+  });
+}
+
+async function buildBookCatalogIndex(): Promise<BookCatalogIndex> {
+  if (cachedBookCatalog && Date.now() - cachedBookCatalog.cachedAt < BOOK_CATALOG_CACHE_MS) {
+    return cachedBookCatalog;
+  }
+
+  if (loadingBookCatalogPromise) {
+    return loadingBookCatalogPromise;
+  }
+
+  loadingBookCatalogPromise = (async () => {
+    const firstPage = await fetchGutendexPage(1);
+    const totalPages = Math.max(1, Math.ceil(firstPage.count / GUTENDEX_PAGE_SIZE));
+    const remainingPages = Array.from({ length: Math.max(0, totalPages - 1) }, (_, index) => index + 2);
+    const rawBooks: GutendexBook[] = [...firstPage.results];
+
+    for (const pageGroup of chunk(remainingPages, BOOK_CATALOG_CONCURRENCY)) {
+      const responses = await Promise.all(pageGroup.map((page) => fetchGutendexPage(page).catch(() => null)));
+      responses.forEach((response) => {
+        if (response?.results?.length) {
+          rawBooks.push(...response.results);
+        }
+      });
+    }
+
+    const books = dedupeBooks(rawBooks.map(mapBook)).sort((left, right) => {
+      const downloadsGap = right.downloadCount - left.downloadCount;
+      if (downloadsGap !== 0) {
+        return downloadsGap;
+      }
+      return left.title.localeCompare(right.title);
+    });
+
+    const availableGenres = Array.from(new Set(books.flatMap((book) => book.genres))).sort((left, right) =>
+      left.localeCompare(right),
+    );
+
+    cachedBookCatalog = {
+      availableGenres,
+      books,
+      totalSourceCount: firstPage.count || books.length,
+      cachedAt: Date.now(),
+    };
+
+    return cachedBookCatalog;
+  })();
+
+  try {
+    return await loadingBookCatalogPromise;
+  } finally {
+    loadingBookCatalogPromise = null;
+  }
+}
+
+function normalizeForSearch(value: string) {
+  return value.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function filterBooks(items: BookSummary[], query: string, genre: string) {
+  const normalizedQuery = normalizeForSearch(query);
+  const normalizedGenre = genre.trim().toLowerCase();
+
+  return items.filter((book) => {
+    if (normalizedGenre && normalizedGenre !== "all" && !book.genres.some((entry) => entry.toLowerCase() === normalizedGenre)) {
+      return false;
+    }
+
+    if (!normalizedQuery) {
+      return true;
+    }
+
+    const haystack = normalizeForSearch(
+      `${book.title} ${book.authors.join(" ")} ${book.subjects.join(" ")} ${book.summary} ${book.genres.join(" ")}`,
+    );
+    return haystack.includes(normalizedQuery);
+  });
+}
+
+function paginateBooks(items: BookSummary[], page: number) {
+  const safePage = Math.max(1, page);
+  const totalPages = Math.max(1, Math.ceil(items.length / GUTENDEX_PAGE_SIZE));
+  const effectivePage = Math.min(safePage, totalPages);
+  const startIndex = (effectivePage - 1) * GUTENDEX_PAGE_SIZE;
+
+  return {
+    page: effectivePage,
+    totalPages,
+    items: items.slice(startIndex, startIndex + GUTENDEX_PAGE_SIZE),
+  };
 }
 
 function pickReadableFormat(book: GutendexBook) {
@@ -191,59 +306,16 @@ export async function fetchBooksPage({
   query: string;
   genre?: string;
 }): Promise<BookListPayload> {
-  const normalizedGenre = genre.trim() || "All";
-  const searchTerms = [query.trim(), normalizedGenre !== "All" ? normalizedGenre : ""].filter(Boolean).join(" ");
-  const safePage = Math.max(1, page);
-
-  if (normalizedGenre === "All") {
-    const payload = await fetchGutendexPage(safePage, searchTerms);
-    const mappedItems = payload.results.map(mapBook);
-
-    return {
-      page: safePage,
-      totalPages: Math.max(1, Math.ceil(payload.count / GUTENDEX_PAGE_SIZE)),
-      totalResults: payload.count,
-      items: mappedItems,
-    };
-  }
-
-  const matchingItems: BookSummary[] = [];
-  let matchingCount = 0;
-  let rawPage = 1;
-  let rawTotalPages = 1;
-  const targetStartIndex = (safePage - 1) * GUTENDEX_PAGE_SIZE;
-  const targetEndIndex = targetStartIndex + GUTENDEX_PAGE_SIZE;
-
-  while (rawPage <= rawTotalPages && rawPage <= MAX_GUTENDEX_SCAN_PAGES) {
-    const payload = await fetchGutendexPage(rawPage, searchTerms);
-    rawTotalPages = Math.max(1, Math.ceil(payload.count / GUTENDEX_PAGE_SIZE));
-
-    const filteredPageItems = payload.results
-      .map(mapBook)
-      .filter((book) => book.genres.includes(normalizedGenre));
-
-    matchingCount += filteredPageItems.length;
-    matchingItems.push(...filteredPageItems);
-
-    const alreadyCoveredRequestedPage = matchingItems.length >= targetEndIndex;
-    const exhaustedUsefulResults = rawPage >= rawTotalPages;
-    if (alreadyCoveredRequestedPage || exhaustedUsefulResults) {
-      break;
-    }
-
-    rawPage += 1;
-  }
-
-  const totalPages = Math.max(1, Math.ceil(matchingCount / GUTENDEX_PAGE_SIZE));
-  const effectivePage = Math.min(safePage, totalPages);
-  const effectiveStart = (effectivePage - 1) * GUTENDEX_PAGE_SIZE;
-  const pagedItems = matchingItems.slice(effectiveStart, effectiveStart + GUTENDEX_PAGE_SIZE);
+  const catalog = await buildBookCatalogIndex();
+  const filtered = filterBooks(catalog.books, query, genre);
+  const paged = paginateBooks(filtered, page);
 
   return {
-    page: effectivePage,
-    totalPages,
-    totalResults: matchingCount,
-    items: pagedItems,
+    page: paged.page,
+    totalPages: paged.totalPages,
+    totalResults: filtered.length,
+    availableGenres: catalog.availableGenres,
+    items: paged.items,
   };
 }
 

@@ -12814,6 +12814,222 @@ body {
   border-bottom-color: currentColor;
 }
 
+/* Stability refresh: tighter scaling, softer cover gradients, clearer ratings, and cleaner detail/books layouts */
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+@media (min-width: 901px) {
+  .workspace {
+    padding-inline: clamp(12px, 1vw, 20px) !important;
+  }
+
+  .workspace-hero,
+  .browse-toolbar,
+  .detail-facts-panel,
+  .info-panel,
+  .bottom-pager,
+  .books-hero,
+  .books-library {
+    border-radius: 24px !important;
+  }
+
+  .workspace-hero {
+    min-height: min(72svh, 760px) !important;
+  }
+
+  .workspace-hero-grid,
+  .detail-hero-grid {
+    align-items: start !important;
+    gap: 18px !important;
+  }
+
+  .browse-toolbar-grid,
+  .profile-stage-grid,
+  .books-hero,
+  .detail-summary-grid,
+  .info-grid {
+    gap: 16px !important;
+  }
+
+  .detail-hero .workspace-copy,
+  .detail-content,
+  .browse-toolbar,
+  .profile-stage-copy {
+    padding: 18px !important;
+  }
+}
+
+.catalog-card-media {
+  position: relative;
+  overflow: hidden;
+}
+
+.catalog-card-gradient {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 42%;
+  background:
+    linear-gradient(180deg, rgba(5, 8, 14, 0) 0%, rgba(5, 8, 14, 0.18) 38%, rgba(5, 8, 14, 0.74) 78%, rgba(5, 8, 14, 0.92) 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.catalog-copy {
+  position: relative;
+  z-index: 2;
+  background:
+    linear-gradient(180deg, rgba(8, 11, 18, 0.06) 0%, rgba(8, 11, 18, 0.86) 20%, rgba(8, 11, 18, 0.95) 100%) !important;
+}
+
+.catalog-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.catalog-user-rating-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.9rem;
+  padding: 12px 13px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.catalog-user-rating-label {
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.catalog-user-rating-stars {
+  font-size: 1.38rem !important;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  color: #ffd76a;
+  text-shadow: 0 0 18px rgba(255, 215, 106, 0.22);
+}
+
+.review-stars {
+  gap: 0.7rem !important;
+}
+
+.review-star {
+  width: 3.15rem !important;
+  height: 3.15rem !important;
+  font-size: 1.8rem !important;
+}
+
+.review-star.is-active {
+  color: #ffd76a !important;
+}
+
+.media-actions .button-row {
+  row-gap: 0.75rem;
+}
+
+.detail-hero {
+  min-height: auto !important;
+}
+
+.detail-hero-grid {
+  grid-template-columns: minmax(0, 1.3fr) minmax(300px, 0.9fr) !important;
+}
+
+.detail-side-poster {
+  position: sticky;
+  top: 96px;
+}
+
+.detail-side-poster-media {
+  min-height: 420px;
+  display: grid;
+  place-items: center;
+}
+
+.detail-side-poster-media iframe {
+  width: 100%;
+  min-height: 420px;
+  border: 0;
+  border-radius: 18px;
+}
+
+.detail-side-poster-media img {
+  width: min(100%, 280px);
+  max-height: 420px;
+  object-fit: cover;
+}
+
+.detail-favorite-note {
+  margin-top: 14px;
+}
+
+.books-hero {
+  align-items: start;
+}
+
+.books-genre-row {
+  max-height: none !important;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.books-grid {
+  align-items: stretch;
+}
+
+.books-pager {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.books-pager button {
+  min-height: 42px;
+  padding: 0.65rem 1rem;
+  border-radius: 999px;
+}
+
+.books-pager-bottom {
+  width: 100%;
+  justify-content: center;
+  margin-top: 18px;
+}
+
+@media (max-width: 900px) {
+  .detail-hero-grid,
+  .books-hero,
+  .profile-stage-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .detail-side-poster {
+    position: static;
+  }
+
+  .detail-side-poster-media,
+  .detail-side-poster-media iframe {
+    min-height: 280px;
+  }
+}
+
 /* Browse + profile cleanup pass */
 .browse-surfacing-hero {
   scroll-margin-top: 96px;

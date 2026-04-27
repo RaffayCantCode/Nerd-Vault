@@ -212,8 +212,9 @@ export function isLikelyAnime(title: string, genres?: string[], overview?: strin
   if (hasAnimeTitle || hasAnimeOverview) return true;
   if (hasLiveActionGenre && !hasAnimeGenre) return false;
   
-  // Default to anime for safety (better to include than exclude)
-  return true;
+  // Default to non-anime unless we have a positive signal.
+  // This avoids polluting anime/franchise relationships with unrelated titles.
+  return false;
 }
 
 /**

@@ -28,6 +28,7 @@ export type BookListPayload = {
   page: number;
   totalPages: number;
   totalResults: number;
+  availableGenres?: string[];
   items: BookSummary[];
 };
 

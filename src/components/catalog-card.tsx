@@ -4,16 +4,18 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NVLoader } from "@/components/nv-loader";
+import { ResilientMediaImage } from "@/components/resilient-media-image";
 import { writeBrowseReturnContext, writeDetailReturnTarget } from "@/lib/detail-return";
 import { optimizeMediaImageUrl } from "@/lib/media-image";
-import { ResilientMediaImage } from "@/components/resilient-media-image";
 import { MediaItem } from "@/lib/types";
 
 const BROWSE_LAST_URL_KEY = "nerdvault-browse-last-url";
 
 function renderUserStars(rating?: number | null) {
-  if (!rating) return null;
-  return `${"★".repeat(rating)}${"☆".repeat(Math.max(0, 5 - rating))}`;
+  if (!rating) {
+    return null;
+  }
+  return `${"\u2605".repeat(rating)}${"\u2606".repeat(Math.max(0, 5 - rating))}`;
 }
 
 export function CatalogCard({
@@ -51,39 +53,39 @@ export function CatalogCard({
   );
 
   function warmRoute() {
-    if (warmedRef.current) {
-      router.prefetch(routeHref);
+    router.prefetch(routeHref);
+    if (warmedRef.current || typeof window === "undefined") {
       return;
     }
 
     warmedRef.current = true;
-    router.prefetch(routeHref);
-    if (typeof window !== "undefined") {
-      const cover = new Image();
-      cover.decoding = "async";
-      cover.src = optimizeMediaImageUrl(item.coverUrl, priority ? "cover" : "thumb") ?? item.coverUrl;
+    const cover = new Image();
+    cover.decoding = "async";
+    cover.src = optimizeMediaImageUrl(item.coverUrl, priority ? "cover" : "thumb") ?? item.coverUrl;
 
-      if (priority) {
-        const backdrop = new Image();
-        backdrop.decoding = "async";
-        backdrop.src = optimizeMediaImageUrl(item.backdropUrl, "backdrop") ?? item.backdropUrl;
-      }
+    if (priority) {
+      const backdrop = new Image();
+      backdrop.decoding = "async";
+      backdrop.src = optimizeMediaImageUrl(item.backdropUrl, "backdrop") ?? item.backdropUrl;
     }
   }
 
-  function handleNavigate(e: React.MouseEvent) {
-    e.preventDefault();
-    if (isNavigating) return;
+  function handleNavigate(event: React.MouseEvent) {
+    event.preventDefault();
+    if (isNavigating) {
+      return;
+    }
 
     setIsNavigating(true);
     onBeforeNavigate?.();
+
     const currentHref =
       typeof window !== "undefined"
         ? window.sessionStorage.getItem(BROWSE_LAST_URL_KEY) || `${window.location.pathname}${window.location.search}`
         : undefined;
-    writeDetailReturnTarget({
-      href: currentHref,
-    });
+
+    writeDetailReturnTarget({ href: currentHref });
+
     if (typeof window !== "undefined") {
       writeBrowseReturnContext({
         href: currentHref || `${window.location.pathname}${window.location.search}`,
@@ -92,19 +94,15 @@ export function CatalogCard({
         cardTop: cardRef.current?.getBoundingClientRect().top ?? 0,
       });
     }
-    warmRoute();
 
-    try {
-      router.push(routeHref, { scroll: false });
-    } catch (error) {
-      console.error("Navigation failed:", error);
-      setIsNavigating(false);
-    }
+    warmRoute();
+    router.push(routeHref, { scroll: false });
   }
 
-  // Prefetch route for priority cards
   useEffect(() => {
-    if (!priority) return;
+    if (!priority) {
+      return;
+    }
 
     const warm = () => warmRoute();
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -126,11 +124,15 @@ export function CatalogCard({
     };
   }, [priority, routeHref]);
 
-  // IntersectionObserver: trigger stagger animation when card enters viewport
   useEffect(() => {
-    if (isVisible) return;
-    const el = cardRef.current;
-    if (!el) return;
+    if (isVisible) {
+      return;
+    }
+
+    const element = cardRef.current;
+    if (!element) {
+      return;
+    }
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -142,22 +144,15 @@ export function CatalogCard({
       { rootMargin: "80px", threshold: 0.05 },
     );
 
-    observer.observe(el);
+    observer.observe(element);
     return () => observer.disconnect();
   }, [isVisible]);
 
-  // Priority cards: immediately mark visible on mount so above-fold cards
-  // don't wait for an intersection event (they're already in view).
   useEffect(() => {
-    if (priority) setIsVisible(true);
+    if (priority) {
+      setIsVisible(true);
+    }
   }, [priority]);
-
-  // Reset navigation state when component unmounts or route changes
-  useEffect(() => {
-    return () => {
-      setIsNavigating(false);
-    };
-  }, []);
 
   return (
     <Link
@@ -181,6 +176,7 @@ export function CatalogCard({
           decoding="async"
           onLoadStateChange={setIsImageLoaded}
         />
+        <div className="catalog-card-gradient" />
         <div className="catalog-sheen" />
         <div className="catalog-card-hover-overlay">
           <span className="catalog-card-hover-text">View Details</span>
@@ -191,6 +187,7 @@ export function CatalogCard({
           </div>
         ) : null}
       </div>
+
       <div className="catalog-copy">
         <div className="meta-row">
           <span className="pill">{item.type}</span>
@@ -199,7 +196,7 @@ export function CatalogCard({
         </div>
         <h3 className="catalog-title">{item.title}</h3>
         {item.userRating && showUserRatingBelow ? (
-          <div className="catalog-user-rating-row animate-star" aria-label={`Your rating: ${item.userRating} out of 5`}>
+          <div className="catalog-user-rating-row" aria-label={`Your rating: ${item.userRating} out of 5`}>
             <span className="catalog-user-rating-label">Your rating</span>
             <span className="catalog-user-rating-stars">{renderUserStars(item.userRating)}</span>
           </div>

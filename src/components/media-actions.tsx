@@ -31,7 +31,7 @@ function normalizeReviewDraft(rating: number, review: string) {
 }
 
 function renderStars(rating: number) {
-  return `${"★".repeat(rating)}${"☆".repeat(Math.max(0, 5 - rating))}`;
+  return `${"\u2605".repeat(rating)}${"\u2606".repeat(Math.max(0, 5 - rating))}`;
 }
 
 export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: string }) {
@@ -96,19 +96,22 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
     }
 
     sync();
-    const unsubscribe = subscribeVaultChanges(sync);
-    return () => unsubscribe();
+    return subscribeVaultChanges(sync);
   }, [isGuest, item.source, item.sourceId]);
 
   useEffect(() => {
-    if (!message) return;
+    if (!message) {
+      return;
+    }
+
     const timeout = window.setTimeout(() => setMessage(""), 2600);
     return () => window.clearTimeout(timeout);
   }, [message]);
 
   const folderOptions = useMemo(() => folders, [folders]);
   const selectedFolder = folderOptions.find((folder) => folder.id === folderId);
-  const selectedFolderContainsItem = selectedFolder?.items.some((entry) => entry.source === item.source && entry.sourceId === item.sourceId) ?? false;
+  const selectedFolderContainsItem =
+    selectedFolder?.items.some((entry) => entry.source === item.source && entry.sourceId === item.sourceId) ?? false;
   const friendSelectionLabel = selectedFriendIds.length ? `${selectedFriendIds.length} selected` : "Choose friends";
 
   function closeReviewPanel() {
@@ -120,41 +123,10 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
     setReviewOpen(false);
   }
 
-  if (isGuest) {
-    return (
-      <>
-        <div className="media-actions">
-          <div className="media-action-surface glass">
-            <div className="media-action-section">
-              <p className="eyebrow">Library</p>
-              <div className="button-row">
-                <button className="button button-secondary" type="button" onClick={() => setShowGuestAuthModal(true)}>
-                  Mark as {primaryLabel}
-                </button>
-                <button className="button button-secondary" type="button" onClick={() => setShowGuestAuthModal(true)}>
-                  <Heart size={16} />
-                  Add to wishlist
-                </button>
-              </div>
-              <p className="copy" style={{ marginTop: 14 }}>
-                Guest mode keeps library actions locked until you sign in.
-              </p>
-            </div>
-          </div>
-        </div>
-        <AuthRequiredModal
-          isOpen={showGuestAuthModal}
-          title="Save titles to your vault"
-          message="You need to be logged in to track watched titles, leave ratings, and send recommendations."
-          redirectTo={pathname}
-          onClose={() => setShowGuestAuthModal(false)}
-        />
-      </>
-    );
-  }
-
   async function saveReview(mode: "save" | "skip" | "clear") {
-    if (isSavingReview) return;
+    if (isSavingReview) {
+      return;
+    }
 
     const payload =
       mode === "skip" || mode === "clear"
@@ -169,15 +141,14 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
       setReviewRating(payload.rating ?? 0);
       setReviewText(payload.review ?? "");
       setReviewOpen(false);
-      
-      // Show rewarding feedback
+
       if (mode === "skip") {
         showFeedback("success", `${item.title} marked as ${primaryLabel.toLowerCase()}`);
       } else if (mode === "clear") {
         showFeedback("info", `Review cleared for ${item.title}`);
       } else if (payload.rating) {
         showFeedback("star", `Rated ${renderStars(payload.rating)} for ${item.title}`);
-      } else if (payload.review) {
+      } else {
         showFeedback("success", `Review saved for ${item.title}`);
       }
     } catch {
@@ -188,17 +159,17 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
   }
 
   async function handleRemoveWatched() {
-    if (isSavingReview) return;
-    setIsSavingReview(true);
+    if (isSavingReview) {
+      return;
+    }
 
+    setIsSavingReview(true);
     try {
       await removeMediaFromWatched(item);
       setIsWatched(false);
       setReviewOpen(false);
       setReviewRating(0);
       setReviewText("");
-      setRecommendOpen(false);
-      setSelectedFriendIds([]);
       showFeedback("info", `${item.title} removed from ${primaryLabel.toLowerCase()}`);
     } catch {
       showFeedback("info", `Could not remove ${item.title} yet. Try again.`);
@@ -208,13 +179,14 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
   }
 
   async function handleWishlist() {
-    if (isTogglingWishlist) return;
+    if (isTogglingWishlist) {
+      return;
+    }
 
     const nextValue = !isWishlisted;
     setIsTogglingWishlist(true);
     setIsWishlisted(nextValue);
-    
-    // Show heart feedback with animation
+
     if (nextValue) {
       showFeedback("heart", `${item.title} added to wishlist`);
     } else {
@@ -236,18 +208,19 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
   }
 
   async function handleFolderToggle() {
-    if (!folderId || isUpdatingFolder) return;
+    if (!folderId || isUpdatingFolder) {
+      return;
+    }
 
     const nextContainsItem = !selectedFolderContainsItem;
     const nextFolders = folders.map((folder) => {
-      if (folder.id !== folderId) return folder;
+      if (folder.id !== folderId) {
+        return folder;
+      }
 
       const alreadySaved = folder.items.some((entry) => entry.source === item.source && entry.sourceId === item.sourceId);
       if (nextContainsItem && !alreadySaved) {
-        return {
-          ...folder,
-          items: [...folder.items, item],
-        };
+        return { ...folder, items: [...folder.items, item] };
       }
 
       if (!nextContainsItem && alreadySaved) {
@@ -262,19 +235,14 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
 
     setIsUpdatingFolder(true);
     setFolders(nextFolders);
-    
-    // Show feedback for folder action
-    if (nextContainsItem) {
-      showFeedback("success", `Added to ${selectedFolder?.name ?? "folder"}`);
-    } else {
-      showFeedback("info", `Removed from ${selectedFolder?.name ?? "folder"}`);
-    }
 
     try {
       if (nextContainsItem) {
         await addMediaToFolder(folderId, item);
+        showFeedback("success", `Added to ${selectedFolder?.name ?? "folder"}`);
       } else {
         await removeMediaFromFolder(folderId, item);
+        showFeedback("info", `Removed from ${selectedFolder?.name ?? "folder"}`);
       }
     } catch {
       setFolders(folders);
@@ -300,7 +268,9 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
 
   function handleFolderCoverFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      return;
+    }
     setFolderCoverFile(file);
   }
 
@@ -311,33 +281,66 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
   }
 
   async function handleRecommend() {
-    if (!selectedFriendIds.length || isSendingRecommendation) return;
+    if (!selectedFriendIds.length || isSendingRecommendation) {
+      return;
+    }
 
     setIsSendingRecommendation(true);
     try {
-      await recommendToFriend(
-        selectedFriendIds,
-        {
-          ...item,
-          userRating: reviewRating || null,
-          userReview: reviewText.trim() || null,
-        },
-      );
+      await recommendToFriend(selectedFriendIds, {
+        ...item,
+        userRating: reviewRating || null,
+        userReview: reviewText.trim() || null,
+      });
       setRecommendOpen(false);
-      
-      // Show milestone-style feedback for recommendations
+      setSelectedFriendIds([]);
+
       if (reviewRating) {
         showFeedback("milestone", `Recommended with ${renderStars(reviewRating)} to ${selectedFriendIds.length} ${selectedFriendIds.length === 1 ? "friend" : "friends"}`);
       } else {
         showFeedback("success", `Recommended to ${selectedFriendIds.length} ${selectedFriendIds.length === 1 ? "friend" : "friends"}`);
       }
-      
-      setSelectedFriendIds([]);
     } catch (error) {
       showFeedback("info", error instanceof Error ? error.message : "Could not send recommendation yet. Try again.");
     } finally {
       setIsSendingRecommendation(false);
     }
+  }
+
+  if (isGuest) {
+    return (
+      <>
+        <div className="media-actions">
+          <div className="media-action-surface glass">
+            <div className="media-action-section">
+              <p className="eyebrow">Library</p>
+              <div className="button-row">
+                <button className="button button-secondary" type="button" onClick={() => setShowGuestAuthModal(true)}>
+                  Mark as {primaryLabel}
+                </button>
+                <button className="button button-secondary" type="button" onClick={() => setShowGuestAuthModal(true)}>
+                  Recommend
+                </button>
+                <button className="button button-secondary" type="button" onClick={() => setShowGuestAuthModal(true)}>
+                  <Heart size={16} />
+                  Add to wishlist
+                </button>
+              </div>
+              <p className="copy" style={{ marginTop: 14 }}>
+                Guest mode keeps library actions locked until you sign in.
+              </p>
+            </div>
+          </div>
+        </div>
+        <AuthRequiredModal
+          isOpen={showGuestAuthModal}
+          title="Save titles to your vault"
+          message="You need to be logged in to track watched titles, leave ratings, and send recommendations."
+          redirectTo={pathname}
+          onClose={() => setShowGuestAuthModal(false)}
+        />
+      </>
+    );
   }
 
   return (
@@ -350,22 +353,20 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
               style={{ backgroundImage: `linear-gradient(135deg, rgba(6, 9, 16, 0.18), rgba(6, 9, 16, 0.82)), url(${item.backdropUrl || item.coverUrl})` }}
               aria-hidden="true"
             />
-            <ResilientMediaImage
-              item={item}
-              className="media-action-hero-image"
-              loading="eager"
-              decoding="async"
-              fetchPriority="high"
-            />
+            <ResilientMediaImage item={item} className="media-action-hero-image" loading="eager" decoding="async" fetchPriority="high" />
             <div className="media-action-hero-copy">
               <p className="eyebrow">Library</p>
               <strong>{item.title}</strong>
-              <span>{item.type === "game" ? "Log your playthrough, score, and recommendation signal." : "Log your watch, score, and recommendation signal."}</span>
+              <span>{item.type === "game" ? "Log a playthrough, score, and recommendation signal." : "Log a watch, score, and recommendation signal."}</span>
             </div>
           </div>
+
           <div className="button-row">
             <button className={`button button-primary ${isWatched ? "button-success" : ""}`} type="button" onClick={() => setReviewOpen(true)}>
               {isWatched ? "Edit review" : `Mark as ${primaryLabel}`}
+            </button>
+            <button className="button button-secondary" type="button" onClick={() => setRecommendOpen(true)}>
+              Recommend
             </button>
             {isWatched ? (
               <button className="button button-secondary" type="button" onClick={() => void handleRemoveWatched()} disabled={isSavingReview}>
@@ -381,11 +382,28 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
               {isTogglingWishlist ? "Saving..." : isWishlisted ? "Remove wishlist" : "Add to wishlist"}
             </button>
           </div>
+
           {isWatched && (reviewRating || reviewText.trim()) ? (
             <p className="copy" style={{ marginTop: 14 }}>
               {reviewRating ? `${renderStars(reviewRating)} saved.` : "Review saved."} {reviewText.trim() ? reviewText.trim().slice(0, 120) : ""}
             </p>
           ) : null}
+        </div>
+
+        <div className="media-action-section">
+          <p className="eyebrow">Recommend</p>
+          <div className="button-row">
+            <button className="button button-secondary" type="button" onClick={() => setRecommendOpen(true)}>
+              Recommend
+            </button>
+            <p className="copy" style={{ margin: 0 }}>
+              {friends.length
+                ? reviewRating
+                  ? `Your current signal is ${renderStars(reviewRating)}.`
+                  : "You can recommend this now, even without leaving a rating."
+                : "Add a friend and this title is ready to send."}
+            </p>
+          </div>
         </div>
 
         <div className="media-action-section">
@@ -422,28 +440,8 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
         </div>
       </div>
 
-      {isWatched ? (
-        <div className="media-action-surface glass">
-          <div className="media-action-section">
-            <p className="eyebrow">Recommend</p>
-            <div className="button-row">
-              <button className="button button-secondary" type="button" onClick={() => setRecommendOpen(true)}>
-                Recommend
-              </button>
-              <p className="copy" style={{ margin: 0 }}>
-                {friends.length
-                  ? reviewRating
-                    ? `Your current signal is ${renderStars(reviewRating)}.`
-                    : "Recommendation goes out without a rating if you skip review."
-                  : "Add a friend and this title is ready to send."}
-              </p>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
       <p className="media-action-message" aria-live="polite">
-        {message || "Save it to your library, leave a rating, or pass it to a friend."}
+        {message || "Save it, rate it, or pass it to a friend whenever you want."}
       </p>
 
       {reviewOpen ? (
@@ -461,7 +459,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
 
             <div className="review-stars-block">
               <span className="copy">Your rating</span>
-              <div className="review-stars" id="review-stars-input" role="radiogroup" aria-label="Choose a rating from one to five stars">
+              <div className="review-stars" role="radiogroup" aria-label="Choose a rating from one to five stars">
                 {Array.from({ length: 5 }, (_, index) => {
                   const ratingValue = index + 1;
                   const isActive = ratingValue <= reviewRating;
@@ -482,6 +480,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
                 })}
               </div>
             </div>
+
             <div className="button-row" style={{ justifyContent: "space-between", alignItems: "center" }}>
               <span className="copy">{reviewRating ? `${renderStars(reviewRating)} selected` : "Tap a star to rate it"}</span>
               {reviewRating ? (
@@ -524,12 +523,13 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
             <div className="sidebar-folder-modal-header">
               <div>
                 <strong>Recommend {item.title}</strong>
-                <p className="copy">{friendSelectionLabel}. Recent repeats are throttled to reduce spam.</p>
+                <p className="copy">{friendSelectionLabel}. Recommendations stay available even if you have not logged a rating yet.</p>
               </div>
               <button type="button" className="topbar-panel-close" onClick={() => setRecommendOpen(false)}>
                 Close
               </button>
             </div>
+
             <div className="picker-grid">
               {friends.length ? (
                 friends.map((friend) => (
@@ -546,6 +546,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
                 <p className="copy">No friends added yet. Once you add one, this recommendation panel is ready to use.</p>
               )}
             </div>
+
             <div className="sidebar-folder-actions">
               <button className="button button-primary" type="button" onClick={() => void handleRecommend()} disabled={!selectedFriendIds.length || isSendingRecommendation}>
                 {isSendingRecommendation ? "Sending..." : "Send"}
@@ -567,6 +568,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
                 Close
               </button>
             </div>
+
             <input
               className="sidebar-folder-input"
               type="text"
@@ -589,6 +591,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
               </div>
               <input type="file" accept="image/*" onChange={handleFolderCoverFileChange} />
             </label>
+
             <div className="sidebar-folder-actions">
               <button className="button button-primary" type="button" onClick={() => void handleCreateFolder()} disabled={!folderName.trim()}>
                 Create folder
@@ -601,12 +604,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
         </div>
       ) : null}
 
-      <ImageAdjusterModal
-        file={folderCoverFile}
-        title="Adjust folder cover"
-        onClose={() => setFolderCoverFile(null)}
-        onApply={(dataUrl) => setFolderCover(dataUrl)}
-      />
+      <ImageAdjusterModal file={folderCoverFile} title="Adjust folder cover" onClose={() => setFolderCoverFile(null)} onApply={(dataUrl) => setFolderCover(dataUrl)} />
     </div>
   );
 }

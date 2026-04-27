@@ -14,6 +14,7 @@ const emptyPayload: BookListPayload = {
   page: 1,
   totalPages: 1,
   totalResults: 0,
+  availableGenres: [],
   items: [],
 };
 
@@ -151,9 +152,25 @@ export function BooksWorkspace({
   }
 
   const genreChips = useMemo(
-    () => Array.from(new Set(["All", ...payload.items.flatMap((book) => book.genres)])).slice(0, 9),
-    [payload.items],
+    () => ["All", ...(payload.availableGenres ?? [])],
+    [payload.availableGenres],
   );
+
+  function renderPager(position: "top" | "bottom") {
+    return (
+      <div className={`books-pager books-pager-${position}`}>
+        <button type="button" disabled={page <= 1 || loading} onClick={() => setPage((current) => Math.max(1, current - 1))}>
+          Prev
+        </button>
+        <span>
+          Page {payload.page} of {payload.totalPages}
+        </span>
+        <button type="button" disabled={page >= payload.totalPages || loading} onClick={() => setPage((current) => current + 1)}>
+          Next
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="books-shell" data-theme={theme}>
@@ -195,7 +212,7 @@ export function BooksWorkspace({
             <div className="books-hero-metadata">
               <span>{loading ? "Loading library..." : `${formatCompactNumber(payload.totalResults)} books found`}</span>
               <span>{wishlist.length} saved</span>
-              <span>Project Gutenberg only</span>
+              <span>{payload.availableGenres?.length ?? 0} genres indexed</span>
             </div>
             {continueReading ? (
               <div className="books-continue-card">
@@ -253,13 +270,7 @@ export function BooksWorkspace({
               <h2>{submittedQuery ? `Results for "${submittedQuery}"` : "Project Gutenberg library"}</h2>
             </div>
             <div className="books-pager">
-              <button type="button" disabled={page <= 1 || loading} onClick={() => setPage((current) => Math.max(1, current - 1))}>
-                Previous
-              </button>
-              <span>{payload.page} / {payload.totalPages}</span>
-              <button type="button" disabled={page >= payload.totalPages || loading} onClick={() => setPage((current) => current + 1)}>
-                Next
-              </button>
+              {renderPager("top")}
             </div>
           </div>
 
@@ -310,6 +321,8 @@ export function BooksWorkspace({
           {!loading && !payload.items.length && !error ? (
             <div className="books-empty-state">No books matched that search yet. Try another author, title, or genre.</div>
           ) : null}
+
+          {!loading && payload.items.length ? renderPager("bottom") : null}
         </section>
       </main>
       <AuthRequiredModal
