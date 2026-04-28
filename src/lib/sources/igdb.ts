@@ -1,5 +1,6 @@
 import { writeBrowsePageCache, writeBrowsePageCacheV2 } from "@/lib/browse-cache";
 import { browseFallbackGames } from "@/lib/game-fallback-catalog";
+import { getMediaFallbackImage } from "@/lib/media-fallbacks";
 import { rankCandidatesForQuery } from "@/lib/search-utils";
 import { MediaItem } from "@/lib/types";
 import { matchesFranchise } from "@/lib/franchise-utils";
@@ -230,6 +231,8 @@ function mapGame(game: IgdbGame): MediaItem {
     game.artworks?.map((artwork) => imageUrl(artwork.image_id)).filter((value): value is string => Boolean(value)) ?? [];
   const platformNames = game.platforms?.map((platform) => platform.name).filter(Boolean) ?? [];
 
+  const fallbackImage = getMediaFallbackImage({ type: "game" });
+
   return {
     id: `igdb-game-${game.id}`,
     slug: game.slug,
@@ -242,14 +245,8 @@ function mapGame(game: IgdbGame): MediaItem {
     rating: Number(((game.total_rating ?? 0) / 10).toFixed(1)) || 0,
     language: "en",
     genres: game.genres?.map((genre) => genre.name) ?? [],
-    coverUrl:
-      imageUrl(game.cover?.image_id) ??
-      "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=900&q=80",
-    backdropUrl:
-      screenshotImages[0] ??
-      artworkImages[0] ??
-      imageUrl(game.cover?.image_id) ??
-      "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1600&q=80",
+    coverUrl: imageUrl(game.cover?.image_id) ?? fallbackImage,
+    backdropUrl: screenshotImages[0] ?? artworkImages[0] ?? imageUrl(game.cover?.image_id) ?? fallbackImage,
     screenshots: [...screenshotImages, ...artworkImages],
     overview: game.summary || game.storyline || "No summary yet.",
     credits: [...developers, ...publishers],
@@ -393,7 +390,7 @@ export async function browseIgdbGames(params: {
   return {
     page,
     totalPages,
-    totalResults: items.length,
+    totalResults: countPayload.count || items.length,
     items,
   };
   } catch {

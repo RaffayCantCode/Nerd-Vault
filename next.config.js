@@ -1,10 +1,25 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ['image.tmdb.org', 'images.igdb.com', 'media.rawg.io'],
     formats: ['image/webp', 'image/avif'],
     minimumCacheTTL: 86400,
     remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'shared.fastly.steamstatic.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'cdn.myanimelist.net',
+      },
+      {
+        protocol: 'https',
+        hostname: 'myanimelist.net',
+      },
       {
         protocol: 'https',
         hostname: 'image.tmdb.org',

@@ -1,7 +1,8 @@
 import { BookListPayload, BookReaderPayload, BookSummary } from "@/lib/book-types";
 
 const GUTENDEX_API_URL = "https://gutendex.com/books";
-const GUTENDEX_PAGE_SIZE = 32;
+const GUTENDEX_SOURCE_PAGE_SIZE = 32;
+const BOOK_LIST_PAGE_SIZE = 40;
 const BOOK_CATALOG_CACHE_MS = 1000 * 60 * 60 * 6;
 const BOOK_CATALOG_CONCURRENCY = 8;
 
@@ -35,17 +36,23 @@ type BookCatalogIndex = {
 };
 
 const BOOK_GENRE_RULES = [
-  { label: "Fiction", terms: ["fiction", "novel", "stories", "literature"] },
-  { label: "Classics", terms: ["classic", "classics"] },
-  { label: "Romance", terms: ["romance", "love", "courtship"] },
-  { label: "Horror", terms: ["ghost", "horror", "terror", "supernatural"] },
-  { label: "Adventure", terms: ["adventure", "voyage", "travel", "sea stories"] },
-  { label: "Fantasy", terms: ["fantasy", "fairy", "legend", "myth"] },
-  { label: "Mystery", terms: ["mystery", "detective", "crime"] },
-  { label: "History", terms: ["history", "historical", "war"] },
-  { label: "Science", terms: ["science", "mathematics", "astronomy", "physics"] },
-  { label: "Poetry", terms: ["poetry", "poems"] },
-  { label: "Drama", terms: ["drama", "plays", "tragedies", "comedy"] },
+  { label: "Fiction", terms: ["fiction", "novel", "stories", "literature", "short stories"] },
+  { label: "Classics", terms: ["classic", "classics", "canonical"] },
+  { label: "Adventure", terms: ["adventure", "voyage", "travel", "sea stories", "expedition", "exploration"] },
+  { label: "Fantasy", terms: ["fantasy", "fairy", "legend", "myth", "folklore", "magic"] },
+  { label: "Mystery", terms: ["mystery", "detective", "crime", "murder", "investigation"] },
+  { label: "Science Fiction", terms: ["science fiction", "sci fi", "scientific romance", "future", "space", "utopia", "dystopia"] },
+  { label: "Romance", terms: ["romance", "love", "courtship", "marriage", "domestic fiction"] },
+  { label: "Horror", terms: ["ghost", "horror", "terror", "supernatural", "haunted", "occult"] },
+  { label: "History", terms: ["history", "historical", "war", "ancient", "medieval"] },
+  { label: "Biography", terms: ["biography", "memoir", "autobiography", "letters", "journals"] },
+  { label: "Philosophy", terms: ["philosophy", "ethics", "metaphysics", "logic"] },
+  { label: "Politics", terms: ["politics", "government", "state", "law", "economics"] },
+  { label: "Religion", terms: ["religion", "theology", "bible", "christian", "islam", "buddhism", "faith"] },
+  { label: "Science", terms: ["science", "mathematics", "astronomy", "physics", "chemistry", "biology", "nature"] },
+  { label: "Poetry", terms: ["poetry", "poems", "verse"] },
+  { label: "Drama", terms: ["drama", "plays", "tragedies", "comedy", "theater", "theatre"] },
+  { label: "Children", terms: ["children", "juvenile", "boys", "girls", "fairy tales"] },
 ] as const;
 
 let cachedBookCatalog: BookCatalogIndex | null = null;
@@ -124,6 +131,23 @@ async function fetchGutendex(url: URL) {
   return response.json() as Promise<GutendexResponse>;
 }
 
+async function fetchGutendexWithRetry(url: URL, attempts = 3) {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await fetchGutendex(url);
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts) {
+        await new Promise((resolve) => setTimeout(resolve, attempt * 250));
+      }
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("Books request failed");
+}
+
 async function fetchGutendexPage(page: number, searchTerms = "") {
   const url = new URL(GUTENDEX_API_URL);
   url.searchParams.set("page", String(Math.max(1, page)));
@@ -132,7 +156,7 @@ async function fetchGutendexPage(page: number, searchTerms = "") {
     url.searchParams.set("search", searchTerms.trim());
   }
 
-  return fetchGutendex(url);
+  return fetchGutendexWithRetry(url);
 }
 
 function chunk<T>(items: T[], size: number) {
@@ -165,7 +189,7 @@ async function buildBookCatalogIndex(): Promise<BookCatalogIndex> {
 
   loadingBookCatalogPromise = (async () => {
     const firstPage = await fetchGutendexPage(1);
-    const totalPages = Math.max(1, Math.ceil(firstPage.count / GUTENDEX_PAGE_SIZE));
+    const totalPages = Math.max(1, Math.ceil(firstPage.count / GUTENDEX_SOURCE_PAGE_SIZE));
     const remainingPages = Array.from({ length: Math.max(0, totalPages - 1) }, (_, index) => index + 2);
     const rawBooks: GutendexBook[] = [...firstPage.results];
 
@@ -233,14 +257,14 @@ function filterBooks(items: BookSummary[], query: string, genre: string) {
 
 function paginateBooks(items: BookSummary[], page: number) {
   const safePage = Math.max(1, page);
-  const totalPages = Math.max(1, Math.ceil(items.length / GUTENDEX_PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(items.length / BOOK_LIST_PAGE_SIZE));
   const effectivePage = Math.min(safePage, totalPages);
-  const startIndex = (effectivePage - 1) * GUTENDEX_PAGE_SIZE;
+  const startIndex = (effectivePage - 1) * BOOK_LIST_PAGE_SIZE;
 
   return {
     page: effectivePage,
     totalPages,
-    items: items.slice(startIndex, startIndex + GUTENDEX_PAGE_SIZE),
+    items: items.slice(startIndex, startIndex + BOOK_LIST_PAGE_SIZE),
   };
 }
 

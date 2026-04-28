@@ -22,7 +22,7 @@ type BrowseApiPayload = {
 };
 
 const BROWSE_LAST_URL_KEY = "nerdvault-browse-last-url";
-const DEFAULT_PAGE_SIZE = 32;
+const DEFAULT_PAGE_SIZE = 48;
 const BROWSE_GENRES = [
   "Action",
   "Adventure",
@@ -427,7 +427,7 @@ export function BrowseWorkspace({
               <p className="eyebrow">Search and browse</p>
               <h2 className="headline">Clean paging, fuller shelves, and results that stay consistent from page to page.</h2>
               <p className="copy">
-                Each browse page is now loaded directly from the source query, with one fixed page size and no shrinking result grid.
+                Each browse page is now loaded directly from stable source windows, with one fixed page size and no shrinking result grid.
               </p>
             </div>
 
@@ -469,7 +469,7 @@ export function BrowseWorkspace({
                 ) : null}
               </div>
               <p className="copy browse-live-search-copy">
-                {deferredQuery.trim() ? `Searching for "${deferredQuery.trim()}"` : "Browse uses a fixed 32-title page size for a fuller grid."}
+                {deferredQuery.trim() ? `Searching for "${deferredQuery.trim()}"` : "Browse uses a fixed 48-title page size for a fuller grid."}
               </p>
             </form>
 

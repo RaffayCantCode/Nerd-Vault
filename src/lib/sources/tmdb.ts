@@ -2,6 +2,7 @@ import { MediaItem } from "@/lib/types";
 import { rankCandidatesForQuery } from "@/lib/search-utils";
 import { matchesFranchise, isLikelyAnime } from "@/lib/franchise-utils";
 import { browseJikanAnime } from "@/lib/sources/jikan";
+import { getMediaFallbackImage } from "@/lib/media-fallbacks";
 
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/original";
@@ -327,6 +328,8 @@ function mapMovieOrShow(
           .join(" · ")
       : undefined;
 
+  const fallbackImage = getMediaFallbackImage({ type });
+
   return {
     id: `tmdb-${type}-${item.id}`,
     slug: slugify(title),
@@ -339,12 +342,8 @@ function mapMovieOrShow(
     rating: Number(item.vote_average?.toFixed(1)) || 0,
     language: item.original_language || "en",
     genres: genreNames,
-    coverUrl:
-      buildImage(item.poster_path) ??
-      "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=900&q=80",
-    backdropUrl:
-      buildImage(item.backdrop_path) ??
-      "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1600&q=80",
+    coverUrl: buildImage(item.poster_path) ?? fallbackImage,
+    backdropUrl: buildImage(item.backdrop_path) ?? fallbackImage,
     screenshots: [
       ...(images?.backdrops?.map((image) => buildImage(image.file_path)).filter((value): value is string => Boolean(value)) ?? []),
       ...(images?.posters?.map((image) => buildImage(image.file_path)).filter((value): value is string => Boolean(value)) ?? []),

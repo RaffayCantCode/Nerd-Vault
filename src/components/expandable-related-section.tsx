@@ -6,7 +6,6 @@ import { FranchiseRelatedSection } from "@/components/franchise-related-section"
 import { DetailBackButton } from "@/components/detail-back-button";
 import { MediaItem } from "@/lib/types";
 
-// Import the FranchiseSectionData type from the media page
 type FranchiseSectionData = {
   title: string;
   summary: string;
@@ -47,12 +46,14 @@ interface ExpandableRelatedSectionProps {
   related: MediaItem[];
   franchiseSection?: FranchiseSectionData;
   mediaTitle: string;
+  showFranchiseSection?: boolean;
 }
 
-export function ExpandableRelatedSection({ 
-  related, 
-  franchiseSection, 
-  mediaTitle 
+export function ExpandableRelatedSection({
+  related,
+  franchiseSection,
+  mediaTitle,
+  showFranchiseSection = true,
 }: ExpandableRelatedSectionProps) {
   const [cardsPerRow, setCardsPerRow] = useState(4);
   const [visibleRows, setVisibleRows] = useState(2);
@@ -93,29 +94,33 @@ export function ExpandableRelatedSection({
 
   return (
     <section className="section-stack expandable-related-section" style={{ paddingTop: 0 }}>
-      {/* Franchise Section */}
-      <div className="franchise-wrapper">
-        {franchiseSection ? (
-          <FranchiseRelatedSection
-            title={franchiseSection.title}
-            summary={franchiseSection.summary}
-            entries={franchiseSection.entries}
-            secondaryTitle={franchiseSection.secondaryTitle}
-            secondaryEntries={franchiseSection.secondaryEntries}
-          />
-        ) : (
-          <div className="section-header">
-            <div>
-              <p className="eyebrow">Franchise</p>
-              <h2 className="headline" style={{ opacity: 0.7 }}>Standalone title</h2>
-              <p className="copy">This one isn’t part of a larger franchise or connected storyline (based on the sources we have).</p>
+      {showFranchiseSection ? (
+        <div className="franchise-wrapper">
+          {franchiseSection ? (
+            <FranchiseRelatedSection
+              title={franchiseSection.title}
+              summary={franchiseSection.summary}
+              entries={franchiseSection.entries}
+              secondaryTitle={franchiseSection.secondaryTitle}
+              secondaryEntries={franchiseSection.secondaryEntries}
+            />
+          ) : (
+            <div className="section-header">
+              <div>
+                <p className="eyebrow">Franchise</p>
+                <h2 className="headline" style={{ opacity: 0.7 }}>
+                  Standalone title
+                </h2>
+                <p className="copy">
+                  This one is not part of a larger franchise or connected storyline based on the verified sources we have.
+                </p>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      ) : null}
 
-      {/* More Like This Header */}
-      <div className="section-header" style={{ marginTop: 60 }}>
+      <div className="section-header" style={{ marginTop: showFranchiseSection ? 60 : 0 }}>
         <div>
           <p className="eyebrow">Discover</p>
           <h2 className="headline">More like this</h2>
@@ -123,15 +128,13 @@ export function ExpandableRelatedSection({
         </div>
       </div>
 
-      {/* Similar Media - Expandable Grid */}
       <div className="related-media-container">
         <RelatedMediaSection items={related} visibleCount={visibleCount} />
       </div>
 
-      {/* Actions Row */}
       <div className="related-actions-row">
         <DetailBackButton className="action-button action-button-secondary" />
-        
+
         {hasMore ? (
           <button
             onClick={() => setVisibleRows((current) => current + additionalRowsPerExpand)}

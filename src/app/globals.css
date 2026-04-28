@@ -1,10 +1,3 @@
-@import './mobile-improvements.css';
-@import './premium-enhancements.css';
-@import './premium-browse.css';
-@import './performance-optimized.css';
-@import './landing-mobile-fixes.css';
-@import './reward-animations.css';
-
 :root {
   --bg: #060911;
   --bg-soft: #0e1420;
@@ -13121,6 +13114,49 @@ body {
   padding-top: 2px;
 }
 
+.detail-stage-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(360px, 1fr) minmax(320px, 0.86fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.detail-stage-trailer,
+.detail-stage-sidebar {
+  position: sticky;
+  top: 92px;
+}
+
+.detail-stage-sidebar {
+  display: grid;
+  gap: 16px;
+  align-self: start;
+}
+
+.detail-stage-facts,
+.detail-stage-franchise {
+  padding: 18px !important;
+}
+
+.detail-stage-franchise .section-stack,
+.detail-stage-franchise .section-header {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+
+.detail-stage-franchise .franchise-grid {
+  grid-template-columns: 1fr !important;
+}
+
+.detail-stage-franchise .franchise-card {
+  min-height: 0;
+}
+
+.detail-stage-franchise-empty {
+  display: grid;
+  gap: 10px;
+}
+
 @media (max-width: 640px) {
   .catalog-copy {
     padding: 11px 12px 14px !important;
@@ -13138,5 +13174,32 @@ body {
   .media-action-hero-image {
     width: 72px;
     height: 108px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .detail-stage-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 0.95fr);
+  }
+
+  .detail-stage-sidebar {
+    grid-column: 1 / -1;
+    position: static;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .detail-stage-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-stage-trailer,
+  .detail-stage-sidebar {
+    position: static;
+  }
+
+  .detail-stage-sidebar {
+    grid-template-columns: 1fr;
   }
 }

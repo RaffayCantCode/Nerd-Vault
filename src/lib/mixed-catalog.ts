@@ -2,50 +2,54 @@ import { browseIgdbGames } from "@/lib/sources/igdb";
 import { browseJikanAnime } from "@/lib/sources/jikan";
 import { browseTmdbCatalog } from "@/lib/sources/tmdb";
 import { itemMatchesGenre } from "@/lib/catalog-utils";
-import { rankCandidatesForQuery, validateSearchResults, dedupeMediaKey } from "@/lib/search-utils";
+import { dedupeMediaKey, rankCandidatesForQuery, validateSearchResults } from "@/lib/search-utils";
 import { MediaItem } from "@/lib/types";
 
 const MIXED_CACHE_TTL_MS = 1000 * 60 * 10;
+const SEARCH_FETCH_PAGES = 2;
+
+type BrowsePayload = {
+  page: number;
+  totalPages: number;
+  totalResults: number;
+  items: MediaItem[];
+};
+
+type MixedSource = "movie" | "show" | "anime" | "game";
+
+type SourcePlan = {
+  allocation: number;
+  sourceStartPage: number;
+  pagesToFetch: number;
+  startOffset: number;
+};
+
+const SOURCE_ORDER: MixedSource[] = ["movie", "show", "anime", "game"];
+const SOURCE_PAGE_SIZES: Record<MixedSource, number> = {
+  movie: 20,
+  show: 20,
+  anime: 25,
+  game: 24,
+};
+
 const mixedCatalogCache = new Map<
   string,
   {
     expiresAt: number;
-    payload: {
-      page: number;
-      totalPages: number;
-      totalResults: number;
-      items: MediaItem[];
-    };
-  }
->();
-const mixedSourceFallbackCache = new Map<
-  string,
-  {
-    expiresAt: number;
-    payload: {
-      page: number;
-      totalPages: number;
-      totalResults: number;
-      items: MediaItem[];
-    };
-  }
->();
-const mixedSourceWarmCache = new Map<
-  "movie" | "show" | "anime" | "game",
-  {
-    expiresAt: number;
-    payload: {
-      page: number;
-      totalPages: number;
-      totalResults: number;
-      items: MediaItem[];
-    };
+    payload: BrowsePayload;
   }
 >();
 
-function rankSearchItems(items: MediaItem[], query: string, limit = 120) {
-  if (!query.trim()) return items;
-  return rankCandidatesForQuery(items, query, { limit, minRank: 8 });
+function dedupeBySource(items: MediaItem[]) {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = `${item.source}-${item.sourceId}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
 }
 
 function interleaveBuckets(...buckets: MediaItem[][]) {
@@ -63,319 +67,193 @@ function interleaveBuckets(...buckets: MediaItem[][]) {
   return mixed;
 }
 
-function flattenBuckets(buckets: MediaItem[][]) {
-  return buckets.flatMap((bucket) => bucket);
-}
-
-function hashString(input: string) {
-  return input.split("").reduce((total, char) => total + char.charCodeAt(0), 0);
-}
-
-function shuffleBySeed(items: MediaItem[], seed: number) {
-  return [...items]
-    .map((item, index) => ({
-      item,
-      key: Math.sin(seed + hashString(item.id) + index) * 10000,
-    }))
-    .sort((left, right) => left.key - right.key)
-    .map((entry) => entry.item);
-}
-
-function dedupeBySource(items: MediaItem[]) {
-  const seen = new Set<string>();
-  return items.filter((item) => {
-    const key = `${item.source}-${item.sourceId}`;
-    if (seen.has(key)) {
-      return false;
-    }
-    seen.add(key);
-    return true;
-  });
-}
-
-function takeBalancedBuckets(buckets: MediaItem[][], perBucketTarget: number, totalTarget: number) {
-  const working = buckets.map((bucket) => [...bucket]);
-  const picked: MediaItem[] = [];
-
-  for (const bucket of working) {
-    picked.push(...bucket.splice(0, perBucketTarget));
-  }
-
-  if (picked.length >= totalTarget) {
-    return picked.slice(0, totalTarget);
-  }
-
-  const overflow = interleaveBuckets(...working);
-  return [...picked, ...overflow].slice(0, totalTarget);
-}
-
-function interleaveTypePriority(items: MediaItem[], totalTarget: number) {
-  const buckets = {
-    movie: items.filter((item) => item.type === "movie"),
-    show: items.filter((item) => item.type === "show"),
-    anime: items.filter((item) => item.type === "anime"),
-    game: items.filter((item) => item.type === "game"),
-  };
-
-  const guaranteed = [
-    ...buckets.movie.splice(0, 3),
-    ...buckets.show.splice(0, 3),
-    ...buckets.anime.splice(0, 3),
-    ...buckets.game.splice(0, 3),
-  ];
-
-  const overflow = interleaveBuckets(buckets.movie, buckets.show, buckets.anime, buckets.game);
-  return interleaveBuckets(
-    guaranteed.filter((item) => item.type === "movie"),
-    guaranteed.filter((item) => item.type === "show"),
-    guaranteed.filter((item) => item.type === "anime"),
-    guaranteed.filter((item) => item.type === "game"),
-    overflow,
-  ).slice(0, totalTarget);
-}
-
-function rotateBuckets<T>(items: T[], offset: number) {
-  if (!items.length) return items;
-  const normalizedOffset = ((offset % items.length) + items.length) % items.length;
-  if (normalizedOffset === 0) return items;
-  return [...items.slice(normalizedOffset), ...items.slice(0, normalizedOffset)];
-}
-
-function buildBalancedPageFromBuckets(
-  buckets: Record<"movie" | "show" | "anime" | "game", MediaItem[]>,
-  page: number,
-  pageSize: number,
-) {
-  const types: Array<"movie" | "show" | "anime" | "game"> = ["movie", "show", "anime", "game"];
-  const perTypeTarget = Math.max(1, Math.floor(pageSize / types.length));
-  const remainderTarget = Math.max(0, pageSize - perTypeTarget * types.length);
-  const startIndex = Math.max(0, (page - 1) * perTypeTarget);
-
-  const selectedByType = types.map((type) => buckets[type].slice(startIndex, startIndex + perTypeTarget));
-  const underfilled = selectedByType.some((bucket) => bucket.length < perTypeTarget);
-  const selectedKeys = new Set(
-    flattenBuckets(selectedByType).map((item) => `${item.source}-${item.sourceId}`),
-  );
-  const overflow = interleaveBuckets(
-    ...types.map((type) => buckets[type].filter((item) => !selectedKeys.has(`${item.source}-${item.sourceId}`))),
-  );
-  const filledTypes = selectedByType.map((bucket) => [...bucket]);
-
-  if (underfilled) {
-    for (const bucket of filledTypes) {
-      while (bucket.length < perTypeTarget && overflow.length) {
-        bucket.push(overflow.shift() as MediaItem);
-      }
-    }
-  }
-
-  const interleaved = interleaveBuckets(...filledTypes);
-  if (remainderTarget <= 0) {
-    return interleaved.slice(0, pageSize);
-  }
-
-  return [...interleaved, ...overflow.slice(0, remainderTarget)].slice(0, pageSize);
-}
-
-function estimateBalancedTotalPages(
-  buckets: Record<"movie" | "show" | "anime" | "game", MediaItem[]>,
-  pageSize: number,
-) {
-  const uniqueItems = dedupeBySource([
-    ...buckets.movie,
-    ...buckets.show,
-    ...buckets.anime,
-    ...buckets.game,
-  ]);
-
-  return Math.max(1, Math.ceil(uniqueItems.length / Math.max(1, pageSize)));
-}
-
-function buildTypeBucket(
-  items: MediaItem[],
-  {
-    sort,
-    seed,
-    minTarget,
-  }: {
-    sort: "discovery" | "newest" | "rating" | "title";
-    seed: number;
-    minTarget: number;
-  },
-) {
-  const uniqueItems = dedupeBySource(items);
-  if (!uniqueItems.length) {
-    return [] as MediaItem[];
-  }
-
-  const orderedItems =
-    sort === "discovery"
-      ? buildDiscoverySlice(uniqueItems, seed, Math.min(uniqueItems.length, Math.max(minTarget, 18)))
-      : sortMediaItems(uniqueItems, sort, seed);
-
-  return dedupeBySource(orderedItems);
-}
-
 function sortMediaItems(
   items: MediaItem[],
   sort: "discovery" | "newest" | "rating" | "title",
-  seed: number,
 ) {
-  const uniqueItems = dedupeBySource(items);
-
-  if (sort === "discovery") {
-    return buildDiscoverySlice(uniqueItems, seed, uniqueItems.length);
-  }
-
-  if (sort === "rating") {
-    return [...uniqueItems].sort((left, right) => {
-      const ratingGap = right.rating - left.rating;
-      if (ratingGap !== 0) return ratingGap;
-      const yearGap = (right.year || 0) - (left.year || 0);
-      if (yearGap !== 0) return yearGap;
-      return left.title.localeCompare(right.title);
-    });
+  if (sort === "title") {
+    return [...items].sort((left, right) => left.title.localeCompare(right.title) || (right.year || 0) - (left.year || 0));
   }
 
   if (sort === "newest") {
-    return [...uniqueItems].sort((left, right) => {
-      const yearGap = (right.year || 0) - (left.year || 0);
-      if (yearGap !== 0) return yearGap;
-      const ratingGap = right.rating - left.rating;
-      if (ratingGap !== 0) return ratingGap;
-      return left.title.localeCompare(right.title);
+    return [...items].sort((left, right) => (right.year || 0) - (left.year || 0) || right.rating - left.rating || left.title.localeCompare(right.title));
+  }
+
+  if (sort === "rating") {
+    return [...items].sort((left, right) => right.rating - left.rating || (right.year || 0) - (left.year || 0) || left.title.localeCompare(right.title));
+  }
+
+  return items;
+}
+
+function buildSourcePlans(pageSize: number, page: number) {
+  const baseAllocation = Math.floor(pageSize / SOURCE_ORDER.length);
+  const remainder = pageSize % SOURCE_ORDER.length;
+
+  return SOURCE_ORDER.reduce<Record<MixedSource, SourcePlan>>((plans, source, index) => {
+    const allocation = baseAllocation + (index < remainder ? 1 : 0);
+    const sourcePageSize = SOURCE_PAGE_SIZES[source];
+    const startIndex = Math.max(0, (page - 1) * allocation);
+    const sourceStartPage = Math.floor(startIndex / sourcePageSize) + 1;
+    const startOffset = startIndex % sourcePageSize;
+    const pagesToFetch = Math.max(2, Math.ceil((startOffset + allocation + sourcePageSize) / sourcePageSize));
+
+    plans[source] = {
+      allocation,
+      sourceStartPage,
+      pagesToFetch,
+      startOffset,
+    };
+
+    return plans;
+  }, {} as Record<MixedSource, SourcePlan>);
+}
+
+async function fetchSourcePage(
+  source: MixedSource,
+  page: number,
+  {
+    query,
+    genre,
+    sort,
+    seed,
+  }: {
+    query: string;
+    genre: string;
+    sort: "discovery" | "newest" | "rating" | "title";
+    seed: number;
+  },
+) {
+  if (source === "movie" || source === "show") {
+    return browseTmdbCatalog({
+      type: source,
+      page,
+      query,
+      genre,
+      sort,
+      seed,
+      pageSize: SOURCE_PAGE_SIZES[source],
     });
   }
 
-  return [...uniqueItems].sort((left, right) => {
-    const titleGap = left.title.localeCompare(right.title);
-    if (titleGap !== 0) return titleGap;
-    return (right.year || 0) - (left.year || 0);
-  });
-}
-
-function buildDiscoverySlice(items: MediaItem[], seed: number, targetSize: number) {
-  if (items.length <= targetSize) return items;
-
-  // Sort items by rating to identify different tiers
-  const sortedByRating = [...items].sort((a, b) => b.rating - a.rating);
-  const totalItems = sortedByRating.length;
-  
-  // More aggressive discovery tiers - reduce popular content significantly
-  const popularThreshold = Math.max(8.5, Math.min(9.5, sortedByRating[Math.floor(totalItems * 0.05)]?.rating || 8.5));
-  const underratedThreshold = Math.max(6.5, Math.min(7.5, sortedByRating[Math.floor(totalItems * 0.4)]?.rating || 6.5));
-  const hiddenGemThreshold = Math.max(5, Math.min(6, sortedByRating[Math.floor(totalItems * 0.7)]?.rating || 5));
-  
-  const popular = sortedByRating.filter(item => item.rating >= popularThreshold);
-  const underrated = sortedByRating.filter(item => item.rating >= underratedThreshold && item.rating < popularThreshold);
-  const hiddenGems = sortedByRating.filter(item => item.rating >= hiddenGemThreshold && item.rating < underratedThreshold);
-  const deepCuts = sortedByRating.filter(item => item.rating >= 4 && item.rating < hiddenGemThreshold);
-  
-  // Create discovery mix: 15% popular, 25% underrated, 35% hidden gems, 25% deep cuts
-  const popularCount = Math.max(0, Math.floor(targetSize * 0.15));
-  const underratedCount = Math.max(1, Math.floor(targetSize * 0.25));
-  const hiddenGemCount = Math.max(2, Math.floor(targetSize * 0.35));
-  const deepCutCount = targetSize - popularCount - underratedCount - hiddenGemCount;
-  
-  const selectedPopular = shuffleBySeed(popular, seed + 1).slice(0, popularCount);
-  const selectedUnderrated = shuffleBySeed(underrated, seed + 2).slice(0, underratedCount);
-  const selectedHiddenGems = shuffleBySeed(hiddenGems, seed + 3).slice(0, hiddenGemCount);
-  const selectedDeepCuts = shuffleBySeed(deepCuts, seed + 4).slice(0, deepCutCount);
-  
-  // If we don't have enough items in any category, fill from others
-  const discoveryMix = [...selectedPopular, ...selectedUnderrated, ...selectedHiddenGems, ...selectedDeepCuts];
-  const remaining = targetSize - discoveryMix.length;
-  
-  if (remaining > 0) {
-    const fillerItems = shuffleBySeed(
-      sortedByRating.filter(item => !discoveryMix.includes(item)), 
-      seed + 5
-    ).slice(0, remaining);
-    discoveryMix.push(...fillerItems);
+  if (source === "anime") {
+    return browseJikanAnime({
+      page,
+      query,
+      genre,
+      sort,
+      seed,
+      pageSize: SOURCE_PAGE_SIZES[source],
+    });
   }
 
-  // Add variety by year - ensure we get items from different decades
-  const currentYear = new Date().getFullYear();
-  const decades = [2020, 2010, 2000, 1990, 1980];
-  const yearVarietyItems = discoveryMix.filter(item => {
-    const itemYear = item.year || 2020;
-    return decades.some(decade => 
-      itemYear >= decade && itemYear < decade + 10
-    );
+  return browseIgdbGames({
+    page,
+    query,
+    genre,
+    sort,
+    seed,
+    pageSize: SOURCE_PAGE_SIZES[source],
   });
-
-  return dedupeBySource(discoveryMix).slice(0, targetSize);
 }
 
-function emptyPayload(page: number) {
+async function fetchSourceWindow(
+  source: MixedSource,
+  plan: SourcePlan,
+  {
+    query,
+    genre,
+    sort,
+    seed,
+  }: {
+    query: string;
+    genre: string;
+    sort: "discovery" | "newest" | "rating" | "title";
+    seed: number;
+  },
+) {
+  const pages = Array.from({ length: plan.pagesToFetch }, (_, index) => plan.sourceStartPage + index);
+  const payloads = await Promise.all(
+    pages.map((targetPage, index) =>
+      fetchSourcePage(source, targetPage, {
+        query,
+        genre,
+        sort,
+        seed: seed + index,
+      }).catch(() => ({
+        page: targetPage,
+        totalPages: 1,
+        totalResults: 0,
+        items: [] as MediaItem[],
+      })),
+    ),
+  );
+
+  const totalResults = payloads.find((payload) => payload.totalResults > 0)?.totalResults ?? 0;
+  const items = dedupeBySource(
+    payloads
+      .flatMap((payload) => payload.items)
+      .filter((item) => !genre || genre === "all" || itemMatchesGenre(item, genre)),
+  );
+
   return {
-    page,
-    totalPages: 1,
-    totalResults: 0,
-    items: [] as MediaItem[],
+    totalResults,
+    items: sortMediaItems(items, sort),
   };
 }
 
-function sourceFallbackKey(source: "movie" | "show" | "anime" | "game", page: number, query: string, genre: string, sort: string) {
-  return JSON.stringify({ source, page, query, genre, sort });
-}
+async function buildSearchPayload({
+  query,
+  genre,
+  sort,
+  seed,
+  pageSize,
+}: {
+  query: string;
+  genre: string;
+  sort: "discovery" | "newest" | "rating" | "title";
+  seed: number;
+  pageSize: number;
+}) {
+  const perSourceResults = await Promise.all(
+    SOURCE_ORDER.map(async (source, sourceIndex) => {
+      const pages = Array.from({ length: SEARCH_FETCH_PAGES }, (_, index) => index + 1);
+      const payloads = await Promise.all(
+        pages.map((page) =>
+          fetchSourcePage(source, page, {
+            query,
+            genre,
+            sort,
+            seed: seed + sourceIndex * 10 + page,
+          }).catch(() => ({
+            page,
+            totalPages: 1,
+            totalResults: 0,
+            items: [] as MediaItem[],
+          })),
+        ),
+      );
 
-function readSourceFallback(source: "movie" | "show" | "anime" | "game", page: number, query: string, genre: string, sort: string) {
-  const key = sourceFallbackKey(source, page, query, genre, sort);
-  const cached = mixedSourceFallbackCache.get(key);
-  if (cached && cached.expiresAt > Date.now()) {
-    return cached.payload;
-  }
+      return payloads.flatMap((payload) => payload.items);
+    }),
+  );
 
-  const warmCached = mixedSourceWarmCache.get(source);
-  if (warmCached && warmCached.expiresAt > Date.now()) {
-    return {
-      ...warmCached.payload,
-      page,
-    };
-  }
-
-  return emptyPayload(page);
-}
-
-function writeSourceFallback(
-  source: "movie" | "show" | "anime" | "game",
-  page: number,
-  query: string,
-  genre: string,
-  sort: string,
-  payload: {
-    page: number;
-    totalPages: number;
-    totalResults: number;
-    items: MediaItem[];
-  },
-) {
-  mixedSourceFallbackCache.set(sourceFallbackKey(source, page, query, genre, sort), {
-    expiresAt: Date.now() + MIXED_CACHE_TTL_MS,
-    payload,
+  const pool = dedupeMediaKey(
+    perSourceResults
+      .flat()
+      .filter((item) => !genre || genre === "all" || itemMatchesGenre(item, genre)),
+  );
+  const ranked = rankCandidatesForQuery(pool, query, {
+    limit: Math.max(pageSize * 4, 192),
+    minRank: 8,
   });
 
-  if (payload.items.length) {
-    mixedSourceWarmCache.set(source, {
-      expiresAt: Date.now() + MIXED_CACHE_TTL_MS,
-      payload,
-    });
-  }
-}
-
-async function withTimeout<T>(work: Promise<T>, fallback: T, timeoutMs = 1800) {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      work,
-      new Promise<T>((resolve) => {
-        timer = setTimeout(() => resolve(fallback), timeoutMs);
-      }),
-    ]);
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
+  return {
+    page: 1,
+    totalPages: 1,
+    totalResults: ranked.length,
+    items: validateSearchResults(ranked.slice(0, pageSize)),
+  } satisfies BrowsePayload;
 }
 
 export async function browseMixedCatalog({
@@ -384,7 +262,7 @@ export async function browseMixedCatalog({
   genre,
   sort,
   seed,
-  pageSize = 24,
+  pageSize = 48,
 }: {
   page: number;
   query: string;
@@ -393,178 +271,74 @@ export async function browseMixedCatalog({
   seed: number;
   pageSize?: number;
 }) {
-  const safePageSize = Math.min(96, Math.max(10, pageSize));
+  const safePage = Math.max(1, page);
+  const safePageSize = Math.min(72, Math.max(16, pageSize));
   const safeQuery = query.trim();
-  const isSearch = Boolean(safeQuery);
-  const cacheKey = JSON.stringify({ page, query: safeQuery, genre, sort, seed, pageSize: safePageSize });
+  const cacheKey = JSON.stringify({
+    page: safePage,
+    query: safeQuery,
+    genre,
+    sort,
+    seed,
+    pageSize: safePageSize,
+  });
   const cached = mixedCatalogCache.get(cacheKey);
 
   if (cached && cached.expiresAt > Date.now()) {
     return cached.payload;
   }
 
-  const needsBroaderPool = Boolean((genre && genre !== "all") || safeQuery);
-  // FETCH ALL DATA: Always fetch a massive catalog for complete browse experience
-  // This ensures the vault feels complete and browsing is smooth across all pages
-  // Each source typically has 500+ pages available, we fetch enough to provide
-  // a substantial catalog (50+ source pages = ~750-1000 items after dedup)
-  const MASSIVE_SOURCE_SPAN = 50; // Fetch 50 pages from each source = ~1000 items per source
-  const SEARCH_SOURCE_SPAN = 10;  // For search, fetch less but still substantial
-  
-  const sourcePageSpan = isSearch ? SEARCH_SOURCE_SPAN : MASSIVE_SOURCE_SPAN;
-  const targetPoolSize = safePageSize * 50; // Target 50 pages worth of content (1200 items at 24/page)
-  
-  // Generate source page numbers (1, 2, 3, ... 50)
-  const sourcePages = Array.from({ length: sourcePageSpan }, (_, index) => index + 1);
+  const payload = safeQuery
+    ? await buildSearchPayload({
+        query: safeQuery,
+        genre,
+        sort,
+        seed,
+        pageSize: safePageSize,
+      })
+    : await (async () => {
+        const plans = buildSourcePlans(safePageSize, safePage);
+        const windows = await Promise.all(
+          SOURCE_ORDER.map(async (source, index) => {
+            const result = await fetchSourceWindow(source, plans[source], {
+              query: "",
+              genre,
+              sort,
+              seed: seed + index * 100,
+            });
 
-  const pageResults = await Promise.all(
-    sourcePages.map(async (sourcePage, index) => {
-      const sourceSeed = seed + index;
-      const [movieEntry, showEntry, animeEntry, gameEntry] = await Promise.all([
-        withTimeout(
-          browseTmdbCatalog({
-            type: "movie",
-            page: sourcePage,
-            query: safeQuery,
-            genre: "",
-            sort,
-            seed: sourceSeed + 1,
-          }).then((payload) => {
-            writeSourceFallback("movie", sourcePage, safeQuery, "", sort, payload);
-            return payload;
+            const primarySlice = result.items.slice(plans[source].startOffset, plans[source].startOffset + plans[source].allocation);
+            const overflowSlice = result.items.slice(plans[source].startOffset + plans[source].allocation);
+
+            return {
+              source,
+              totalResults: result.totalResults,
+              primarySlice,
+              overflowSlice,
+            };
           }),
-          readSourceFallback("movie", sourcePage, safeQuery, "", sort),
-          safeQuery ? 4200 : 1800,
-        ),
-        withTimeout(
-          browseTmdbCatalog({
-            type: "show",
-            page: sourcePage,
-            query: safeQuery,
-            genre: "",
-            sort,
-            seed: sourceSeed + 2,
-          }).then((payload) => {
-            writeSourceFallback("show", sourcePage, safeQuery, "", sort, payload);
-            return payload;
-          }),
-          readSourceFallback("show", sourcePage, safeQuery, "", sort),
-          safeQuery ? 4200 : 1800,
-        ),
-        withTimeout(
-          browseJikanAnime({
-            page: sourcePage,
-            query: safeQuery,
-            genre: "",
-            sort,
-            seed: sourceSeed + 3,
-          })
-            .then((payload) => {
-              writeSourceFallback("anime", sourcePage, safeQuery, "", sort, payload);
-              return payload;
-            })
-            .catch(() => readSourceFallback("anime", sourcePage, safeQuery, "", sort)),
-          readSourceFallback("anime", sourcePage, safeQuery, "", sort),
-          safeQuery ? 6500 : 1800,
-        ),
-        withTimeout(
-          browseIgdbGames({
-            page: sourcePage,
-            query: safeQuery,
-            genre: "",
-            sort,
-            seed: sourceSeed + 4,
-          })
-            .then((payload) => {
-              writeSourceFallback("game", sourcePage, safeQuery, "", sort, payload);
-              return payload;
-            })
-            .catch(() => readSourceFallback("game", sourcePage, safeQuery, "", sort)),
-          readSourceFallback("game", sourcePage, safeQuery, "", sort),
-          safeQuery ? 4200 : 1800,
-        ),
-      ]);
+        );
 
-      return { movieEntry, showEntry, animeEntry, gameEntry };
-    }),
-  );
+        const pageItems = dedupeBySource(interleaveBuckets(...windows.map((entry) => entry.primarySlice)));
+        const seenKeys = new Set(pageItems.map((item) => `${item.source}-${item.sourceId}`));
+        const overflowItems = interleaveBuckets(...windows.map((entry) => entry.overflowSlice)).filter((item) => {
+          const key = `${item.source}-${item.sourceId}`;
+          if (seenKeys.has(key)) {
+            return false;
+          }
+          seenKeys.add(key);
+          return true;
+        });
+        const stableItems = validateSearchResults([...pageItems, ...overflowItems].slice(0, safePageSize));
+        const totalResults = windows.reduce((sum, entry) => sum + entry.totalResults, 0);
 
-  const searchPool = dedupeMediaKey(
-    pageResults.flatMap(({ movieEntry, showEntry, animeEntry, gameEntry }) => [
-      ...movieEntry.items,
-      ...showEntry.items,
-      ...animeEntry.items,
-      ...gameEntry.items,
-    ]),
-  );
-
-  const perTypeTarget = Math.max(1, Math.floor(safePageSize / 4));
-  const minimumBucketSize = Math.max(safePageSize, (page + 1) * perTypeTarget);
-  const allBuckets = safeQuery
-    ? {
-        movie: [] as MediaItem[],
-        show: [] as MediaItem[],
-        anime: [] as MediaItem[],
-        game: [] as MediaItem[],
-      }
-    : {
-        movie: buildTypeBucket(
-          pageResults.flatMap(({ movieEntry }) => movieEntry.items).filter((item) => !genre || genre === "all" || itemMatchesGenre(item, genre)),
-          { sort, seed: seed + 101, minTarget: minimumBucketSize },
-        ),
-        show: buildTypeBucket(
-          pageResults.flatMap(({ showEntry }) => showEntry.items).filter((item) => !genre || genre === "all" || itemMatchesGenre(item, genre)),
-          { sort, seed: seed + 202, minTarget: minimumBucketSize },
-        ),
-        anime: buildTypeBucket(
-          pageResults.flatMap(({ animeEntry }) => animeEntry.items).filter((item) => !genre || genre === "all" || itemMatchesGenre(item, genre)),
-          { sort, seed: seed + 303, minTarget: minimumBucketSize },
-        ),
-        game: buildTypeBucket(
-          pageResults.flatMap(({ gameEntry }) => gameEntry.items).filter((item) => !genre || genre === "all" || itemMatchesGenre(item, genre)),
-          { sort, seed: seed + 404, minTarget: minimumBucketSize },
-        ),
-      };
-
-  const filteredMixed = safeQuery
-    ? (genre && genre !== "all" ? searchPool.filter((item) => itemMatchesGenre(item, genre)) : searchPool)
-    : dedupeMediaKey(
-        // Use interleaveTypePriority for EQUAL distribution: 6 movies, 6 shows, 6 anime, 6 games per 24 items
-        interleaveTypePriority(
-          [...allBuckets.movie, ...allBuckets.show, ...allBuckets.anime, ...allBuckets.game],
-          targetPoolSize,
-        ),
-      ).filter((item): item is MediaItem => Boolean(item));
-
-  const rankedMixed = safeQuery
-    ? rankSearchItems(filteredMixed, safeQuery, Math.max(safePageSize * 6, 180))
-    : sortMediaItems(filteredMixed, sort, seed); // Use consistent seed so order is stable across pages
-
-  const pageStart = Math.max(0, (page - 1) * safePageSize);
-  const finalItems = safeQuery
-    ? rankedMixed.slice(0, safePageSize)
-    : rankedMixed.slice(pageStart, pageStart + safePageSize);
-
-  const validatedItems = validateSearchResults(finalItems);
-  
-  // Calculate total pages based on ACTUAL fetched items
-  // With 50 source pages × 4 sources × ~20 items = ~4000 items before dedup
-  // After deduplication: ~2000-2500 items = ~80-100 pages at 24/page
-  const actualTotalItems = rankedMixed.length;
-  const calculatedTotalPages = Math.ceil(actualTotalItems / Math.max(1, safePageSize));
-  
-  // For browse (non-search), report all available pages
-  // Minimum 20 pages, maximum based on actual content (up to 100+)
-  const totalPages = safeQuery
-    ? 1
-    : Math.max(20, Math.min(100, calculatedTotalPages));
-
-  const payload = {
-    page: isSearch ? 1 : page,
-    totalPages: isSearch ? 1 : Math.max(1, totalPages),
-    totalResults: safeQuery ? rankedMixed.length : filteredMixed.length,
-    items: validatedItems.slice(0, safePageSize),
-  };
+        return {
+          page: safePage,
+          totalPages: Math.max(1, Math.ceil(totalResults / safePageSize)),
+          totalResults,
+          items: stableItems,
+        } satisfies BrowsePayload;
+      })();
 
   mixedCatalogCache.set(cacheKey, {
     expiresAt: Date.now() + MIXED_CACHE_TTL_MS,

@@ -2,14 +2,12 @@ import Link from "next/link";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopBar } from "@/components/app-topbar";
 import { BrowseResetLink } from "@/components/browse-reset-link";
-import { CatalogCard } from "@/components/catalog-card";
 import { DetailBackButton } from "@/components/detail-back-button";
 import { DetailGallery } from "@/components/detail-gallery";
 import { DetailViewEffects } from "@/components/detail-view-effects";
 import { ExpandableRelatedSection } from "@/components/expandable-related-section";
 import { FranchiseRelatedSection } from "@/components/franchise-related-section";
 import { MediaActions } from "@/components/media-actions";
-import { RelatedMediaSection } from "@/components/related-media-section";
 import { ResilientMediaImage } from "@/components/resilient-media-image";
 import { PremiumMediaDetails } from "@/components/premium-media-details";
 import { VaultClientPrimer } from "@/components/vault-client-primer";
@@ -1370,7 +1368,10 @@ async function buildFranchiseSection(media: MediaItem, animeFranchise?: AnimeFra
       const seriesEntries = ordered.filter((candidate) => candidate.type === "show");
       const movieEntries = ordered.filter((candidate) => candidate.type === "movie");
       const activeIndex = Math.max(0, seriesEntries.findIndex((candidate) => candidate.id === media.id));
-      const title = curatedUniverse?.title ?? media.details.collectionTitle ?? `${media.title} universe`;
+      const title =
+        curatedUniverse?.title ??
+        media.details.collectionTitle ??
+        normalizeDisplayTitle(extractFranchiseRoot(seriesEntries[0]?.title ?? media.title, media.type));
 
       return {
         title: normalizeDisplayTitle(title),
@@ -1417,7 +1418,10 @@ async function buildFranchiseSection(media: MediaItem, animeFranchise?: AnimeFra
 
     if (combined.length >= 2) {
       const ordered = [...combined].sort(compareFranchiseItems);
-      const title = curatedUniverse?.title ?? media.details.collectionTitle ?? `${media.title} universe`;
+      const title =
+        curatedUniverse?.title ??
+        media.details.collectionTitle ??
+        normalizeDisplayTitle(extractFranchiseRoot(ordered[0]?.title ?? media.title, media.type));
       const activeIndex = Math.max(0, ordered.findIndex((candidate) => candidate.id === media.id));
 
       return {
@@ -2676,7 +2680,7 @@ export default async function MediaDetailPage({
             </div>
             <div className="detail-content">
               <DetailBackButton />
-              <div className="detail-hero-grid">
+              <div className="detail-stage-grid">
                 <div className="detail-hero-copy">
                   <p className="eyebrow">{media.type}</p>
                   <h1 className="display detail-display">{media.title}</h1>
@@ -2714,7 +2718,7 @@ export default async function MediaDetailPage({
                   </div>
                 </div>
 
-                <aside className="detail-side-poster glass">
+                <aside className="detail-side-poster glass detail-stage-trailer">
                   <div className={`detail-side-poster-media ${trailerEmbedUrl ? "detail-side-poster-media-trailer" : ""}`}>
                     {trailerEmbedUrl ? (
                       <iframe
@@ -2728,48 +2732,68 @@ export default async function MediaDetailPage({
                     )}
                   </div>
                 </aside>
-              </div>
-            </div>
-          </section>
 
-          <section className="info-panel glass detail-facts-panel">
-            <div className="detail-facts-head">
-              <div>
-                <p className="eyebrow">Quick facts</p>
-                <h2 className="headline">The details you should catch at a glance</h2>
+                <aside className="detail-stage-sidebar">
+                  <section className="info-panel glass detail-facts-panel detail-stage-facts">
+                    <div className="detail-facts-head">
+                      <div>
+                        <p className="eyebrow">Quick facts</p>
+                        <h2 className="headline">The details you should catch at a glance</h2>
+                      </div>
+                    </div>
+                    <div className="detail-side-stat-grid">
+                      <div className="detail-side-stat detail-side-stat-emphasis">
+                        <span>Release date</span>
+                        <strong>{releaseValue}</strong>
+                      </div>
+                      <div className="detail-side-stat detail-side-stat-emphasis">
+                        <span>{runtimeLabel}</span>
+                        <strong>{runtimeValue}</strong>
+                      </div>
+                      <div className="detail-side-stat detail-side-stat-wide">
+                        <span>Genres</span>
+                        <strong>{genreValue}</strong>
+                      </div>
+                      <div className="detail-side-stat">
+                        <span>Status</span>
+                        <strong>{statusValue}</strong>
+                      </div>
+                      <div className="detail-side-stat">
+                        <span>{studioLabel}</span>
+                        <strong>{studioValue}</strong>
+                      </div>
+                      {sourceReference.url ? (
+                        <div className="detail-side-stat detail-side-stat-wide">
+                          <span>Source data</span>
+                          <strong>
+                            <a href={sourceReference.url} target="_blank" rel="noreferrer" className="detail-source-link">
+                              Open {sourceReference.label}
+                            </a>
+                          </strong>
+                        </div>
+                      ) : null}
+                    </div>
+                  </section>
+
+                  <section className="info-panel glass detail-stage-franchise">
+                    {franchiseSection ? (
+                      <FranchiseRelatedSection
+                        title={franchiseSection.title}
+                        summary={franchiseSection.summary}
+                        entries={franchiseSection.entries}
+                        secondaryTitle={franchiseSection.secondaryTitle}
+                        secondaryEntries={franchiseSection.secondaryEntries}
+                      />
+                    ) : (
+                      <div className="detail-stage-franchise-empty">
+                        <p className="eyebrow">Franchise</p>
+                        <h2 className="headline">Standalone title</h2>
+                        <p className="copy">No verified parent collection or storyline grouping was found for this entry.</p>
+                      </div>
+                    )}
+                  </section>
+                </aside>
               </div>
-            </div>
-            <div className="detail-side-stat-grid">
-              <div className="detail-side-stat detail-side-stat-emphasis">
-                <span>Release date</span>
-                <strong>{releaseValue}</strong>
-              </div>
-              <div className="detail-side-stat detail-side-stat-emphasis">
-                <span>{runtimeLabel}</span>
-                <strong>{runtimeValue}</strong>
-              </div>
-              <div className="detail-side-stat detail-side-stat-wide">
-                <span>Genres</span>
-                <strong>{genreValue}</strong>
-              </div>
-              <div className="detail-side-stat">
-                <span>Status</span>
-                <strong>{statusValue}</strong>
-              </div>
-              <div className="detail-side-stat">
-                <span>{studioLabel}</span>
-                <strong>{studioValue}</strong>
-              </div>
-              {sourceReference.url ? (
-                <div className="detail-side-stat detail-side-stat-wide">
-                  <span>Source data</span>
-                  <strong>
-                    <a href={sourceReference.url} target="_blank" rel="noreferrer" className="detail-source-link">
-                      Open {sourceReference.label}
-                    </a>
-                  </strong>
-                </div>
-              ) : null}
             </div>
           </section>
 
@@ -2801,30 +2825,7 @@ export default async function MediaDetailPage({
             </div>
           </section>
 
-          <section className="info-grid">
-            <div className="info-panel glass">
-              <p className="eyebrow">Essentials</p>
-              <h2 className="headline">The quick read before you commit</h2>
-                <div className="credit-list" style={{ marginTop: 18 }}>
-                  <div className="credit-row">
-                    <span className="muted">{runtimeLabel}</span>
-                    <strong>{runtimeValue}</strong>
-                  </div>
-                  <div className="credit-row">
-                    <span className="muted">Release date</span>
-                    <strong>{releaseValue}</strong>
-                  </div>
-                  <div className="credit-row">
-                    <span className="muted">Status</span>
-                    <strong>{statusValue}</strong>
-                  </div>
-                  <div className="credit-row">
-                    <span className="muted">Genres</span>
-                    <strong>{genreValue}</strong>
-                  </div>
-                </div>
-              </div>
-
+          <section className="section-stack" style={{ paddingTop: 0 }}>
             <div className="info-panel glass">
               <p className="eyebrow">
                 {(media.type === "anime" || media.type === "anime_movie") && (animeFranchise?.seasonEntries?.length || animeFranchise?.entries.length) ? "Seasons / Parts" : "Cast / Credits"}
@@ -2950,8 +2951,9 @@ export default async function MediaDetailPage({
 
           <ExpandableRelatedSection 
             related={filteredRelated}
-            franchiseSection={franchiseSection || undefined}
+            franchiseSection={undefined}
             mediaTitle={media.title}
+            showFranchiseSection={false}
           />
         </main>
       </div>

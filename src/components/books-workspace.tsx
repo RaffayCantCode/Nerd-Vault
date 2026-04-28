@@ -255,8 +255,8 @@ export function BooksWorkspace({
             <div className="books-feature-stack">
               <div className="books-feature-card">
                 <p className="books-feature-label">Reading flow</p>
-                <strong>Open a book page first, then enter the full reader when you’re ready.</strong>
-                <span>The library stays fast, covers fit better, and loading uses the NV motion while the reader prepares.</span>
+                <strong>Open a book page first, then enter the full reader when you are ready.</strong>
+                <span>The library now keeps fuller shelves, broader genre coverage, and stable next/previous paging.</span>
               </div>
               <BookCover title="Midnight Atlas" author="Reading room preview" />
             </div>
@@ -268,6 +268,9 @@ export function BooksWorkspace({
             <div>
               <p className="books-eyebrow">Library</p>
               <h2>{submittedQuery ? `Results for "${submittedQuery}"` : "Project Gutenberg library"}</h2>
+              <p className="books-copy">
+                {loading ? "Refreshing the catalog..." : `Showing ${payload.items.length} books on this page.`}
+              </p>
             </div>
             <div className="books-pager">
               {renderPager("top")}
