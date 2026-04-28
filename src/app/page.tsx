@@ -3,7 +3,6 @@ import Link from "next/link";
 import { EnhancedLink } from "@/components/enhanced-link";
 import { signOutUser } from "@/app/sign-in/sign-out-action";
 import { BrowseResetLink } from "@/components/browse-reset-link";
-import { LandingAuthCard } from "@/components/landing-auth-card";
 import { SiteHeader } from "@/components/site-header";
 import { auth } from "@/lib/auth";
 

@@ -73,6 +73,15 @@ function dedupeItems(items: MediaItem[]) {
   });
 }
 
+function buildSurfacingDeck(items: MediaItem[], fallbackItems: MediaItem[]) {
+  const orderedTypes: MediaType[] = ["movie", "show", "game", "anime"];
+  const source = dedupeItems([...items, ...fallbackItems]);
+
+  return orderedTypes
+    .map((type) => source.find((item) => item.type === type || (type === "anime" && item.type === "anime_movie")))
+    .filter((item): item is MediaItem => Boolean(item));
+}
+
 function preload(url?: string | null) {
   if (typeof window === "undefined" || !url) {
     return;
@@ -88,6 +97,13 @@ function formatFilterLabel(filter: MediaType | "all") {
   if (filter === "show") return "Shows";
   if (filter === "game") return "Games";
   return `${filter.charAt(0).toUpperCase()}${filter.slice(1)}s`;
+}
+
+function formatSurfacingLabel(type: MediaType) {
+  if (type === "show") return "Shows";
+  if (type === "game") return "Games";
+  if (type === "anime" || type === "anime_movie") return "Anime";
+  return "Movies";
 }
 
 export function BrowseWorkspace({
@@ -133,13 +149,7 @@ export function BrowseWorkspace({
   const hasRestoredScrollRef = useRef(false);
   const didInitRef = useRef(false);
 
-  const featuredDeck = useMemo(() => {
-    const base = dedupeItems([...payload.items, ...catalog]);
-    if (!base.length) {
-      return catalog.slice(0, 4);
-    }
-    return base.slice(0, 6);
-  }, [catalog, payload.items]);
+  const featuredDeck = useMemo(() => buildSurfacingDeck(payload.items, catalog), [catalog, payload.items]);
 
   const featured = featuredDeck[heroIndex] ?? featuredDeck[0];
   const currentHref = buildBrowseHref(filter, activePage, genre, deferredQuery, sort, initialSeed);
@@ -281,6 +291,18 @@ export function BrowseWorkspace({
     });
   }, [featuredDeck]);
 
+  useEffect(() => {
+    if (featuredDeck.length <= 1 || typeof window === "undefined") {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      setHeroIndex((current) => (current + 1) % featuredDeck.length);
+    }, 3000);
+
+    return () => window.clearInterval(interval);
+  }, [featuredDeck.length]);
+
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -365,7 +387,7 @@ export function BrowseWorkspace({
                             className={`surfacing-pill ${index === heroIndex ? "is-active" : ""}`}
                             onClick={() => setHeroIndex(index)}
                           >
-                            {item.type}
+                            {formatSurfacingLabel(item.type)}
                           </button>
                         ))}
                       </div>
@@ -378,7 +400,7 @@ export function BrowseWorkspace({
 
                 <h1 className="display browse-hero-title">{featured.title}</h1>
                 <div className="hero-meta-strip">
-                  <span className="hero-stat">{featured.type}</span>
+                  <span className="hero-stat">{formatSurfacingLabel(featured.type)}</span>
                   <span className="hero-stat">{featured.year || "Unknown year"}</span>
                   <span className="hero-stat">★ {featured.rating.toFixed(1)}</span>
                 </div>
