@@ -4,6 +4,7 @@ import { browseTmdbCatalog } from "@/lib/sources/tmdb";
 import { MediaItem } from "@/lib/types";
 
 const BOOTSTRAP_SOURCE_TTL_MS = 1000 * 60 * 30;
+const DISCOVERY_SEED_WINDOW_MS = 1000 * 60 * 10;
 
 type BootstrapSource = "movie" | "show" | "anime" | "game";
 
@@ -21,6 +22,15 @@ type BrowsePayload = {
   totalResults: number;
   items: MediaItem[];
 };
+
+type BootstrapCatalog = {
+  surfacing: MediaItem[];
+  catalog: MediaItem[];
+};
+
+export function getBrowseDiscoverySeed(timestamp = Date.now()) {
+  return Math.floor(timestamp / DISCOVERY_SEED_WINDOW_MS) * 97;
+}
 
 function emptyBrowsePayload(): BrowsePayload {
   return {
@@ -111,46 +121,75 @@ async function getBootstrapSource(source: BootstrapSource, seed: number) {
   const fallback = emptyBrowsePayload();
 
   if (source === "movie" || source === "show") {
-    const payload = await withTimeout(
-      browseTmdbCatalog({ type: source, page: 1, query: "", genre: "", sort: "discovery", seed }).catch(() => fallback),
-      fallback,
-      1800,
-    );
-    writeBootstrapSourceCache(source, payload.items);
-    return rotateBySeed(payload.items, seed);
+    const attempts = await Promise.all([
+      withTimeout(
+        browseTmdbCatalog({ type: source, page: 1, query: "", genre: "", sort: "discovery", seed }).catch(() => fallback),
+        fallback,
+        2200,
+      ),
+      withTimeout(
+        browseTmdbCatalog({ type: source, page: 1, query: "", genre: "", sort: "rating", seed: seed + 11 }).catch(() => fallback),
+        fallback,
+        2600,
+      ),
+      withTimeout(
+        browseTmdbCatalog({ type: source, page: 2, query: "", genre: "", sort: "discovery", seed: seed + 17 }).catch(() => fallback),
+        fallback,
+        2600,
+      ),
+    ]);
+    const items = dedupeItems(attempts.flatMap((payload) => payload.items));
+    writeBootstrapSourceCache(source, items);
+    return rotateBySeed(items, seed);
   }
 
   if (source === "anime") {
-    const payload = await withTimeout(
-      browseJikanAnime({ page: 1, query: "", genre: "", sort: "discovery", seed }).catch(() => fallback),
-      fallback,
-      2200,
-    );
-    writeBootstrapSourceCache(source, payload.items);
-    return rotateBySeed(payload.items, seed);
+    const attempts = await Promise.all([
+      withTimeout(
+        browseJikanAnime({ page: 1, query: "", genre: "", sort: "discovery", seed }).catch(() => fallback),
+        fallback,
+        2600,
+      ),
+      withTimeout(
+        browseJikanAnime({ page: 1, query: "", genre: "", sort: "rating", seed: seed + 13 }).catch(() => fallback),
+        fallback,
+        3200,
+      ),
+      withTimeout(
+        browseJikanAnime({ page: 2, query: "", genre: "", sort: "discovery", seed: seed + 19 }).catch(() => fallback),
+        fallback,
+        3200,
+      ),
+    ]);
+    const items = dedupeItems(attempts.flatMap((payload) => payload.items));
+    writeBootstrapSourceCache(source, items);
+    return rotateBySeed(items, seed);
   }
 
-  const primary = await withTimeout(
-    browseIgdbGames({ page: 1, query: "", genre: "", sort: "discovery", seed }).catch(() => fallback),
-    fallback,
-    3000,
-  );
-
-  const gameItems = primary.items.length
-    ? primary.items
-    : (
-        await withTimeout(
-          browseIgdbGames({ page: 1, query: "", genre: "", sort: "rating", seed: seed + 17 }).catch(() => fallback),
-          fallback,
-          3800,
-        )
-      ).items;
+  const gameAttempts = await Promise.all([
+    withTimeout(
+      browseIgdbGames({ page: 1, query: "", genre: "", sort: "discovery", seed }).catch(() => fallback),
+      fallback,
+      3400,
+    ),
+    withTimeout(
+      browseIgdbGames({ page: 1, query: "", genre: "", sort: "rating", seed: seed + 17 }).catch(() => fallback),
+      fallback,
+      4200,
+    ),
+    withTimeout(
+      browseIgdbGames({ page: 2, query: "", genre: "", sort: "discovery", seed: seed + 23 }).catch(() => fallback),
+      fallback,
+      4200,
+    ),
+  ]);
+  const gameItems = dedupeItems(gameAttempts.flatMap((payload) => payload.items));
 
   writeBootstrapSourceCache("game", gameItems);
   return rotateBySeed(gameItems, seed);
 }
 
-export async function getBrowseBootstrapCatalog(seed: number) {
+export async function getBrowseBootstrapCatalog(seed: number): Promise<BootstrapCatalog> {
   const [movies, shows, anime, games] = await Promise.all([
     getBootstrapSource("movie", seed + 1),
     getBootstrapSource("show", seed + 2),
@@ -158,7 +197,14 @@ export async function getBrowseBootstrapCatalog(seed: number) {
     getBootstrapSource("game", seed + 4),
   ]);
 
-  return dedupeItems(
+  const surfacing = dedupeItems([
+    ...pickFirstUnique(movies, 1),
+    ...pickFirstUnique(shows, 1),
+    ...pickFirstUnique(games, 1),
+    ...pickFirstUnique(anime, 1),
+  ]).slice(0, 4);
+
+  const catalog = dedupeItems(
     interleaveBootstrapBuckets(
       pickFirstUnique(movies, 3),
       pickFirstUnique(shows, 3),
@@ -166,4 +212,9 @@ export async function getBrowseBootstrapCatalog(seed: number) {
       pickFirstUnique(games, 3),
     ),
   ).slice(0, 12);
+
+  return {
+    surfacing,
+    catalog,
+  };
 }

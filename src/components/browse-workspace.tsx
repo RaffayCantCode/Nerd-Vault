@@ -21,8 +21,14 @@ type BrowseApiPayload = {
   message?: string;
 };
 
+type CachedBrowsePayload = {
+  expiresAt: number;
+  payload: BrowseApiPayload;
+};
+
 const BROWSE_LAST_URL_KEY = "nerdvault-browse-last-url";
 const DEFAULT_PAGE_SIZE = 48;
+const BROWSE_CLIENT_CACHE_TTL_MS = 1000 * 45;
 const BROWSE_GENRES = [
   "Action",
   "Adventure",
@@ -41,6 +47,7 @@ const BROWSE_GENRES = [
   "Platformer",
   "Documentary",
 ] as const;
+const browseClientCache = new Map<string, CachedBrowsePayload>();
 
 function normalizePage(value: number) {
   return Number.isFinite(value) && value > 0 ? Math.floor(value) : 1;
@@ -82,6 +89,21 @@ function buildSurfacingDeck(items: MediaItem[], fallbackItems: MediaItem[]) {
     .filter((item): item is MediaItem => Boolean(item));
 }
 
+function readBrowseClientCache(key: string) {
+  const cached = browseClientCache.get(key);
+  if (!cached || cached.expiresAt <= Date.now()) {
+    return null;
+  }
+  return cached.payload;
+}
+
+function writeBrowseClientCache(key: string, payload: BrowseApiPayload) {
+  browseClientCache.set(key, {
+    expiresAt: Date.now() + BROWSE_CLIENT_CACHE_TTL_MS,
+    payload,
+  });
+}
+
 function preload(url?: string | null) {
   if (typeof window === "undefined" || !url) {
     return;
@@ -108,10 +130,12 @@ function formatSurfacingLabel(type: MediaType) {
 
 export function BrowseWorkspace({
   catalog,
+  surfacingCatalog,
   discoverySeed,
   initialTotalPages,
 }: {
   catalog: MediaItem[];
+  surfacingCatalog: MediaItem[];
   discoverySeed: number;
   initialBootstrapPageSize?: number;
   initialTotalPages: number;
@@ -145,11 +169,22 @@ export function BrowseWorkspace({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [heroIndex, setHeroIndex] = useState(0);
+  const [isHeroInView, setIsHeroInView] = useState(true);
+  const [isDocumentVisible, setIsDocumentVisible] = useState(true);
   const resultsRef = useRef<HTMLDivElement | null>(null);
+  const surfacingRef = useRef<HTMLElement | null>(null);
   const hasRestoredScrollRef = useRef(false);
   const didInitRef = useRef(false);
 
-  const featuredDeck = useMemo(() => buildSurfacingDeck(payload.items, catalog), [catalog, payload.items]);
+  const featuredDeck = useMemo(() => {
+    const guaranteedDeck = buildSurfacingDeck(surfacingCatalog, catalog);
+    if (guaranteedDeck.length === 4) {
+      return guaranteedDeck;
+    }
+
+    const liveDeck = buildSurfacingDeck(payload.items, [...surfacingCatalog, ...catalog]);
+    return liveDeck.length >= guaranteedDeck.length ? liveDeck : guaranteedDeck;
+  }, [catalog, payload.items, surfacingCatalog]);
 
   const featured = featuredDeck[heroIndex] ?? featuredDeck[0];
   const currentHref = buildBrowseHref(filter, activePage, genre, deferredQuery, sort, initialSeed);
@@ -205,8 +240,26 @@ export function BrowseWorkspace({
           params.set("query", deferredQuery.trim());
         }
 
+        const requestKey = params.toString();
+        const cachedPayload = readBrowseClientCache(requestKey);
+        if (cachedPayload) {
+          if (!active) {
+            return;
+          }
+
+          const nextPage = deferredQuery.trim() ? 1 : clampPage(cachedPayload.page || activePage, cachedPayload.totalPages || 1);
+          setPayload({
+            page: nextPage,
+            totalPages: Math.max(1, cachedPayload.totalPages || 1),
+            totalResults: cachedPayload.totalResults || cachedPayload.items.length,
+            items: Array.isArray(cachedPayload.items) ? cachedPayload.items.slice(0, DEFAULT_PAGE_SIZE) : [],
+          });
+          setIsLoading(false);
+          return;
+        }
+
         const response = await fetch(`/api/catalog/browse?${params.toString()}`, {
-          cache: "no-store",
+          cache: "default",
           signal: controller.signal,
         });
         const nextPayload = (await response.json()) as BrowseApiPayload;
@@ -218,6 +271,8 @@ export function BrowseWorkspace({
         if (!active) {
           return;
         }
+
+        writeBrowseClientCache(requestKey, nextPayload);
 
         const nextPage = deferredQuery.trim() ? 1 : clampPage(nextPayload.page || activePage, nextPayload.totalPages || 1);
         setPayload({
@@ -285,14 +340,54 @@ export function BrowseWorkspace({
   }, [currentHref, isLoading]);
 
   useEffect(() => {
-    featuredDeck.slice(0, 3).forEach((item) => {
+    featuredDeck.slice(0, 4).forEach((item) => {
       preload(optimizeMediaImageUrl(item.backdropUrl, "backdrop") ?? item.backdropUrl);
       preload(optimizeMediaImageUrl(item.coverUrl, "cover") ?? item.coverUrl);
     });
   }, [featuredDeck]);
 
   useEffect(() => {
-    if (featuredDeck.length <= 1 || typeof window === "undefined") {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    function syncVisibility() {
+      setIsDocumentVisible(document.visibilityState !== "hidden");
+    }
+
+    syncVisibility();
+    document.addEventListener("visibilitychange", syncVisibility, { passive: true });
+
+    return () => {
+      document.removeEventListener("visibilitychange", syncVisibility);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !surfacingRef.current) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        setIsHeroInView(Boolean(entry?.isIntersecting));
+      },
+      {
+        threshold: 0.35,
+        rootMargin: "0px 0px -12% 0px",
+      },
+    );
+
+    observer.observe(surfacingRef.current);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (featuredDeck.length <= 1 || typeof window === "undefined" || !isHeroInView || !isDocumentVisible) {
       return;
     }
 
@@ -301,7 +396,7 @@ export function BrowseWorkspace({
     }, 3000);
 
     return () => window.clearInterval(interval);
-  }, [featuredDeck.length]);
+  }, [featuredDeck.length, isDocumentVisible, isHeroInView]);
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -357,7 +452,7 @@ export function BrowseWorkspace({
 
   return (
     <div className="workspace">
-      <section className="workspace-hero glass browse-surfacing-hero">
+      <section ref={surfacingRef} className="workspace-hero glass browse-surfacing-hero">
         {featured ? (
           <>
             <div className="hero-media">

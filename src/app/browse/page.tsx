@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { getBrowseBootstrapCatalog } from "@/lib/browse-bootstrap";
+import { getBrowseBootstrapCatalog, getBrowseDiscoverySeed } from "@/lib/browse-bootstrap";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopBar } from "@/components/app-topbar";
 import { BrowseWorkspace } from "@/components/browse-workspace";
@@ -11,9 +11,11 @@ export const revalidate = 0;
 const INITIAL_BROWSE_TOTAL_PAGES = 100;
 
 export default async function BrowsePage() {
-  const discoverySeed = Date.now() + Math.floor(Math.random() * 10_000);
-  const bootstrapCatalog = await getBrowseBootstrapCatalog(discoverySeed);
-  const session = await auth();
+  const discoverySeed = getBrowseDiscoverySeed();
+  const [bootstrapCatalog, session] = await Promise.all([
+    getBrowseBootstrapCatalog(discoverySeed),
+    auth(),
+  ]);
   const viewerName = session?.user?.name || "Guest vault";
   const viewerId = session?.user?.id || "guest-vault";
   const viewerAvatar = session?.user?.image || undefined;
@@ -41,9 +43,10 @@ export default async function BrowsePage() {
             initialFriends={shellData?.friends ?? []}
           />
           <BrowseWorkspace
-            catalog={bootstrapCatalog}
+            catalog={bootstrapCatalog.catalog}
+            surfacingCatalog={bootstrapCatalog.surfacing}
             discoverySeed={discoverySeed}
-            initialBootstrapPageSize={bootstrapCatalog.length || 12}
+            initialBootstrapPageSize={bootstrapCatalog.catalog.length || 12}
             initialTotalPages={INITIAL_BROWSE_TOTAL_PAGES}
           />
         </main>

@@ -1,6 +1,5 @@
 import Image from "next/image";
 import Link from "next/link";
-import { EnhancedLink } from "@/components/enhanced-link";
 import { signOutUser } from "@/app/sign-in/sign-out-action";
 import { BrowseResetLink } from "@/components/browse-reset-link";
 import { SiteHeader } from "@/components/site-header";

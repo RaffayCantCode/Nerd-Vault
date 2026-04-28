@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getBrowseBootstrapCatalog } from "@/lib/browse-bootstrap";
+import { getBrowseBootstrapCatalog, getBrowseDiscoverySeed } from "@/lib/browse-bootstrap";
 
 const BOOTSTRAP_CACHE_TTL_MS = 1000 * 60 * 10;
 
@@ -15,11 +15,12 @@ export async function GET() {
     if (bootstrapCache && bootstrapCache.expiresAt > Date.now()) {
       return NextResponse.json({
         ok: true,
-        items: bootstrapCache.items,
+        items: bootstrapCache.items.catalog,
+        surfacing: bootstrapCache.items.surfacing,
       });
     }
 
-    const items = await getBrowseBootstrapCatalog(Date.now());
+    const items = await getBrowseBootstrapCatalog(getBrowseDiscoverySeed());
     bootstrapCache = {
       expiresAt: Date.now() + BOOTSTRAP_CACHE_TTL_MS,
       items,
@@ -27,7 +28,8 @@ export async function GET() {
 
     return NextResponse.json({
       ok: true,
-      items,
+      items: items.catalog,
+      surfacing: items.surfacing,
     });
   } catch (error) {
     return NextResponse.json(

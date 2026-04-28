@@ -8,23 +8,12 @@ export function DetailViewEffects() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "auto" });
 
-    // Two-frame delay: first frame paints, second frame starts transition
-    let raf1: number;
-    let raf2: number;
-    raf1 = window.requestAnimationFrame(() => {
-      raf2 = window.requestAnimationFrame(() => {
-        setIsReady(true);
-        // Add page-enter class to the workspace so content animates in
-        const workspace = document.querySelector(".workspace");
-        if (workspace) {
-          workspace.classList.add("page-enter");
-        }
-      });
+    const rafId = window.requestAnimationFrame(() => {
+      setIsReady(true);
     });
 
     return () => {
-      window.cancelAnimationFrame(raf1);
-      window.cancelAnimationFrame(raf2);
+      window.cancelAnimationFrame(rafId);
     };
   }, []);
 

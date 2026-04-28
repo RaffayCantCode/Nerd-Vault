@@ -36,9 +36,11 @@ export function PerformanceOptimizer() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    let observer: IntersectionObserver | null = null;
+
     const preloadVisibleImages = () => {
       const images = document.querySelectorAll('img[loading="lazy"]');
-      const observer = new IntersectionObserver(
+      const nextObserver = new IntersectionObserver(
         (entries) => {
           entries.forEach((entry) => {
             if (entry.isIntersecting) {
@@ -47,20 +49,23 @@ export function PerformanceOptimizer() {
                 img.src = img.dataset.src;
                 img.removeAttribute("data-src");
               }
-              observer.unobserve(img);
+              nextObserver.unobserve(img);
             }
           });
         },
         { rootMargin: "200px", threshold: 0.1 }
       );
+      observer = nextObserver;
 
-      images.forEach((img) => observer.observe(img));
-      return () => observer.disconnect();
+      images.forEach((img) => nextObserver.observe(img));
     };
 
     // Run after initial paint
     const timer = setTimeout(preloadVisibleImages, 100);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      observer?.disconnect();
+    };
   }, []);
 
   // Add resource hints for critical domains

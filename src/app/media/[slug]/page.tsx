@@ -9,7 +9,6 @@ import { ExpandableRelatedSection } from "@/components/expandable-related-sectio
 import { FranchiseRelatedSection } from "@/components/franchise-related-section";
 import { MediaActions } from "@/components/media-actions";
 import { ResilientMediaImage } from "@/components/resilient-media-image";
-import { PremiumMediaDetails } from "@/components/premium-media-details";
 import { VaultClientPrimer } from "@/components/vault-client-primer";
 import { auth } from "@/lib/auth";
 import { getLibraryStateForUser, getViewerShellData } from "@/lib/vault-server";
@@ -118,6 +117,16 @@ type DetailPalette = {
   edge: string;
   haze: string;
 };
+
+const DETAIL_DERIVED_DATA_TTL_MS = 1000 * 60 * 20;
+
+type TimedDetailCacheEntry<T> = {
+  expiresAt: number;
+  value: T;
+};
+
+const relatedMediaRailCache = new Map<string, TimedDetailCacheEntry<MediaItem[]>>();
+const franchiseSectionCache = new Map<string, TimedDetailCacheEntry<FranchiseSectionData | null>>();
 
 const DETAIL_PALETTES: DetailPalette[] = [
   { accent: "#03fcbe", accentSoft: "rgba(3, 252, 190, 0.18)", glow: "rgba(3, 252, 190, 0.24)", edge: "rgba(3, 252, 190, 0.34)", haze: "rgba(158, 135, 255, 0.16)" },
@@ -1199,7 +1208,44 @@ function rankFranchiseCandidate(base: MediaItem, candidate: MediaItem, signals: 
     + (parseInstallmentOrder(candidate.title) ? 8 : 0);
 }
 
+function getDetailCacheKey(media: MediaItem) {
+  return `${media.source}:${media.sourceId}:${media.type}`;
+}
+
+function readTimedDetailCache<T>(cache: Map<string, TimedDetailCacheEntry<T>>, key: string) {
+  const cached = cache.get(key);
+  if (!cached) {
+    return undefined;
+  }
+
+  if (cached.expiresAt <= Date.now()) {
+    cache.delete(key);
+    return undefined;
+  }
+
+  return cached.value;
+}
+
+function writeTimedDetailCache<T>(cache: Map<string, TimedDetailCacheEntry<T>>, key: string, value: T) {
+  cache.set(key, {
+    expiresAt: Date.now() + DETAIL_DERIVED_DATA_TTL_MS,
+    value,
+  });
+}
+
 async function buildFranchiseSection(media: MediaItem, animeFranchise?: AnimeFranchiseData): Promise<FranchiseSectionData | null> {
+  const cacheKey = getDetailCacheKey(media);
+  const cached = readTimedDetailCache(franchiseSectionCache, cacheKey);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const section = await buildFranchiseSectionUncached(media, animeFranchise);
+  writeTimedDetailCache(franchiseSectionCache, cacheKey, section);
+  return section;
+}
+
+async function buildFranchiseSectionUncached(media: MediaItem, animeFranchise?: AnimeFranchiseData): Promise<FranchiseSectionData | null> {
   // Handle both anime series and anime movies
   const curatedUniverse = getCuratedUniverseRule(media);
   const isAnimeContent =
@@ -2200,6 +2246,18 @@ async function getFranchiseFallback(media: MediaItem, signals: string[]) {
   }
 
 async function getRelatedMediaRail(media: MediaItem) {
+  const cacheKey = getDetailCacheKey(media);
+  const cached = readTimedDetailCache(relatedMediaRailCache, cacheKey);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const related = await getRelatedMediaRailUncached(media);
+  writeTimedDetailCache(relatedMediaRailCache, cacheKey, related);
+  return related;
+}
+
+async function getRelatedMediaRailUncached(media: MediaItem) {
   const primaryGenre = media.genres[0];
   const secondaryGenre = media.genres[1];
   const tertiaryGenre = media.genres[2];
@@ -2650,24 +2708,23 @@ export default async function MediaDetailPage({
   } as Record<string, string>;
 
   return (
-    <PremiumMediaDetails media={media}>
-      <div className="page-shell">
-        <div className="app-shell-layout">
-          <AppSidebar active="browse" initialFolders={sidebarFolders} />
+    <div className="page-shell">
+      <div className="app-shell-layout">
+        <AppSidebar active="browse" initialFolders={sidebarFolders} />
 
-          <main className={`workspace detail-layout ${easterEgg?.className ?? ""}`} style={detailPaletteStyle}>
-            <DetailViewEffects />
-            <VaultClientPrimer
-              library={library}
-              profile={shellData ? { ...shellData, viewedProfile: shellData.viewerProfile, watched: library?.watched ?? [], wishlist: library?.wishlist ?? [], canSeeWatched: true, canSeeWishlist: true, viewingOwnProfile: true } : null}
-            />
-            <AppTopBar
-              viewerId={viewerId}
-              viewerName={viewerName}
-              viewerAvatar={viewerAvatar}
-              initialProfile={shellData?.viewerProfile ?? null}
-              initialFriends={shellData?.friends ?? []}
-            />
+        <main className={`workspace detail-layout ${easterEgg?.className ?? ""}`} style={detailPaletteStyle}>
+          <DetailViewEffects />
+          <VaultClientPrimer
+            library={library}
+            profile={shellData ? { ...shellData, viewedProfile: shellData.viewerProfile, watched: library?.watched ?? [], wishlist: library?.wishlist ?? [], canSeeWatched: true, canSeeWishlist: true, viewingOwnProfile: true } : null}
+          />
+          <AppTopBar
+            viewerId={viewerId}
+            viewerName={viewerName}
+            viewerAvatar={viewerAvatar}
+            initialProfile={shellData?.viewerProfile ?? null}
+            initialFriends={shellData?.friends ?? []}
+          />
           <section className="detail-hero glass">
             <div className="hero-media">
               <img
@@ -2949,7 +3006,7 @@ export default async function MediaDetailPage({
             </div>
           </section>
 
-          <ExpandableRelatedSection 
+          <ExpandableRelatedSection
             related={filteredRelated}
             franchiseSection={undefined}
             mediaTitle={media.title}
@@ -2958,6 +3015,5 @@ export default async function MediaDetailPage({
         </main>
       </div>
     </div>
-    </PremiumMediaDetails>
   );
 }
