@@ -2,9 +2,9 @@ import { BookListPayload, BookReaderPayload, BookSummary } from "@/lib/book-type
 
 const GUTENDEX_API_URL = "https://gutendex.com/books";
 const GUTENDEX_SOURCE_PAGE_SIZE = 32;
-const BOOK_LIST_PAGE_SIZE = 40;
-const BOOK_CATALOG_CACHE_MS = 1000 * 60 * 60 * 6;
-const BOOK_CATALOG_CONCURRENCY = 8;
+const BOOK_LIST_PAGE_SIZE = GUTENDEX_SOURCE_PAGE_SIZE;
+const BOOK_LIST_CACHE_MS = 1000 * 60 * 20;
+const BOOK_READER_CACHE_MS = 1000 * 60 * 60 * 24;
 
 type GutendexAuthor = {
   name?: string;
@@ -28,13 +28,6 @@ type GutendexResponse = {
   results: GutendexBook[];
 };
 
-type BookCatalogIndex = {
-  availableGenres: string[];
-  books: BookSummary[];
-  totalSourceCount: number;
-  cachedAt: number;
-};
-
 const BOOK_GENRE_RULES = [
   { label: "Fiction", terms: ["fiction", "novel", "stories", "literature", "short stories"] },
   { label: "Classics", terms: ["classic", "classics", "canonical"] },
@@ -55,8 +48,13 @@ const BOOK_GENRE_RULES = [
   { label: "Children", terms: ["children", "juvenile", "boys", "girls", "fairy tales"] },
 ] as const;
 
-let cachedBookCatalog: BookCatalogIndex | null = null;
-let loadingBookCatalogPromise: Promise<BookCatalogIndex> | null = null;
+const AVAILABLE_BOOK_GENRES = Array.from(
+  new Set(["Literary", ...BOOK_GENRE_RULES.map((rule) => rule.label)]),
+).sort((left, right) => left.localeCompare(right));
+
+const gutendexResponseCache = new Map<string, { expiresAt: number; payload: GutendexResponse }>();
+const readerPayloadCache = new Map<number, { expiresAt: number; payload: BookReaderPayload }>();
+const readerPayloadInflight = new Map<number, Promise<BookReaderPayload>>();
 
 function deriveGenres(subjects: string[]) {
   const normalized = subjects.join(" ").toLowerCase();
@@ -90,7 +88,7 @@ function cleanBookTitle(title: string) {
     })
     .join(" ");
 
-  return titleCase.replace(/\s+[:\-–]\s*$/g, "").trim() || "Untitled";
+  return titleCase.replace(/\s+[:\-]\s*$/g, "").trim() || "Untitled";
 }
 
 function mapBook(book: GutendexBook): BookSummary {
@@ -117,7 +115,13 @@ function mapBook(book: GutendexBook): BookSummary {
 }
 
 async function fetchGutendex(url: URL) {
-  const response = await fetch(url.toString(), {
+  const cacheKey = url.toString();
+  const cached = gutendexResponseCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.payload;
+  }
+
+  const response = await fetch(cacheKey, {
     next: { revalidate: 3600 },
     headers: {
       Accept: "application/json",
@@ -128,7 +132,12 @@ async function fetchGutendex(url: URL) {
     throw new Error(`Books request failed with ${response.status}`);
   }
 
-  return response.json() as Promise<GutendexResponse>;
+  const payload = (await response.json()) as GutendexResponse;
+  gutendexResponseCache.set(cacheKey, {
+    expiresAt: Date.now() + BOOK_LIST_CACHE_MS,
+    payload,
+  });
+  return payload;
 }
 
 async function fetchGutendexWithRetry(url: URL, attempts = 3) {
@@ -159,113 +168,29 @@ async function fetchGutendexPage(page: number, searchTerms = "") {
   return fetchGutendexWithRetry(url);
 }
 
-function chunk<T>(items: T[], size: number) {
-  const groups: T[][] = [];
-  for (let index = 0; index < items.length; index += size) {
-    groups.push(items.slice(index, index + size));
-  }
-  return groups;
-}
-
-function dedupeBooks(items: BookSummary[]) {
-  const seen = new Set<number>();
-  return items.filter((item) => {
-    if (seen.has(item.id)) {
-      return false;
-    }
-    seen.add(item.id);
-    return true;
-  });
-}
-
-async function buildBookCatalogIndex(): Promise<BookCatalogIndex> {
-  if (cachedBookCatalog && Date.now() - cachedBookCatalog.cachedAt < BOOK_CATALOG_CACHE_MS) {
-    return cachedBookCatalog;
-  }
-
-  if (loadingBookCatalogPromise) {
-    return loadingBookCatalogPromise;
-  }
-
-  loadingBookCatalogPromise = (async () => {
-    const firstPage = await fetchGutendexPage(1);
-    const totalPages = Math.max(1, Math.ceil(firstPage.count / GUTENDEX_SOURCE_PAGE_SIZE));
-    const remainingPages = Array.from({ length: Math.max(0, totalPages - 1) }, (_, index) => index + 2);
-    const rawBooks: GutendexBook[] = [...firstPage.results];
-
-    for (const pageGroup of chunk(remainingPages, BOOK_CATALOG_CONCURRENCY)) {
-      const responses = await Promise.all(pageGroup.map((page) => fetchGutendexPage(page).catch(() => null)));
-      responses.forEach((response) => {
-        if (response?.results?.length) {
-          rawBooks.push(...response.results);
-        }
-      });
-    }
-
-    const books = dedupeBooks(rawBooks.map(mapBook)).sort((left, right) => {
-      const downloadsGap = right.downloadCount - left.downloadCount;
-      if (downloadsGap !== 0) {
-        return downloadsGap;
-      }
-      return left.title.localeCompare(right.title);
-    });
-
-    const availableGenres = Array.from(new Set(books.flatMap((book) => book.genres))).sort((left, right) =>
-      left.localeCompare(right),
-    );
-
-    cachedBookCatalog = {
-      availableGenres,
-      books,
-      totalSourceCount: firstPage.count || books.length,
-      cachedAt: Date.now(),
-    };
-
-    return cachedBookCatalog;
-  })();
-
-  try {
-    return await loadingBookCatalogPromise;
-  } finally {
-    loadingBookCatalogPromise = null;
-  }
-}
-
 function normalizeForSearch(value: string) {
   return value.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-function filterBooks(items: BookSummary[], query: string, genre: string) {
-  const normalizedQuery = normalizeForSearch(query);
-  const normalizedGenre = genre.trim().toLowerCase();
+function buildBookSearchTerms(query: string, genre: string) {
+  const terms = [query.trim()];
+  if (genre.trim() && genre.trim().toLowerCase() !== "all") {
+    terms.push(genre.trim());
+  }
 
-  return items.filter((book) => {
-    if (normalizedGenre && normalizedGenre !== "all" && !book.genres.some((entry) => entry.toLowerCase() === normalizedGenre)) {
-      return false;
-    }
-
-    if (!normalizedQuery) {
-      return true;
-    }
-
-    const haystack = normalizeForSearch(
-      `${book.title} ${book.authors.join(" ")} ${book.subjects.join(" ")} ${book.summary} ${book.genres.join(" ")}`,
-    );
-    return haystack.includes(normalizedQuery);
-  });
+  return terms
+    .map((term) => term.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .join(" ");
 }
 
-function paginateBooks(items: BookSummary[], page: number) {
-  const safePage = Math.max(1, page);
-  const totalPages = Math.max(1, Math.ceil(items.length / BOOK_LIST_PAGE_SIZE));
-  const effectivePage = Math.min(safePage, totalPages);
-  const startIndex = (effectivePage - 1) * BOOK_LIST_PAGE_SIZE;
+function matchesGenre(book: BookSummary, genre: string) {
+  const normalizedGenre = genre.trim().toLowerCase();
+  if (!normalizedGenre || normalizedGenre === "all") {
+    return true;
+  }
 
-  return {
-    page: effectivePage,
-    totalPages,
-    items: items.slice(startIndex, startIndex + BOOK_LIST_PAGE_SIZE),
-  };
+  return book.genres.some((entry) => entry.toLowerCase() === normalizedGenre);
 }
 
 function pickReadableFormat(book: GutendexBook) {
@@ -330,16 +255,17 @@ export async function fetchBooksPage({
   query: string;
   genre?: string;
 }): Promise<BookListPayload> {
-  const catalog = await buildBookCatalogIndex();
-  const filtered = filterBooks(catalog.books, query, genre);
-  const paged = paginateBooks(filtered, page);
+  const safePage = Math.max(1, page);
+  const searchTerms = buildBookSearchTerms(query, genre);
+  const payload = await fetchGutendexPage(safePage, searchTerms);
+  const mappedItems = payload.results.map(mapBook).filter((book) => matchesGenre(book, genre));
 
   return {
-    page: paged.page,
-    totalPages: paged.totalPages,
-    totalResults: filtered.length,
-    availableGenres: catalog.availableGenres,
-    items: paged.items,
+    page: safePage,
+    totalPages: Math.max(1, Math.ceil((payload.count || payload.results.length || 1) / BOOK_LIST_PAGE_SIZE)),
+    totalResults: payload.count || mappedItems.length,
+    availableGenres: AVAILABLE_BOOK_GENRES,
+    items: mappedItems,
   };
 }
 
@@ -374,41 +300,68 @@ export async function fetchBooksByIds(bookIds: number[]): Promise<BookSummary[]>
 }
 
 export async function fetchBookReaderPayload(bookId: number): Promise<BookReaderPayload> {
-  const url = new URL(GUTENDEX_API_URL);
-  url.searchParams.set("ids", String(bookId));
-
-  const payload = await fetchGutendex(url);
-  const book = payload.results[0];
-
-  if (!book) {
-    throw new Error("Book not found");
+  const cached = readerPayloadCache.get(bookId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.payload;
   }
 
-  const readableUrl = pickReadableFormat(book);
-  if (!readableUrl) {
-    throw new Error("No readable format available for this book");
+  const inflight = readerPayloadInflight.get(bookId);
+  if (inflight) {
+    return inflight;
   }
 
-  const contentResponse = await fetch(readableUrl, {
-    next: { revalidate: 86400 },
-    headers: {
-      Accept: "text/plain,text/html;q=0.9,*/*;q=0.1",
-    },
-  });
+  const request = (async () => {
+    const url = new URL(GUTENDEX_API_URL);
+    url.searchParams.set("ids", String(bookId));
 
-  if (!contentResponse.ok) {
-    throw new Error(`Reader content failed with ${contentResponse.status}`);
+    const payload = await fetchGutendex(url);
+    const book = payload.results[0];
+
+    if (!book) {
+      throw new Error("Book not found");
+    }
+
+    const readableUrl = pickReadableFormat(book);
+    if (!readableUrl) {
+      throw new Error("No readable format available for this book");
+    }
+
+    const contentResponse = await fetch(readableUrl, {
+      next: { revalidate: 86400 },
+      headers: {
+        Accept: "text/plain,text/html;q=0.9,*/*;q=0.1",
+      },
+    });
+
+    if (!contentResponse.ok) {
+      throw new Error(`Reader content failed with ${contentResponse.status}`);
+    }
+
+    const rawText = await contentResponse.text();
+    const paragraphs = splitIntoParagraphs(normalizeBookText(rawText));
+
+    if (!paragraphs.length) {
+      throw new Error("This book could not be prepared for reading");
+    }
+
+    const nextPayload = {
+      book: mapBook(book),
+      paragraphs,
+    } satisfies BookReaderPayload;
+
+    readerPayloadCache.set(bookId, {
+      expiresAt: Date.now() + BOOK_READER_CACHE_MS,
+      payload: nextPayload,
+    });
+
+    return nextPayload;
+  })();
+
+  readerPayloadInflight.set(bookId, request);
+
+  try {
+    return await request;
+  } finally {
+    readerPayloadInflight.delete(bookId);
   }
-
-  const rawText = await contentResponse.text();
-  const paragraphs = splitIntoParagraphs(normalizeBookText(rawText));
-
-  if (!paragraphs.length) {
-    throw new Error("This book could not be prepared for reading");
-  }
-
-  return {
-    book: mapBook(book),
-    paragraphs,
-  };
 }

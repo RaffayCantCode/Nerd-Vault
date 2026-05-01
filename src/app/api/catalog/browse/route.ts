@@ -5,10 +5,6 @@ import { browseMixedCatalog } from "@/lib/mixed-catalog";
 import { browseTmdbCatalog } from "@/lib/sources/tmdb";
 import { MediaItem } from "@/lib/types";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-const MAX_BROWSE_PAGE_COUNT = 100;
-
 type BrowsePayload = {
   page: number;
   totalPages: number;
@@ -93,9 +89,7 @@ export async function GET(request: NextRequest) {
     };
 
     const payload = await fetchByType(page);
-    const normalizedTotalPages = query.trim()
-      ? 1
-      : Math.max(1, Math.min(MAX_BROWSE_PAGE_COUNT, Math.floor(payload.totalPages || 1)));
+    const normalizedTotalPages = query.trim() ? 1 : Math.max(1, Math.floor(payload.totalPages || 1));
 
     return NextResponse.json(
       {

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ChangeEvent, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { CatalogCard } from "@/components/catalog-card";
 import { ImageAdjusterModal } from "@/components/image-adjuster-modal";
@@ -136,6 +136,7 @@ export function ProfileWorkspace({
   isDemo: boolean;
   initialPayload?: VaultProfilePayload;
 }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const selectedFolderId = searchParams.get("folder");
   const viewedUserId = searchParams.get("user") || viewerId;
@@ -289,7 +290,7 @@ export function ProfileWorkspace({
     setShowDeleteConfirm(false);
     setIsEditingFolder(false);
     setProfileMessage("Folder deleted.");
-    window.location.href = viewingOwnProfile ? "/profile" : `/profile?user=${viewedUserId}`;
+    router.replace(viewingOwnProfile ? "/profile" : `/profile?user=${viewedUserId}`, { scroll: false });
   }
 
   async function handleApplyAvatar(dataUrl: string) {

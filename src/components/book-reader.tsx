@@ -19,6 +19,8 @@ import {
 } from "@/lib/book-client";
 import { BookReaderPayload, BookReaderSettings } from "@/lib/book-types";
 
+const bookReaderPayloadCache = new Map<number, BookReaderPayload>();
+
 function paginateParagraphs(paragraphs: string[], targetSize = 2600) {
   const pages: string[][] = [];
   let currentPage: string[] = [];
@@ -102,7 +104,16 @@ export function BookReader({
       setError(null);
 
       try {
-        const response = await fetch(`/api/books/${bookId}`, { cache: "no-store" });
+        const cached = bookReaderPayloadCache.get(bookId);
+        if (cached) {
+          if (active) {
+            setPayload(cached);
+            setLoading(false);
+          }
+          return;
+        }
+
+        const response = await fetch(`/api/books/${bookId}`, { cache: "force-cache" });
         const nextPayload = (await response.json()) as BookReaderPayload & { ok?: boolean; message?: string };
 
         if (!response.ok || nextPayload.ok === false) {
@@ -110,6 +121,7 @@ export function BookReader({
         }
 
         if (active) {
+          bookReaderPayloadCache.set(bookId, nextPayload);
           setPayload(nextPayload);
         }
       } catch (loadError) {

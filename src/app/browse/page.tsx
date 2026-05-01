@@ -6,9 +6,7 @@ import { BrowseWorkspace } from "@/components/browse-workspace";
 import { VaultClientPrimer } from "@/components/vault-client-primer";
 import { getLibraryStateForUser, getViewerShellData } from "@/lib/vault-server";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-const INITIAL_BROWSE_TOTAL_PAGES = 100;
+const INITIAL_BROWSE_TOTAL_PAGES = 1;
 
 export default async function BrowsePage() {
   const discoverySeed = getBrowseDiscoverySeed();

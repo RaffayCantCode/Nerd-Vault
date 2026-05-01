@@ -6,7 +6,6 @@ import { DetailBackButton } from "@/components/detail-back-button";
 import { DetailGallery } from "@/components/detail-gallery";
 import { DetailViewEffects } from "@/components/detail-view-effects";
 import { ExpandableRelatedSection } from "@/components/expandable-related-section";
-import { FranchiseRelatedSection } from "@/components/franchise-related-section";
 import { MediaActions } from "@/components/media-actions";
 import { ResilientMediaImage } from "@/components/resilient-media-image";
 import { VaultClientPrimer } from "@/components/vault-client-primer";
@@ -106,9 +105,6 @@ type FranchiseSectionData = {
     isActive?: boolean;
   }>;
 };
-
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 type DetailPalette = {
   accent: string;
@@ -2643,6 +2639,12 @@ export default async function MediaDetailPage({
     );
   }
 
+  media = media as MediaItem;
+  animeFranchise ??= {
+    title: "",
+    entries: [],
+  };
+
   const [related, franchiseSection] = await Promise.all([
     getRelatedMediaRail(media).catch(() => [] as MediaItem[]),
     buildFranchiseSection(media, animeFranchise).catch(() => null),
@@ -2682,23 +2684,22 @@ export default async function MediaDetailPage({
   const releaseValue = formatDetailDate(media.details.releaseDate, media.year);
   const genreValue = media.genres.length ? media.genres.slice(0, 4).join(" • ") : "Unknown";
   const sourceReference = buildSourceReference(media);
-  const deepDiveCards = buildDeepDiveCards(media, animeFranchise);
   const spotlightCredits = dedupeSpotlightCredits(media.credits).slice(0, 6);
-  const feelingTags = buildFeelingTags(media);
-  const vibeSummary = buildVibeSummary(media, animeFranchise, feelingTags);
-  const characterHighlights = buildCharacterHighlights(media, spotlightCredits);
   const gallery = uniqueGalleryImages(media).slice(0, 6);
-  const storyGallery = buildStoryGallery(gallery, media.backdropUrl || media.coverUrl);
   const moodLine = buildPremiseLine(media);
   const synopsisPreview = buildSynopsisPreview(media);
-  const trailerEmbedUrl = getTrailerEmbedUrl(media.details.trailerUrl);
-  const immersionScenes = buildImmersionScenes(media, storyGallery, deepDiveCards);
-  const atlasGallery = buildAtlasGallery(gallery, storyGallery);
-  const showAtlas = atlasGallery.length >= 1;
+  const aboutText =
+    (media.overview ?? "")
+      .replace(/\[[^\]]+\]/g, "")
+      .replace(/\s+/g, " ")
+      .trim() || "No overview yet.";
+  const detailCollectionEntries =
+    (media.type === "anime" || media.type === "anime_movie") && (animeFranchise?.seasonEntries?.length || animeFranchise?.entries.length)
+      ? (animeFranchise.seasonEntries?.length ? animeFranchise.seasonEntries : animeFranchise.entries)
+      : null;
   const detailIdentity = normalizeTitleSignal([media.title, media.originalTitle ?? "", media.details.collectionTitle ?? ""].join(" "));
   const easterEgg = DETAIL_EASTER_EGGS.find((entry) => entry.matches.some((match) => detailIdentity.includes(normalizeTitleSignal(match))));
   const palette = easterEgg?.palette ?? DETAIL_PALETTES[hashPaletteKey(`${media.id}-${media.title}`) % DETAIL_PALETTES.length];
-  const relatedTasteLine = buildRelatedTasteLine(media, filteredRelated, feelingTags);
   const detailPaletteStyle = {
     "--detail-accent": palette.accent,
     "--detail-accent-soft": palette.accentSoft,
@@ -2743,20 +2744,6 @@ export default async function MediaDetailPage({
                   <h1 className="display detail-display">{media.title}</h1>
                   <p className="detail-lead">{moodLine}</p>
                   <p className="copy detail-overview-copy">{synopsisPreview}</p>
-                  {seriesContext ? (
-                    <div className="detail-favorite-note glass">
-                      <p className="eyebrow">{seriesContext.relationshipLabel}</p>
-                      <h2 className="headline detail-favorite-title">Connected to {seriesContext.parentSeriesTitle}</h2>
-                      <p className="copy">{seriesContext.summary}</p>
-                    </div>
-                  ) : null}
-                  {easterEgg ? (
-                    <div className="detail-favorite-note glass">
-                      <p className="eyebrow">{easterEgg.kicker}</p>
-                      <h2 className="headline detail-favorite-title">{easterEgg.title}</h2>
-                      <p className="copy">{easterEgg.copy}</p>
-                    </div>
-                  ) : null}
                   <div style={{ marginTop: 22 }}>
                     <MediaActions item={media} viewerId={viewerId} />
                   </div>
@@ -2776,18 +2763,30 @@ export default async function MediaDetailPage({
                 </div>
 
                 <aside className="detail-side-poster glass detail-stage-trailer">
-                  <div className={`detail-side-poster-media ${trailerEmbedUrl ? "detail-side-poster-media-trailer" : ""}`}>
-                    {trailerEmbedUrl ? (
-                      <iframe
-                        src={trailerEmbedUrl}
-                        title={`${media.title} trailer`}
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                      />
-                    ) : (
-                      <ResilientMediaImage item={media} loading="eager" decoding="async" fetchPriority="high" />
-                    )}
+                  <div className="detail-side-poster-media">
+                    <ResilientMediaImage item={media} loading="eager" decoding="async" fetchPriority="high" />
                   </div>
+                  {(seriesContext || easterEgg) ? (
+                    <div className="detail-hero-note-stack">
+                      {seriesContext ? (
+                        <div className="detail-context-note">
+                          <p className="eyebrow">{seriesContext.relationshipLabel}</p>
+                          <p className="copy">{seriesContext.summary}</p>
+                        </div>
+                      ) : null}
+                      {easterEgg ? (
+                        <div className="detail-context-note">
+                          <p className="eyebrow">{easterEgg.kicker}</p>
+                          <p className="copy">{easterEgg.copy}</p>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {sourceReference.url ? (
+                    <a href={sourceReference.url} target="_blank" rel="noreferrer" className="detail-source-link detail-poster-source-link">
+                      Open {sourceReference.label}
+                    </a>
+                  ) : null}
                 </aside>
 
                 <aside className="detail-stage-sidebar">
@@ -2819,77 +2818,116 @@ export default async function MediaDetailPage({
                         <span>{studioLabel}</span>
                         <strong>{studioValue}</strong>
                       </div>
-                      {sourceReference.url ? (
-                        <div className="detail-side-stat detail-side-stat-wide">
-                          <span>Source data</span>
-                          <strong>
-                            <a href={sourceReference.url} target="_blank" rel="noreferrer" className="detail-source-link">
-                              Open {sourceReference.label}
-                            </a>
-                          </strong>
-                        </div>
-                      ) : null}
                     </div>
-                  </section>
-
-                  <section className="info-panel glass detail-stage-franchise">
-                    {franchiseSection ? (
-                      <FranchiseRelatedSection
-                        title={franchiseSection.title}
-                        summary={franchiseSection.summary}
-                        entries={franchiseSection.entries}
-                        secondaryTitle={franchiseSection.secondaryTitle}
-                        secondaryEntries={franchiseSection.secondaryEntries}
-                      />
-                    ) : (
-                      <div className="detail-stage-franchise-empty">
-                        <p className="eyebrow">Franchise</p>
-                        <h2 className="headline">Standalone title</h2>
-                        <p className="copy">No verified parent collection or storyline grouping was found for this entry.</p>
-                      </div>
-                    )}
                   </section>
                 </aside>
               </div>
             </div>
           </section>
 
-          <section className="info-grid detail-summary-grid">
-            <div className="info-panel glass detail-vibe-panel">
-              <p className="eyebrow">Vibe summary</p>
-              <h2 className="headline">The fast no-BS read</h2>
-              <div className="detail-vibe-list">
-                {vibeSummary.map((item) => (
-                  <div key={item.label} className="detail-vibe-row">
-                    <span className="detail-vibe-label">{item.label}</span>
-                    <p className="copy detail-vibe-value">{item.value}</p>
-                  </div>
-                ))}
+          <section className="info-grid detail-clean-grid">
+            <div className="info-panel glass detail-about-panel">
+              <p className="eyebrow">About</p>
+              <h2 className="headline">A quick, clean read</h2>
+              <p className="copy detail-about-copy">{aboutText}</p>
+              <div className="detail-about-meta">
+                <div className="detail-about-meta-item">
+                  <span>Released</span>
+                  <strong>{releaseValue}</strong>
+                </div>
+                <div className="detail-about-meta-item">
+                  <span>Rating</span>
+                  <strong>{media.rating.toFixed(1)} / 10</strong>
+                </div>
+                <div className="detail-about-meta-item">
+                  <span>Format</span>
+                  <strong>{runtimeValue}</strong>
+                </div>
               </div>
             </div>
 
-            <div className="info-panel glass detail-feel-panel">
-              <p className="eyebrow">What this feels like</p>
-              <h2 className="headline">The vibe in plain English</h2>
-              <div className="detail-feel-tags">
-                {feelingTags.map((tag) => (
-                  <span key={tag} className="detail-feel-tag">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-              <p className="copy detail-feel-copy">{relatedTasteLine}</p>
+            <div className="info-panel glass detail-credit-panel">
+              <p className="eyebrow">
+                {detailCollectionEntries ? "Seasons / parts" : media.type === "game" ? "Studios / creatives" : "Top cast / credits"}
+              </p>
+              <h2 className="headline">{detailCollectionEntries ? "What to know before you jump in" : "The names tied to this title"}</h2>
+              {detailCollectionEntries ? (
+                <div className="credit-list">
+                  {detailCollectionEntries.map((entry) => (
+                    <div key={entry.id} className="credit-row">
+                      <div>
+                        <strong>{entry.title}</strong>
+                        <div className="muted">
+                          {entry.year || "Year TBD"} | {entry.rating ? entry.rating.toFixed(1) : "Unrated"}
+                          {entry.episodes ? ` | ${entry.episodes} episodes` : ""}
+                        </div>
+                      </div>
+                      <span className="muted">{entry.status ?? "Unknown"}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : spotlightCredits.length ? (
+                <div className="detail-credit-stack">
+                  {spotlightCredits.map((credit) => (
+                    <div key={`${credit.name}-${credit.role}`} className="detail-credit-row">
+                      <div>
+                        <strong>{credit.name}</strong>
+                        <p className="copy">{credit.role}{credit.character ? ` | ${credit.character}` : ""}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="copy">Source data is light on credits for this title right now.</p>
+              )}
             </div>
           </section>
 
+          {gallery.length ? (
+            <section className="section-stack detail-gallery-section" style={{ paddingTop: 0 }}>
+              <div className="section-header">
+                <div>
+                  <p className="eyebrow">Gallery</p>
+                  <h2 className="headline">Key stills only</h2>
+                  <p className="copy" style={{ maxWidth: 700, marginTop: 10 }}>
+                    A tighter set of distinct images so the page stays useful instead of repetitive.
+                  </p>
+                </div>
+              </div>
+              <DetailGallery title={media.title} images={gallery} />
+            </section>
+          ) : null}
+
+          {media.credits.length > spotlightCredits.length ? (
+            <section className="section-stack" style={{ paddingTop: 0 }}>
+              <div className="info-panel glass">
+                <p className="eyebrow">Full credits</p>
+                <div className="credit-list">
+                  {media.credits.slice(0, 10).map((credit) => (
+                    <div key={`${credit.name}-${credit.role}`} className="credit-row">
+                      <div>
+                        <strong>{credit.name}</strong>
+                        <div className="muted">
+                          {credit.role}
+                          {credit.character ? ` | ${credit.character}` : ""}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          ) : null}
+
+          {/* Legacy detail block removed during cleanup.
           <section className="section-stack" style={{ paddingTop: 0 }}>
             <div className="info-panel glass">
               <p className="eyebrow">
-                {(media.type === "anime" || media.type === "anime_movie") && (animeFranchise?.seasonEntries?.length || animeFranchise?.entries.length) ? "Seasons / Parts" : "Cast / Credits"}
+                {(safeMedia.type === "anime" || safeMedia.type === "anime_movie") && (safeAnimeFranchise.seasonEntries?.length || safeAnimeFranchise.entries.length) ? "Seasons / Parts" : "Cast / Credits"}
               </p>
-              {(media.type === "anime" || media.type === "anime_movie") && (animeFranchise?.seasonEntries?.length || animeFranchise?.entries.length) ? (
+              {(safeMedia.type === "anime" || safeMedia.type === "anime_movie") && (safeAnimeFranchise.seasonEntries?.length || safeAnimeFranchise.entries.length) ? (
                 <div className="credit-list">
-                  {(animeFranchise.seasonEntries?.length ? animeFranchise.seasonEntries : animeFranchise.entries).map((entry) => (
+                  {(safeAnimeFranchise.seasonEntries?.length ? safeAnimeFranchise.seasonEntries ?? [] : safeAnimeFranchise.entries).map((entry) => (
                     <div key={entry.id} className="credit-row">
                       <div>
                         <strong>{entry.title}</strong>
@@ -2904,7 +2942,7 @@ export default async function MediaDetailPage({
                 </div>
               ) : (
                 <div className="credit-list">
-                  {media.credits.map((credit) => (
+                  {safeMedia.credits.map((credit) => (
                     <div key={`${credit.name}-${credit.role}`} className="credit-row">
                       <div>
                         <strong>{credit.name}</strong>
@@ -2919,98 +2957,13 @@ export default async function MediaDetailPage({
               )}
             </div>
           </section>
-
-          {characterHighlights.length ? (
-            <section className="section-stack detail-character-section" style={{ paddingTop: 0 }}>
-              <div className="section-header">
-                <div>
-                  <p className="eyebrow">{media.type === "game" ? "Key creatives" : "Character highlights"}</p>
-                  <h2 className="headline">
-                    {media.type === "game" ? "The names behind the feel" : "The names and faces worth knowing"}
-                  </h2>
-                  <p className="copy" style={{ maxWidth: 760, marginTop: 10 }}>
-                    {media.type === "game"
-                      ? "A spoiler-free read on the people and studios most tied to how this one plays."
-                      : "A spoiler-free glance at the characters, cast, and creators most likely to shape the experience."}
-                  </p>
-                </div>
-              </div>
-              <div className="detail-character-scroll">
-                {characterHighlights.map((highlight) => (
-                  <article key={`${highlight.name}-${highlight.role}`} className="glass detail-character-card">
-                    <p className="eyebrow">{highlight.role}</p>
-                    <h3 className="headline detail-character-name">{highlight.name}</h3>
-                    <p className="copy detail-character-copy">{highlight.summary}</p>
-                  </article>
-                ))}
-              </div>
-            </section>
-          ) : null}
-
-          <section className="section-stack detail-world-stage" style={{ paddingTop: 0 }}>
-            <div className="section-header">
-              <div>
-                <p className="eyebrow">Smart visual gallery</p>
-                <h2 className="headline">The world, tone, and texture at a glance</h2>
-                <p className="copy" style={{ maxWidth: 700, marginTop: 10 }}>
-                  High-signal stills only: real backdrops, real scene shots, and a cleaner spread that helps you decide quickly instead of repeating the same frame.
-                </p>
-              </div>
-            </div>
-
-            <div className="detail-story-rail">
-              {immersionScenes.map((scene, index) => (
-                <article key={`${scene.title}-${index}`} className={`detail-story-panel ${index % 2 === 1 ? "is-reversed" : ""}`}>
-                  <div className="detail-story-image-shell glass">
-                    <img
-                      src={optimizeMediaImageUrl(scene.image, index === 0 ? "backdrop" : "gallery") ?? scene.image}
-                      alt={`${media.title} scene ${index + 1}`}
-                      loading={index === 0 ? "eager" : "lazy"}
-                      decoding="async"
-                    />
-                  </div>
-                  <div className="detail-story-copy">
-                    <p className="eyebrow">{scene.eyebrow}</p>
-                    <h3 className="headline detail-story-title">{scene.title}</h3>
-                    <p className="copy detail-story-body">{scene.body}</p>
-                  </div>
-                </article>
-              ))}
-            </div>
-
-            {showAtlas ? (
-              <DetailGallery title={media.title} images={atlasGallery} />
-            ) : (
-              <div className="folder-empty glass">
-                <p className="headline">Not enough distinct stills yet.</p>
-                <p className="copy">This title only has one or two usable images right now, so the extra stills panel stays hidden until we have a proper set.</p>
-              </div>
-            )}
-          </section>
-
-          <section className="section-stack detail-deep-dive" style={{ paddingTop: 0 }}>
-            <div className="section-header">
-              <div>
-                <p className="eyebrow">Decision guide</p>
-                <h2 className="headline">The parts that make this one click fast</h2>
-              </div>
-            </div>
-            <div className="detail-dive-grid">
-              {deepDiveCards.map((card) => (
-                <article key={card.title} className="info-panel glass detail-dive-card">
-                  <p className="eyebrow">{card.eyebrow}</p>
-                  <h3 className="headline detail-dive-title">{card.title}</h3>
-                  <p className="copy">{card.body}</p>
-                </article>
-              ))}
-            </div>
-          </section>
+          */}
 
           <ExpandableRelatedSection
             related={filteredRelated}
-            franchiseSection={undefined}
+            franchiseSection={franchiseSection ?? undefined}
             mediaTitle={media.title}
-            showFranchiseSection={false}
+            showFranchiseSection
           />
         </main>
       </div>

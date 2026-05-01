@@ -17,6 +17,7 @@ const emptyPayload: BookListPayload = {
   availableGenres: [],
   items: [],
 };
+const booksPayloadCache = new Map<string, BookListPayload>();
 
 function formatCompactNumber(value: number) {
   return new Intl.NumberFormat("en", { notation: "compact" }).format(value);
@@ -112,7 +113,18 @@ export function BooksWorkspace({
           search.set("genre", activeGenre);
         }
 
-        const response = await fetch(`/api/books?${search.toString()}`, { cache: "no-store" });
+        const requestKey = search.toString();
+        const cached = booksPayloadCache.get(requestKey);
+        if (cached) {
+          if (active) {
+            setPayload(cached);
+            setPage(cached.page || 1);
+            setLoading(false);
+          }
+          return;
+        }
+
+        const response = await fetch(`/api/books?${requestKey}`, { cache: "force-cache" });
         const nextPayload = (await response.json()) as BookListPayload & { ok?: boolean; message?: string };
 
         if (!response.ok || nextPayload.ok === false) {
@@ -120,6 +132,7 @@ export function BooksWorkspace({
         }
 
         if (active) {
+          booksPayloadCache.set(requestKey, nextPayload);
           setPayload(nextPayload);
           setPage(nextPayload.page || 1);
         }

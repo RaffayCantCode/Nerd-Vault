@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ReactNode } from "react";
 import { MouseEvent } from "react";
 
@@ -20,13 +21,15 @@ export function BrowseResetLink({
   ariaLabel?: string;
   title?: string;
 }) {
+  const router = useRouter();
+
   function resetBrowseState(event: MouseEvent<HTMLAnchorElement>) {
     event.preventDefault();
     window.sessionStorage.removeItem(BROWSE_STATE_KEY);
     window.sessionStorage.removeItem(BROWSE_SCROLL_KEY);
     window.sessionStorage.removeItem(BROWSE_SEED_KEY);
     window.sessionStorage.setItem(BROWSE_LAST_URL_KEY, "/browse");
-    window.location.assign("/browse");
+    router.push("/browse", { scroll: false });
   }
 
   return (

@@ -28,7 +28,7 @@ type CachedBrowsePayload = {
 
 const BROWSE_LAST_URL_KEY = "nerdvault-browse-last-url";
 const DEFAULT_PAGE_SIZE = 48;
-const BROWSE_CLIENT_CACHE_TTL_MS = 1000 * 45;
+const BROWSE_CLIENT_CACHE_TTL_MS = 1000 * 60 * 5;
 const BROWSE_GENRES = [
   "Action",
   "Adventure",
@@ -104,6 +104,32 @@ function writeBrowseClientCache(key: string, payload: BrowseApiPayload) {
   });
 }
 
+async function prefetchBrowsePayload(
+  params: URLSearchParams,
+  signal?: AbortSignal,
+) {
+  const requestKey = params.toString();
+  if (readBrowseClientCache(requestKey)) {
+    return;
+  }
+
+  const response = await fetch(`/api/catalog/browse?${requestKey}`, {
+    cache: "default",
+    signal,
+  });
+
+  if (!response.ok) {
+    return;
+  }
+
+  const payload = (await response.json()) as BrowseApiPayload;
+  if (payload.ok === false) {
+    return;
+  }
+
+  writeBrowseClientCache(requestKey, payload);
+}
+
 function preload(url?: string | null) {
   if (typeof window === "undefined" || !url) {
     return;
@@ -171,10 +197,12 @@ export function BrowseWorkspace({
   const [heroIndex, setHeroIndex] = useState(0);
   const [isHeroInView, setIsHeroInView] = useState(true);
   const [isDocumentVisible, setIsDocumentVisible] = useState(true);
+  const [isHeroPaused, setIsHeroPaused] = useState(false);
   const resultsRef = useRef<HTMLDivElement | null>(null);
   const surfacingRef = useRef<HTMLElement | null>(null);
   const hasRestoredScrollRef = useRef(false);
   const didInitRef = useRef(false);
+  const heroTimerRef = useRef<number | null>(null);
 
   const featuredDeck = useMemo(() => {
     const guaranteedDeck = buildSurfacingDeck(surfacingCatalog, catalog);
@@ -248,11 +276,14 @@ export function BrowseWorkspace({
           }
 
           const nextPage = deferredQuery.trim() ? 1 : clampPage(cachedPayload.page || activePage, cachedPayload.totalPages || 1);
+          const nextItems = dedupeItems(cachedPayload.items).filter(
+            (item) => !surfacingCatalog.some((featuredItem) => featuredItem.id === item.id),
+          );
           setPayload({
             page: nextPage,
             totalPages: Math.max(1, cachedPayload.totalPages || 1),
             totalResults: cachedPayload.totalResults || cachedPayload.items.length,
-            items: Array.isArray(cachedPayload.items) ? cachedPayload.items.slice(0, DEFAULT_PAGE_SIZE) : [],
+            items: nextItems.slice(0, DEFAULT_PAGE_SIZE),
           });
           setIsLoading(false);
           return;
@@ -275,11 +306,14 @@ export function BrowseWorkspace({
         writeBrowseClientCache(requestKey, nextPayload);
 
         const nextPage = deferredQuery.trim() ? 1 : clampPage(nextPayload.page || activePage, nextPayload.totalPages || 1);
+        const nextItems = dedupeItems(nextPayload.items).filter(
+          (item) => !surfacingCatalog.some((featuredItem) => featuredItem.id === item.id),
+        );
         setPayload({
           page: nextPage,
           totalPages: Math.max(1, nextPayload.totalPages || 1),
           totalResults: nextPayload.totalResults || nextPayload.items.length,
-          items: Array.isArray(nextPayload.items) ? nextPayload.items.slice(0, DEFAULT_PAGE_SIZE) : [],
+          items: nextItems.slice(0, DEFAULT_PAGE_SIZE),
         });
         if (nextPage !== activePage) {
           setActivePage(nextPage);
@@ -307,7 +341,7 @@ export function BrowseWorkspace({
       active = false;
       controller.abort();
     };
-  }, [activePage, deferredQuery, filter, genre, initialSeed, sort]);
+  }, [activePage, deferredQuery, filter, genre, initialSeed, sort, surfacingCatalog]);
 
   useEffect(() => {
     if (isLoading || hasRestoredScrollRef.current || typeof window === "undefined") {
@@ -387,16 +421,55 @@ export function BrowseWorkspace({
   }, []);
 
   useEffect(() => {
-    if (featuredDeck.length <= 1 || typeof window === "undefined" || !isHeroInView || !isDocumentVisible) {
+    if (heroTimerRef.current) {
+      window.clearTimeout(heroTimerRef.current);
+      heroTimerRef.current = null;
+    }
+
+    if (
+      featuredDeck.length <= 1 ||
+      typeof window === "undefined" ||
+      !isHeroInView ||
+      !isDocumentVisible ||
+      isHeroPaused
+    ) {
       return;
     }
 
-    const interval = window.setInterval(() => {
+    heroTimerRef.current = window.setTimeout(() => {
       setHeroIndex((current) => (current + 1) % featuredDeck.length);
     }, 3000);
 
-    return () => window.clearInterval(interval);
-  }, [featuredDeck.length, isDocumentVisible, isHeroInView]);
+    return () => {
+      if (heroTimerRef.current) {
+        window.clearTimeout(heroTimerRef.current);
+        heroTimerRef.current = null;
+      }
+    };
+  }, [featuredDeck.length, heroIndex, isDocumentVisible, isHeroInView, isHeroPaused]);
+
+  useEffect(() => {
+    if (isLoading || deferredQuery.trim() || payload.page >= payload.totalPages) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const params = new URLSearchParams({
+      type: filter,
+      page: String(payload.page + 1),
+      sort,
+      seed: String(initialSeed),
+      pageSize: String(DEFAULT_PAGE_SIZE),
+    });
+
+    if (genre !== "all") {
+      params.set("genre", genre);
+    }
+
+    void prefetchBrowsePayload(params, controller.signal).catch(() => undefined);
+
+    return () => controller.abort();
+  }, [deferredQuery, filter, genre, initialSeed, isLoading, payload.page, payload.totalPages, sort]);
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -413,6 +486,14 @@ export function BrowseWorkspace({
     window.setTimeout(() => {
       resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 0);
+  }
+
+  function setHeroIndexWithReset(nextIndex: number) {
+    if (!featuredDeck.length) {
+      return;
+    }
+
+    setHeroIndex((nextIndex + featuredDeck.length) % featuredDeck.length);
   }
 
   function renderPager(position: "top" | "bottom") {
@@ -452,7 +533,12 @@ export function BrowseWorkspace({
 
   return (
     <div className="workspace">
-      <section ref={surfacingRef} className="workspace-hero glass browse-surfacing-hero">
+      <section
+        ref={surfacingRef}
+        className="workspace-hero glass browse-surfacing-hero"
+        onMouseEnter={() => setIsHeroPaused(true)}
+        onMouseLeave={() => setIsHeroPaused(false)}
+      >
         {featured ? (
           <>
             <div className="hero-media">
@@ -471,7 +557,7 @@ export function BrowseWorkspace({
                   <p className="eyebrow" style={{ margin: 0 }}>Now surfacing</p>
                   {featuredDeck.length > 1 ? (
                     <div className="hero-nav-controls">
-                      <button type="button" className="hero-nav-arrow" onClick={() => setHeroIndex((current) => (current - 1 + featuredDeck.length) % featuredDeck.length)}>
+                      <button type="button" className="hero-nav-arrow" onClick={() => setHeroIndexWithReset(heroIndex - 1)}>
                         {"<"}
                       </button>
                       <div className="surfacing-pills">
@@ -480,13 +566,13 @@ export function BrowseWorkspace({
                             key={`${item.source}-${item.sourceId}`}
                             type="button"
                             className={`surfacing-pill ${index === heroIndex ? "is-active" : ""}`}
-                            onClick={() => setHeroIndex(index)}
+                            onClick={() => setHeroIndexWithReset(index)}
                           >
                             {formatSurfacingLabel(item.type)}
                           </button>
                         ))}
                       </div>
-                      <button type="button" className="hero-nav-arrow" onClick={() => setHeroIndex((current) => (current + 1) % featuredDeck.length)}>
+                      <button type="button" className="hero-nav-arrow" onClick={() => setHeroIndexWithReset(heroIndex + 1)}>
                         {">"}
                       </button>
                     </div>

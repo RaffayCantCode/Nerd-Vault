@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchBooksByIds, fetchBooksPage } from "@/lib/books";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
 export async function GET(request: NextRequest) {
   const page = Number(request.nextUrl.searchParams.get("page") || "1");
   const query = request.nextUrl.searchParams.get("query") || "";
@@ -22,6 +19,10 @@ export async function GET(request: NextRequest) {
         totalPages: 1,
         totalResults: items.length,
         items,
+      }, {
+        headers: {
+          "Cache-Control": "public, max-age=300, stale-while-revalidate=1800",
+        },
       });
     }
 
@@ -34,6 +35,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       ...payload,
+    }, {
+      headers: {
+        "Cache-Control": "public, max-age=300, stale-while-revalidate=1800",
+      },
     });
   } catch (error) {
     return NextResponse.json(

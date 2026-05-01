@@ -206,18 +206,6 @@ function slugify(input: string) {
     .replace(/(^-|-$)/g, "");
 }
 
-function getDiscoveryPage(page: number, seed = 1, windowSize = 500, salt = 0) {
-  const offset = Math.abs((seed * 29 + salt * 11) % windowSize);
-  const stride = 43;
-  // Don't cycle - if we exceed window, use direct page mapping for fresh content
-  const calculatedPage = ((offset + (page - 1) * stride) % windowSize) + 1;
-  // For pages beyond window size, use direct mapping to avoid cycling duplicates
-  if (page > windowSize) {
-    return Math.min(page, 1000); // Cap at 1000 to avoid API limits
-  }
-  return calculatedPage;
-}
-
 function cleanWhitespace(input: string) {
   return input.replace(/\s+/g, " ").trim();
 }
@@ -628,7 +616,7 @@ export async function browseJikanAnime(params: JikanBrowseParams) {
   }
 
   const discoveryOrder = ["members", "score", "favorites"][discoverySeed % 3];
-  const requestPage = !query && sort === "discovery" ? getDiscoveryPage(page, discoverySeed, 500, 17) : page;
+  const requestPage = page;
 
   const path = sort === "newest"
     ? `/anime?page=${page}&limit=25&sfw=true&order_by=start_date&sort=desc${genreParam}`

@@ -488,18 +488,6 @@ async function getTmdbMoviePage(page: number, query?: string, genre?: string) {
   return getTmdbMoviePageWithMode(page, query, genre, "discovery", 1);
 }
 
-function getDiscoveryPage(page: number, seed = 1, windowSize = 500, salt = 0) {
-  const offset = Math.abs((seed * 131 + salt * 17) % windowSize);
-  const stride = 37;
-  // Don't cycle - if we exceed window, just use the requested page directly
-  const calculatedPage = ((offset + (page - 1) * stride) % windowSize) + 1;
-  // For pages beyond window size, use direct mapping to ensure fresh content
-  if (page > windowSize) {
-    return Math.min(page, 1000); // Cap at 1000 to avoid API limits
-  }
-  return calculatedPage;
-}
-
 function getDiscoverySort(seed = 1, salt = 0) {
   // Expanded sort modes: include revenue.desc and primary_release_date variety
   // so we surface genuinely different kinds of content each visit
@@ -546,7 +534,7 @@ async function getTmdbMoviePageWithMode(
 
   const genreId = findGenreId(movieGenres, genre);
   const sortBy = sort === "newest" ? "primary_release_date.desc" : sort === "discovery" ? getDiscoverySort(seed, 5) : "popularity.desc";
-  const requestPage = !query && sort === "discovery" ? getDiscoveryPage(page, seed, 500, 5) : page;
+  const requestPage = page;
   // Lower floors deliberately — discovery should surface underrated gems, not just blockbusters
   const voteFloor =
     sort === "discovery"
@@ -609,7 +597,7 @@ async function getTmdbShowPageWithMode(
 
   const genreId = findGenreId(tvGenres, genre);
   const sortBy = sort === "newest" ? "first_air_date.desc" : sort === "discovery" ? getDiscoverySort(seed, 11) : "popularity.desc";
-  const requestPage = !query && sort === "discovery" ? getDiscoveryPage(page, seed, 500, 11) : page;
+  const requestPage = page;
   const voteFloor =
     sort === "discovery"
       ? sortBy === "vote_average.desc"

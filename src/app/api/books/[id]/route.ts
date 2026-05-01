@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchBookReaderPayload } from "@/lib/books";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
 export async function GET(_: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   const bookId = Number(id);
@@ -17,6 +14,10 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
     return NextResponse.json({
       ok: true,
       ...payload,
+    }, {
+      headers: {
+        "Cache-Control": "public, max-age=1800, stale-while-revalidate=86400",
+      },
     });
   } catch (error) {
     return NextResponse.json(
