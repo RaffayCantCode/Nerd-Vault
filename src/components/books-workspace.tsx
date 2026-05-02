@@ -293,6 +293,7 @@ export function BooksWorkspace({
               <p className="books-copy">
                 {loading ? "Refreshing the catalog..." : `Showing ${payload.items.length} books on this page.`}
               </p>
+            </div>
           </div>
 
           {error ? <div className="books-empty-state">{error}</div> : null}
