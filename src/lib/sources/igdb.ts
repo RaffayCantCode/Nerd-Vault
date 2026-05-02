@@ -83,6 +83,8 @@ type IgdbGame = {
   remakes?: number[];
   remasters?: number[];
   standalone_expansions?: number[];
+  videos?: Array<{ video_id: string }>;
+  websites?: Array<{ category: number; url: string }>;
 };
 
 type IgdbCountResponse = {
@@ -233,9 +235,18 @@ function mapGame(game: IgdbGame): MediaItem {
 
   const fallbackImage = getMediaFallbackImage({ type: "game" });
 
+  const externalLinks: Array<{ name: string; url: string }> = [];
+  game.websites?.forEach((website) => {
+    if (website.category === 13) {
+      externalLinks.push({ name: "Steam", url: website.url });
+    } else if (website.category === 16) {
+      externalLinks.push({ name: "Epic Games", url: website.url });
+    }
+  });
+
   return {
     id: `igdb-game-${game.id}`,
-    slug: game.slug,
+    slug: slugify(game.name),
     source: "igdb",
     sourceId: String(game.id),
     title: game.name,
@@ -260,6 +271,8 @@ function mapGame(game: IgdbGame): MediaItem {
       collectionId: game.collection?.id,
       sourceLabel: "IGDB",
       sourceUrl: `https://www.igdb.com/games/${game.slug}`,
+      trailerUrl: game.videos?.[0]?.video_id ? `https://www.youtube.com/embed/${game.videos[0].video_id}` : undefined,
+      externalLinks: externalLinks.length > 0 ? externalLinks : undefined,
     },
   };
 }
@@ -360,7 +373,7 @@ export async function browseIgdbGames(params: {
   }
 
   // Keep pagination stable and sequential to avoid duplicate titles across browse pages.
-  const requestPage = page;
+  const requestPage = sort === "discovery" ? Math.max(1, page + (discoverySeed % 20)) : page;
   const offset = (requestPage - 1) * pageSize;
   const escapedQuery = queryText?.replace(/"/g, '\\"');
 
@@ -425,6 +438,9 @@ const IGDB_GAME_DETAIL_FIELDS = [
   "remakes",
   "remasters",
   "standalone_expansions",
+  "videos.video_id",
+  "websites.category",
+  "websites.url",
 ].join(",");
 
 export async function getIgdbGameDetails(id: number) {

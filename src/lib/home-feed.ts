@@ -1,6 +1,6 @@
-import { browseIgdbGames, getIgdbFranchiseEntries, getIgdbRelatedGamesByFranchise } from "@/lib/sources/igdb";
-import { browseJikanAnime, getJikanAnimeFranchise } from "@/lib/sources/jikan";
-import { browseTmdbCatalog, getTmdbFranchiseEntries, getTmdbMediaDetails, getTmdbRelatedByFranchise, getTmdbShowRelations } from "@/lib/sources/tmdb";
+import { browseIgdbGames, getIgdbFranchiseEntries } from "@/lib/sources/igdb";
+import { browseJikanAnime, getJikanAnimeFranchise, getJikanAnimeDetails } from "@/lib/sources/jikan";
+import { browseTmdbCatalog, getTmdbFranchiseEntries, getTmdbMediaDetails } from "@/lib/sources/tmdb";
 import { MediaItem, MediaType } from "@/lib/types";
 import { LibraryState } from "@/lib/vault-types";
 
@@ -206,6 +206,10 @@ function topSignals(seeds: SignalSeed[]) {
 
 async function gatherRelatedCandidates(type: MediaType, seeds: SignalSeed[]) {
   const focusSeeds = seeds.slice(0, 3);
+      ]),
+    );
+    return dedupeItems(results.flatMap((group) => group));
+  }
 
   if (type === "movie") {
     const results = await Promise.all(
@@ -213,7 +217,6 @@ async function gatherRelatedCandidates(type: MediaType, seeds: SignalSeed[]) {
         seed.item.source === "tmdb"
           ? getTmdbFranchiseEntries(Number(seed.item.sourceId), "movie").catch(() => [] as MediaItem[])
           : Promise.resolve([] as MediaItem[]),
-        getTmdbRelatedByFranchise(seed.item.title, "movie", 10).catch(() => [] as MediaItem[]),
       ]),
     );
     return dedupeItems(results.flatMap((group) => group));
@@ -223,12 +226,8 @@ async function gatherRelatedCandidates(type: MediaType, seeds: SignalSeed[]) {
     const results = await Promise.all(
       focusSeeds.flatMap((seed) => [
         seed.item.source === "tmdb"
-          ? getTmdbShowRelations(Number(seed.item.sourceId)).catch(() => [] as MediaItem[])
-          : Promise.resolve([] as MediaItem[]),
-        seed.item.source === "tmdb"
           ? getTmdbFranchiseEntries(Number(seed.item.sourceId), "tv").catch(() => [] as MediaItem[])
           : Promise.resolve([] as MediaItem[]),
-        getTmdbRelatedByFranchise(seed.item.title, "show", 10).catch(() => [] as MediaItem[]),
       ]),
     );
     return dedupeItems(results.flatMap((group) => group));
@@ -240,7 +239,6 @@ async function gatherRelatedCandidates(type: MediaType, seeds: SignalSeed[]) {
         seed.item.source === "igdb"
           ? getIgdbFranchiseEntries(Number(seed.item.sourceId)).catch(() => [] as MediaItem[])
           : Promise.resolve([] as MediaItem[]),
-        getIgdbRelatedGamesByFranchise(seed.item.title, 10).catch(() => [] as MediaItem[]),
       ]),
     );
     return dedupeItems(results.flatMap((group) => group));

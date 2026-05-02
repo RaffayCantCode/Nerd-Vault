@@ -178,7 +178,7 @@ export async function fetchPersistedBookProgress(bookId?: number) {
       percent: number;
       updatedAt: string;
     } | null;
-    continueReading: {
+    continueReadingList?: Array<{
       bookId: number;
       title: string;
       author?: string;
@@ -187,7 +187,7 @@ export async function fetchPersistedBookProgress(bookId?: number) {
       totalPages: number;
       percent: number;
       updatedAt: string;
-    } | null;
+    }>;
   }>;
 }
 

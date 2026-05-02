@@ -33,7 +33,7 @@ export function BooksWorkspace({
   initialPayload?: BookListPayload;
   initialQuery?: string;
   initialGenre?: string;
-  initialContinue?: {
+  initialContinue?: Array<{
     bookId: number;
     title: string;
     author?: string;
@@ -41,7 +41,7 @@ export function BooksWorkspace({
     currentPage: number;
     totalPages: number;
     percent: number;
-  } | null;
+  }>;
   isSignedIn?: boolean;
 }) {
   const [theme, setTheme] = useState<BookTheme>("dark");
@@ -53,8 +53,8 @@ export function BooksWorkspace({
   const [wishlist, setWishlist] = useState<number[]>([]);
   const [loading, setLoading] = useState(!initialPayload.items.length);
   const [error, setError] = useState<string | null>(null);
-  const [continueReading, setContinueReading] = useState(initialContinue);
-  const [clearingContinue, setClearingContinue] = useState(false);
+  const [continueReading, setContinueReading] = useState(initialContinue || []);
+  const [clearingContinue, setClearingContinue] = useState<number | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const pathname = usePathname();
 
@@ -71,10 +71,11 @@ export function BooksWorkspace({
   useEffect(() => {
     let active = true;
 
-    fetchPersistedBookProgress()
       .then((payload) => {
-        if (active && payload.continueReading) {
-          setContinueReading(payload.continueReading);
+        if (active && payload.continueReadingList) {
+          setContinueReading(payload.continueReadingList);
+        } else if (active && payload.continueReading) {
+          setContinueReading([payload.continueReading]);
         }
       })
       .catch(() => undefined);
@@ -133,7 +134,11 @@ export function BooksWorkspace({
 
         if (active) {
           booksPayloadCache.set(requestKey, nextPayload);
-          setPayload(nextPayload);
+          if (page === 1) {
+            setPayload(nextPayload);
+          } else {
+            setPayload(prev => ({ ...nextPayload, items: [...prev.items, ...nextPayload.items] }));
+          }
           setPage(nextPayload.page || 1);
         }
       } catch (loadError) {
@@ -169,17 +174,17 @@ export function BooksWorkspace({
     [payload.availableGenres],
   );
 
-  function renderPager(position: "top" | "bottom") {
+  function renderLoadMore() {
+    if (page >= payload.totalPages) return null;
     return (
-      <div className={`books-pager books-pager-${position}`}>
-        <button type="button" disabled={page <= 1 || loading} onClick={() => setPage((current) => Math.max(1, current - 1))}>
-          Prev
-        </button>
-        <span>
-          Page {payload.page} of {payload.totalPages}
-        </span>
-        <button type="button" disabled={page >= payload.totalPages || loading} onClick={() => setPage((current) => current + 1)}>
-          Next
+      <div className="books-pager-bottom" style={{ display: "flex", justifyContent: "center", marginTop: 32 }}>
+        <button 
+          type="button" 
+          disabled={loading} 
+          onClick={() => setPage((current) => current + 1)}
+          className="button button-secondary"
+        >
+          {loading ? "Loading..." : "Load More"}
         </button>
       </div>
     );
@@ -227,37 +232,42 @@ export function BooksWorkspace({
               <span>{wishlist.length} saved</span>
               <span>{payload.availableGenres?.length ?? 0} genres indexed</span>
             </div>
-            {continueReading ? (
-              <div className="books-continue-card">
-                <div className="books-continue-copy">
-                  <p className="books-feature-label">Continue reading</p>
-                  <strong>{continueReading.title}</strong>
-                  <span>
-                    {continueReading.author || "Project Gutenberg"} · page {continueReading.currentPage} of {continueReading.totalPages}
-                  </span>
-                </div>
-                <div className="books-continue-actions">
-                  <Link href={`/books/${continueReading.bookId}/read`} className="books-card-button books-card-button-primary">
-                    Continue
-                  </Link>
-                  <button
-                    type="button"
-                    className="books-card-button books-card-button-dismiss"
-                    disabled={clearingContinue}
-                    aria-label={`Remove ${continueReading.title} from continue reading`}
-                    onClick={async () => {
-                      if (!continueReading) {
-                        return;
-                      }
-
-                      setClearingContinue(true);
-                      await clearBookProgress(continueReading.bookId);
-                      setContinueReading(null);
-                      setClearingContinue(false);
-                    }}
-                  >
-                    {clearingContinue ? "Removing..." : "×"}
-                  </button>
+            {continueReading && continueReading.length > 0 ? (
+              <div className="books-continue-section" style={{ marginTop: 32 }}>
+                <h2 className="books-eyebrow" style={{ marginBottom: 16 }}>Continue Reading</h2>
+                <div className="books-horizontal-scroll" style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 16, scrollSnapType: 'x mandatory' }}>
+                  {continueReading.map((item) => (
+                    <div key={item.bookId} className="books-continue-card" style={{ flex: '0 0 auto', width: 300, scrollSnapAlign: 'start' }}>
+                      <div className="books-continue-copy">
+                        <strong>{item.title}</strong>
+                        <span>
+                          {item.author || "Project Gutenberg"} · page {item.currentPage} of {item.totalPages}
+                        </span>
+                        <div style={{ marginTop: 8, height: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${item.percent * 100}%`, background: 'var(--color-primary-500)' }} />
+                        </div>
+                      </div>
+                      <div className="books-continue-actions">
+                        <Link href={`/books/${item.bookId}/read`} className="books-card-button books-card-button-primary">
+                          Continue
+                        </Link>
+                        <button
+                          type="button"
+                          className="books-card-button books-card-button-dismiss"
+                          disabled={clearingContinue === item.bookId}
+                          aria-label={`Remove ${item.title} from continue reading`}
+                          onClick={async () => {
+                            setClearingContinue(item.bookId);
+                            await clearBookProgress(item.bookId);
+                            setContinueReading(prev => prev.filter(b => b.bookId !== item.bookId));
+                            setClearingContinue(null);
+                          }}
+                        >
+                          {clearingContinue === item.bookId ? "..." : "×"}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             ) : null}
@@ -284,10 +294,6 @@ export function BooksWorkspace({
               <p className="books-copy">
                 {loading ? "Refreshing the catalog..." : `Showing ${payload.items.length} books on this page.`}
               </p>
-            </div>
-            <div className="books-pager">
-              {renderPager("top")}
-            </div>
           </div>
 
           {error ? <div className="books-empty-state">{error}</div> : null}
@@ -338,7 +344,7 @@ export function BooksWorkspace({
             <div className="books-empty-state">No books matched that search yet. Try another author, title, or genre.</div>
           ) : null}
 
-          {!loading && payload.items.length ? renderPager("bottom") : null}
+          {renderLoadMore()}
         </section>
       </main>
       <AuthRequiredModal

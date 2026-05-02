@@ -162,7 +162,7 @@ export function CatalogCard({
       id={browseCardId}
       data-browse-card-id={browseCardId}
       className={`catalog-card hover-lift hover-bounce ${showUserRatingBelow && item.userRating ? "has-user-rating" : ""} ${isNavigating ? "is-navigating" : ""} ${isVisible ? "is-visible" : ""} ${isImageLoaded ? "has-media-loaded" : ""}`}
-      prefetch={false}
+      prefetch={true}
       onClick={handleNavigate}
       onMouseEnter={warmRoute}
       onFocus={warmRoute}

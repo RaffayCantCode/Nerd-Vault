@@ -179,7 +179,7 @@ async function fetchSourceWindow(
         query,
         genre,
         sort,
-        seed: seed + index,
+        seed: seed,
       }).catch(() => ({
         page: targetPage,
         totalPages: 1,
@@ -224,7 +224,7 @@ async function buildSearchPayload({
             query,
             genre,
             sort,
-            seed: seed + sourceIndex * 10 + page,
+            seed: seed + sourceIndex * 10,
           }).catch(() => ({
             page,
             totalPages: 1,

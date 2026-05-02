@@ -83,10 +83,10 @@ export async function getContinueReading(userId: string) {
     FROM "BookProgress"
     WHERE "userId" = ${userId}
     ORDER BY "updatedAt" DESC
-    LIMIT 1
+    LIMIT 10
   `;
 
-  return rows[0] ? mapProgressRow(rows[0]) : null;
+  return rows.map(mapProgressRow);
 }
 
 export async function saveBookProgressForUser(

@@ -534,7 +534,7 @@ async function getTmdbMoviePageWithMode(
 
   const genreId = findGenreId(movieGenres, genre);
   const sortBy = sort === "newest" ? "primary_release_date.desc" : sort === "discovery" ? getDiscoverySort(seed, 5) : "popularity.desc";
-  const requestPage = page;
+  const requestPage = sort === "discovery" ? Math.max(1, page + (seed % 50)) : page;
   // Lower floors deliberately — discovery should surface underrated gems, not just blockbusters
   const voteFloor =
     sort === "discovery"
@@ -597,7 +597,7 @@ async function getTmdbShowPageWithMode(
 
   const genreId = findGenreId(tvGenres, genre);
   const sortBy = sort === "newest" ? "first_air_date.desc" : sort === "discovery" ? getDiscoverySort(seed, 11) : "popularity.desc";
-  const requestPage = page;
+  const requestPage = sort === "discovery" ? Math.max(1, page + (seed % 50)) : page;
   const voteFloor =
     sort === "discovery"
       ? sortBy === "vote_average.desc"
@@ -679,23 +679,28 @@ export async function getTmdbMediaDetails(id: number, type: "movie" | "tv") {
     tmdbFetch<TmdbCredits>(`/${type}/${id}/credits?language=en-US`),
     tmdbFetch<TmdbImages>(`/${type}/${id}/images?include_image_language=en,null`),
     tmdbFetch<TmdbVideos>(`/${type}/${id}/videos?language=en-US`).catch(() => ({ results: [] })),
+    tmdbFetch<{ results: any }>(`/${type}/${id}/watch/providers`).catch(() => ({ results: {} })),
   ]);
 
   const media = mapMovieOrShow(details, type === "movie" ? "movie" : "show", genres, credits, images);
+  const providersData = providers?.results?.US?.flatrate || [];
+  const validProviders = ["Netflix", "Amazon Prime Video", "Disney+"];
+  const externalLinks: Array<{ name: string; url: string }> = providersData
+    .filter((provider: any) => validProviders.includes(provider.provider_name))
+    .map((provider: any) => ({ name: provider.provider_name, url: providers?.results?.US?.link || "" }));
   const trailer =
     videos.results.find((entry) => entry.site === "YouTube" && entry.type === "Trailer" && entry.official) ??
     videos.results.find((entry) => entry.site === "YouTube" && entry.type === "Trailer") ??
     videos.results.find((entry) => entry.site === "YouTube" && entry.type === "Teaser");
 
-  return trailer?.key
-    ? {
-        ...media,
-        details: {
-          ...media.details,
-          trailerUrl: `https://www.youtube.com/embed/${trailer.key}`,
-        },
-      }
-    : media;
+  return {
+    ...media,
+    details: {
+      ...media.details,
+      trailerUrl: trailer?.key ? `https://www.youtube.com/embed/${trailer.key}` : media.details.trailerUrl,
+      externalLinks: externalLinks.length > 0 ? externalLinks : media.details.externalLinks,
+    },
+  };
 }
 
 type TmdbCollectionResponse = {

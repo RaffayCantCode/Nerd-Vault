@@ -63,6 +63,7 @@ type JikanAnime = {
   demographics?: JikanGenre[];
   explicit_genres?: JikanGenre[];
   studios?: Array<{ name: string }>;
+  streaming?: Array<{ name: string; url: string }>;
   title_japanese?: string | null;
   aired?: {
     from?: string | null;
@@ -371,6 +372,12 @@ function mapAnime(
   const isMovie = isAnimeMovie(title, item.episodes ?? undefined, item.type ?? undefined);
   const animeType = isMovie ? "anime_movie" : "anime";
 
+  const externalLinks: Array<{ name: string; url: string }> = [];
+  const crunchyroll = item.streaming?.find((s) => s.name.toLowerCase().includes("crunchyroll"));
+  if (crunchyroll) {
+    externalLinks.push({ name: "Crunchyroll", url: crunchyroll.url });
+  }
+
   return {
     id: `jikan-anime-${item.mal_id}`,
     slug: slugify(canonicalTitle || title),
@@ -428,6 +435,8 @@ function mapAnime(
       parentSeriesLabel: seriesContext.isContinuation ? seriesContext.parentSeriesLabel : undefined,
       sourceLabel: "MyAnimeList",
       sourceUrl: `https://myanimelist.net/anime/${item.mal_id}`,
+      collectionId: typeof item.mal_id === "number" ? item.mal_id : undefined,
+      externalLinks: externalLinks.length > 0 ? externalLinks : undefined,
     },
   };
 }
@@ -526,7 +535,7 @@ function collapseAnimeFranchises(items: JikanAnime[]): MediaItem[] {
     const sortedByPriority = [...entries].sort((left: any, right: any) => {
       const scoreGap = (right.score ?? 0) - (left.score ?? 0);
       if (scoreGap !== 0) return scoreGap;
-      return (left.year ?? 0) - (right.year ?? 0);
+      return (left.year ?? 0) - (left.year ?? 0);
     });
 
     const representative = sortedByPriority[0];
@@ -616,7 +625,7 @@ export async function browseJikanAnime(params: JikanBrowseParams) {
   }
 
   const discoveryOrder = ["members", "score", "favorites"][discoverySeed % 3];
-  const requestPage = page;
+  const requestPage = sort === "discovery" ? Math.max(1, page + (discoverySeed % 20)) : page;
 
   const path = sort === "newest"
     ? `/anime?page=${page}&limit=25&sfw=true&order_by=start_date&sort=desc${genreParam}`

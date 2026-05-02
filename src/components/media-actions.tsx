@@ -391,22 +391,6 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
         </div>
 
         <div className="media-action-section">
-          <p className="eyebrow">Recommend</p>
-          <div className="button-row">
-            <button className="button button-secondary" type="button" onClick={() => setRecommendOpen(true)}>
-              Recommend
-            </button>
-            <p className="copy" style={{ margin: 0 }}>
-              {friends.length
-                ? reviewRating
-                  ? `Your current signal is ${renderStars(reviewRating)}.`
-                  : "You can recommend this now, even without leaving a rating."
-                : "Add a friend and this title is ready to send."}
-            </p>
-          </div>
-        </div>
-
-        <div className="media-action-section">
           <p className="eyebrow">Folders</p>
           <div className="folder-action-panel">
             <div className="picker-grid">

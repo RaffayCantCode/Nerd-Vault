@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
   const bookId = Number(request.nextUrl.searchParams.get("bookId") || "");
 
   try {
-    const [progress, continueReading] = await Promise.all([
+    const [progress, continueReadingList] = await Promise.all([
       Number.isFinite(bookId) ? getBookProgress(userId, bookId) : Promise.resolve(null),
       getContinueReading(userId),
     ]);
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       progress,
-      continueReading,
+      continueReadingList,
     });
   } catch (error) {
     return NextResponse.json(

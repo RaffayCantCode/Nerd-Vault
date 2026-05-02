@@ -47,5 +47,6 @@ export type MediaItem = {
     parentSeriesLabel?: string;
     sourceLabel?: string;
     sourceUrl?: string;
+    externalLinks?: Array<{ name: string; url: string }>;
   };
 };

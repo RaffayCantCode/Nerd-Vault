@@ -19,7 +19,6 @@ import {
   browseIgdbGames,
   getIgdbFranchiseEntries,
   getIgdbGameDetails,
-  getIgdbRelatedGamesByFranchise,
   getIgdbSimilarGamesForGame,
 } from "@/lib/sources/igdb";
 import { browseJikanAnime, getJikanAnimeDetails, getJikanAnimeFranchise } from "@/lib/sources/jikan";
@@ -28,8 +27,6 @@ import {
   getTmdbCollectionItems,
   getTmdbFranchiseEntries,
   getTmdbMediaDetails,
-  getTmdbRelatedByFranchise,
-  getTmdbShowRelations,
   getTmdbStarterCatalog,
 } from "@/lib/sources/tmdb";
 import { matchesFranchise, normalizeAnimeBaseTitle, isLikelyAnime, extractFranchiseRoot, isSameFranchise } from "@/lib/franchise-utils";
@@ -1385,25 +1382,16 @@ async function buildFranchiseSectionUncached(media: MediaItem, animeFranchise?: 
   }
 
   if (media.type === "show" && media.source === "tmdb") {
-    const franchiseSignals = buildFranchiseSignals(media);
     const hasCuratedMovies = Boolean(curatedUniverse?.entries.movie?.length);
-    const [relations, directRelations, curatedEntries, crossTypeMovies] = await Promise.all([
+    const [relations, curatedEntries] = await Promise.all([
       getTmdbFranchiseEntries(Number(media.sourceId), "tv").catch(() => [] as MediaItem[]),
-      getTmdbShowRelations(Number(media.sourceId)).catch(() => [] as MediaItem[]),
       curatedUniverse?.entries.show?.length
         ? findTmdbUniverseEntries(curatedUniverse.entries.show, "show").catch(() => [] as MediaItem[])
         : Promise.resolve([] as MediaItem[]),
-      hasCuratedMovies ? getTmdbRelatedByFranchise(media.title, "movie", 8).catch(() => [] as MediaItem[]) : Promise.resolve([] as MediaItem[]),
     ]);
 
-    // Treat direct TMDB relations (sequels/spinoffs) as explicit franchise links.
-    const combined = dedupeItems([media, ...directRelations, ...relations, ...curatedEntries, ...crossTypeMovies])
-      .filter((candidate) => candidate.type === "show" || candidate.type === "movie")
-      .filter((candidate) =>
-        candidate.id === media.id ||
-        directRelations.some((entry) => entry.id === candidate.id) ||
-        hasStrongFranchiseConnection(media, candidate, franchiseSignals),
-      );
+    const combined = dedupeItems([media, ...relations, ...curatedEntries])
+      .filter((candidate) => candidate.type === "show" || candidate.type === "movie");
     
     if (combined.length >= 2) {
       const ordered = [...combined].sort(compareFranchiseItems);
@@ -1441,16 +1429,15 @@ async function buildFranchiseSectionUncached(media: MediaItem, animeFranchise?: 
 
   if (media.type === "game" && media.source === "igdb") {
     const franchiseSignals = buildFranchiseSignals(media);
-    const [neighbors, searchRelated, curatedEntries] = await Promise.all([
+    const [neighbors, curatedEntries] = await Promise.all([
       getIgdbFranchiseEntries(Number(media.sourceId)).catch(() => [] as MediaItem[]),
-      getIgdbRelatedGamesByFranchise(media.title, 10).catch(() => [] as MediaItem[]),
       curatedUniverse?.entries.game?.length
         ? findIgdbUniverseEntries(curatedUniverse.entries.game).catch(() => [] as MediaItem[])
         : Promise.resolve([] as MediaItem[]),
     ]);
 
     // IGDB neighbors are explicit franchise/collection links; keep them even if fuzzy heuristics miss.
-    const combined = dedupeItems([media, ...neighbors, ...searchRelated, ...curatedEntries])
+    const combined = dedupeItems([media, ...neighbors, ...curatedEntries])
       .filter((candidate) => candidate.type === "game")
       .filter((candidate) =>
         candidate.id === media.id ||
@@ -2554,13 +2541,13 @@ export default async function MediaDetailPage({
   const viewerName = session?.user?.name || "Guest vault";
   const viewerId = session?.user?.id || "guest-vault";
   const viewerAvatar = session?.user?.image || undefined;
-  const [shellData, library] = session?.user?.id
-    ? await Promise.all([
+  const dbPromise = session?.user?.id
+    ? Promise.all([
         getViewerShellData(session.user.id).catch(() => null),
         getLibraryStateForUser(session.user.id).catch(() => null),
       ])
-    : [null, null];
-  const sidebarFolders = shellData?.folders ?? [];
+    : Promise.resolve([null, null] as const);
+
   const { slug } = await params;
   const { source, sourceId, type } = await searchParams;
   let media: MediaItem | undefined = getMediaBySlug(slug);
@@ -2621,6 +2608,8 @@ export default async function MediaDetailPage({
   }
 
   if (!media) {
+    const [shellData] = await dbPromise;
+    const sidebarFolders = shellData?.folders ?? [];
     return (
       <div className="page-shell">
         <div className="app-shell-layout">
@@ -2645,10 +2634,13 @@ export default async function MediaDetailPage({
     entries: [],
   };
 
-  const [related, franchiseSection] = await Promise.all([
+  const [related, franchiseSection, dbData] = await Promise.all([
     getRelatedMediaRail(media).catch(() => [] as MediaItem[]),
     buildFranchiseSection(media, animeFranchise).catch(() => null),
+    dbPromise,
   ]);
+  const [shellData, library] = dbData;
+  const sidebarFolders = shellData?.folders ?? [];
   const seriesContext = buildSeriesContext(media, franchiseSection);
   const franchiseIds = new Set([
     ...(franchiseSection?.entries.map((entry) => entry.id) ?? []),
@@ -2738,148 +2730,103 @@ export default async function MediaDetailPage({
             </div>
             <div className="detail-content">
               <DetailBackButton />
-              <div className="detail-stage-grid">
-                <div className="detail-hero-copy">
-                  <p className="eyebrow">{media.type}</p>
-                  <h1 className="display detail-display">{media.title}</h1>
-                  <p className="detail-lead">{moodLine}</p>
-                  <p className="copy detail-overview-copy">{synopsisPreview}</p>
-                  <div style={{ marginTop: 22 }}>
-                    <MediaActions item={media} viewerId={viewerId} />
-                  </div>
-                  <div className="detail-meta-row">
-                    <span className="detail-pill">{media.year}</span>
-                    <span className="detail-pill">{media.rating.toFixed(1)}</span>
-                    {(animeFranchise?.seasonCount ?? media.details.seasonCount) ? (
-                      <span className="detail-pill">{animeFranchise?.seasonCount ?? media.details.seasonCount} seasons</span>
-                    ) : null}
-                    {media.details.entryLabel ? <span className="detail-pill">{media.details.entryLabel}</span> : null}
-                    {media.genres.map((genre) => (
-                      <span key={genre} className="detail-pill">
-                        {genre}
-                      </span>
-                    ))}
-                  </div>
-                </div>
 
-                <aside className="detail-side-poster glass detail-stage-trailer">
+              {media.details.trailerUrl && (
+                <div className="detail-trailer-wrapper" style={{ marginTop: 24, marginBottom: 32, aspectRatio: "16/9", width: "100%", maxWidth: 1000, marginInline: "auto", borderRadius: 12, overflow: "hidden", background: "#000" }}>
+                  <iframe 
+                    src={getTrailerEmbedUrl(media.details.trailerUrl) ?? ""}
+                    style={{ width: "100%", height: "100%", border: "none" }}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              )}
+
+              <div className="detail-stage-grid" style={{ maxWidth: 1000, marginInline: "auto", display: "flex", flexWrap: "wrap", gap: 32 }}>
+                <aside className="detail-side-poster glass" style={{ width: 240, flexShrink: 0, marginInline: "auto" }}>
                   <div className="detail-side-poster-media">
                     <ResilientMediaImage item={media} loading="eager" decoding="async" fetchPriority="high" />
                   </div>
-                  {(seriesContext || easterEgg) ? (
-                    <div className="detail-hero-note-stack">
+                </aside>
+
+                <div className="detail-hero-copy" style={{ flex: 1, minWidth: 320 }}>
+                  <h1 className="display detail-display">{media.title}</h1>
+                  <div className="detail-meta-row" style={{ marginTop: 8, marginBottom: 16 }}>
+                    <span className="detail-pill">{media.year}</span>
+                    <span className="detail-pill">{genreValue}</span>
+                    <span className="detail-pill">★ {media.rating.toFixed(1)}</span>
+                    <span className="detail-pill">{releaseValue}</span>
+                  </div>
+                  
+                  <div style={{ marginTop: 22, marginBottom: 32 }}>
+                    <MediaActions item={media} viewerId={viewerId} />
+                  </div>
+
+                  {seriesContext || easterEgg ? (
+                    <div className="detail-hero-note-stack" style={{ marginBottom: 32 }}>
                       {seriesContext ? (
-                        <div className="detail-context-note">
+                        <div className="detail-context-note glass">
                           <p className="eyebrow">{seriesContext.relationshipLabel}</p>
                           <p className="copy">{seriesContext.summary}</p>
                         </div>
                       ) : null}
                       {easterEgg ? (
-                        <div className="detail-context-note">
+                        <div className="detail-context-note glass">
                           <p className="eyebrow">{easterEgg.kicker}</p>
                           <p className="copy">{easterEgg.copy}</p>
                         </div>
                       ) : null}
                     </div>
                   ) : null}
-                  {sourceReference.url ? (
-                    <a href={sourceReference.url} target="_blank" rel="noreferrer" className="detail-source-link detail-poster-source-link">
-                      Open {sourceReference.label}
-                    </a>
-                  ) : null}
-                </aside>
 
-                <aside className="detail-stage-sidebar">
-                  <section className="info-panel glass detail-facts-panel detail-stage-facts">
-                    <div className="detail-facts-head">
-                      <div>
-                        <p className="eyebrow">Quick facts</p>
-                        <h2 className="headline">The details you should catch at a glance</h2>
-                      </div>
-                    </div>
-                    <div className="detail-side-stat-grid">
-                      <div className="detail-side-stat detail-side-stat-emphasis">
-                        <span>Release date</span>
-                        <strong>{releaseValue}</strong>
-                      </div>
-                      <div className="detail-side-stat detail-side-stat-emphasis">
-                        <span>{runtimeLabel}</span>
-                        <strong>{runtimeValue}</strong>
-                      </div>
-                      <div className="detail-side-stat detail-side-stat-wide">
-                        <span>Genres</span>
-                        <strong>{genreValue}</strong>
-                      </div>
-                      <div className="detail-side-stat">
-                        <span>Status</span>
-                        <strong>{statusValue}</strong>
-                      </div>
-                      <div className="detail-side-stat">
-                        <span>{studioLabel}</span>
-                        <strong>{studioValue}</strong>
-                      </div>
-                    </div>
-                  </section>
-                </aside>
-              </div>
-            </div>
-          </section>
+                  <div className="detail-structured-sections" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+                    <section>
+                      <h2 className="eyebrow">Description</h2>
+                      <p className="copy detail-overview-copy">{aboutText}</p>
+                    </section>
 
-          <section className="info-grid detail-clean-grid">
-            <div className="info-panel glass detail-about-panel">
-              <p className="eyebrow">About</p>
-              <h2 className="headline">A quick, clean read</h2>
-              <p className="copy detail-about-copy">{aboutText}</p>
-              <div className="detail-about-meta">
-                <div className="detail-about-meta-item">
-                  <span>Released</span>
-                  <strong>{releaseValue}</strong>
-                </div>
-                <div className="detail-about-meta-item">
-                  <span>Rating</span>
-                  <strong>{media.rating.toFixed(1)} / 10</strong>
-                </div>
-                <div className="detail-about-meta-item">
-                  <span>Format</span>
-                  <strong>{runtimeValue}</strong>
-                </div>
-              </div>
-            </div>
-
-            <div className="info-panel glass detail-credit-panel">
-              <p className="eyebrow">
-                {detailCollectionEntries ? "Seasons / parts" : media.type === "game" ? "Studios / creatives" : "Top cast / credits"}
-              </p>
-              <h2 className="headline">{detailCollectionEntries ? "What to know before you jump in" : "The names tied to this title"}</h2>
-              {detailCollectionEntries ? (
-                <div className="credit-list">
-                  {detailCollectionEntries.map((entry) => (
-                    <div key={entry.id} className="credit-row">
-                      <div>
-                        <strong>{entry.title}</strong>
-                        <div className="muted">
-                          {entry.year || "Year TBD"} | {entry.rating ? entry.rating.toFixed(1) : "Unrated"}
-                          {entry.episodes ? ` | ${entry.episodes} episodes` : ""}
+                    <section>
+                      <h2 className="eyebrow">{media.type === "game" ? "Studio / Creatives" : "Cast / Characters"}</h2>
+                      {spotlightCredits.length ? (
+                        <div className="detail-credit-stack" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 16, marginTop: 12 }}>
+                          {spotlightCredits.map((credit) => (
+                            <div key={`${credit.name}-${credit.role}`} className="detail-credit-row glass" style={{ padding: 12, borderRadius: 8 }}>
+                              <strong>{credit.name}</strong>
+                              <p className="copy" style={{ fontSize: 13, opacity: 0.8, margin: 0 }}>{credit.role}{credit.character ? ` | ${credit.character}` : ""}</p>
+                            </div>
+                          ))}
                         </div>
-                      </div>
-                      <span className="muted">{entry.status ?? "Unknown"}</span>
-                    </div>
-                  ))}
+                      ) : (
+                        <p className="copy">Source data is light on credits for this title right now.</p>
+                      )}
+                    </section>
+
+                    <section>
+                      <h2 className="eyebrow">{studioLabel}</h2>
+                      <p className="copy">{studioValue}</p>
+                    </section>
+
+                    {media.details.externalLinks && media.details.externalLinks.length > 0 && (
+                      <section>
+                        <h2 className="eyebrow">Watch / Buy</h2>
+                        <div className="button-row" style={{ marginTop: 12 }}>
+                          {media.details.externalLinks.map((link) => (
+                            <a
+                              key={link.name}
+                              href={link.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="button button-secondary"
+                            >
+                              {link.name}
+                            </a>
+                          ))}
+                        </div>
+                      </section>
+                    )}
+                  </div>
                 </div>
-              ) : spotlightCredits.length ? (
-                <div className="detail-credit-stack">
-                  {spotlightCredits.map((credit) => (
-                    <div key={`${credit.name}-${credit.role}`} className="detail-credit-row">
-                      <div>
-                        <strong>{credit.name}</strong>
-                        <p className="copy">{credit.role}{credit.character ? ` | ${credit.character}` : ""}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="copy">Source data is light on credits for this title right now.</p>
-              )}
+              </div>
             </div>
           </section>
 
