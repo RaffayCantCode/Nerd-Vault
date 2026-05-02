@@ -246,7 +246,7 @@ function mapGame(game: IgdbGame): MediaItem {
 
   return {
     id: `igdb-game-${game.id}`,
-    slug: slugify(game.name),
+    slug: game.slug ?? game.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""),
     source: "igdb",
     sourceId: String(game.id),
     title: game.name,

@@ -27,7 +27,7 @@ export function BooksWorkspace({
   initialPayload = emptyPayload,
   initialQuery = "",
   initialGenre = "All",
-  initialContinue = null,
+  initialContinue = [],
   isSignedIn = false,
 }: {
   initialPayload?: BookListPayload;

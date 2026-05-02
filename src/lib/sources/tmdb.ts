@@ -673,21 +673,22 @@ export async function browseTmdbCatalog(params: TmdbBrowseParams) {
 }
 
 export async function getTmdbMediaDetails(id: number, type: "movie" | "tv") {
-  const [genres, details, credits, images, videos] = await Promise.all([
+  const [genres, details, credits, images, videos, watchProvidersData] = await Promise.all([
     getGenreMap(type === "movie" ? "movie" : "tv"),
     tmdbFetch<TmdbListItem>(`/${type}/${id}?language=en-US`),
     tmdbFetch<TmdbCredits>(`/${type}/${id}/credits?language=en-US`),
     tmdbFetch<TmdbImages>(`/${type}/${id}/images?include_image_language=en,null`),
     tmdbFetch<TmdbVideos>(`/${type}/${id}/videos?language=en-US`).catch(() => ({ results: [] })),
-    tmdbFetch<{ results: any }>(`/${type}/${id}/watch/providers`).catch(() => ({ results: {} })),
+    tmdbFetch<{ results: Record<string, { flatrate?: Array<{ provider_name: string }>; link?: string }> }>(`/${type}/${id}/watch/providers`).catch(() => ({ results: {} as Record<string, { flatrate?: Array<{ provider_name: string }>; link?: string }> })),
   ]);
 
   const media = mapMovieOrShow(details, type === "movie" ? "movie" : "show", genres, credits, images);
-  const providersData = providers?.results?.US?.flatrate || [];
+  const usProviders = (watchProvidersData?.results as Record<string, { flatrate?: Array<{ provider_name: string }>; link?: string }>)?.["US"];
+  const providersFlat: Array<{ provider_name: string }> = usProviders?.flatrate || [];
   const validProviders = ["Netflix", "Amazon Prime Video", "Disney+"];
-  const externalLinks: Array<{ name: string; url: string }> = providersData
-    .filter((provider: any) => validProviders.includes(provider.provider_name))
-    .map((provider: any) => ({ name: provider.provider_name, url: providers?.results?.US?.link || "" }));
+  const externalLinks: Array<{ name: string; url: string }> = providersFlat
+    .filter((provider: { provider_name: string }) => validProviders.includes(provider.provider_name))
+    .map((provider: { provider_name: string }) => ({ name: provider.provider_name, url: usProviders?.link || "" }));
   const trailer =
     videos.results.find((entry) => entry.site === "YouTube" && entry.type === "Trailer" && entry.official) ??
     videos.results.find((entry) => entry.site === "YouTube" && entry.type === "Trailer") ??
