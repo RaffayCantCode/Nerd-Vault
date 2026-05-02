@@ -206,10 +206,6 @@ function topSignals(seeds: SignalSeed[]) {
 
 async function gatherRelatedCandidates(type: MediaType, seeds: SignalSeed[]) {
   const focusSeeds = seeds.slice(0, 3);
-      ]),
-    );
-    return dedupeItems(results.flatMap((group) => group));
-  }
 
   if (type === "movie") {
     const results = await Promise.all(

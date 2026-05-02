@@ -71,11 +71,10 @@ export function BooksWorkspace({
   useEffect(() => {
     let active = true;
 
+    fetchPersistedBookProgress()
       .then((payload) => {
         if (active && payload.continueReadingList) {
           setContinueReading(payload.continueReadingList);
-        } else if (active && payload.continueReading) {
-          setContinueReading([payload.continueReading]);
         }
       })
       .catch(() => undefined);
