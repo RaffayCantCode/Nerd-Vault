@@ -349,29 +349,38 @@ export function BrowseWorkspace({
     }
 
     const returnContext = readBrowseReturnContext();
-    if (!returnContext || returnContext.href !== currentHref) {
+    if (!returnContext) {
       hasRestoredScrollRef.current = true;
       return;
     }
 
+    // Restore scroll as soon as items are rendered — don't do exact URL comparison
+    // because the seed or other ephemeral params may differ slightly
     const timer = window.setTimeout(() => {
       const target = returnContext.cardId
         ? document.querySelector<HTMLElement>(`[data-browse-card-id="${returnContext.cardId}"]`)
         : null;
 
       if (target) {
+        // Scroll the card into view with a small top margin so it's visible
         const nextTop = Math.max(0, window.scrollY + target.getBoundingClientRect().top - 112);
         window.scrollTo({ top: nextTop, behavior: "auto" });
-      } else if (Number.isFinite(returnContext.scrollY)) {
+        // Brief highlight to orient the user
+        target.style.transition = "box-shadow 300ms ease";
+        target.style.boxShadow = "0 0 0 2px var(--gold)";
+        window.setTimeout(() => {
+          target.style.boxShadow = "";
+        }, 800);
+      } else if (Number.isFinite(returnContext.scrollY) && returnContext.scrollY > 0) {
         window.scrollTo({ top: Math.max(0, returnContext.scrollY), behavior: "auto" });
       }
 
       clearBrowseReturnContext();
       hasRestoredScrollRef.current = true;
-    }, 40);
+    }, 60);
 
     return () => window.clearTimeout(timer);
-  }, [currentHref, isLoading]);
+  }, [isLoading]);
 
   useEffect(() => {
     featuredDeck.slice(0, 4).forEach((item) => {
@@ -379,6 +388,7 @@ export function BrowseWorkspace({
       preload(optimizeMediaImageUrl(item.coverUrl, "cover") ?? item.coverUrl);
     });
   }, [featuredDeck]);
+
 
   useEffect(() => {
     if (typeof window === "undefined") {

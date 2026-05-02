@@ -231,45 +231,6 @@ export function BooksWorkspace({
               <span>{wishlist.length} saved</span>
               <span>{payload.availableGenres?.length ?? 0} genres indexed</span>
             </div>
-            {continueReading && continueReading.length > 0 ? (
-              <div className="books-continue-section" style={{ marginTop: 32 }}>
-                <h2 className="books-eyebrow" style={{ marginBottom: 16 }}>Continue Reading</h2>
-                <div className="books-horizontal-scroll" style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 16, scrollSnapType: 'x mandatory' }}>
-                  {continueReading.map((item) => (
-                    <div key={item.bookId} className="books-continue-card" style={{ flex: '0 0 auto', width: 300, scrollSnapAlign: 'start' }}>
-                      <div className="books-continue-copy">
-                        <strong>{item.title}</strong>
-                        <span>
-                          {item.author || "Project Gutenberg"} · page {item.currentPage} of {item.totalPages}
-                        </span>
-                        <div style={{ marginTop: 8, height: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${item.percent * 100}%`, background: 'var(--color-primary-500)' }} />
-                        </div>
-                      </div>
-                      <div className="books-continue-actions">
-                        <Link href={`/books/${item.bookId}/read`} className="books-card-button books-card-button-primary">
-                          Continue
-                        </Link>
-                        <button
-                          type="button"
-                          className="books-card-button books-card-button-dismiss"
-                          disabled={clearingContinue === item.bookId}
-                          aria-label={`Remove ${item.title} from continue reading`}
-                          onClick={async () => {
-                            setClearingContinue(item.bookId);
-                            await clearBookProgress(item.bookId);
-                            setContinueReading(prev => prev.filter(b => b.bookId !== item.bookId));
-                            setClearingContinue(null);
-                          }}
-                        >
-                          {clearingContinue === item.bookId ? "..." : "×"}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
           </div>
 
           <div className="books-feature-panel">
@@ -284,6 +245,56 @@ export function BooksWorkspace({
             </div>
           </div>
         </section>
+
+        {/* ── Continue Reading — dedicated section, not inside the hero ── */}
+        {continueReading && continueReading.length > 0 ? (
+          <section className="books-continue-section-standalone">
+            <div className="books-continue-header">
+              <h2 className="books-eyebrow">Continue Reading</h2>
+              <p className="books-copy" style={{ margin: 0, fontSize: "0.88rem" }}>
+                {continueReading.length} book{continueReading.length !== 1 ? "s" : ""} in progress
+              </p>
+            </div>
+            <div className="books-continue-scroll">
+              {continueReading.map((item) => (
+                <div key={item.bookId} className="books-continue-card-v2">
+                  <div className="books-continue-card-top">
+                    <strong className="books-continue-card-title">{item.title}</strong>
+                    <span className="books-continue-card-author">{item.author || "Project Gutenberg"}</span>
+                  </div>
+                  <div className="books-continue-progress-bar">
+                    <div
+                      className="books-continue-progress-fill"
+                      style={{ width: `${Math.round(item.percent * 100)}%` }}
+                    />
+                  </div>
+                  <p className="books-continue-card-page">
+                    Page {item.currentPage} of {item.totalPages} · {Math.round(item.percent * 100)}%
+                  </p>
+                  <div className="books-continue-card-actions">
+                    <Link href={`/books/${item.bookId}/read`} className="books-card-button books-card-button-primary">
+                      Continue
+                    </Link>
+                    <button
+                      type="button"
+                      className="books-card-button books-card-button-dismiss"
+                      disabled={clearingContinue === item.bookId}
+                      aria-label={`Remove ${item.title} from continue reading`}
+                      onClick={async () => {
+                        setClearingContinue(item.bookId);
+                        await clearBookProgress(item.bookId);
+                        setContinueReading((prev) => prev.filter((b) => b.bookId !== item.bookId));
+                        setClearingContinue(null);
+                      }}
+                    >
+                      {clearingContinue === item.bookId ? "..." : "×"}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <section className="books-library">
           <div className="books-section-head">

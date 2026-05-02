@@ -226,9 +226,15 @@ function isSafeAnimeImageCandidate(
 
   const normalizedGenres = genres.map((genre) => genre.toLowerCase());
   const title = candidate.title || candidate.name || "";
-  const overview = candidate.overview || "";
   const hasAnimationGenre = normalizedGenres.some((genre) => genre.includes("animation") || genre.includes("anime"));
   const hasJapaneseOrigin = candidate.original_language === "ja";
+  
+  // Strict requirement: TMDB tags virtually all anime with "Animation".
+  // If it's missing, it's highly likely to be a live-action adaptation or unrelated.
+  if (!hasAnimationGenre) {
+    return false;
+  }
+
   const titleHasStrongMatch = titles.some((entry) => {
     const normalizedEntry = normalizeTitle(entry);
     const normalizedTitle = normalizeTitle(title);
@@ -239,15 +245,7 @@ function isSafeAnimeImageCandidate(
     );
   });
 
-  if (hasAnimationGenre) {
-    return true;
-  }
-
-  if (!hasJapaneseOrigin) {
-    return false;
-  }
-
-  return titleHasStrongMatch && isLikelyAnime(title, genres, overview, type);
+  return hasJapaneseOrigin && titleHasStrongMatch;
 }
 
 function dedupeImageUrls(images: Array<string | null | undefined>) {
@@ -689,10 +687,17 @@ export async function getTmdbMediaDetails(id: number, type: "movie" | "tv") {
   const externalLinks: Array<{ name: string; url: string }> = providersFlat
     .filter((provider: { provider_name: string }) => validProviders.includes(provider.provider_name))
     .map((provider: { provider_name: string }) => ({ name: provider.provider_name, url: usProviders?.link || "" }));
+  // Only use official trailers/teasers — exclude clips, featurettes, BTS, and analysis content
+  const ALLOWED_TRAILER_TYPES = new Set(["Trailer", "Teaser"]);
+  const EXCLUDED_TRAILER_TYPES = new Set(["Clip", "Featurette", "Behind the Scenes", "Bloopers", "Opening Credits"]);
+  const filteredVideos = videos.results.filter(
+    (entry) => entry.site === "YouTube" && ALLOWED_TRAILER_TYPES.has(entry.type) && !EXCLUDED_TRAILER_TYPES.has(entry.type),
+  );
   const trailer =
-    videos.results.find((entry) => entry.site === "YouTube" && entry.type === "Trailer" && entry.official) ??
-    videos.results.find((entry) => entry.site === "YouTube" && entry.type === "Trailer") ??
-    videos.results.find((entry) => entry.site === "YouTube" && entry.type === "Teaser");
+    filteredVideos.find((entry) => entry.type === "Trailer" && entry.official) ??
+    filteredVideos.find((entry) => entry.type === "Trailer") ??
+    filteredVideos.find((entry) => entry.type === "Teaser" && entry.official) ??
+    filteredVideos.find((entry) => entry.type === "Teaser");
 
   return {
     ...media,

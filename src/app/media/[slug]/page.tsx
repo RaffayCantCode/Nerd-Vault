@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopBar } from "@/components/app-topbar";
@@ -2530,6 +2531,24 @@ async function getRelatedMediaRailUncached(media: MediaItem) {
   return dedupeItems([...mergedMatches, ...emergencyFallback]).slice(0, media.type === "game" ? 10 : 12);
 }
 
+async function DeferredRelatedRail({ media, franchiseSection }: { media: MediaItem, franchiseSection: any }) {
+  const related = await getRelatedMediaRail(media).catch(() => [] as MediaItem[]);
+  const franchiseIds = new Set([
+    ...(franchiseSection?.entries.map((entry: any) => entry.id) ?? []),
+    ...(franchiseSection?.secondaryEntries?.map((entry: any) => entry.id) ?? []),
+  ]);
+  const filteredRelated = related.filter((item) => !franchiseIds.has(item.id));
+
+  return (
+    <ExpandableRelatedSection
+      related={filteredRelated}
+      franchiseSection={franchiseSection ?? undefined}
+      mediaTitle={media.title}
+      showFranchiseSection
+    />
+  );
+}
+
 export default async function MediaDetailPage({
   params,
   searchParams,
@@ -2634,19 +2653,13 @@ export default async function MediaDetailPage({
     entries: [],
   };
 
-  const [related, franchiseSection, dbData] = await Promise.all([
-    getRelatedMediaRail(media).catch(() => [] as MediaItem[]),
+  const [franchiseSection, dbData] = await Promise.all([
     buildFranchiseSection(media, animeFranchise).catch(() => null),
     dbPromise,
   ]);
   const [shellData, library] = dbData;
   const sidebarFolders = shellData?.folders ?? [];
   const seriesContext = buildSeriesContext(media, franchiseSection);
-  const franchiseIds = new Set([
-    ...(franchiseSection?.entries.map((entry) => entry.id) ?? []),
-    ...(franchiseSection?.secondaryEntries?.map((entry) => entry.id) ?? []),
-  ]);
-  const filteredRelated = related.filter((item) => !franchiseIds.has(item.id));
   const runtimeLabel =
     media.type === "game"
       ? "Platforms"
@@ -2731,39 +2744,40 @@ export default async function MediaDetailPage({
             <div className="detail-content">
               <DetailBackButton />
 
-              {media.details.trailerUrl && (
-                <div className="detail-trailer-wrapper" style={{ marginTop: 24, marginBottom: 32, aspectRatio: "16/9", width: "100%", maxWidth: 1000, marginInline: "auto", borderRadius: 12, overflow: "hidden", background: "#000" }}>
-                  <iframe 
+              {/* Theater-style trailer — dominant above the info box */}
+              {media.details.trailerUrl ? (
+                <div className="detail-theater-wrapper">
+                  <iframe
+                    className="detail-theater-frame"
                     src={getTrailerEmbedUrl(media.details.trailerUrl) ?? ""}
-                    style={{ width: "100%", height: "100%", border: "none" }}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    title={`${media.title} — Official Trailer`}
+                    allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     allowFullScreen
                   />
                 </div>
-              )}
+              ) : null}
 
-              <div className="detail-stage-grid" style={{ maxWidth: 1000, marginInline: "auto", display: "flex", flexWrap: "wrap", gap: 32 }}>
-                <aside className="detail-side-poster glass" style={{ width: 240, flexShrink: 0, marginInline: "auto" }}>
-                  <div className="detail-side-poster-media">
-                    <ResilientMediaImage item={media} loading="eager" decoding="async" fetchPriority="high" />
-                  </div>
+              {/* Wide info grid: poster + details side by side */}
+              <div className="detail-info-grid">
+                <aside className="detail-poster-col glass">
+                  <ResilientMediaImage item={media} loading="eager" decoding="async" fetchPriority="high" />
                 </aside>
 
-                <div className="detail-hero-copy" style={{ flex: 1, minWidth: 320 }}>
+                <div className="detail-copy-col">
                   <h1 className="display detail-display">{media.title}</h1>
-                  <div className="detail-meta-row" style={{ marginTop: 8, marginBottom: 16 }}>
+                  <div className="detail-meta-row">
                     <span className="detail-pill">{media.year}</span>
                     <span className="detail-pill">{genreValue}</span>
                     <span className="detail-pill">★ {media.rating.toFixed(1)}</span>
                     <span className="detail-pill">{releaseValue}</span>
                   </div>
-                  
-                  <div style={{ marginTop: 22, marginBottom: 32 }}>
+
+                  <div className="detail-actions-band">
                     <MediaActions item={media} viewerId={viewerId} />
                   </div>
 
                   {seriesContext || easterEgg ? (
-                    <div className="detail-hero-note-stack" style={{ marginBottom: 32 }}>
+                    <div className="detail-note-stack">
                       {seriesContext ? (
                         <div className="detail-context-note glass">
                           <p className="eyebrow">{seriesContext.relationshipLabel}</p>
@@ -2779,20 +2793,20 @@ export default async function MediaDetailPage({
                     </div>
                   ) : null}
 
-                  <div className="detail-structured-sections" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
-                    <section>
+                  <div className="detail-sections-stack">
+                    <section className="detail-section">
                       <h2 className="eyebrow">Description</h2>
                       <p className="copy detail-overview-copy">{aboutText}</p>
                     </section>
 
-                    <section>
+                    <section className="detail-section">
                       <h2 className="eyebrow">{media.type === "game" ? "Studio / Creatives" : "Cast / Characters"}</h2>
                       {spotlightCredits.length ? (
-                        <div className="detail-credit-stack" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 16, marginTop: 12 }}>
+                        <div className="detail-credits-grid">
                           {spotlightCredits.map((credit) => (
-                            <div key={`${credit.name}-${credit.role}`} className="detail-credit-row glass" style={{ padding: 12, borderRadius: 8 }}>
+                            <div key={`${credit.name}-${credit.role}`} className="detail-credit-chip glass">
                               <strong>{credit.name}</strong>
-                              <p className="copy" style={{ fontSize: 13, opacity: 0.8, margin: 0 }}>{credit.role}{credit.character ? ` | ${credit.character}` : ""}</p>
+                              <span>{credit.role}{credit.character ? ` · ${credit.character}` : ""}</span>
                             </div>
                           ))}
                         </div>
@@ -2801,15 +2815,33 @@ export default async function MediaDetailPage({
                       )}
                     </section>
 
-                    <section>
-                      <h2 className="eyebrow">{studioLabel}</h2>
-                      <p className="copy">{studioValue}</p>
-                    </section>
+                    <div className="detail-meta-grid">
+                      <section className="detail-section">
+                        <h2 className="eyebrow">{studioLabel}</h2>
+                        <p className="copy">{studioValue}</p>
+                      </section>
+                      <section className="detail-section">
+                        <h2 className="eyebrow">{runtimeLabel}</h2>
+                        <p className="copy">{runtimeValue}</p>
+                      </section>
+                      <section className="detail-section">
+                        <h2 className="eyebrow">Status</h2>
+                        <p className="copy">{statusValue}</p>
+                      </section>
+                      {sourceReference.url ? (
+                        <section className="detail-section">
+                          <h2 className="eyebrow">Source</h2>
+                          <a href={sourceReference.url} target="_blank" rel="noreferrer" className="copy detail-source-link">
+                            {sourceReference.label} ↗
+                          </a>
+                        </section>
+                      ) : null}
+                    </div>
 
                     {media.details.externalLinks && media.details.externalLinks.length > 0 && (
-                      <section>
+                      <section className="detail-section">
                         <h2 className="eyebrow">Watch / Buy</h2>
-                        <div className="button-row" style={{ marginTop: 12 }}>
+                        <div className="button-row" style={{ marginTop: 10 }}>
                           {media.details.externalLinks.map((link) => (
                             <a
                               key={link.name}
@@ -2906,12 +2938,18 @@ export default async function MediaDetailPage({
           </section>
           */}
 
-          <ExpandableRelatedSection
-            related={filteredRelated}
-            franchiseSection={franchiseSection ?? undefined}
-            mediaTitle={media.title}
-            showFranchiseSection
-          />
+          <Suspense fallback={
+            <div className="section-stack" style={{ paddingTop: 0 }}>
+              <div className="section-header">
+                <div>
+                  <p className="eyebrow">Related context</p>
+                  <h2 className="headline">Loading related titles...</h2>
+                </div>
+              </div>
+            </div>
+          }>
+            <DeferredRelatedRail media={media} franchiseSection={franchiseSection} />
+          </Suspense>
         </main>
       </div>
     </div>
