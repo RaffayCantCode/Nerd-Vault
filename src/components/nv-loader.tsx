@@ -1,11 +1,13 @@
 "use client";
 
+import { memo } from "react";
+
 type NVLoaderProps = {
   label?: string;
   compact?: boolean;
 };
 
-export function NVLoader({
+export const NVLoader = memo(function NVLoader({
   label = "Loading your vault...",
   compact = false,
 }: NVLoaderProps) {
@@ -19,4 +21,4 @@ export function NVLoader({
       <p className="copy nv-loader-label">{label}</p>
     </div>
   );
-}
+});

@@ -27,6 +27,13 @@ html {
 
 .catalog-grid {
   contain: layout paint;
+  will-change: transform;
+}
+
+.catalog-card {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .catalog-card,
@@ -95,14 +102,27 @@ html {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    width: 48px !important;
-    height: 48px !important;
+    width: 52px !important;
+    height: 52px !important;
     margin: 0 auto 12px auto !important;
     padding: 0 !important;
   }
 
   .sidebar.sidebar-rail:hover .brand.brand-rail {
     margin-left: 0 !important;
+  }
+
+  .brand-mark-logo {
+    width: 100% !important;
+    height: 100% !important;
+    display: flex !important;
+  }
+
+  .brand-logo-image {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: 14px !important;
   }
 
   .sidebar-nav-button {
@@ -114,7 +134,7 @@ html {
     padding: 0 !important;
     border-radius: 14px !important;
     gap: 16px !important;
-    transition: all 0.2s ease !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
     color: var(--muted) !important;
     margin: 0 auto !important;
     position: relative !important;
@@ -123,7 +143,7 @@ html {
   .sidebar.sidebar-rail:hover .sidebar-nav-button {
     width: 100% !important;
     justify-content: flex-start !important;
-    padding: 0 12px !important;
+    padding: 0 20px !important; /* Increased padding to center better */
     margin: 0 !important;
   }
 
@@ -215,6 +235,7 @@ html {
   .sidebar.sidebar-rail:hover .sidebar-icon-button {
     width: 100% !important;
     justify-content: flex-start !important;
+    padding: 0 20px !important;
     margin: 0 !important;
   }
 
@@ -255,6 +276,7 @@ html {
   .sidebar.sidebar-rail:hover .sidebar-signout-button {
     width: 100% !important;
     justify-content: flex-start !important;
+    padding: 0 20px !important;
     margin: 0 !important;
   }
 
@@ -2272,6 +2294,7 @@ input {
   height: 100%;
   object-fit: cover;
   transition: transform 260ms ease;
+  will-change: transform;
 }
 
 .surfacing-card:hover .surfacing-backdrop img {
@@ -13284,6 +13307,7 @@ html {
 
 .hero-backdrop-img {
   animation: heroBackdropFade 1.2s ease-out;
+  will-change: opacity, filter;
 }
 
 @keyframes heroBackdropFade {
@@ -13427,6 +13451,55 @@ html {
     flex: 1;
     text-align: center;
   }
+}
+
+/* --- GLOBAL PERFORMANCE & SMOOTHNESS --- */
+.img-loaded-wrapper {
+  opacity: 0;
+  transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: opacity, transform;
+}
+
+.img-loaded-wrapper.img-loaded {
+  opacity: 1;
+}
+
+.img-loading {
+  filter: blur(4px);
+  transform: scale(1.02);
+}
+
+.img-loaded {
+  filter: blur(0);
+  transform: scale(1);
+}
+
+/* Page transitions */
+.workspace {
+  animation: pageFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Optimize scrolling */
+* {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Hardware acceleration for common moving elements */
+.sidebar, .catalog-card, .workspace-hero, .detail-hero, .app-topbar {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
 }
 
 /* --- MOBILE RESPONSIVENESS & TOUCH OPTIMIZATION --- */

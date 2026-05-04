@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { memo, useEffect } from "react";
 import { primeLibraryState, primeProfilePayload } from "@/lib/vault-client";
 import { LibraryState, VaultProfilePayload } from "@/lib/vault-types";
 
-export function VaultClientPrimer({
+export const VaultClientPrimer = memo(function VaultClientPrimer({
   library,
   profile,
   profileUserId,
@@ -24,4 +24,4 @@ export function VaultClientPrimer({
   }, [library, profile, profileUserId]);
 
   return null;
-}
+});

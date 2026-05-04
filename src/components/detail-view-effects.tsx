@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 
-export function DetailViewEffects() {
+export const DetailViewEffects = memo(function DetailViewEffects() {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
@@ -18,4 +18,4 @@ export function DetailViewEffects() {
   }, []);
 
   return <div className={`detail-view-fade ${isReady ? "is-ready" : ""}`} aria-hidden="true" />;
-}
+});

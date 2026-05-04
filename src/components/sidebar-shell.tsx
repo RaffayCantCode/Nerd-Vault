@@ -1,9 +1,9 @@
 "use client";
 
-import { ReactNode, useEffect, useRef, useState } from "react";
+import { memo, ReactNode, useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
-export function SidebarShell({ children }: { children: ReactNode }) {
+export const SidebarShell = memo(function SidebarShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -124,4 +124,4 @@ export function SidebarShell({ children }: { children: ReactNode }) {
       {children}
     </div>
   );
-}
+});

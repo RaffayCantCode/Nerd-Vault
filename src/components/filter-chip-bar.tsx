@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { MediaType } from "@/lib/types";
 
 type FilterChipBarProps = {
@@ -9,7 +10,7 @@ type FilterChipBarProps = {
 
 const filters: Array<MediaType | "all"> = ["all", "movie", "show", "anime", "game"];
 
-export function FilterChipBar({ active, onChange }: FilterChipBarProps) {
+export const FilterChipBar = memo(function FilterChipBar({ active, onChange }: FilterChipBarProps) {
   return (
     <div className="chip-row">
       {filters.map((filter) => (
@@ -24,4 +25,4 @@ export function FilterChipBar({ active, onChange }: FilterChipBarProps) {
       ))}
     </div>
   );
-}
+});

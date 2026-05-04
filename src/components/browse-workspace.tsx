@@ -156,7 +156,7 @@ function formatSurfacingLabel(type: MediaType) {
   return "Movies";
 }
 
-export function BrowseWorkspace({
+export const BrowseWorkspace = memo(function BrowseWorkspace({
   catalog,
   surfacingCatalog,
   discoverySeed,
@@ -801,4 +801,4 @@ export function BrowseWorkspace({
       </section>
     </div>
   );
-}
+});

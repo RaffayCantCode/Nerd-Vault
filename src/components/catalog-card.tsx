@@ -59,15 +59,19 @@ export const CatalogCard = memo(function CatalogCard({
     }
 
     warmedRef.current = true;
-    const cover = new Image();
-    cover.decoding = "async";
-    cover.src = optimizeMediaImageUrl(item.coverUrl, priority ? "cover" : "thumb") ?? item.coverUrl;
+    
+    // Low priority preloading to avoid main thread lag
+    window.requestIdleCallback?.(() => {
+      const cover = new Image();
+      cover.decoding = "async";
+      cover.src = optimizeMediaImageUrl(item.coverUrl, priority ? "cover" : "thumb") ?? item.coverUrl;
 
-    if (priority) {
-      const backdrop = new Image();
-      backdrop.decoding = "async";
-      backdrop.src = optimizeMediaImageUrl(item.backdropUrl, "backdrop") ?? item.backdropUrl;
-    }
+      if (priority) {
+        const backdrop = new Image();
+        backdrop.decoding = "async";
+        backdrop.src = optimizeMediaImageUrl(item.backdropUrl, "backdrop") ?? item.backdropUrl;
+      }
+    }, { timeout: 2000 });
   }
 
   function handleNavigate(event: React.MouseEvent) {

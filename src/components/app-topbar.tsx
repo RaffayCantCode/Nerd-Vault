@@ -1,7 +1,7 @@
 "use client";
 
+import { memo, useEffect, useState } from "react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { signOutUser } from "@/app/sign-in/sign-out-action";
 import {
   acceptFriend,
@@ -22,7 +22,7 @@ type AppTopBarProps = {
   initialFriends?: SocialProfile[];
 }
 
-export function AppTopBar({
+export const AppTopBar = memo(function AppTopBar({
   viewerId,
   viewerName,
   viewerAvatar,
@@ -296,4 +296,4 @@ export function AppTopBar({
       </div>
     </section>
   );
-}
+});

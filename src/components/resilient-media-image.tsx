@@ -82,7 +82,12 @@ export function ResilientMediaImage({
     }
   }, [onLoadStateChange, src]);
 
-  const combinedClass = [className, "img-loaded-wrapper", loaded ? "img-loaded" : ""].filter(Boolean).join(" ");
+  const combinedClass = [
+    className, 
+    "img-loaded-wrapper", 
+    loaded ? "img-loaded" : "img-loading",
+    loading === "eager" ? "img-eager" : "img-lazy"
+  ].filter(Boolean).join(" ");
 
   return (
     <img
@@ -94,7 +99,11 @@ export function ResilientMediaImage({
       decoding={decoding}
       fetchPriority={fetchPriority}
       draggable={false}
-      style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)), #0b1018" }}
+      style={{ 
+        background: "rgba(255, 255, 255, 0.03)",
+        willChange: "transform, opacity",
+        backfaceVisibility: "hidden"
+      }}
       onLoad={() => {
         setLoaded(true);
         onLoadStateChange?.(true);
