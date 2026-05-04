@@ -241,6 +241,7 @@ enum MediaSource {
   tmdb
   igdb
   jikan
+  anilist
   local
 }
 

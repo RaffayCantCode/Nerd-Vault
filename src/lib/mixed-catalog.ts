@@ -1,5 +1,5 @@
 import { browseIgdbGames } from "@/lib/sources/igdb";
-import { browseJikanAnime } from "@/lib/sources/jikan";
+import { browseAniListAnime } from "@/lib/sources/anilist";
 import { browseTmdbCatalog } from "@/lib/sources/tmdb";
 import { itemMatchesGenre } from "@/lib/catalog-utils";
 import { dedupeMediaKey, rankCandidatesForQuery, validateSearchResults } from "@/lib/search-utils";
@@ -137,7 +137,7 @@ async function fetchSourcePage(
   }
 
   if (source === "anime") {
-    return browseJikanAnime({
+    return browseAniListAnime({
       page,
       query,
       genre,
@@ -308,28 +308,17 @@ export async function browseMixedCatalog({
             });
 
             const primarySlice = result.items.slice(plans[source].startOffset, plans[source].startOffset + plans[source].allocation);
-            const overflowSlice = result.items.slice(plans[source].startOffset + plans[source].allocation);
 
             return {
               source,
               totalResults: result.totalResults,
               primarySlice,
-              overflowSlice,
             };
           }),
         );
 
         const pageItems = dedupeBySource(interleaveBuckets(...windows.map((entry) => entry.primarySlice)));
-        const seenKeys = new Set(pageItems.map((item) => `${item.source}-${item.sourceId}`));
-        const overflowItems = interleaveBuckets(...windows.map((entry) => entry.overflowSlice)).filter((item) => {
-          const key = `${item.source}-${item.sourceId}`;
-          if (seenKeys.has(key)) {
-            return false;
-          }
-          seenKeys.add(key);
-          return true;
-        });
-        const stableItems = validateSearchResults([...pageItems, ...overflowItems].slice(0, safePageSize));
+        const stableItems = validateSearchResults(pageItems.slice(0, safePageSize));
         const totalResults = windows.reduce((sum, entry) => sum + entry.totalResults, 0);
 
         return {

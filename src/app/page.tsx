@@ -119,11 +119,11 @@ export default async function HomePage() {
                 </div>
                 <h3 className="feature-title">Rich Media Database</h3>
                 <p className="feature-description">
-                  Powered by TMDB, Jikan, and IGDB for comprehensive coverage across movies, shows, anime, and games
+                  Powered by TMDB, AniList, and IGDB for comprehensive coverage across movies, shows, anime, and games
                 </p>
                 <div className="feature-tech">
                   <span className="tech-badge">TMDB</span>
-                  <span className="tech-badge">Jikan</span>
+                  <span className="tech-badge">AniList</span>
                   <span className="tech-badge">IGDB</span>
                 </div>
               </div>

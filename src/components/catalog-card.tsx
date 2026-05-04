@@ -79,16 +79,23 @@ export function CatalogCard({
     setIsNavigating(true);
     onBeforeNavigate?.();
 
+    const currentPath =
+      typeof window !== "undefined"
+        ? `${window.location.pathname}${window.location.search}${window.location.hash}`
+        : undefined;
+    const isBrowseRoute = typeof window !== "undefined" && window.location.pathname.startsWith("/browse");
     const currentHref =
       typeof window !== "undefined"
-        ? window.sessionStorage.getItem(BROWSE_LAST_URL_KEY) || `${window.location.pathname}${window.location.search}`
+        ? isBrowseRoute
+          ? window.sessionStorage.getItem(BROWSE_LAST_URL_KEY) || currentPath
+          : currentPath
         : undefined;
 
     writeDetailReturnTarget({ href: currentHref });
 
-    if (typeof window !== "undefined") {
+    if (typeof window !== "undefined" && isBrowseRoute) {
       writeBrowseReturnContext({
-        href: currentHref || `${window.location.pathname}${window.location.search}`,
+        href: currentHref || currentPath || `${window.location.pathname}${window.location.search}`,
         scrollY: window.scrollY,
         cardId: browseCardId,
         cardTop: cardRef.current?.getBoundingClientRect().top ?? 0,

@@ -1,7 +1,7 @@
 import { MediaItem } from "@/lib/types";
 import { rankCandidatesForQuery } from "@/lib/search-utils";
 import { matchesFranchise, isLikelyAnime } from "@/lib/franchise-utils";
-import { browseJikanAnime } from "@/lib/sources/jikan";
+import { browseAniListAnime } from "@/lib/sources/anilist";
 import { getMediaFallbackImage } from "@/lib/media-fallbacks";
 
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
@@ -114,7 +114,7 @@ async function tmdbFetch<T>(path: string) {
 
   const apiKey = process.env.TMDB_API_KEY;
   if (!apiKey) {
-    throw new Error("Missing TMDB_API_KEY");
+    throw new Error("Movie and show data is unavailable because TMDB_API_KEY is not configured.");
   }
 
   const connector = path.includes("?") ? "&" : "?";
@@ -123,7 +123,15 @@ async function tmdbFetch<T>(path: string) {
   });
 
   if (!response.ok) {
-    throw new Error(`TMDB request failed for ${path}`);
+    if (response.status === 401 || response.status === 403) {
+      throw new Error("Movie and show data is unavailable because TMDB_API_KEY is invalid.");
+    }
+
+    if (response.status === 429) {
+      throw new Error("TMDB is rate limiting requests right now. Please try again in a moment.");
+    }
+
+    throw new Error("Movie and show data could not be loaded right now.");
   }
 
   const payload = (await response.json()) as T;
@@ -369,7 +377,7 @@ function mapMovieOrShow(
 function isUsefulMovie(item: MediaItem) {
   const banned = new Set(["News", "Talk"]);
   
-  // Filter out anime content from TMDB movie API to prevent duplicates with Jikan
+  // Filter out anime content from TMDB movie API to prevent duplicates with AniList
   const isAnimeContent = isLikelyAnime(item.title, item.genres, item.overview, 'movie');
   
   return (
@@ -643,8 +651,8 @@ export async function browseTmdbCatalog(params: TmdbBrowseParams) {
   }
 
   if (params.type === "anime_movie" || params.type === "anime") {
-    // For anime types, delegate to Jikan anime catalog
-    return browseJikanAnime({
+    // For anime types, delegate to AniList anime catalog.
+    return browseAniListAnime({
       page,
       query,
       genre,

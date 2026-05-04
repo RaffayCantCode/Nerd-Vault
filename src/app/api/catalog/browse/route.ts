@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { browseIgdbGames } from "@/lib/sources/igdb";
-import { browseJikanAnime } from "@/lib/sources/jikan";
+import { browseAniListAnime } from "@/lib/sources/anilist";
 import { browseMixedCatalog } from "@/lib/mixed-catalog";
 import { browseTmdbCatalog } from "@/lib/sources/tmdb";
 import { MediaItem } from "@/lib/types";
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
 
     const fetchByType = async (targetPage: number): Promise<BrowsePayload> => {
       if (type === "anime") {
-        return browseJikanAnime({
+        return browseAniListAnime({
           page: targetPage,
           query,
           genre,

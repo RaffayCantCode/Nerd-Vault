@@ -1,4 +1,4 @@
-import { Prisma, PrivacyLevel as PrismaPrivacyLevel } from "@prisma/client";
+import { MediaSource as PrismaMediaSource, Prisma, PrivacyLevel as PrismaPrivacyLevel } from "@prisma/client";
 import { cache } from "react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -273,10 +273,11 @@ export async function ensureCurrentUserRecord() {
 
 export async function persistMediaItem(item: MediaItem, txArg?: Prisma.TransactionClient) {
   const tx = txArg ?? prisma;
+  const mediaSource = item.source as PrismaMediaSource;
   const media = await tx.media.upsert({
     where: {
       source_sourceId: {
-        source: item.source,
+        source: mediaSource,
         sourceId: item.sourceId,
       },
     },
@@ -309,7 +310,7 @@ export async function persistMediaItem(item: MediaItem, txArg?: Prisma.Transacti
       backdropUrl: item.backdropUrl,
       trailerUrl: null,
       language: item.language || "en",
-      source: item.source,
+      source: mediaSource,
       sourceId: item.sourceId,
     },
     include: {

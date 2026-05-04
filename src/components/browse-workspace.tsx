@@ -173,6 +173,14 @@ export function BrowseWorkspace({
   const initialQuery = searchParams.get("query") || "";
   const initialPage = Number(searchParams.get("page") || "1");
   const initialSeed = Number(searchParams.get("seed") || String(discoverySeed));
+  const initialCatalogItems = dedupeItems(catalog).filter(
+    (item) => !surfacingCatalog.some((featuredItem) => featuredItem.id === item.id),
+  );
+  const canHydrateFromBootstrap =
+    !initialQuery.trim() &&
+    initialGenre === "all" &&
+    (!initialSort || initialSort === "discovery") &&
+    normalizePage(initialPage) === 1;
 
   const [filter, setFilter] = useState<MediaType | "all">(
     initialFilter === "movie" || initialFilter === "show" || initialFilter === "anime" || initialFilter === "game"
@@ -189,10 +197,10 @@ export function BrowseWorkspace({
   const [payload, setPayload] = useState<BrowseApiPayload>({
     page: 1,
     totalPages: Math.max(1, initialTotalPages),
-    totalResults: 0,
-    items: [],
+    totalResults: initialCatalogItems.length,
+    items: canHydrateFromBootstrap ? initialCatalogItems.slice(0, DEFAULT_PAGE_SIZE) : [],
   });
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!canHydrateFromBootstrap);
   const [error, setError] = useState<string | null>(null);
   const [heroIndex, setHeroIndex] = useState(0);
   const [isHeroInView, setIsHeroInView] = useState(true);
@@ -637,10 +645,10 @@ export function BrowseWorkspace({
         <div className="browse-toolbar">
           <div className="browse-toolbar-grid">
             <div className="browse-toolbar-copy">
-              <p className="eyebrow">Search and browse</p>
-              <h2 className="headline">Clean paging, fuller shelves, and results that stay consistent from page to page.</h2>
+              <p className="eyebrow">Browse</p>
+              <h2 className="headline">Stable paging, cleaner shelves, and a feed that stays focused while you move through it.</h2>
               <p className="copy">
-                Each browse page is now loaded directly from stable source windows, with one fixed page size and no shrinking result grid.
+                Each page keeps its own result window, the featured shelf stays separate, and the live search stays within reach while you scroll.
               </p>
             </div>
 
@@ -661,31 +669,6 @@ export function BrowseWorkspace({
           </div>
 
           <div className="browse-toolbar-row">
-            <form className="browse-live-search" onSubmit={handleSubmit}>
-              <label className="sort-label" htmlFor="browse-live-search">Search</label>
-              <div className="browse-live-search-row">
-                <input
-                  id="browse-live-search"
-                  className="browse-search-input"
-                  type="search"
-                  placeholder="Search titles, genres, or keywords..."
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                />
-                <button type="submit" className="button button-primary browse-search-submit">
-                  Search
-                </button>
-                {query.trim() ? (
-                  <button type="button" className="button button-secondary browse-search-clear" onClick={() => setQuery("")}>
-                    Clear
-                  </button>
-                ) : null}
-              </div>
-              <p className="copy browse-live-search-copy">
-                {deferredQuery.trim() ? `Searching for "${deferredQuery.trim()}"` : "Browse uses a fixed 48-title page size for a fuller grid."}
-              </p>
-            </form>
-
             <div className="search-cluster">
               <div className="sort-chip-block">
                 <p className="sort-label">Sort</p>
@@ -766,6 +749,33 @@ export function BrowseWorkspace({
         ) : null}
 
         {renderPager("bottom")}
+
+        <form className="browse-live-search browse-search-dock glass" onSubmit={handleSubmit}>
+          <label className="sort-label" htmlFor="browse-live-search">Search the current feed</label>
+          <div className="browse-live-search-row">
+            <input
+              id="browse-live-search"
+              className="browse-search-input"
+              type="search"
+              placeholder="Type to live-filter titles, genres, or keywords..."
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+            <button type="submit" className="button button-primary browse-search-submit">
+              Search
+            </button>
+            {query.trim() ? (
+              <button type="button" className="button button-secondary browse-search-clear" onClick={() => setQuery("")}>
+                Clear
+              </button>
+            ) : null}
+          </div>
+          <p className="copy browse-live-search-copy">
+            {deferredQuery.trim()
+              ? `Live results for "${deferredQuery.trim()}"`
+              : "Search stays docked below the feed so you can refine results without jumping back to the top."}
+          </p>
+        </form>
       </section>
     </div>
   );

@@ -1,5 +1,5 @@
 import { browseIgdbGames, getIgdbFranchiseEntries } from "@/lib/sources/igdb";
-import { browseJikanAnime, getJikanAnimeFranchise, getJikanAnimeDetails } from "@/lib/sources/jikan";
+import { browseAniListAnime, getAniListAnimeFranchise, getAniListAnimeDetails, getAniListAnimeDetailsByMalId, getAniListAnimeFranchiseByMalId } from "@/lib/sources/anilist";
 import { browseTmdbCatalog, getTmdbFranchiseEntries, getTmdbMediaDetails } from "@/lib/sources/tmdb";
 import { MediaItem, MediaType } from "@/lib/types";
 import { LibraryState } from "@/lib/vault-types";
@@ -244,7 +244,7 @@ async function gatherRelatedCandidates(type: MediaType, seeds: SignalSeed[]) {
     const results = await Promise.all(
       focusSeeds.flatMap((seed, index) =>
         buildSignals(seed.item).slice(0, 2).map((query, queryIndex) =>
-          browseJikanAnime({
+          browseAniListAnime({
             page: 1,
             query,
             sort: "rating",
@@ -285,13 +285,13 @@ async function gatherCandidates(type: MediaType, genres: string[], signals: stri
     const results = await Promise.all([
       ...genres.map((genre, index) =>
         withTimeout(
-          browseJikanAnime({ page: 1, genre, sort: index === 0 ? "rating" : "discovery", seed: 51 + index }),
+          browseAniListAnime({ page: 1, genre, sort: index === 0 ? "rating" : "discovery", seed: 51 + index }),
           emptyBrowseResult(),
         ),
       ),
       ...signals.map((query, index) =>
         withTimeout(
-          browseJikanAnime({ page: 1, query, sort: "rating", seed: 71 + index }),
+          browseAniListAnime({ page: 1, query, sort: "rating", seed: 71 + index }),
           emptyBrowseResult(),
         ),
       ),
@@ -347,16 +347,18 @@ function watchedItemsFromLibrary(library: LibraryState) {
 }
 
 async function findUpcomingForAnime(base: MediaItem, ownedKeys: Set<string>) {
-  if (base.source !== "jikan") return null;
+  if (base.source !== "anilist" && base.source !== "jikan") return null;
 
-  const franchise = await getJikanAnimeFranchise(Number(base.sourceId)).catch(() => null);
+  const franchise = await (base.source === "jikan"
+    ? getAniListAnimeFranchiseByMalId(Number(base.sourceId))
+    : getAniListAnimeFranchise(Number(base.sourceId))).catch(() => null);
   if (!franchise?.entries.length) return null;
 
   const today = new Date().toISOString().slice(0, 10);
   const currentOrder = parseInstallment(base.title) ?? 0;
   const nextEntry = franchise.entries.find((entry) => {
     if (!entry.releaseDate || entry.releaseDate <= today) return false;
-    if (ownedKeys.has(`jikan-${entry.id}`)) return false;
+    if (ownedKeys.has(`anilist-${entry.id}`) || ownedKeys.has(`jikan-${entry.id}`)) return false;
     const order = parseInstallment(entry.title) ?? 0;
     return order > currentOrder || entry.year >= base.year;
   });
@@ -366,9 +368,9 @@ async function findUpcomingForAnime(base: MediaItem, ownedKeys: Set<string>) {
   if (!nextReleaseDate) return null;
 
   const continuation: MediaItem = {
-    id: `jikan-${nextEntry.id}`,
+    id: `anilist-${nextEntry.id}`,
     slug: nextEntry.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""),
-    source: "jikan",
+    source: "anilist",
     sourceId: String(nextEntry.id),
     title: nextEntry.title,
     type: "anime",

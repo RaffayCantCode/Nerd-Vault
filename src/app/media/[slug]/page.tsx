@@ -5,6 +5,7 @@ import { AppTopBar } from "@/components/app-topbar";
 import { BrowseResetLink } from "@/components/browse-reset-link";
 import { DetailBackButton } from "@/components/detail-back-button";
 import { DetailGallery } from "@/components/detail-gallery";
+import { DetailTrailerPlayer } from "@/components/detail-trailer-player";
 import { DetailViewEffects } from "@/components/detail-view-effects";
 import { ExpandableRelatedSection } from "@/components/expandable-related-section";
 import { MediaActions } from "@/components/media-actions";
@@ -22,7 +23,13 @@ import {
   getIgdbGameDetails,
   getIgdbSimilarGamesForGame,
 } from "@/lib/sources/igdb";
-import { browseJikanAnime, getJikanAnimeDetails, getJikanAnimeFranchise } from "@/lib/sources/jikan";
+import {
+  browseAniListAnime,
+  getAniListAnimeDetails,
+  getAniListAnimeDetailsByMalId,
+  getAniListAnimeFranchise,
+  getAniListAnimeFranchiseByMalId,
+} from "@/lib/sources/anilist";
 import {
   browseTmdbCatalog,
   getTmdbCollectionItems,
@@ -246,30 +253,6 @@ function buildSynopsisPreview(media: MediaItem) {
   return preview.length > 185 ? `${preview.slice(0, 182).trimEnd()}...` : preview;
 }
 
-function getTrailerEmbedUrl(url?: string) {
-  if (!url) return null;
-
-  if (url.includes("youtube.com/embed/")) {
-    return `${url}${url.includes("?") ? "&" : "?"}autoplay=0&mute=0&controls=1&rel=0&playsinline=1&modestbranding=1&vq=hd1080`;
-  }
-
-  try {
-    const parsed = new URL(url);
-    if (parsed.hostname.includes("youtu.be")) {
-      const id = parsed.pathname.replace("/", "");
-      return id ? `https://www.youtube.com/embed/${id}?autoplay=0&mute=0&controls=1&rel=0&playsinline=1&modestbranding=1&vq=hd1080` : null;
-    }
-    if (parsed.hostname.includes("youtube.com")) {
-      const id = parsed.searchParams.get("v");
-      return id ? `https://www.youtube.com/embed/${id}?autoplay=0&mute=0&controls=1&rel=0&playsinline=1&modestbranding=1&vq=hd1080` : null;
-    }
-  } catch {
-    return null;
-  }
-
-  return null;
-}
-
 function formatDetailDate(date?: string, fallbackYear?: number) {
   if (date) {
     const parsed = new Date(`${date}T00:00:00`);
@@ -290,8 +273,8 @@ function buildSourceReference(media: MediaItem) {
     media.details.sourceLabel ??
     (media.source === "tmdb"
       ? "TMDB"
-      : media.source === "jikan"
-        ? "MyAnimeList"
+      : media.source === "anilist" || media.source === "jikan"
+        ? "AniList"
         : media.source === "igdb"
           ? "IGDB"
           : "Source");
@@ -1250,13 +1233,13 @@ async function buildFranchiseSectionUncached(media: MediaItem, animeFranchise?: 
   if (isAnimeContent && animeFranchise && (animeFranchise.seasonEntries?.length || animeFranchise.entries.length > 1)) {
     const sourceEntries = animeFranchise.seasonEntries?.length ? animeFranchise.seasonEntries : animeFranchise.entries;
     const mappedEntries = sourceEntries.map((entry) => ({
-      id: `jikan-${entry.id}`,
+      id: `anilist-${entry.id}`,
       title: normalizeDisplayTitle(entry.title),
       meta: [entry.year || "Year TBD", entry.rating ? `${entry.rating.toFixed(1)} / 10` : "Unrated", entry.episodes ? `${entry.episodes} episodes` : entry.status ?? "Unknown"].filter(Boolean).join(" / "),
       href: {
         pathname: `/media/${slugifyRouteValue(entry.title)}`,
         query: {
-          source: "jikan",
+          source: "anilist",
           sourceId: String(entry.id),
           type: "anime",
         },
@@ -1265,13 +1248,13 @@ async function buildFranchiseSectionUncached(media: MediaItem, animeFranchise?: 
       isActive: String(entry.id) === media.sourceId,
     }));
     const mappedMovies = (animeFranchise.movieEntries ?? []).map((entry) => ({
-      id: `jikan-${entry.id}`,
+      id: `anilist-${entry.id}`,
       title: normalizeDisplayTitle(entry.title),
       meta: [entry.year || "Year TBD", entry.rating ? `${entry.rating.toFixed(1)} / 10` : "Unrated", entry.status ?? "Movie"].filter(Boolean).join(" / "),
       href: {
         pathname: `/media/${slugifyRouteValue(entry.title)}`,
         query: {
-          source: "jikan",
+          source: "anilist",
           sourceId: String(entry.id),
           type: "anime",
         },
@@ -1542,9 +1525,9 @@ async function findRemoteMediaBySlug(slug: string, preferredSource?: string, pre
     }
   }
 
-  if (preferredType === "anime" && (!preferredSource || preferredSource === "jikan")) {
+  if (preferredType === "anime" && (!preferredSource || preferredSource === "anilist" || preferredSource === "jikan")) {
     const quickAnime = await withTimeout(
-      browseJikanAnime({ page: 1, query: slugWords || slug, sort: "rating", seed: 3 }).catch(() => emptyBrowseResult()),
+      browseAniListAnime({ page: 1, query: slugWords || slug, sort: "rating", seed: 3 }).catch(() => emptyBrowseResult()),
       emptyBrowseResult(),
       2800,
     );
@@ -1552,10 +1535,10 @@ async function findRemoteMediaBySlug(slug: string, preferredSource?: string, pre
       (preferredSourceId
         ? quickAnime.items.find((item) => matchesIdentityCandidate(item, preferredSource, preferredSourceId, preferredType))
         : undefined) ?? quickAnime.items.find((item) => matchesSlugCandidate(item, slug));
-    if (animeHit?.source === "jikan") {
+    if (animeHit?.source === "anilist") {
       try {
-        const media = await getJikanAnimeDetails(Number(animeHit.sourceId));
-        const animeFranchise = await getJikanAnimeFranchise(Number(animeHit.sourceId)).catch(() => undefined);
+        const media = await getAniListAnimeDetails(Number(animeHit.sourceId));
+        const animeFranchise = await getAniListAnimeFranchise(Number(animeHit.sourceId)).catch(() => undefined);
         return { media, animeFranchise };
       } catch {
         /* fall through */
@@ -1596,9 +1579,9 @@ async function findRemoteMediaBySlug(slug: string, preferredSource?: string, pre
         preferredSource && preferredSource !== "tmdb"
           ? Promise.resolve(null)
           : browseTmdbCatalog({ type: "show", page: searchPage, query, sort: "rating", seed: 1 }).catch(() => null),
-        preferredSource && preferredSource !== "jikan"
+        preferredSource && preferredSource !== "anilist" && preferredSource !== "jikan"
           ? Promise.resolve(null)
-          : browseJikanAnime({ page: searchPage, query, sort: "rating", seed: 1 }).catch(() => null),
+          : browseAniListAnime({ page: searchPage, query, sort: "rating", seed: 1 }).catch(() => null),
         preferredSource && preferredSource !== "igdb"
           ? Promise.resolve(null)
           : browseIgdbGames({ page: searchPage, query, sort: "rating", seed: 1 }).catch(() => null),
@@ -1646,9 +1629,9 @@ async function findRemoteMediaBySlug(slug: string, preferredSource?: string, pre
         return { media };
       }
 
-    if (match.source === "jikan") {
-      const media = await getJikanAnimeDetails(Number(match.sourceId));
-      const animeFranchise = await getJikanAnimeFranchise(Number(match.sourceId)).catch(() => undefined);
+    if (match.source === "anilist") {
+      const media = await getAniListAnimeDetails(Number(match.sourceId));
+      const animeFranchise = await getAniListAnimeFranchise(Number(match.sourceId)).catch(() => undefined);
       return { media, animeFranchise };
     }
 
@@ -2178,10 +2161,10 @@ async function getFranchiseFallback(media: MediaItem, signals: string[]) {
 
     if (media.type === "anime" || media.type === "anime_movie") {
       const pages = await Promise.all([
-        withTimeout(browseJikanAnime({ page: 1, query: signal, sort: "rating", seed: 31 }).catch(() => emptyBrowseResult()), emptyBrowseResult(), 1400),
-        withTimeout(browseJikanAnime({ page: 2, query: signal, sort: "rating", seed: 32 }).catch(() => emptyBrowseResult()), emptyBrowseResult(), 1400),
+        withTimeout(browseAniListAnime({ page: 1, query: signal, sort: "rating", seed: 31 }).catch(() => emptyBrowseResult()), emptyBrowseResult(), 1400),
+        withTimeout(browseAniListAnime({ page: 2, query: signal, sort: "rating", seed: 32 }).catch(() => emptyBrowseResult()), emptyBrowseResult(), 1400),
         ...(backupSignal
-          ? [withTimeout(browseJikanAnime({ page: 1, query: backupSignal, sort: "newest", seed: 33 }).catch(() => emptyBrowseResult()), emptyBrowseResult(), 1400)]
+          ? [withTimeout(browseAniListAnime({ page: 1, query: backupSignal, sort: "newest", seed: 33 }).catch(() => emptyBrowseResult()), emptyBrowseResult(), 1400)]
           : []),
       ]);
       return dedupeItems(pages.flatMap((page) => page.items));
@@ -2304,14 +2287,14 @@ async function getRelatedMediaRailUncached(media: MediaItem) {
 
     const results = await Promise.allSettled([
       withTimeout(
-        browseJikanAnime({ page: 1, genre: primaryGenre, sort: "rating" }),
+        browseAniListAnime({ page: 1, genre: primaryGenre, sort: "rating" }),
         emptyBrowseResult(),
         700,
       ),
       ...(secondaryGenre
         ? [
             withTimeout(
-              browseJikanAnime({ page: 1, genre: secondaryGenre, sort: "discovery", seed: 9 }),
+              browseAniListAnime({ page: 1, genre: secondaryGenre, sort: "discovery", seed: 9 }),
               emptyBrowseResult(),
               650,
             ),
@@ -2320,20 +2303,20 @@ async function getRelatedMediaRailUncached(media: MediaItem) {
       ...(tertiaryGenre
         ? [
             withTimeout(
-              browseJikanAnime({ page: 1, genre: tertiaryGenre, sort: "discovery", seed: 11 }),
+              browseAniListAnime({ page: 1, genre: tertiaryGenre, sort: "discovery", seed: 11 }),
               emptyBrowseResult(),
               650,
             ),
           ]
         : []),
       withTimeout(
-        browseJikanAnime({ page: 1, sort: "rating", seed: 12 }),
+        browseAniListAnime({ page: 1, sort: "rating", seed: 12 }),
         emptyBrowseResult(),
         750,
       ),
       ...animeQueries.flatMap((query, index) => [
         withTimeout(
-          browseJikanAnime({ page: 1, query, sort: "rating", seed: 20 + index }),
+          browseAniListAnime({ page: 1, query, sort: "rating", seed: 20 + index }),
           emptyBrowseResult(),
           750,
         ),
@@ -2580,10 +2563,19 @@ export default async function MediaDetailPage({
     }
   }
 
+  if (!media && source === "anilist" && sourceId) {
+    try {
+      media = await getAniListAnimeDetails(Number(sourceId));
+      animeFranchise = await getAniListAnimeFranchise(Number(sourceId)).catch(() => undefined);
+    } catch {
+      media = undefined;
+    }
+  }
+
   if (!media && source === "jikan" && sourceId) {
     try {
-      media = await getJikanAnimeDetails(Number(sourceId));
-      animeFranchise = await getJikanAnimeFranchise(Number(sourceId)).catch(() => undefined);
+      media = await getAniListAnimeDetailsByMalId(Number(sourceId));
+      animeFranchise = await getAniListAnimeFranchiseByMalId(Number(sourceId)).catch(() => undefined);
     } catch {
       media = undefined;
     }
@@ -2689,6 +2681,10 @@ export default async function MediaDetailPage({
   const releaseValue = formatDetailDate(media.details.releaseDate, media.year);
   const genreValue = media.genres.length ? media.genres.slice(0, 4).join(" • ") : "Unknown";
   const sourceReference = buildSourceReference(media);
+  const externalLinks = media.details.externalLinks ?? [];
+  const primaryExternalLink = externalLinks[0];
+  const secondaryExternalLinks = externalLinks.slice(1);
+  const primaryExternalAction = media.type === "game" ? "Buy" : "Watch";
   const spotlightCredits = dedupeSpotlightCredits(media.credits).slice(0, 6);
   const gallery = uniqueGalleryImages(media).slice(0, 6);
   const moodLine = buildPremiseLine(media);
@@ -2731,6 +2727,13 @@ export default async function MediaDetailPage({
             initialProfile={shellData?.viewerProfile ?? null}
             initialFriends={shellData?.friends ?? []}
           />
+          {media.details.trailerUrl ? (
+            <DetailTrailerPlayer
+              title={media.title}
+              trailerUrl={media.details.trailerUrl}
+              sourceUrl={media.details.sourceUrl}
+            />
+          ) : null}
           <section className="detail-hero glass">
             <div className="hero-media">
               <img
@@ -2743,19 +2746,6 @@ export default async function MediaDetailPage({
             </div>
             <div className="detail-content">
               <DetailBackButton />
-
-              {/* Theater-style trailer — dominant above the info box */}
-              {media.details.trailerUrl ? (
-                <div className="detail-theater-wrapper">
-                  <iframe
-                    className="detail-theater-frame"
-                    src={getTrailerEmbedUrl(media.details.trailerUrl) ?? ""}
-                    title={`${media.title} — Official Trailer`}
-                    allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    allowFullScreen
-                  />
-                </div>
-              ) : null}
 
               {/* Wide info grid: poster + details side by side */}
               <div className="detail-info-grid">
@@ -2838,18 +2828,17 @@ export default async function MediaDetailPage({
                       ) : null}
                     </div>
 
-                    {media.details.externalLinks && media.details.externalLinks.length > 0 && (
+                    {externalLinks.length > 0 && (
                       <section className="detail-section">
-                        <h2 className="eyebrow">Watch / Buy</h2>
+                        <h2 className="eyebrow">{primaryExternalAction} / More sources</h2>
                         <div className="button-row" style={{ marginTop: 10 }}>
-                          {media.details.externalLinks.map((link) => (
-                            <a
-                              key={link.name}
-                              href={link.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="button button-secondary"
-                            >
+                          {primaryExternalLink ? (
+                            <a href={primaryExternalLink.url} target="_blank" rel="noreferrer" className="button button-primary">
+                              {primaryExternalAction} on {primaryExternalLink.name}
+                            </a>
+                          ) : null}
+                          {secondaryExternalLinks.map((link) => (
+                            <a key={link.name} href={link.url} target="_blank" rel="noreferrer" className="button button-secondary">
                               {link.name}
                             </a>
                           ))}

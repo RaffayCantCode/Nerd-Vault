@@ -1,5 +1,5 @@
 import { browseIgdbGames } from "@/lib/sources/igdb";
-import { browseJikanAnime } from "@/lib/sources/jikan";
+import { browseAniListAnime } from "@/lib/sources/anilist";
 import { browseTmdbCatalog } from "@/lib/sources/tmdb";
 import { MediaItem } from "@/lib/types";
 
@@ -146,17 +146,17 @@ async function getBootstrapSource(source: BootstrapSource, seed: number) {
   if (source === "anime") {
     const attempts = await Promise.all([
       withTimeout(
-        browseJikanAnime({ page: 1, query: "", genre: "", sort: "discovery", seed }).catch(() => fallback),
+        browseAniListAnime({ page: 1, query: "", genre: "", sort: "discovery", seed }).catch(() => fallback),
         fallback,
         2600,
       ),
       withTimeout(
-        browseJikanAnime({ page: 1, query: "", genre: "", sort: "rating", seed: seed + 13 }).catch(() => fallback),
+        browseAniListAnime({ page: 1, query: "", genre: "", sort: "rating", seed: seed + 13 }).catch(() => fallback),
         fallback,
         3200,
       ),
       withTimeout(
-        browseJikanAnime({ page: 2, query: "", genre: "", sort: "discovery", seed: seed + 19 }).catch(() => fallback),
+        browseAniListAnime({ page: 2, query: "", genre: "", sort: "discovery", seed: seed + 19 }).catch(() => fallback),
         fallback,
         3200,
       ),
