@@ -377,30 +377,33 @@ function mapMovieOrShow(
 function isUsefulMovie(item: MediaItem) {
   const banned = new Set(["News", "Talk"]);
   
-  // Filter out anime content from TMDB movie API to prevent duplicates with AniList
-  const isAnimeContent = isLikelyAnime(item.title, item.genres, item.overview, 'movie');
+  // Only exclude anime from TMDB if it's Japanese animation (which AniList covers better)
+  const isJapaneseAnimation = 
+    item.language === "ja" && 
+    item.genres.some(g => g.toLowerCase().includes("animation"));
   
   return (
-    item.language === "en" &&
-    item.year >= 1980 &&
+    item.language === "en" || item.language === "ja" || item.language === "ko" &&
+    item.year >= 1970 &&
     item.rating >= 5 &&
     !item.genres.some((genre) => banned.has(genre)) &&
-    !isAnimeContent // Exclude anime from movie results
+    !isJapaneseAnimation
   );
 }
 
 function isUsefulShow(item: MediaItem) {
   const banned = new Set(["News", "Talk", "Soap"]);
   
-  // Filter out anime content from TMDB show API
-  const isAnimeContent = isLikelyAnime(item.title, item.genres, item.overview, 'tv');
+  const isJapaneseAnimation = 
+    item.language === "ja" && 
+    item.genres.some(g => g.toLowerCase().includes("animation"));
   
   return (
-    item.language === "en" &&
-    item.rating >= 6.5 &&
-    item.year >= 1980 &&
+    (item.language === "en" || item.language === "ja") &&
+    item.rating >= 6 &&
+    item.year >= 1970 &&
     !banned.has(item.genres[0] ?? "") &&
-    !isAnimeContent // Exclude anime from show results
+    !isJapaneseAnimation
   );
 }
 
@@ -550,7 +553,14 @@ async function getTmdbMoviePageWithMode(
       : 80;
   const path = `/discover/movie?language=en-US&include_adult=false&sort_by=${sortBy}&page=${requestPage}&vote_count.gte=${voteFloor}&with_original_language=en${genreId ? `&with_genres=${genreId}` : ""}`;
   const payload = await tmdbFetch<TmdbPagedResponse>(path);
-  const primaryItems = payload.results.map((item) => mapMovieOrShow(item, "movie", movieGenres)).filter(isUsefulMovie);
+  let primaryItems = payload.results.map((item) => mapMovieOrShow(item, "movie", movieGenres)).filter(isUsefulMovie);
+
+  // If we filtered out too many items, fetch next page to fill up the results
+  if (primaryItems.length < 12 && payload.page < payload.total_pages) {
+    const nextPage = await tmdbFetch<TmdbPagedResponse>(path.replace(`page=${requestPage}`, `page=${requestPage + 1}`));
+    const extraItems = nextPage.results.map((item) => mapMovieOrShow(item, "movie", movieGenres)).filter(isUsefulMovie);
+    primaryItems = [...primaryItems, ...extraItems].slice(0, 20);
+  }
 
   return {
     page: payload.page,
@@ -612,7 +622,14 @@ async function getTmdbShowPageWithMode(
       : 50;
   const path = `/discover/tv?language=en-US&sort_by=${sortBy}&page=${requestPage}&vote_count.gte=${voteFloor}&with_original_language=en${genreId ? `&with_genres=${genreId}` : ""}`;
   const payload = await tmdbFetch<TmdbPagedResponse>(path);
-  const primaryItems = payload.results.map((item) => mapMovieOrShow(item, "show", tvGenres)).filter(isUsefulShow);
+  let primaryItems = payload.results.map((item) => mapMovieOrShow(item, "show", tvGenres)).filter(isUsefulShow);
+
+  // If we filtered out too many items, fetch next page to fill up the results
+  if (primaryItems.length < 12 && payload.page < payload.total_pages) {
+    const nextPage = await tmdbFetch<TmdbPagedResponse>(path.replace(`page=${requestPage}`, `page=${requestPage + 1}`));
+    const extraItems = nextPage.results.map((item) => mapMovieOrShow(item, "show", tvGenres)).filter(isUsefulShow);
+    primaryItems = [...primaryItems, ...extraItems].slice(0, 20);
+  }
 
   return {
     page: payload.page,

@@ -130,7 +130,7 @@ export function AppTopBar({
   }
 
   return (
-    <section className={`app-topbar glass ${(inboxOpen || profileMenuOpen) ? "is-layered" : ""}`}>
+    <section className={`app-topbar glass ${(inboxOpen || profileMenuOpen) ? "is-layered" : ""}`} style={{ marginBottom: "2rem" }}>
       <div className="app-topbar-meta">
         <p className="eyebrow">Vault hub</p>
         <p className="app-topbar-summary">Friends, inbox, and your account stay within reach.</p>

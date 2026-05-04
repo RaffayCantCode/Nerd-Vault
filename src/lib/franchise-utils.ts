@@ -181,7 +181,7 @@ export function getAnimeSeriesContext(rawTitle: string, type?: string) {
 /**
  * Determines if content is likely anime vs live-action based on multiple indicators
  */
-export function isLikelyAnime(title: string, genres?: string[], overview?: string, type?: string): boolean {
+export function isLikelyAnime(title: string, genres?: string[], overview?: string, type?: string, language?: string): boolean {
   const normalized = title.toLowerCase();
   const genreStr = genres?.join(' ').toLowerCase() || '';
   const overviewStr = overview?.toLowerCase() || '';
@@ -190,30 +190,28 @@ export function isLikelyAnime(title: string, genres?: string[], overview?: strin
   if (type === 'anime' || normalized.includes('anime') || normalized.includes('manga')) {
     return true;
   }
+
+  // Language check is a strong indicator for anime (Japanese)
+  const isJapanese = language === 'ja' || language === 'jp';
   
-  // Anime-specific genre indicators
-  const animeGenres = ['animation', 'anime', 'sci-fi & fantasy', 'fantasy', 'adventure', 'action & adventure'];
-  const hasAnimeGenre = genres?.some(g => animeGenres.some(ag => genreStr.includes(ag)));
-  
-  // Live-action indicators to exclude
-  const liveActionIndicators = ['live action', 'action', 'thriller', 'horror', 'drama', 'comedy'];
-  const hasLiveActionGenre = genres?.some(g => liveActionIndicators.some(lg => genreStr.includes(lg) && !g.includes('animation')));
+  // Animation is a required signal for TMDB entries to be considered anime
+  const isAnimation = genreStr.includes('animation');
+
+  if (isAnimation && isJapanese) return true;
   
   // Title indicators
-  const animeTitleIndicators = ['dragon ball', 'naruto', 'one piece', 'attack on titan', 'demon slayer', 'my hero academia'];
+  const animeTitleIndicators = ['dragon ball', 'naruto', 'one piece', 'attack on titan', 'demon slayer', 'my hero academia', 'jujutsu kaisen', 'bleach', 'fullmetal alchemist'];
   const hasAnimeTitle = animeTitleIndicators.some(indicator => normalized.includes(indicator));
   
+  if (hasAnimeTitle) return true;
+
   // Overview indicators
-  const animeOverviewIndicators = ['anime', 'manga', 'japanese', 'studio'];
+  const animeOverviewIndicators = ['anime series', 'manga series', 'japanese animation', 'anime adaptation'];
   const hasAnimeOverview = animeOverviewIndicators.some(indicator => overviewStr.includes(indicator));
   
-  // Decision logic
-  if (hasAnimeGenre && !hasLiveActionGenre) return true;
-  if (hasAnimeTitle || hasAnimeOverview) return true;
-  if (hasLiveActionGenre && !hasAnimeGenre) return false;
+  if (hasAnimeOverview) return true;
   
   // Default to non-anime unless we have a positive signal.
-  // This avoids polluting anime/franchise relationships with unrelated titles.
   return false;
 }
 

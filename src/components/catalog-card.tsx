@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { NVLoader } from "@/components/nv-loader";
 import { ResilientMediaImage } from "@/components/resilient-media-image";
 import { writeBrowseReturnContext, writeDetailReturnTarget } from "@/lib/detail-return";
@@ -18,7 +18,7 @@ function renderUserStars(rating?: number | null) {
   return `${"\u2605".repeat(rating)}${"\u2606".repeat(Math.max(0, 5 - rating))}`;
 }
 
-export function CatalogCard({
+export const CatalogCard = memo(function CatalogCard({
   item,
   priority = false,
   onBeforeNavigate,
@@ -216,4 +216,4 @@ export function CatalogCard({
       </div>
     </Link>
   );
-}
+});

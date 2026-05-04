@@ -679,7 +679,7 @@ export async function browseAniListAnime(params: AniListBrowseParams) {
   const requestPage = page + discoveryOffset;
   const payload = await fetchBrowsePage({
     page: requestPage,
-    perPage,
+    perPage: Math.max(perPage, 48), // Fetch more items initially to account for filtering
     genre,
     sort,
     seed,

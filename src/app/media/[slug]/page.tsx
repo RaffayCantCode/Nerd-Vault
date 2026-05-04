@@ -1489,7 +1489,19 @@ function matchesSlugCandidate(item: MediaItem, slug: string) {
 function matchesIdentityCandidate(item: MediaItem, preferredSource?: string, preferredSourceId?: string, preferredType?: string) {
   if (preferredSource && item.source !== preferredSource) return false;
   if (preferredSourceId && item.sourceId !== preferredSourceId) return false;
-  if (preferredType && item.type !== preferredType) return false;
+  
+  if (preferredType) {
+    // Allow anime and anime_movie to match each other
+    const isAnimeType = (t: string) => t === "anime" || t === "anime_movie";
+    if (isAnimeType(preferredType) && isAnimeType(item.type)) return true;
+    
+    // Allow movie and show to match each other if source is TMDB (sometimes they are misclassified)
+    const isTmdbMedia = (t: string) => t === "movie" || t === "show";
+    if (item.source === "tmdb" && isTmdbMedia(preferredType) && isTmdbMedia(item.type)) return true;
+
+    if (item.type !== preferredType) return false;
+  }
+  
   return true;
 }
 
@@ -1525,7 +1537,7 @@ async function findRemoteMediaBySlug(slug: string, preferredSource?: string, pre
     }
   }
 
-  if (preferredType === "anime" && (!preferredSource || preferredSource === "anilist" || preferredSource === "jikan")) {
+  if ((preferredType === "anime" || preferredType === "anime_movie") && (!preferredSource || preferredSource === "anilist" || preferredSource === "jikan")) {
     const quickAnime = await withTimeout(
       browseAniListAnime({ page: 1, query: slugWords || slug, sort: "rating", seed: 3 }).catch(() => emptyBrowseResult()),
       emptyBrowseResult(),
@@ -1537,8 +1549,9 @@ async function findRemoteMediaBySlug(slug: string, preferredSource?: string, pre
         : undefined) ?? quickAnime.items.find((item) => matchesSlugCandidate(item, slug));
     if (animeHit?.source === "anilist") {
       try {
-        const media = await getAniListAnimeDetails(Number(animeHit.sourceId));
-        const animeFranchise = await getAniListAnimeFranchise(Number(animeHit.sourceId)).catch(() => undefined);
+        const id = Number(animeHit.sourceId);
+        const media = await getAniListAnimeDetails(id);
+        const animeFranchise = await getAniListAnimeFranchise(id).catch(() => undefined);
         return { media, animeFranchise };
       } catch {
         /* fall through */
@@ -1546,8 +1559,8 @@ async function findRemoteMediaBySlug(slug: string, preferredSource?: string, pre
     }
   }
 
-  if ((preferredType === "movie" || preferredType === "show") && (!preferredSource || preferredSource === "tmdb")) {
-    const tmdbType = preferredType === "movie" ? "movie" : "show";
+  if ((preferredType === "movie" || preferredType === "show" || preferredType === "anime" || preferredType === "anime_movie") && (!preferredSource || preferredSource === "tmdb")) {
+    const tmdbType = (preferredType === "show" ? "show" : "movie");
     const quickTmdb = await withTimeout(
       browseTmdbCatalog({ type: tmdbType, page: 1, query: slugWords || slug, sort: "rating", seed: 3 }).catch(() => emptyBrowseResult()),
       emptyBrowseResult(),
@@ -1590,7 +1603,7 @@ async function findRemoteMediaBySlug(slug: string, preferredSource?: string, pre
       const matchPool = [
         ...(preferredType === "movie" ? movieCatalog?.items ?? [] : []),
         ...(preferredType === "show" ? showCatalog?.items ?? [] : []),
-        ...(preferredType === "anime" ? animeCatalog?.items ?? [] : []),
+        ...((preferredType === "anime" || preferredType === "anime_movie") ? animeCatalog?.items ?? [] : []),
         ...(preferredType === "game" ? gameCatalog?.items ?? [] : []),
         ...(preferredType ? [] : [
           ...(movieCatalog?.items ?? []),
@@ -1600,12 +1613,12 @@ async function findRemoteMediaBySlug(slug: string, preferredSource?: string, pre
         ].sort((a, b) => {
           // Prioritize anime for slugs that contain anime-like keywords
           const slugLower = (slugWords || slug).toLowerCase();
-          const animeKeywords = ['anime', 'manga', 'season', 'episode', 'dub', 'sub'];
+          const animeKeywords = ["anime", "manga", "season", "episode", "dub", "sub"];
           const hasAnimeKeywords = animeKeywords.some(keyword => slugLower.includes(keyword));
           
           if (hasAnimeKeywords) {
-            if (a.type === 'anime' && b.type !== 'anime') return -1;
-            if (b.type === 'anime' && a.type !== 'anime') return 1;
+            if ((a.type === "anime" || a.type === "anime_movie") && (b.type !== "anime" && b.type !== "anime_movie")) return -1;
+            if ((b.type === "anime" || b.type === "anime_movie") && (a.type !== "anime" && a.type !== "anime_movie")) return 1;
           }
           
           // Otherwise prioritize by rating/popularity
@@ -1624,16 +1637,17 @@ async function findRemoteMediaBySlug(slug: string, preferredSource?: string, pre
         continue;
       }
 
-      if (match.source === "tmdb" && (match.type === "movie" || match.type === "show")) {
-        const media = await getTmdbMediaDetails(Number(match.sourceId), match.type === "movie" ? "movie" : "tv");
+      if (match.source === "tmdb" && (match.type === "movie" || match.type === "show" || match.type === "anime" || match.type === "anime_movie")) {
+        const media = await getTmdbMediaDetails(Number(match.sourceId), (match.type === "show" ? "tv" : "movie"));
         return { media };
       }
 
-    if (match.source === "anilist") {
-      const media = await getAniListAnimeDetails(Number(match.sourceId));
-      const animeFranchise = await getAniListAnimeFranchise(Number(match.sourceId)).catch(() => undefined);
-      return { media, animeFranchise };
-    }
+      if (match.source === "anilist") {
+        const id = Number(match.sourceId);
+        const media = await getAniListAnimeDetails(id);
+        const animeFranchise = await getAniListAnimeFranchise(id).catch(() => undefined);
+        return { media, animeFranchise };
+      }
 
       if (match.source === "igdb") {
         const media = await getIgdbGameDetails(Number(match.sourceId));
@@ -2551,31 +2565,42 @@ export default async function MediaDetailPage({
     : Promise.resolve([null, null] as const);
 
   const { slug } = await params;
-  const { source, sourceId, type } = await searchParams;
+  const rawSearchParams = await searchParams;
+  const source = rawSearchParams.source === "undefined" ? undefined : rawSearchParams.source;
+  const sourceId = rawSearchParams.sourceId === "undefined" ? undefined : rawSearchParams.sourceId;
+  const type = rawSearchParams.type === "undefined" ? undefined : rawSearchParams.type;
+
   let media: MediaItem | undefined = getMediaBySlug(slug);
-  let animeFranchise: AnimeFranchiseData;
+  let animeFranchise: AnimeFranchiseData | undefined;
 
-  if (source === "tmdb" && sourceId && (type === "movie" || type === "show")) {
+  if (source === "tmdb" && sourceId) {
     try {
-      media = await getTmdbMediaDetails(Number(sourceId), type === "movie" ? "movie" : "tv");
+      const id = Number(sourceId);
+      // Try movie first, then tv if it fails, unless we're sure it's a show
+      if (type === "show") {
+        media = await getTmdbMediaDetails(id, "tv");
+      } else {
+        try {
+          media = await getTmdbMediaDetails(id, "movie");
+        } catch {
+          media = await getTmdbMediaDetails(id, "tv");
+        }
+      }
     } catch {
       media = undefined;
     }
   }
 
-  if (!media && source === "anilist" && sourceId) {
+  if (!media && (source === "anilist" || source === "jikan") && sourceId) {
     try {
-      media = await getAniListAnimeDetails(Number(sourceId));
-      animeFranchise = await getAniListAnimeFranchise(Number(sourceId)).catch(() => undefined);
-    } catch {
-      media = undefined;
-    }
-  }
-
-  if (!media && source === "jikan" && sourceId) {
-    try {
-      media = await getAniListAnimeDetailsByMalId(Number(sourceId));
-      animeFranchise = await getAniListAnimeFranchiseByMalId(Number(sourceId)).catch(() => undefined);
+      const id = Number(sourceId);
+      if (source === "anilist") {
+        media = await getAniListAnimeDetails(id);
+        animeFranchise = await getAniListAnimeFranchise(id).catch(() => undefined);
+      } else {
+        media = await getAniListAnimeDetailsByMalId(id);
+        animeFranchise = await getAniListAnimeFranchiseByMalId(id).catch(() => undefined);
+      }
     } catch {
       media = undefined;
     }
@@ -2611,6 +2636,17 @@ export default async function MediaDetailPage({
   if (!media) {
     try {
       const resolved = await findRemoteMediaBySlug(slug, source, type, sourceId);
+      media = resolved.media;
+      animeFranchise = resolved.animeFranchise;
+    } catch {
+      media = undefined;
+    }
+  }
+
+  // Last resort: if still no media, try a completely unconstrained search by slug
+  if (!media) {
+    try {
+      const resolved = await findRemoteMediaBySlug(slug);
       media = resolved.media;
       animeFranchise = resolved.animeFranchise;
     } catch {

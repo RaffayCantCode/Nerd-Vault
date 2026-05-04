@@ -1,7 +1,6 @@
 import { auth } from "@/lib/auth";
 import { getBrowseBootstrapCatalog, getBrowseDiscoverySeed } from "@/lib/browse-bootstrap";
 import { AppSidebar } from "@/components/app-sidebar";
-import { AppTopBar } from "@/components/app-topbar";
 import { BrowseWorkspace } from "@/components/browse-workspace";
 import { VaultClientPrimer } from "@/components/vault-client-primer";
 import { getLibraryStateForUser, getViewerShellData } from "@/lib/vault-server";
@@ -33,19 +32,17 @@ export default async function BrowsePage() {
             library={library}
             profile={shellData ? { ...shellData, viewedProfile: shellData.viewerProfile, watched: [], wishlist: [], canSeeWatched: true, canSeeWishlist: true, viewingOwnProfile: true } : null}
           />
-          <AppTopBar
-            viewerId={viewerId}
-            viewerName={viewerName}
-            viewerAvatar={viewerAvatar}
-            initialProfile={shellData?.viewerProfile ?? null}
-            initialFriends={shellData?.friends ?? []}
-          />
           <BrowseWorkspace
             catalog={bootstrapCatalog.catalog}
             surfacingCatalog={bootstrapCatalog.surfacing}
             discoverySeed={discoverySeed}
             initialBootstrapPageSize={bootstrapCatalog.catalog.length || 12}
             initialTotalPages={INITIAL_BROWSE_TOTAL_PAGES}
+            viewerId={viewerId}
+            viewerName={viewerName}
+            viewerAvatar={viewerAvatar}
+            initialProfile={shellData?.viewerProfile ?? null}
+            initialFriends={shellData?.friends ?? []}
           />
         </main>
       </div>

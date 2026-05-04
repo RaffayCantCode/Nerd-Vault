@@ -124,6 +124,15 @@ export function DetailTrailerPlayer({ title, trailerUrl, sourceUrl }: DetailTrai
       (entries) => {
         const entry = entries[0];
         if (entry?.isIntersecting) {
+          // Optional: Resume video when back in view
+          iframe.contentWindow?.postMessage(
+            JSON.stringify({
+              event: "command",
+              func: "playVideo",
+              args: [],
+            }),
+            "*",
+          );
           return;
         }
 
@@ -149,41 +158,8 @@ export function DetailTrailerPlayer({ title, trailerUrl, sourceUrl }: DetailTrai
   return (
     <section ref={sectionRef} className="detail-trailer-section glass">
       <div className="detail-trailer-head">
-        <div>
-          <p className="eyebrow">Trailer</p>
-          <h2 className="headline detail-trailer-title">{title}</h2>
-          <p className="copy detail-trailer-copy">
-            Starts muted for autoplay reliability. Click the player for sound, controls, and fullscreen.
-          </p>
-        </div>
-
-        <div className="detail-trailer-toolbar">
-          {supportsQualitySelection ? (
-            <div className="detail-trailer-quality" role="group" aria-label="Trailer quality">
-              {QUALITY_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  className={`chip ${quality === option.value ? "is-active" : ""}`}
-                  onClick={() => setQuality(option.value)}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          ) : null}
-
-          <div className="detail-trailer-actions">
-            <a href={fallbackUrl} target="_blank" rel="noreferrer" className="button button-secondary">
-              Open fallback
-            </a>
-            {sourceUrl ? (
-              <a href={sourceUrl} target="_blank" rel="noreferrer" className="button button-secondary">
-                Open source
-              </a>
-            ) : null}
-          </div>
-        </div>
+        <p className="eyebrow">Now Playing Trailer</p>
+        <h2 className="headline detail-trailer-title">{title}</h2>
       </div>
 
       <div className="detail-trailer-frame-shell">
@@ -195,6 +171,37 @@ export function DetailTrailerPlayer({ title, trailerUrl, sourceUrl }: DetailTrai
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowFullScreen
         />
+      </div>
+
+      <div className="detail-trailer-footer">
+        {supportsQualitySelection ? (
+          <div className="detail-trailer-quality-row">
+            <span className="quality-label">Quality</span>
+            <div className="detail-trailer-quality-pills" role="group" aria-label="Trailer quality">
+              {QUALITY_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`quality-pill ${quality === option.value ? "is-active" : ""}`}
+                  onClick={() => setQuality(option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        <div className="detail-trailer-actions">
+          <a href={fallbackUrl} target="_blank" rel="noreferrer" className="button button-secondary button-small">
+            Open fallback
+          </a>
+          {sourceUrl ? (
+            <a href={sourceUrl} target="_blank" rel="noreferrer" className="button button-secondary button-small">
+              Open source
+            </a>
+          ) : null}
+        </div>
       </div>
     </section>
   );

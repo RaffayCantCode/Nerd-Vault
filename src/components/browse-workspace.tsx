@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { FormEvent, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { AppTopBar } from "@/components/app-topbar";
 import { CatalogCard } from "@/components/catalog-card";
 import { FilterChipBar } from "@/components/filter-chip-bar";
 import { NVLoader } from "@/components/nv-loader";
+import { SocialProfile } from "@/lib/vault-types";
 import { clearBrowseReturnContext, readBrowseReturnContext } from "@/lib/detail-return";
 import { optimizeMediaImageUrl } from "@/lib/media-image";
 import { MediaItem, MediaType } from "@/lib/types";
@@ -159,12 +161,22 @@ export function BrowseWorkspace({
   surfacingCatalog,
   discoverySeed,
   initialTotalPages,
+  viewerId,
+  viewerName,
+  viewerAvatar,
+  initialProfile,
+  initialFriends,
 }: {
   catalog: MediaItem[];
   surfacingCatalog: MediaItem[];
   discoverySeed: number;
   initialBootstrapPageSize?: number;
   initialTotalPages: number;
+  viewerId: string;
+  viewerName: string;
+  viewerAvatar?: string;
+  initialProfile: SocialProfile | null;
+  initialFriends: SocialProfile[];
 }) {
   const searchParams = useSearchParams();
   const initialFilter = searchParams.get("mediaType");
@@ -550,10 +562,10 @@ export function BrowseWorkspace({
   }
 
   return (
-    <div className="workspace">
+    <div className="workspace browse-workspace-root">
       <section
         ref={surfacingRef}
-        className="workspace-hero glass browse-surfacing-hero"
+        className="workspace-hero browse-surfacing-hero"
         onMouseEnter={() => setIsHeroPaused(true)}
         onMouseLeave={() => setIsHeroPaused(false)}
       >
@@ -561,8 +573,10 @@ export function BrowseWorkspace({
           <>
             <div className="hero-media">
               <img
+                key={featured.backdropUrl}
                 src={optimizeMediaImageUrl(featured.backdropUrl, "backdrop") ?? featured.backdropUrl}
                 alt=""
+                className="hero-backdrop-img"
                 loading="eager"
                 fetchPriority="high"
                 decoding="async"
@@ -572,7 +586,7 @@ export function BrowseWorkspace({
             <div className="workspace-hero-grid">
               <div className="workspace-copy workspace-copy-browse">
                 <div className="hero-nav-row">
-                  <p className="eyebrow" style={{ margin: 0 }}>Now surfacing</p>
+                  <p className="eyebrow" style={{ margin: 0 }}>Now Surfing</p>
                   {featuredDeck.length > 1 ? (
                     <div className="hero-nav-controls">
                       <button type="button" className="hero-nav-arrow" onClick={() => setHeroIndexWithReset(heroIndex - 1)}>
@@ -597,23 +611,25 @@ export function BrowseWorkspace({
                   ) : null}
                 </div>
 
-                <h1 className="display browse-hero-title">{featured.title}</h1>
-                <div className="hero-meta-strip">
-                  <span className="hero-stat">{formatSurfacingLabel(featured.type)}</span>
-                  <span className="hero-stat">{featured.year || "Unknown year"}</span>
-                  <span className="hero-stat">★ {featured.rating.toFixed(1)}</span>
-                </div>
-                <p className="copy workspace-hero-copy">{featured.overview}</p>
-                <div className="button-row" style={{ marginTop: 20 }}>
-                  <Link
-                    href={{
-                      pathname: `/media/${featured.slug}`,
-                      query: { source: featured.source, sourceId: featured.sourceId, type: featured.type },
-                    }}
-                    className="button button-primary"
-                  >
-                    Open details
-                  </Link>
+                <div className="hero-content-transition" key={featured.id}>
+                  <h1 className="display browse-hero-title">{featured.title}</h1>
+                  <div className="hero-meta-strip">
+                    <span className="hero-stat">{formatSurfacingLabel(featured.type)}</span>
+                    <span className="hero-stat">{featured.year || "Unknown year"}</span>
+                    <span className="hero-stat">★ {featured.rating.toFixed(1)}</span>
+                  </div>
+                  <p className="copy workspace-hero-copy">{featured.overview}</p>
+                  <div className="button-row" style={{ marginTop: 20 }}>
+                    <Link
+                      href={{
+                        pathname: `/media/${featured.slug}`,
+                        query: { source: featured.source, sourceId: featured.sourceId, type: featured.type },
+                      }}
+                      className="button button-primary"
+                    >
+                      Open details
+                    </Link>
+                  </div>
                 </div>
               </div>
 
@@ -624,6 +640,7 @@ export function BrowseWorkspace({
                   aria-hidden="true"
                 />
                 <img
+                  key={featured.coverUrl}
                   src={optimizeMediaImageUrl(featured.coverUrl, "cover") ?? featured.coverUrl}
                   alt={featured.title}
                   className="hero-art-image"
@@ -640,6 +657,14 @@ export function BrowseWorkspace({
           </div>
         )}
       </section>
+
+      <AppTopBar
+        viewerId={viewerId}
+        viewerName={viewerName}
+        viewerAvatar={viewerAvatar}
+        initialProfile={initialProfile}
+        initialFriends={initialFriends}
+      />
 
       <section className="section-stack" style={{ paddingTop: 0 }}>
         <div className="browse-toolbar">
@@ -711,15 +736,39 @@ export function BrowseWorkspace({
 
         {renderPager("top")}
 
-        <div className="section-header browse-status" style={{ alignItems: "center" }} ref={resultsRef}>
-          <p className="copy browse-status-copy">
-            {error
-              ? error
-              : isLoading
-                ? "Loading a stable page of results..."
-                : `Showing ${payload.items.length} titles on page ${payload.page}${showPager ? ` of ${payload.totalPages}` : ""}.`}
-          </p>
-          <div className={`refresh-pulse ${isLoading ? "is-active" : ""}`} />
+        <div className="browse-status-dock-container">
+          <form className="browse-live-search browse-search-dock glass" onSubmit={handleSubmit}>
+            <label className="sort-label" htmlFor="browse-live-search">Search results</label>
+            <div className="browse-live-search-row">
+              <input
+                id="browse-live-search"
+                className="browse-search-input"
+                type="search"
+                placeholder="Type to filter titles..."
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+              <button type="submit" className="button button-primary browse-search-submit">
+                Search
+              </button>
+              {query.trim() ? (
+                <button type="button" className="button button-secondary browse-search-clear" onClick={() => setQuery("")}>
+                  Clear
+                </button>
+              ) : null}
+            </div>
+          </form>
+
+          <div className="section-header browse-status" style={{ alignItems: "center" }} ref={resultsRef}>
+            <p className="copy browse-status-copy">
+              {error
+                ? error
+                : isLoading
+                  ? "Loading results..."
+                  : `Showing ${payload.items.length} titles on page ${payload.page}${showPager ? ` of ${payload.totalPages}` : ""}.`}
+            </p>
+            <div className={`refresh-pulse ${isLoading ? "is-active" : ""}`} />
+          </div>
         </div>
 
         {isLoading ? (
@@ -749,33 +798,6 @@ export function BrowseWorkspace({
         ) : null}
 
         {renderPager("bottom")}
-
-        <form className="browse-live-search browse-search-dock glass" onSubmit={handleSubmit}>
-          <label className="sort-label" htmlFor="browse-live-search">Search the current feed</label>
-          <div className="browse-live-search-row">
-            <input
-              id="browse-live-search"
-              className="browse-search-input"
-              type="search"
-              placeholder="Type to live-filter titles, genres, or keywords..."
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-            <button type="submit" className="button button-primary browse-search-submit">
-              Search
-            </button>
-            {query.trim() ? (
-              <button type="button" className="button button-secondary browse-search-clear" onClick={() => setQuery("")}>
-                Clear
-              </button>
-            ) : null}
-          </div>
-          <p className="copy browse-live-search-copy">
-            {deferredQuery.trim()
-              ? `Live results for "${deferredQuery.trim()}"`
-              : "Search stays docked below the feed so you can refine results without jumping back to the top."}
-          </p>
-        </form>
       </section>
     </div>
   );

@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { useState } from "react";
+import { NVLoader } from "@/components/nv-loader";
 
 type FranchiseEntry = {
   id: string;
@@ -29,9 +31,42 @@ export function FranchiseRelatedSection({
   secondaryTitle?: string;
   secondaryEntries?: FranchiseEntry[];
 }) {
+  const [navigatingId, setNavigatingId] = useState<string | null>(null);
+
   if (entries.length < 2 && secondaryEntries.length < 1) {
     return null;
   }
+
+  const handleLinkClick = (id: string) => {
+    setNavigatingId(id);
+  };
+
+  const renderCard = (entry: FranchiseEntry, index: number, isSecondary = false) => (
+    <Link
+      key={entry.id}
+      href={entry.href}
+      className={`glass franchise-card ${entry.isActive ? "is-active" : ""} ${navigatingId === entry.id ? "is-loading" : ""}`}
+      aria-current={entry.isActive ? "page" : undefined}
+      onClick={() => !entry.isActive && handleLinkClick(entry.id)}
+    >
+      <div className="franchise-card-topline">
+        <span className="eyebrow">{isSecondary ? "Movie" : "Entry"} {index + 1}</span>
+        <span className="franchise-badge">
+          {navigatingId === entry.id ? (
+            <div className="franchise-loading-indicator">
+              <NVLoader compact />
+            </div>
+          ) : entry.isActive ? (
+            "You are here"
+          ) : (
+            entry.badge ?? "Open"
+          )}
+        </span>
+      </div>
+      <h3 className="headline franchise-card-title">{entry.title}</h3>
+      <p className="copy franchise-card-meta">{entry.meta}</p>
+    </Link>
+  );
 
   return (
     <section className="section-stack" style={{ paddingTop: 0 }}>
@@ -52,21 +87,7 @@ export function FranchiseRelatedSection({
             </div>
           </div>
           <div className="franchise-grid">
-            {entries.map((entry, index) => (
-              <Link
-                key={entry.id}
-                href={entry.href}
-                className={`glass franchise-card ${entry.isActive ? "is-active" : ""}`}
-                aria-current={entry.isActive ? "page" : undefined}
-              >
-                <div className="franchise-card-topline">
-                  <span className="eyebrow">Entry {index + 1}</span>
-                  <span className="franchise-badge">{entry.isActive ? "You are here" : entry.badge ?? "Open"}</span>
-                </div>
-                <h3 className="headline franchise-card-title">{entry.title}</h3>
-                <p className="copy franchise-card-meta">{entry.meta}</p>
-              </Link>
-            ))}
+            {entries.map((entry, index) => renderCard(entry, index))}
           </div>
         </>
       ) : null}
@@ -80,21 +101,7 @@ export function FranchiseRelatedSection({
             </div>
           </div>
           <div className="franchise-grid">
-            {secondaryEntries.map((entry, index) => (
-              <Link
-                key={entry.id}
-                href={entry.href}
-                className={`glass franchise-card ${entry.isActive ? "is-active" : ""}`}
-                aria-current={entry.isActive ? "page" : undefined}
-              >
-                <div className="franchise-card-topline">
-                  <span className="eyebrow">Movie {index + 1}</span>
-                  <span className="franchise-badge">{entry.isActive ? "You are here" : entry.badge ?? "Open"}</span>
-                </div>
-                <h3 className="headline franchise-card-title">{entry.title}</h3>
-                <p className="copy franchise-card-meta">{entry.meta}</p>
-              </Link>
-            ))}
+            {secondaryEntries.map((entry, index) => renderCard(entry, index, true))}
           </div>
         </>
       ) : null}
