@@ -12508,86 +12508,58 @@ body {
   border-radius: 20px !important;
   overflow: hidden !important;
   min-height: 440px !important;
+  position: relative !important; /* Ensure children can be absolute */
   /* High performance properties */
   contain: layout style paint;
   transform: translateZ(0);
   transition: transform 0.2s cubic-bezier(0.2, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.2, 0, 0.2, 1) !important;
 }
 
-.catalog-card-media img {
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: cover !important;
-  /* Avoid filter/transform lag on main images */
-  will-change: auto;
-  transition: none !important;
-}
-
-.catalog-card:hover img {
-  transform: none !important;
-}
-
 .catalog-copy {
   padding: 18px 16px 22px 16px !important;
-  background: transparent !important;
+  background: #0a0e15 !important; /* Solid background for info area */
   flex-grow: 1 !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 12px !important;
+  gap: 10px !important;
   border-top: none !important;
   position: relative !important;
   justify-content: flex-start !important;
-  /* Smooth out text rendering */
-  -webkit-font-smoothing: antialiased;
+  transition: all 0.2s ease !important;
+}
+
+/* Smart Hover: Info block grows UPWARDS on hover to show full title */
+.catalog-card:hover .catalog-copy {
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 40% !important;
+  z-index: 50 !important;
+  background: rgba(10, 14, 21, 0.98) !important;
+  padding-top: 22px !important;
+  box-shadow: 0 -20px 40px rgba(0, 0, 0, 0.6) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
 .catalog-title {
   font-size: 1.15rem !important;
   font-weight: 900 !important;
   color: #ffffff !important;
-  margin: 0 0 6px 0 !important;
+  margin: 0 !important;
   line-height: 1.4 !important;
   display: -webkit-box !important;
   -webkit-line-clamp: 2 !important;
   -webkit-box-orient: vertical !important;
   overflow: hidden !important;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5) !important;
-  min-height: 2.8em !important;
-  cursor: help !important;
 }
 
-/* Tooltip Reveal - Optimized */
 .catalog-card:hover .catalog-title {
-  overflow: visible !important;
-  white-space: normal !important;
   -webkit-line-clamp: unset !important;
-  background: rgba(10, 14, 21, 0.98) !important;
-  position: absolute !important;
-  top: 0 !important;
-  left: 0 !important;
-  width: 100% !important;
-  z-index: 20 !important;
-  padding: 18px 16px !important;
-  border-radius: 20px 20px 0 0 !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8) !important;
-  min-height: auto !important;
-  margin: 0 !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
-  pointer-events: none !important;
-  /* Disable expensive transitions on reveal */
-  transition: none !important;
-}
-
-.catalog-card:hover .catalog-copy {
-  z-index: 5 !important;
-}
-
-.catalog-card:hover .catalog-genres,
-.catalog-card:hover .meta-row {
-  visibility: visible !important;
-  opacity: 1 !important;
-  position: relative !important;
-  z-index: 1 !important;
+  display: block !important;
+  overflow: visible !important;
 }
 
 .catalog-genres {
@@ -12605,14 +12577,7 @@ body {
   gap: 8px !important;
   align-items: center !important;
   flex-wrap: wrap !important;
-  margin-top: auto !important; /* Push pills to the bottom */
-}
-
-.meta-row {
-  display: flex !important;
-  gap: 8px !important;
-  align-items: center !important;
-  flex-wrap: wrap !important;
+  margin-top: auto !important; /* Keep pills at the bottom of the info block */
 }
 
 .catalog-card .pill {

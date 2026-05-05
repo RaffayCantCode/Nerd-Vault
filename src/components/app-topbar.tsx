@@ -277,17 +277,21 @@ export const AppTopBar = memo(function AppTopBar({
 
             {profileMenuOpen ? (
               <div className="topbar-panel glass profile-menu-panel">
-                <div className="topbar-user-results">
-                  <Link href="/profile" className="button button-secondary" onClick={() => setProfileMenuOpen(false)}>
+                <div className="topbar-user-results" style={{ display: 'grid', gap: 10 }}>
+                  <Link href="/profile" className="button button-secondary" style={{ width: '100%' }} onClick={() => setProfileMenuOpen(false)}>
                     Open profile
                   </Link>
-                  {!isGuest ? (
-                    <form action={signOutUser}>
-                      <button type="submit" className="button button-primary topbar-menu-button">
+                  {isGuest ? (
+                    <Link href="/sign-in" className="button button-primary" style={{ width: '100%' }} onClick={() => setProfileMenuOpen(false)}>
+                      Sign in
+                    </Link>
+                  ) : (
+                    <form action={signOutUser} style={{ width: '100%' }}>
+                      <button type="submit" className="button button-primary topbar-menu-button" style={{ width: '100%' }}>
                         Sign out
                       </button>
                     </form>
-                  ) : null}
+                  )}
                 </div>
               </div>
             ) : null}

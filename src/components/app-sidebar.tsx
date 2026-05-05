@@ -140,10 +140,11 @@ export async function AppSidebar({ active, initialFolders = [] }: AppSidebarProp
             <SidebarFolders initialFolders={initialFolders} />
           ) : (
             <Link
-              href="/sign-in"
+              href="/sign-in?redirectTo=/home"
               className="sidebar-nav-button"
               aria-label="Sign in to save"
               title="Sign in to save"
+              style={{ cursor: 'pointer', zIndex: 10 }}
             >
               <IconDoor />
               <span className="sidebar-nav-label">Sign in</span>

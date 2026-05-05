@@ -39,10 +39,10 @@ export default async function ProfilePage({
                 folders, saved library, and social activity to show here.
               </p>
               <div className="button-row" style={{ marginTop: 18 }}>
-                <Link href="/sign-in" className="button button-primary">
+                <Link href="/sign-in?redirectTo=/profile" className="button button-primary" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: '44px', padding: '0 24px' }}>
                   Log in
                 </Link>
-                <Link href="/browse" className="button button-secondary">
+                <Link href="/browse" className="button button-secondary" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: '44px', padding: '0 24px' }}>
                   Back to browse
                 </Link>
               </div>

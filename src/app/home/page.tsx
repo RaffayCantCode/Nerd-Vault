@@ -32,7 +32,7 @@ export default async function HomeHubPage() {
                   <h1 className="headline">You must be logged in to see this page.</h1>
                   <p className="copy">Sign in with the website account flow and then come back to Home.</p>
                   <div className="button-row" style={{ marginTop: 18 }}>
-                    <Link href="/sign-in?redirectTo=%2Fhome" className="button button-primary">
+                    <Link href="/sign-in?redirectTo=/home" className="button button-primary" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: '44px', padding: '0 24px' }}>
                       Sign in
                     </Link>
                   </div>
