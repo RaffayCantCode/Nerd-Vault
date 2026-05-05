@@ -2,6 +2,7 @@ const LEGACY_AUTH_COOKIE_PREFIXES = [
   "next-auth.",
   "__Secure-next-auth.",
 ];
+const CHUNKED_AUTH_SESSION_COOKIE_PATTERN = /^(?:__Secure-|__Host-)?(?:authjs|next-auth)\.session-token\.\d+$/;
 
 export const LEGACY_AUTH_COOKIE_NAMES = [
   "next-auth.session-token",
@@ -58,6 +59,10 @@ export function getAuthCookiesToDelete(cookieNames: Iterable<string>) {
   const deletions = new Set<string>();
 
   for (const cookieName of cookieNames) {
+    if (CHUNKED_AUTH_SESSION_COOKIE_PATTERN.test(cookieName)) {
+      deletions.add(cookieName);
+      continue;
+    }
     if (LEGACY_AUTH_COOKIE_NAMES.includes(cookieName) || OAUTH_TRANSIENT_COOKIE_NAMES.includes(cookieName)) {
       deletions.add(cookieName);
       continue;

@@ -6,7 +6,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { credentialsSignInSchema, credentialsSignUpSchema, normalizeEmail } from "@/lib/auth-credentials";
-import { OAUTH_TRANSIENT_COOKIE_NAMES } from "@/lib/auth-cookies";
+import { getAuthCookiesToDelete, OAUTH_TRANSIENT_COOKIE_NAMES } from "@/lib/auth-cookies";
 import { signIn } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -29,8 +29,10 @@ export async function signInWithGoogle(formData?: FormData) {
   }
 
   const cookieStore = await cookies();
+  const cookieNames = cookieStore.getAll().map((cookie) => cookie.name);
+  const staleAuthCookies = getAuthCookiesToDelete(cookieNames);
 
-  for (const cookieName of OAUTH_TRANSIENT_COOKIE_NAMES) {
+  for (const cookieName of new Set([...OAUTH_TRANSIENT_COOKIE_NAMES, ...staleAuthCookies])) {
     cookieStore.delete(cookieName);
   }
 

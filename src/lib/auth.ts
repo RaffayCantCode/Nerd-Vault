@@ -65,7 +65,9 @@ if (googleConfigured) {
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: {
-    strategy: "jwt",
+    // Database sessions keep the cookie payload tiny (opaque session token only),
+    // which prevents REQUEST_HEADER_TOO_LARGE from giant JWT cookie chunks.
+    strategy: "database",
   },
   providers,
   pages: {
