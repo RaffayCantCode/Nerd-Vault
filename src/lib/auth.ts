@@ -9,7 +9,6 @@ import { credentialsSignInSchema, normalizeEmail } from "@/lib/auth-credentials"
 import { prisma } from "@/lib/prisma";
 
 const googleConfigured = Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET);
-const secureCookie = process.env.NODE_ENV === "production";
 
 const providers: Provider[] = [
   Credentials({
@@ -56,7 +55,9 @@ if (googleConfigured) {
       clientId: process.env.AUTH_GOOGLE_ID!,
       clientSecret: process.env.AUTH_GOOGLE_SECRET!,
       authorization: { params: { prompt: "consent" } },
-      checks: ["state"],
+      // Let NextAuth use its default PKCE check only.
+      // Avoiding an explicit state check reduces OAuth cookie bloat
+      // that was contributing to REQUEST_HEADER_TOO_LARGE on Vercel.
     }),
   );
 }
@@ -70,28 +71,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   pages: {
     signIn: "/sign-in",
   },
-  cookies: {
-    callbackUrl: {
-      name: `${secureCookie ? "__Secure-" : ""}authjs.callback-url`,
-      options: { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 5, secure: secureCookie },
-    },
-    csrfToken: {
-      name: `${secureCookie ? "__Host-" : ""}authjs.csrf-token`,
-      options: { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 5, secure: secureCookie },
-    },
-    state: {
-      name: `${secureCookie ? "__Secure-" : ""}authjs.state`,
-      options: { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 5, secure: secureCookie },
-    },
-    nonce: {
-      name: `${secureCookie ? "__Secure-" : ""}authjs.nonce`,
-      options: { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 5, secure: secureCookie },
-    },
-    sessionToken: {
-      name: `${secureCookie ? "__Secure-" : ""}authjs.session-token`,
-      options: { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30, secure: secureCookie },
-    },
-  },
+  // Let NextAuth use its default compact cookies. Custom overrides were
+  // contributing to REQUEST_HEADER_TOO_LARGE by inflating cookie names.
+  // The sessionToken default already respects __Secure- prefix in production.
   callbacks: {
     async session({ session, token, user }) {
       if (session.user) {

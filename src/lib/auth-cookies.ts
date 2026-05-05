@@ -31,6 +31,24 @@ export const OAUTH_TRANSIENT_COOKIE_NAMES = [
   "__Secure-next-auth.pkce.code_verifier",
 ];
 
+/** Every cookie that could be related to NextAuth/auth.js */
+export const ALL_AUTH_COOKIE_NAMES = [
+  ...LEGACY_AUTH_COOKIE_NAMES,
+  ...OAUTH_TRANSIENT_COOKIE_NAMES,
+  "__Secure-authjs.session-token",
+  "__Host-authjs.session-token",
+  "authjs.session-token",
+  "__Secure-next-auth.session-token",
+  "__Host-next-auth.session-token",
+  "next-auth.session-token",
+  "__Secure-authjs.state",
+  "__Host-authjs.state",
+  "authjs.state",
+  "__Secure-next-auth.state",
+  "__Host-next-auth.state",
+  "next-auth.state",
+];
+
 export const CLIENT_AUTH_RESET_COOKIE_NAMES = [
   ...LEGACY_AUTH_COOKIE_NAMES,
   ...OAUTH_TRANSIENT_COOKIE_NAMES,

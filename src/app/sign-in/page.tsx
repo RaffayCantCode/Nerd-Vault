@@ -1,6 +1,8 @@
-import { signInWithCredentials, signInWithGoogle, signUpWithCredentials } from "@/app/sign-in/actions";
+import { signInWithCredentials, signUpWithCredentials } from "@/app/sign-in/actions";
 import { headers } from "next/headers";
 import { SiteHeader } from "@/components/site-header";
+import { ClearAuthCookiesButton } from "@/components/clear-auth-cookies-button";
+import { GoogleSignInForm } from "@/components/google-sign-in-form";
 
 type SignInPageProps = {
   searchParams: Promise<{
@@ -150,16 +152,11 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
             <p className="copy">
               Use Google if you want the one-click route and already have your OAuth keys connected in Vercel.
             </p>
-            <form action={signInWithGoogle} style={{ marginTop: 18 }}>
-              <input type="hidden" name="redirectTo" value={redirectTo} />
-              <button
-                type="submit"
-                className="button button-secondary auth-google-button"
-                disabled={!googleReady}
-              >
-                Continue with Google
-              </button>
-            </form>
+            <GoogleSignInForm redirectTo={redirectTo} disabled={!googleReady} />
+
+            <div style={{ marginTop: 18 }}>
+              <ClearAuthCookiesButton />
+            </div>
           </div>
         </section>
       </main>
