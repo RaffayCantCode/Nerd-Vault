@@ -172,7 +172,7 @@ export const CatalogCard = memo(function CatalogCard({
       title={`Open ${item.title}`}
       id={browseCardId}
       data-browse-card-id={browseCardId}
-      className={`catalog-card hover-lift hover-bounce ${showUserRatingBelow && item.userRating ? "has-user-rating" : ""} ${isNavigating ? "is-navigating" : ""} ${isVisible ? "is-visible" : ""} ${isImageLoaded ? "has-media-loaded" : ""}`}
+      className={`catalog-card ${showUserRatingBelow && item.userRating ? "has-user-rating" : ""} ${isNavigating ? "is-navigating" : ""} ${isVisible ? "is-visible" : ""} ${isImageLoaded ? "has-media-loaded" : ""}`}
       prefetch={true}
       onClick={handleNavigate}
       onMouseEnter={warmRoute}
@@ -188,9 +188,6 @@ export const CatalogCard = memo(function CatalogCard({
           onLoadStateChange={setIsImageLoaded}
         />
         <div className="catalog-sheen" />
-        <div className="catalog-card-hover-overlay">
-          <span className="catalog-card-hover-text">View Details</span>
-        </div>
         {isNavigating ? (
           <div className="catalog-card-loader" aria-hidden="true">
             <NVLoader compact label="Opening..." />
@@ -217,7 +214,7 @@ export const CatalogCard = memo(function CatalogCard({
           </div>
         ) : null}
         {item.userReview ? (
-          <p className="copy" style={{ marginTop: 10, fontSize: "0.88rem", lineHeight: 1.45, opacity: 0.84 }}>
+          <p className="catalog-review-preview">
             {item.userReview.length > 96 ? `${item.userReview.slice(0, 93).trimEnd()}...` : item.userReview}
           </p>
         ) : null}

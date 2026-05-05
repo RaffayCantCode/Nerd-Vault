@@ -418,6 +418,7 @@ const TITLE_ROOT_GENERIC_WORDS = new Set([
   "hero",
   "heroes",
   "history",
+  "invincible",
   "journey",
   "king",
   "life",
@@ -924,26 +925,25 @@ function isSupplementalFranchiseCandidate(base: MediaItem, candidate: MediaItem)
 }
 
 function hasStrongFranchiseConnection(base: MediaItem, candidate: MediaItem, signals: string[]) {
-  const baseRoots = buildTitleRoots(base);
-  const candidateRoots = buildTitleRoots(candidate);
-  const comparableBase = normalizeComparableFranchiseTitle(base.details.collectionTitle ?? base.title, base.type);
-  const comparableCandidate = normalizeComparableFranchiseTitle(
-    candidate.details.collectionTitle ?? candidate.title,
-    candidate.type,
-  );
+  const baseRoots = buildTitleRoots(base).filter(root => root.length >= 4);
+  const candidateRoots = buildTitleRoots(candidate).filter(root => root.length >= 4);
+  
   const sharesTitleRoot = baseRoots.some((root) =>
-    candidateRoots.some((candidateRoot) => candidateRoot.includes(root) || root.includes(candidateRoot)),
+    candidateRoots.some((candidateRoot) => {
+      if (root === candidateRoot) return true;
+      // Stricter substring match: only if one root is a significant part of the other
+      if (root.includes(candidateRoot) && candidateRoot.length >= 6) return true;
+      if (candidateRoot.includes(root) && root.length >= 6) return true;
+      return false;
+    }),
   );
 
   if (sharesTitleRoot) {
     return true;
   }
 
-  if (
-    comparableBase &&
-    comparableCandidate &&
-    (comparableCandidate.includes(comparableBase) || comparableBase.includes(comparableCandidate))
-  ) {
+  // Use the utility function for broader but still strict matching
+  if (isSameFranchise(base.title, candidate.title, base.type, candidate.type)) {
     return true;
   }
 
@@ -2076,10 +2076,7 @@ function isFranchiseParentEntry(media: MediaItem, franchiseSection: FranchiseSec
   }
 
   // Check if the media title is a direct match to the franchise title
-  const normalizedMedia = normalizeAnimeBaseTitle(media.title, media.type).toLowerCase();
-  const normalizedFranchise = normalizeAnimeBaseTitle(franchiseSection.title, media.type).toLowerCase();
-
-  if (normalizedMedia === normalizedFranchise) {
+  if (isSameFranchise(media.title, franchiseSection.title, media.type, media.type)) {
     return true;
   }
 
@@ -2244,6 +2241,8 @@ async function getRelatedMediaRailUncached(media: MediaItem) {
   const tertiaryGenre = media.genres[2];
   const collected: MediaItem[] = [];
 
+  const titleRoot = buildTitleRoots(media)[0] || "";
+
   if (media.type === "movie" || media.type === "show") {
     const results = await Promise.allSettled(
       [media.type].flatMap((mediaType, mediaTypeIndex) => [
@@ -2252,6 +2251,15 @@ async function getRelatedMediaRailUncached(media: MediaItem) {
           emptyBrowseResult(),
           700,
         ),
+        ...(titleRoot && titleRoot.length >= 4
+          ? [
+              withTimeout(
+                browseTmdbCatalog({ type: mediaType, page: 1, query: titleRoot, sort: "rating", seed: 7 + mediaTypeIndex }),
+                emptyBrowseResult(),
+                800,
+              ),
+            ]
+          : []),
         ...(secondaryGenre
           ? [
               withTimeout(
@@ -2297,11 +2305,16 @@ async function getRelatedMediaRailUncached(media: MediaItem) {
         ...buildQueryVariants(media.title),
         ...buildTitleRoots(media),
       ].filter((value) => value.length >= 3)),
-    ).slice(0, 4);
+    ).slice(0, 6);
 
     const results = await Promise.allSettled([
       withTimeout(
         browseAniListAnime({ page: 1, genre: primaryGenre, sort: "rating" }),
+        emptyBrowseResult(),
+        700,
+      ),
+      withTimeout(
+        browseAniListAnime({ page: 2, genre: primaryGenre, sort: "rating" }),
         emptyBrowseResult(),
         700,
       ),
@@ -2428,9 +2441,9 @@ async function getRelatedMediaRailUncached(media: MediaItem) {
     })
     .sort((left, right) => right.score - left.score)
     .map((entry) => entry.candidate)
-    .slice(0, media.type === "game" ? 10 : 12);
+    .slice(0, 24);
 
-  if (strictMatches.length >= (media.type === "game" ? 8 : 10)) {
+  if (strictMatches.length >= 16) {
     return dedupeItems(strictMatches);
   }
 
@@ -2450,7 +2463,7 @@ async function getRelatedMediaRailUncached(media: MediaItem) {
     })
     .sort((left, right) => right.score - left.score)
     .map((entry) => entry.candidate)
-    .slice(0, media.type === "game" ? 8 : 10);
+    .slice(0, 24);
 
   const broadMatches = scored
     .filter((entry) => {
@@ -2468,7 +2481,7 @@ async function getRelatedMediaRailUncached(media: MediaItem) {
     })
     .sort((left, right) => right.score - left.score)
     .map((entry) => entry.candidate)
-    .slice(0, media.type === "game" ? 12 : 14);
+    .slice(0, 24);
 
   const relevanceFloorMatches = scored
     .filter((entry) => {
@@ -2480,12 +2493,12 @@ async function getRelatedMediaRailUncached(media: MediaItem) {
     })
     .sort((left, right) => right.score - left.score)
     .map((entry) => entry.candidate)
-    .slice(0, media.type === "game" ? 10 : 12);
+    .slice(0, 24);
 
   const mergedMatches = dedupeItems([...strictMatches, ...fallbackMatches, ...broadMatches, ...relevanceFloorMatches]);
 
-  if (mergedMatches.length >= (media.type === "game" ? 8 : 10)) {
-    return mergedMatches.slice(0, media.type === "game" ? 10 : 12);
+  if (mergedMatches.length >= 16) {
+    return mergedMatches.slice(0, 24);
   }
 
   if ((media.type === "anime" || media.type === "anime_movie") && fallbackMatches.length) {
@@ -2502,7 +2515,7 @@ async function getRelatedMediaRailUncached(media: MediaItem) {
       })
       .sort((left, right) => right.score - left.score)
       .map((entry) => entry.candidate)
-      .slice(0, 12);
+      .slice(0, 24);
 
     if (looseAnimeMatches.length) {
       return dedupeItems(looseAnimeMatches);
@@ -2523,9 +2536,9 @@ async function getRelatedMediaRailUncached(media: MediaItem) {
     })
     .sort((left, right) => right.score - left.score)
     .map((entry) => entry.candidate)
-    .slice(0, media.type === "game" ? 8 : 10);
+    .slice(0, 24);
 
-  return dedupeItems([...mergedMatches, ...emergencyFallback]).slice(0, media.type === "game" ? 10 : 12);
+  return dedupeItems([...mergedMatches, ...emergencyFallback]).slice(0, 24);
 }
 
 async function DeferredRelatedRail({ media, franchiseSection }: { media: MediaItem, franchiseSection: any }) {
@@ -2722,7 +2735,12 @@ export default async function MediaDetailPage({
   const secondaryExternalLinks = externalLinks.slice(1);
   const primaryExternalAction = media.type === "game" ? "Buy" : "Watch";
   const spotlightCredits = dedupeSpotlightCredits(media.credits).slice(0, 6);
-  const gallery = uniqueGalleryImages(media).slice(0, 6);
+  const gallery = uniqueGalleryImages(media).filter(img => {
+    // Filter out character portraits (typically square or very vertical small images from AniList/TMDB)
+    // We prioritize landscapes (backdrops/stills) or high-res posters
+    if (media.source === "anilist" && img.includes("/characters/")) return false;
+    return true;
+  }).slice(0, 6);
   const moodLine = buildPremiseLine(media);
   const synopsisPreview = buildSynopsisPreview(media);
   const aboutText =
@@ -2892,10 +2910,6 @@ export default async function MediaDetailPage({
               <div className="section-header">
                 <div>
                   <p className="eyebrow">Gallery</p>
-                  <h2 className="headline">Key stills only</h2>
-                  <p className="copy" style={{ maxWidth: 700, marginTop: 10 }}>
-                    A tighter set of distinct images so the page stays useful instead of repetitive.
-                  </p>
                 </div>
               </div>
               <DetailGallery title={media.title} images={gallery} />

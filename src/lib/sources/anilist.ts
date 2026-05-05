@@ -544,8 +544,9 @@ function mapAnime(
     screenshots: dedupeImages([
       item.bannerImage,
       item.trailer?.thumbnail,
-      ...(item.characters?.edges ?? []).map((entry) => entry.node?.image?.large),
+      ...(item.streamingEpisodes ?? []).map((ep) => ep.thumbnail),
       item.coverImage?.extraLarge,
+      item.coverImage?.large,
     ]),
     overview: cleanedDescription,
     credits: mapCredits(item.characters?.edges),

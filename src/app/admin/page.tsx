@@ -2,11 +2,13 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
 export default async function AdminDashboard() {
-  const userCount = await prisma.user.count();
-  const mediaCount = await prisma.media.count();
-  const settings = await prisma.siteSettings.findUnique({
-    where: { id: "global" },
-  });
+  const [userCount, mediaCount, settings] = await Promise.all([
+    prisma.user.count().catch(() => 0),
+    prisma.media.count().catch(() => 0),
+    prisma.siteSettings.findUnique({
+      where: { id: "global" },
+    }).catch(() => null),
+  ]);
 
   return (
     <div className="admin-dashboard container" style={{ padding: '40px 20px', minHeight: '100vh', background: '#060911', color: 'white' }}>

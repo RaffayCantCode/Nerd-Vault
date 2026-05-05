@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 export default async function AdminUsers() {
   const users = await prisma.user.findMany({
     orderBy: { createdAt: 'desc' },
-  });
+  }).catch(() => []);
 
   async function toggleAdmin(userId: string, currentRole: string) {
     "use server";

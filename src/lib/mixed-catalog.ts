@@ -5,8 +5,24 @@ import { itemMatchesGenre } from "@/lib/catalog-utils";
 import { dedupeMediaKey, rankCandidatesForQuery, validateSearchResults } from "@/lib/search-utils";
 import { MediaItem } from "@/lib/types";
 
-const MIXED_CACHE_TTL_MS = 1000 * 60 * 10;
+const MIXED_CACHE_TTL_MS = 1000 * 60 * 30; // Increase to 30 minutes
 const SEARCH_FETCH_PAGES = 2;
+
+// Add a utility for fetching with a timeout to prevent hanging the whole request
+async function withTimeout<T>(promise: Promise<T>, fallback: T, timeoutMs: number): Promise<T> {
+  let timeoutId: any;
+  const timeoutPromise = new Promise<T>((resolve) => {
+    timeoutId = setTimeout(() => resolve(fallback), timeoutMs);
+  });
+
+  return Promise.race([
+    promise.then((result) => {
+      clearTimeout(timeoutId);
+      return result;
+    }),
+    timeoutPromise,
+  ]);
+}
 
 type BrowsePayload = {
   page: number;
@@ -175,12 +191,22 @@ async function fetchSourceWindow(
   const pages = Array.from({ length: plan.pagesToFetch }, (_, index) => plan.sourceStartPage + index);
   const payloads = await Promise.all(
     pages.map((targetPage, index) =>
-      fetchSourcePage(source, targetPage, {
-        query,
-        genre,
-        sort,
-        seed: seed,
-      }).catch(() => ({
+      withTimeout(
+        fetchSourcePage(source, targetPage, {
+          query,
+          genre,
+          sort,
+          seed: seed,
+        }),
+        {
+          page: targetPage,
+          totalPages: 1,
+          totalResults: 0,
+          items: [] as MediaItem[],
+        },
+        // More generous timeout for initial page load vs search
+        query ? 3000 : 5000
+      ).catch(() => ({
         page: targetPage,
         totalPages: 1,
         totalResults: 0,
@@ -220,12 +246,21 @@ async function buildSearchPayload({
       const pages = Array.from({ length: SEARCH_FETCH_PAGES }, (_, index) => index + 1);
       const payloads = await Promise.all(
         pages.map((page) =>
-          fetchSourcePage(source, page, {
-            query,
-            genre,
-            sort,
-            seed: seed + sourceIndex * 10,
-          }).catch(() => ({
+          withTimeout(
+            fetchSourcePage(source, page, {
+              query,
+              genre,
+              sort,
+              seed: seed + sourceIndex * 10,
+            }),
+            {
+              page,
+              totalPages: 1,
+              totalResults: 0,
+              items: [] as MediaItem[],
+            },
+            2500 // Faster timeout for search to keep UI snappy
+          ).catch(() => ({
             page,
             totalPages: 1,
             totalResults: 0,

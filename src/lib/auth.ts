@@ -61,7 +61,7 @@ if (googleConfigured) {
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: {
-    strategy: "database",
+    strategy: "jwt",
   },
   providers,
   pages: {

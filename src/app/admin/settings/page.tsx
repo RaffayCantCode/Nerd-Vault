@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 export default async function AdminSettings() {
   const settings = await prisma.siteSettings.findUnique({
     where: { id: "global" },
-  }) || await prisma.siteSettings.create({ data: { id: "global" } });
+  }).catch(() => null) || { id: "global", heroTitle: "", heroSubtitle: "" };
 
   async function updateSettings(formData: FormData) {
     "use server";

@@ -44,7 +44,7 @@ export function ResilientMediaImage({
   const rawPrimaryCover = useProxy ? proxiedImage(item.coverUrl) ?? item.coverUrl : item.coverUrl;
   const rawSecondaryBackdrop = useProxy ? proxiedImage(item.backdropUrl) ?? item.backdropUrl : item.backdropUrl;
   const fallback = optimizeMediaImageUrl(rawFallback, "cover");
-  const primaryCover = optimizeMediaImageUrl(rawPrimaryCover, loading === "eager" ? "cover" : "thumb");
+  const primaryCover = optimizeMediaImageUrl(rawPrimaryCover, "cover");
   const secondaryBackdrop = optimizeMediaImageUrl(rawSecondaryBackdrop, "backdrop");
   const [src, setSrc] = useState(primaryCover || secondaryBackdrop || fallback);
   const [loaded, setLoaded] = useState(false);

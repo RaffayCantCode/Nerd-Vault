@@ -3,6 +3,22 @@
  * Prevents random titles from passing through while maintaining good matches
  */
 
+const GENERIC_TITLE_WORDS = new Set([
+  "the", "and", "a", "of", "to", "in", "is", "for", "with", "on", "at", "by", "an", "this", "that",
+  "from", "no", "yes", "my", "your", "all", "new", "world", "story", "life", "war", "chronicles",
+  "legend", "destiny", "fate", "re", "zero", "origin", "final", "last", "first", "part", "volume",
+  "season", "episode", "chapter", "movie", "film", "special", "ova", "ona", "arc", "remake", "remastered",
+  "definitive", "edition", "deluxe", "standard", "bundle", "pack", "series", "animation", "adventures",
+  "journey", "quest", "heroes", "hero", "kingdom", "throne", "blood", "fire", "ice", "dark", "light",
+  "shadow", "sun", "moon", "star", "stars", "night", "day", "time", "space", "earth", "land", "sea",
+  "sky", "wind", "water", "metal", "gear", "solid", "dead", "rising", "evil", "resident", "grand",
+  "theft", "auto", "lord", "rings", "harry", "potter", "pokemon", "dragon", "ball", "naruto", "bleach",
+  "one", "piece", "attack", "titan", "demon", "slayer", "academy", "college", "school", "high", "middle",
+  "student", "council", "president", "love", "heart", "broken", "soul", "spirit", "ghost", "witch",
+  "wizard", "magic", "magical", "super", "ultra", "mega", "hyper", "cyber", "punk", "future", "past",
+  "present", "ancient", "modern", "history", "future", "beyond", "between", "among", "within", "without",
+]);
+
 export function normalizeBaseTitle(rawTitle: string): string {
   return rawTitle
     .trim()
@@ -114,33 +130,36 @@ export function isSameFranchise(title1: string, title2: string, type1?: string, 
   const norm2 = normalizeAnimeBaseTitle(title2, type2).toLowerCase();
 
   // Direct match after normalization
-  if (norm1 === norm2) return true;
+  if (norm1 === norm2 && norm1.length >= 3 && !GENERIC_TITLE_WORDS.has(norm1)) return true;
 
   // Check franchise root match (handles Naruto/Naruto Shippuden)
   const root1 = extractFranchiseRoot(title1, type1).toLowerCase();
   const root2 = extractFranchiseRoot(title2, type2).toLowerCase();
 
-  if (root1 === root2 && root1.length > 2) return true;
+  if (root1 === root2 && root1.length >= 4 && !GENERIC_TITLE_WORDS.has(root1)) return true;
 
   // One contains the other (e.g., "Naruto" and "Naruto Shippuden")
-  if (norm1.includes(norm2) || norm2.includes(norm1)) {
-    // Make sure it's not just a partial word match
+  if (norm1.length >= 4 && norm2.length >= 4 && (norm1.includes(norm2) || norm2.includes(norm1))) {
     const longer = norm1.length > norm2.length ? norm1 : norm2;
     const shorter = norm1.length > norm2.length ? norm2 : norm1;
+    
+    // If the shorter one is a generic word, don't allow it to match as a substring
+    if (GENERIC_TITLE_WORDS.has(shorter)) return false;
+
     // Ensure the shorter is a complete word boundary in the longer
     const regex = new RegExp(`\\b${shorter}\\b`);
     if (regex.test(longer)) return true;
   }
 
   // Check word overlap for titles that might be translations
-  const words1 = norm1.split(/\s+/).filter(w => w.length > 2);
-  const words2 = norm2.split(/\s+/).filter(w => w.length > 2);
+  const words1 = norm1.split(/\s+/).filter(w => w.length >= 3 && !GENERIC_TITLE_WORDS.has(w));
+  const words2 = norm2.split(/\s+/).filter(w => w.length >= 3 && !GENERIC_TITLE_WORDS.has(w));
 
   if (words1.length > 0 && words2.length > 0) {
     const common = words1.filter(w => words2.includes(w));
-    const overlap = common.length / Math.min(words1.length, words2.length);
-    // High overlap (80%+) suggests same franchise
-    if (overlap >= 0.8 && common.length >= 2) return true;
+    const overlap = common.length / Math.max(words1.length, words2.length);
+    // Stricter overlap: 70%+ of the total words must match, and at least 2 non-generic words
+    if (overlap >= 0.7 && common.length >= 2) return true;
   }
 
   return false;

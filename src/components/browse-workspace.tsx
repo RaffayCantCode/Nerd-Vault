@@ -303,7 +303,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
             page: nextPage,
             totalPages: Math.max(1, cachedPayload.totalPages || 1),
             totalResults: cachedPayload.totalResults || cachedPayload.items.length,
-            items: nextItems.slice(0, DEFAULT_PAGE_SIZE),
+            items: nextItems,
           });
           setIsLoading(false);
           return;
@@ -691,10 +691,6 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
           <div className="browse-toolbar-grid">
             <div className="browse-toolbar-copy">
               <p className="eyebrow">Browse</p>
-              <h2 className="headline">Stable paging, cleaner shelves, and a feed that stays focused while you move through it.</h2>
-              <p className="copy">
-                Each page keeps its own result window, the featured shelf stays separate, and the live search stays within reach while you scroll.
-              </p>
             </div>
 
             <div className="toolbar-stats">
