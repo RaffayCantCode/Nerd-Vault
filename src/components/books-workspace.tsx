@@ -124,7 +124,10 @@ export function BooksWorkspace({
           return;
         }
 
-        const response = await fetch(`/api/books?${requestKey}`, { cache: "force-cache" });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 12_000);
+        const response = await fetch(`/api/books?${requestKey}`, { cache: "force-cache", signal: controller.signal });
+        clearTimeout(timeoutId);
         const nextPayload = (await response.json()) as BookListPayload & { ok?: boolean; message?: string };
 
         if (!response.ok || nextPayload.ok === false) {

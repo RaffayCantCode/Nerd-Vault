@@ -5,6 +5,7 @@ const GUTENDEX_SOURCE_PAGE_SIZE = 32;
 const BOOK_LIST_PAGE_SIZE = GUTENDEX_SOURCE_PAGE_SIZE;
 const BOOK_LIST_CACHE_MS = 1000 * 60 * 20;
 const BOOK_READER_CACHE_MS = 1000 * 60 * 60 * 24;
+const FETCH_TIMEOUT_MS = 12_000;
 
 type GutendexAuthor = {
   name?: string;
@@ -123,6 +124,13 @@ function mapBook(book: GutendexBook): BookSummary {
   };
 }
 
+function fetchWithTimeout(input: string | URL, init?: RequestInit & { timeout?: number }) {
+  const { timeout = FETCH_TIMEOUT_MS, ...rest } = init ?? {};
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  return fetch(input, { ...rest, signal: controller.signal }).finally(() => clearTimeout(id));
+}
+
 async function fetchGutendex(url: URL) {
   const cacheKey = url.toString();
   const cached = gutendexResponseCache.get(cacheKey);
@@ -130,7 +138,7 @@ async function fetchGutendex(url: URL) {
     return JSON.parse(JSON.stringify(cached.payload)); // Return a copy to avoid side effects
   }
 
-  const response = await fetch(cacheKey, {
+  const response = await fetchWithTimeout(cacheKey, {
     next: { revalidate: 3600 },
     headers: {
       Accept: "application/json",
@@ -339,8 +347,9 @@ export async function fetchBookReaderPayload(bookId: number): Promise<BookReader
       throw new Error("No readable format available for this book");
     }
 
-    const contentResponse = await fetch(readableUrl, {
+    const contentResponse = await fetchWithTimeout(readableUrl, {
       next: { revalidate: 86400 },
+      timeout: 20_000,
       headers: {
         Accept: "text/plain,text/html;q=0.9,*/*;q=0.1",
       },

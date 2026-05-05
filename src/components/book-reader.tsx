@@ -113,7 +113,10 @@ export function BookReader({
           return;
         }
 
-        const response = await fetch(`/api/books/${bookId}`, { cache: "force-cache" });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15_000);
+        const response = await fetch(`/api/books/${bookId}`, { cache: "force-cache", signal: controller.signal });
+        clearTimeout(timeoutId);
         const nextPayload = (await response.json()) as BookReaderPayload & { ok?: boolean; message?: string };
 
         if (!response.ok || nextPayload.ok === false) {
@@ -126,7 +129,13 @@ export function BookReader({
         }
       } catch (loadError) {
         if (active) {
-          setError(loadError instanceof Error ? loadError.message : "Could not open this book");
+          const message = loadError instanceof Error ? loadError.message : "Could not open this book";
+          const isTimeout = message.includes("abort") || message.includes("timeout");
+          setError(
+            isTimeout
+              ? "This book is taking too long to load. Project Gutenberg may be slow right now—please try again in a moment."
+              : message,
+          );
         }
       } finally {
         if (active) {

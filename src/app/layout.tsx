@@ -4,6 +4,7 @@ import { ClientRoot } from "./client-root";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { OnboardingTour } from "@/components/onboarding-tour";
+import { AuthCookieReset } from "@/components/auth-cookie-reset";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -14,6 +15,14 @@ export const metadata: Metadata = {
   },
   description:
     "Your vault for games, film, TV, and anime—track what lands, wishlist what's next, smart folders like playlists, and discovery that feels curated.",
+  icons: {
+    icon: [
+      { url: '/logo.jpg', type: 'image/jpeg', sizes: '512x512' },
+    ],
+    apple: [
+      { url: '/logo.jpg', type: 'image/jpeg', sizes: '512x512' },
+    ],
+  },
   keywords: [
     "media tracker",
     "anime list",
@@ -101,6 +110,7 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <ClientRoot fontVariable={brandFont.variable}>
+        <AuthCookieReset />
         {session?.user && !hasSeenOnboarding && <OnboardingTour hasSeenOnboarding={hasSeenOnboarding} />}
         {children}
       </ClientRoot>

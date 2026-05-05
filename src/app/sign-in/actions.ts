@@ -35,7 +35,18 @@ export async function signInWithGoogle(formData?: FormData) {
   }
 
   const redirectTo = sanitizeRedirectTo(formData?.get("redirectTo"));
-  await signIn("google", { redirectTo });
+  // Store destination in a lightweight short-lived cookie instead of the OAuth state
+  // to avoid REQUEST_HEADER_TOO_LARGE on Vercel.
+  // We set it as non-httpOnly so the client can read it after OAuth callback.
+  cookieStore.set("nv.redirect-to", redirectTo, {
+    httpOnly: false,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 5,
+    secure: process.env.NODE_ENV === "production",
+  });
+
+  await signIn("google", { redirectTo: "/" });
 }
 
 export async function signUpWithCredentials(formData: FormData) {

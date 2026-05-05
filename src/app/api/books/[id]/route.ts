@@ -20,12 +20,16 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
       },
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not open this book";
+    const isTimeout = message.includes("abort") || message.includes("timeout") || message.includes(" Abort");
     return NextResponse.json(
       {
         ok: false,
-        message: error instanceof Error ? error.message : "Could not open this book",
+        message: isTimeout
+          ? "This book is taking too long to load. Project Gutenberg may be slow right now—please try again in a moment."
+          : message,
       },
-      { status: 500 },
+      { status: isTimeout ? 504 : 500 },
     );
   }
 }
