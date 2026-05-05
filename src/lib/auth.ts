@@ -9,6 +9,7 @@ import { credentialsSignInSchema, normalizeEmail } from "@/lib/auth-credentials"
 import { prisma } from "@/lib/prisma";
 
 const googleConfigured = Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET);
+const secureCookie = process.env.NODE_ENV === "production";
 
 const providers: Provider[] = [
   Credentials({
@@ -66,6 +67,32 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   providers,
   pages: {
     signIn: "/sign-in",
+  },
+  cookies: {
+    pkceCodeVerifier: {
+      name: "authjs.pkce.code_verifier",
+      options: { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 5, secure: secureCookie },
+    },
+    callbackUrl: {
+      name: "authjs.callback-url",
+      options: { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 5, secure: secureCookie },
+    },
+    csrfToken: {
+      name: "authjs.csrf-token",
+      options: { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 5, secure: secureCookie },
+    },
+    state: {
+      name: "authjs.state",
+      options: { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 5, secure: secureCookie },
+    },
+    nonce: {
+      name: "authjs.nonce",
+      options: { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 5, secure: secureCookie },
+    },
+    sessionToken: {
+      name: "authjs.session-token",
+      options: { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30, secure: secureCookie },
+    },
   },
   callbacks: {
     async session({ session, token, user }) {
