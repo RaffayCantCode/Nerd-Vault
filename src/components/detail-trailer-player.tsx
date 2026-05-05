@@ -90,6 +90,8 @@ export function DetailTrailerPlayer({ title, trailerUrl, sourceUrl }: DetailTrai
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const sectionRef = useRef<HTMLElement | null>(null);
   const [quality, setQuality] = useState<TrailerQuality>("auto");
+  const [hasError, setHasError] = useState(false);
+  
   const parsedTrailer = useMemo(() => parseTrailer(trailerUrl), [trailerUrl]);
   const provider = parsedTrailer?.provider ?? "unknown";
   const fallbackUrl = parsedTrailer?.watchUrl || sourceUrl || trailerUrl;
@@ -99,8 +101,27 @@ export function DetailTrailerPlayer({ title, trailerUrl, sourceUrl }: DetailTrai
   );
   const supportsQualitySelection = provider === "youtube";
 
+  // Listen for YouTube API errors if possible
   useEffect(() => {
-    if (!supportsQualitySelection || !iframeRef.current || quality === "auto") {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== "https://www.youtube.com") return;
+      try {
+        const data = JSON.parse(event.data);
+        if (data.event === "onPlayerError" || data.info?.error) {
+          console.error("Trailer player error detected:", data);
+          setHasError(true);
+        }
+      } catch {
+        // Not a JSON message or not from YT player
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
+
+  useEffect(() => {
+    if (!supportsQualitySelection || !iframeRef.current || quality === "auto" || hasError) {
       return;
     }
 
@@ -155,6 +176,10 @@ export function DetailTrailerPlayer({ title, trailerUrl, sourceUrl }: DetailTrai
     return () => observer.disconnect();
   }, []);
 
+  if (hasError || !parsedTrailer || (provider === "unknown" && !trailerUrl)) {
+    return null;
+  }
+
   return (
     <section ref={sectionRef} className="detail-trailer-section glass">
       <div className="detail-trailer-head">
@@ -170,6 +195,7 @@ export function DetailTrailerPlayer({ title, trailerUrl, sourceUrl }: DetailTrai
           title={`${title} trailer`}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowFullScreen
+          onError={() => setHasError(true)}
         />
       </div>
 
