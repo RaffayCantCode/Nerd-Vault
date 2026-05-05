@@ -86,11 +86,16 @@ export default async function RootLayout({
   let hasSeenOnboarding = true;
 
   if (session?.user?.id) {
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { hasSeenOnboarding: true },
-    });
-    hasSeenOnboarding = user?.hasSeenOnboarding ?? false;
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { hasSeenOnboarding: true },
+      });
+      hasSeenOnboarding = user?.hasSeenOnboarding ?? false;
+    } catch (e) {
+      console.error("User onboarding status could not be checked:", e);
+      hasSeenOnboarding = true; // Default to true to prevent tour crashing the site
+    }
   }
 
   return (

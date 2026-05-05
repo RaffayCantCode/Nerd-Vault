@@ -10,9 +10,14 @@ export default async function HomePage() {
   const session = await auth();
   const isSignedIn = Boolean(session?.user?.id);
   
-  const settings = await prisma.siteSettings.findUnique({
-    where: { id: "global" },
-  });
+  let settings = null;
+  try {
+    settings = await prisma.siteSettings.findUnique({
+      where: { id: "global" },
+    });
+  } catch (e) {
+    console.error("Site settings could not be loaded, using defaults:", e);
+  }
 
   return (
     <div className="page-shell landing-page">
