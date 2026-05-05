@@ -543,10 +543,11 @@ function mapAnime(
     backdropUrl: item.bannerImage || item.coverImage?.extraLarge || item.coverImage?.large || fallbackImage,
     screenshots: dedupeImages([
       item.bannerImage,
-      item.trailer?.thumbnail,
-      ...(item.streamingEpisodes ?? []).map((ep) => ep.thumbnail),
       item.coverImage?.extraLarge,
       item.coverImage?.large,
+      ...(item.streamingEpisodes ?? []).length > 0 
+        ? item.streamingEpisodes!.map((ep) => ep.thumbnail) 
+        : [item.trailer?.thumbnail],
     ]),
     overview: cleanedDescription,
     credits: mapCredits(item.characters?.edges),

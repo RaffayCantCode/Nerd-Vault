@@ -1133,6 +1133,29 @@ function normalizeDisplayTitle(title: string) {
 }
 
 function compareFranchiseItems(left: MediaItem, right: MediaItem) {
+  // Naruto Specific Ordering
+  const isNaruto = (t: string) => /\bnaruto\b/i.test(t);
+  const isBoruto = (t: string) => /\bboruto\b/i.test(t);
+  const isShippuden = (t: string) => /\bshippuden\b/i.test(t);
+
+  if ((isNaruto(left.title) || isBoruto(left.title)) && (isNaruto(right.title) || isBoruto(right.title))) {
+    // Both are Naruto related
+    const getNarutoRank = (item: MediaItem) => {
+      const t = item.title.toLowerCase();
+      if (isBoruto(t)) return 3;
+      if (isShippuden(t)) return 2;
+      if (isNaruto(t) && !isShippuden(t) && !isBoruto(t)) return 1;
+      return 4;
+    };
+
+    const leftRank = getNarutoRank(left);
+    const rightRank = getNarutoRank(right);
+
+    if (leftRank !== rightRank) {
+      return leftRank - rightRank;
+    }
+  }
+
   const leftYear = left.year || Number.MAX_SAFE_INTEGER;
   const rightYear = right.year || Number.MAX_SAFE_INTEGER;
   if (leftYear !== rightYear) {
@@ -1233,7 +1256,7 @@ async function buildFranchiseSectionUncached(media: MediaItem, animeFranchise?: 
   if (isAnimeContent && animeFranchise && (animeFranchise.seasonEntries?.length || animeFranchise.entries.length > 1)) {
     const sourceEntries = animeFranchise.seasonEntries?.length ? animeFranchise.seasonEntries : animeFranchise.entries;
     const mappedEntries = sourceEntries.map((entry) => ({
-      id: `anilist-${entry.id}`,
+      id: `anilist-anime-${entry.id}`,
       title: normalizeDisplayTitle(entry.title),
       meta: [entry.year || "Year TBD", entry.rating ? `${entry.rating.toFixed(1)} / 10` : "Unrated", entry.episodes ? `${entry.episodes} episodes` : entry.status ?? "Unknown"].filter(Boolean).join(" / "),
       href: {
@@ -1248,7 +1271,7 @@ async function buildFranchiseSectionUncached(media: MediaItem, animeFranchise?: 
       isActive: String(entry.id) === media.sourceId,
     }));
     const mappedMovies = (animeFranchise.movieEntries ?? []).map((entry) => ({
-      id: `anilist-${entry.id}`,
+      id: `anilist-anime-${entry.id}`,
       title: normalizeDisplayTitle(entry.title),
       meta: [entry.year || "Year TBD", entry.rating ? `${entry.rating.toFixed(1)} / 10` : "Unrated", entry.status ?? "Movie"].filter(Boolean).join(" / "),
       href: {
@@ -2543,11 +2566,23 @@ async function getRelatedMediaRailUncached(media: MediaItem) {
 
 async function DeferredRelatedRail({ media, franchiseSection }: { media: MediaItem, franchiseSection: any }) {
   const related = await getRelatedMediaRail(media).catch(() => [] as MediaItem[]);
+  
+  // Extract both IDs and Source IDs from franchise section to ensure perfect filtering
   const franchiseIds = new Set([
+    media.id,
     ...(franchiseSection?.entries.map((entry: any) => entry.id) ?? []),
     ...(franchiseSection?.secondaryEntries?.map((entry: any) => entry.id) ?? []),
   ]);
-  const filteredRelated = related.filter((item) => !franchiseIds.has(item.id));
+  
+  const franchiseSourceIds = new Set([
+    media.sourceId,
+    ...(franchiseSection?.entries.map((entry: any) => entry.href?.query?.sourceId) ?? []),
+    ...(franchiseSection?.secondaryEntries?.map((entry: any) => entry.href?.query?.sourceId) ?? []),
+  ]);
+
+  const filteredRelated = related.filter((item) => 
+    !franchiseIds.has(item.id) && !franchiseSourceIds.has(item.sourceId)
+  );
 
   return (
     <ExpandableRelatedSection
@@ -2698,6 +2733,31 @@ export default async function MediaDetailPage({
     buildFranchiseSection(media, animeFranchise).catch(() => null),
     dbPromise,
   ]);
+
+  // Rework Naruto Franchise Order specifically if detected
+  if (franchiseSection && /\bnaruto\b/i.test(franchiseSection.title)) {
+    const sortNarutoEntries = (entries: any[]) => {
+      return [...entries].sort((a, b) => {
+        const getRank = (title: string) => {
+          const t = title.toLowerCase();
+          if (/\bboruto\b/i.test(t)) return 3;
+          if (/\bshippuden\b/i.test(t)) return 2;
+          if (/\bnaruto\b/i.test(t)) return 1;
+          return 4;
+        };
+        const rankA = getRank(a.title);
+        const rankB = getRank(b.title);
+        if (rankA !== rankB) return rankA - rankB;
+        
+        // Secondary sort by year/date for movies or multiple entries in same category
+        return (parseInt(a.meta) || 0) - (parseInt(b.meta) || 0);
+      });
+    };
+    franchiseSection.entries = sortNarutoEntries(franchiseSection.entries);
+    if (franchiseSection.secondaryEntries) {
+      franchiseSection.secondaryEntries = sortNarutoEntries(franchiseSection.secondaryEntries);
+    }
+  }
   const [shellData, library] = dbData;
   const sidebarFolders = shellData?.folders ?? [];
   const seriesContext = buildSeriesContext(media, franchiseSection);
@@ -2720,10 +2780,10 @@ export default async function MediaDetailPage({
       ? media.details.platform ?? "Unknown"
       : media.type === "show"
         ? media.details.releaseInfo ?? media.details.runtime ?? "Unknown"
-        : media.type === "anime" || media.type === "anime_movie"
-          ? (animeFranchise?.seasonCount ?? media.details.seasonCount)
-            ? `${animeFranchise?.seasonCount ?? media.details.seasonCount} seasons released`
-            : media.details.runtime ?? media.details.entryLabel ?? media.details.releaseInfo ?? "Unknown"
+        : (media.type === "anime" || media.type === "anime_movie")
+          ? (media.details.episodeCount || animeFranchise?.entries.find(e => e.id === Number(media.sourceId))?.episodes)
+            ? `${media.details.episodeCount || animeFranchise?.entries.find(e => e.id === Number(media.sourceId))?.episodes} episodes`
+            : media.details.runtime ?? media.details.entryLabel ?? "Unknown"
           : media.details.runtime ?? media.details.entryLabel ?? media.details.releaseInfo ?? "Unknown";
   const studioValue = media.details.studio ?? media.details.platform ?? "Unknown";
   const statusValue = media.details.status ?? media.details.releaseInfo ?? "Unknown";
@@ -2736,9 +2796,15 @@ export default async function MediaDetailPage({
   const primaryExternalAction = media.type === "game" ? "Buy" : "Watch";
   const spotlightCredits = dedupeSpotlightCredits(media.credits).slice(0, 6);
   const gallery = uniqueGalleryImages(media).filter(img => {
-    // Filter out character portraits (typically square or very vertical small images from AniList/TMDB)
-    // We prioritize landscapes (backdrops/stills) or high-res posters
+    // Filter out character portraits
     if (media.source === "anilist" && img.includes("/characters/")) return false;
+    
+    // Naruto Specific Fix: Filter out movie-specific stills when on the main series page
+    const isMainNaruto = media.title.toLowerCase() === "naruto" && media.year === 2002;
+    if (isMainNaruto && (img.includes("movie") || img.includes("the-last") || img.includes("boruto"))) {
+      return false;
+    }
+    
     return true;
   }).slice(0, 6);
   const moodLine = buildPremiseLine(media);
@@ -2843,62 +2909,64 @@ export default async function MediaDetailPage({
                       <p className="copy detail-overview-copy">{aboutText}</p>
                     </section>
 
-                    <section className="detail-section">
-                      <h2 className="eyebrow">{media.type === "game" ? "Studio / Creatives" : "Cast / Characters"}</h2>
-                      {spotlightCredits.length ? (
-                        <div className="detail-credits-grid">
-                          {spotlightCredits.map((credit) => (
-                            <div key={`${credit.name}-${credit.role}`} className="detail-credit-chip glass">
-                              <strong>{credit.name}</strong>
-                              <span>{credit.role}{credit.character ? ` · ${credit.character}` : ""}</span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="copy">Source data is light on credits for this title right now.</p>
-                      )}
-                    </section>
-
-                    <div className="detail-meta-grid">
-                      <section className="detail-section">
-                        <h2 className="eyebrow">{studioLabel}</h2>
-                        <p className="copy">{studioValue}</p>
-                      </section>
-                      <section className="detail-section">
-                        <h2 className="eyebrow">{runtimeLabel}</h2>
-                        <p className="copy">{runtimeValue}</p>
-                      </section>
-                      <section className="detail-section">
-                        <h2 className="eyebrow">Status</h2>
-                        <p className="copy">{statusValue}</p>
-                      </section>
-                      {sourceReference.url ? (
+                    <div className="info-panel glass" style={{ marginTop: 24, padding: 24, borderRadius: 24 }}>
+                      <div className="detail-meta-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 24 }}>
                         <section className="detail-section">
-                          <h2 className="eyebrow">Source</h2>
-                          <a href={sourceReference.url} target="_blank" rel="noreferrer" className="copy detail-source-link">
-                            {sourceReference.label} ↗
-                          </a>
+                          <h2 className="eyebrow">{studioLabel}</h2>
+                          <p className="copy" style={{ fontSize: '0.95rem', fontWeight: 600 }}>{studioValue}</p>
                         </section>
-                      ) : null}
-                    </div>
+                        <section className="detail-section">
+                          <h2 className="eyebrow">{runtimeLabel}</h2>
+                          <p className="copy" style={{ fontSize: '0.95rem', fontWeight: 600 }}>{runtimeValue}</p>
+                        </section>
+                        <section className="detail-section">
+                          <h2 className="eyebrow">Status</h2>
+                          <p className="copy" style={{ fontSize: '0.95rem', fontWeight: 600 }}>{statusValue}</p>
+                        </section>
+                        {sourceReference.url ? (
+                          <section className="detail-section">
+                            <h2 className="eyebrow">Source</h2>
+                            <a href={sourceReference.url} target="_blank" rel="noreferrer" className="copy detail-source-link" style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--detail-accent)' }}>
+                              {sourceReference.label} ↗
+                            </a>
+                          </section>
+                        ) : null}
+                      </div>
 
-                    {externalLinks.length > 0 && (
-                      <section className="detail-section">
-                        <h2 className="eyebrow">{primaryExternalAction} / More sources</h2>
-                        <div className="button-row" style={{ marginTop: 10 }}>
-                          {primaryExternalLink ? (
-                            <a href={primaryExternalLink.url} target="_blank" rel="noreferrer" className="button button-primary">
-                              {primaryExternalAction} on {primaryExternalLink.name}
-                            </a>
-                          ) : null}
-                          {secondaryExternalLinks.map((link) => (
-                            <a key={link.name} href={link.url} target="_blank" rel="noreferrer" className="button button-secondary">
-                              {link.name}
-                            </a>
-                          ))}
+                      <div style={{ marginTop: 32, paddingTop: 32, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                        <h2 className="eyebrow" style={{ marginBottom: 16 }}>{media.type === "game" ? "Studio / Creatives" : "Key Cast"}</h2>
+                        {spotlightCredits.length ? (
+                          <div className="detail-credits-grid">
+                            {spotlightCredits.map((credit) => (
+                              <div key={`${credit.name}-${credit.role}`} className="detail-credit-chip glass" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                                <strong>{credit.name}</strong>
+                                <span>{credit.role}{credit.character ? ` · ${credit.character}` : ""}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="copy">Source data is light on credits for this title right now.</p>
+                        )}
+                      </div>
+
+                      {externalLinks.length > 0 && (
+                        <div style={{ marginTop: 32, paddingTop: 32, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                          <h2 className="eyebrow" style={{ marginBottom: 16 }}>{primaryExternalAction} / Official Links</h2>
+                          <div className="button-row">
+                            {primaryExternalLink ? (
+                              <a href={primaryExternalLink.url} target="_blank" rel="noreferrer" className="button button-primary" style={{ padding: '10px 20px', fontSize: '0.9rem' }}>
+                                {primaryExternalAction} on {primaryExternalLink.name}
+                              </a>
+                            ) : null}
+                            {secondaryExternalLinks.slice(0, 3).map((link) => (
+                              <a key={link.name} href={link.url} target="_blank" rel="noreferrer" className="button button-secondary" style={{ padding: '10px 20px', fontSize: '0.9rem' }}>
+                                {link.name}
+                              </a>
+                            ))}
+                          </div>
                         </div>
-                      </section>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
