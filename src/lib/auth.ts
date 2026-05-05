@@ -55,6 +55,8 @@ if (googleConfigured) {
     Google({
       clientId: process.env.AUTH_GOOGLE_ID!,
       clientSecret: process.env.AUTH_GOOGLE_SECRET!,
+      authorization: { params: { prompt: "consent" } },
+      checks: ["state"],
     }),
   );
 }
@@ -69,10 +71,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     signIn: "/sign-in",
   },
   cookies: {
-    pkceCodeVerifier: {
-      name: `${secureCookie ? "__Secure-" : ""}authjs.pkce.code_verifier`,
-      options: { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 5, secure: secureCookie },
-    },
     callbackUrl: {
       name: `${secureCookie ? "__Secure-" : ""}authjs.callback-url`,
       options: { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 5, secure: secureCookie },
