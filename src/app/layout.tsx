@@ -17,10 +17,10 @@ export const metadata: Metadata = {
     "Your vault for games, film, TV, and anime—track what lands, wishlist what's next, smart folders like playlists, and discovery that feels curated.",
   icons: {
     icon: [
-      { url: '/logo.jpg', type: 'image/jpeg', sizes: '512x512' },
+      { url: '/icon', type: 'image/png', sizes: '256x256' },
     ],
     apple: [
-      { url: '/logo.jpg', type: 'image/jpeg', sizes: '512x512' },
+      { url: '/icon', type: 'image/png', sizes: '256x256' },
     ],
   },
   keywords: [

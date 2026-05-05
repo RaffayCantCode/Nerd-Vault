@@ -1,6 +1,7 @@
 import { browseIgdbGames } from "@/lib/sources/igdb";
 import { browseAniListAnime } from "@/lib/sources/anilist";
 import { browseTmdbCatalog } from "@/lib/sources/tmdb";
+import { isFamilyFriendlyMediaItem } from "@/lib/media-safety";
 import { MediaItem } from "@/lib/types";
 
 const BOOTSTRAP_SOURCE_TTL_MS = 1000 * 60 * 30;
@@ -56,10 +57,6 @@ async function withTimeout<T>(work: Promise<T>, fallback: T, timeoutMs: number) 
   }
 }
 
-function isFamilyFriendly(item: MediaItem) {
-  const restrictedGenres = ["sex", "ecchi", "hentai", "erotica"];
-  return !item.genres.some((genre) => restrictedGenres.includes(genre.toLowerCase()));
-}
 
 function dedupeItems(items: MediaItem[]) {
   const seen = new Set<string>();
@@ -67,7 +64,7 @@ function dedupeItems(items: MediaItem[]) {
   return items.filter((item) => {
     const key = `${item.source}-${item.sourceId}`;
     if (seen.has(key)) return false;
-    if (!isFamilyFriendly(item)) return false;
+    if (!isFamilyFriendlyMediaItem(item)) return false;
     seen.add(key);
     return true;
   });
