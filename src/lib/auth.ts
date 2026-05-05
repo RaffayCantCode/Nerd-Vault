@@ -70,27 +70,27 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   cookies: {
     pkceCodeVerifier: {
-      name: "authjs.pkce.code_verifier",
+      name: `${secureCookie ? "__Secure-" : ""}authjs.pkce.code_verifier`,
       options: { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 5, secure: secureCookie },
     },
     callbackUrl: {
-      name: "authjs.callback-url",
+      name: `${secureCookie ? "__Secure-" : ""}authjs.callback-url`,
       options: { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 5, secure: secureCookie },
     },
     csrfToken: {
-      name: "authjs.csrf-token",
+      name: `${secureCookie ? "__Host-" : ""}authjs.csrf-token`,
       options: { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 5, secure: secureCookie },
     },
     state: {
-      name: "authjs.state",
+      name: `${secureCookie ? "__Secure-" : ""}authjs.state`,
       options: { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 5, secure: secureCookie },
     },
     nonce: {
-      name: "authjs.nonce",
+      name: `${secureCookie ? "__Secure-" : ""}authjs.nonce`,
       options: { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 5, secure: secureCookie },
     },
     sessionToken: {
-      name: "authjs.session-token",
+      name: `${secureCookie ? "__Secure-" : ""}authjs.session-token`,
       options: { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30, secure: secureCookie },
     },
   },
