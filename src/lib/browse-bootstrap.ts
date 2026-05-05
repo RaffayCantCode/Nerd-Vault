@@ -56,12 +56,18 @@ async function withTimeout<T>(work: Promise<T>, fallback: T, timeoutMs: number) 
   }
 }
 
+function isFamilyFriendly(item: MediaItem) {
+  const restrictedGenres = ["sex", "ecchi", "hentai", "erotica"];
+  return !item.genres.some((genre) => restrictedGenres.includes(genre.toLowerCase()));
+}
+
 function dedupeItems(items: MediaItem[]) {
   const seen = new Set<string>();
 
   return items.filter((item) => {
     const key = `${item.source}-${item.sourceId}`;
     if (seen.has(key)) return false;
+    if (!isFamilyFriendly(item)) return false;
     seen.add(key);
     return true;
   });

@@ -199,12 +199,17 @@ export const CatalogCard = memo(function CatalogCard({
       </div>
 
       <div className="catalog-copy">
+        <h3 className="catalog-title">{item.title}</h3>
+        {item.genres.length > 0 && (
+          <p className="catalog-genres">
+            {item.genres.slice(0, 2).join(" • ")}
+          </p>
+        )}
         <div className="meta-row">
           <span className="pill">{item.type}</span>
           <span className="pill">{item.year}</span>
           <span className="pill rating">{item.rating.toFixed(1)}</span>
         </div>
-        <h3 className="catalog-title">{item.title}</h3>
         {item.userRating && showUserRatingBelow ? (
           <div className="catalog-user-rating-row" aria-label={`Your rating: ${item.userRating} out of 5`}>
             <span className="catalog-user-rating-label">Your rating</span>

@@ -120,19 +120,20 @@ html {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    width: 60px !important;
-    height: 60px !important;
-    margin: 0 auto 16px auto !important;
-    padding: 4px !important;
+    width: 64px !important;
+    height: 64px !important;
+    margin: 0 auto 20px auto !important;
+    padding: 0 !important;
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)) !important;
     border-radius: 18px !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2) !important;
+    overflow: hidden !important;
   }
 
   .sidebar.sidebar-rail:hover .brand.brand-rail {
     margin-left: 0 !important;
-    width: 60px !important;
+    width: 64px !important;
   }
 
   .brand-mark-logo {
@@ -149,10 +150,11 @@ html {
     object-fit: cover !important;
     border-radius: 14px !important;
     transition: transform 0.3s ease !important;
+    transform: scale(1.15) !important; /* Scale up slightly to fill space better */
   }
 
   .brand.brand-rail:hover .brand-logo-image {
-    transform: scale(1.05) !important;
+    transform: scale(1.25) !important;
   }
 
   .sidebar-nav-button {
@@ -4259,13 +4261,16 @@ body {
 
 /* ═══ BRAND LOGO — OVERFLOW FIX ═══ */
 .brand-mark-logo {
-  width: 44px !important;
-  height: 44px !important;
-  min-width: 44px !important;
-  max-width: 44px !important;
+  width: 52px !important;
+  height: 52px !important;
+  min-width: 52px !important;
+  max-width: 52px !important;
   flex-shrink: 0 !important;
   overflow: hidden !important;
   border-radius: 14px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .brand-mark-logo .brand-logo-image {
@@ -4274,6 +4279,7 @@ body {
   object-fit: cover !important;
   object-position: center !important;
   display: block !important;
+  transform: scale(1.15) !important;
 }
 
 /* Sidebar brand link should never overflow */
@@ -10577,7 +10583,7 @@ html {
   .sidebar-shell.is-mobile-open .sidebar.sidebar-rail .brand.brand-rail {
     width: fit-content !important;
     min-height: 0 !important;
-    height: 64px !important;
+    height: 72px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: flex-start !important;
@@ -10589,8 +10595,8 @@ html {
   }
 
   .sidebar-shell.is-mobile-open .sidebar.sidebar-rail .brand-mark-logo {
-    width: 52px !important;
-    height: 52px !important;
+    width: 60px !important;
+    height: 60px !important;
     border-radius: 12px !important;
   }
 
@@ -12374,6 +12380,9 @@ body {
   border-radius: 20px !important;
   overflow: hidden !important;
   transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+  min-height: 400px !important;
+  contain: layout style paint;
+  will-change: transform;
 }
 
 .catalog-card-media {
@@ -12381,6 +12390,7 @@ body {
   width: 100% !important;
   aspect-ratio: 2 / 3 !important;
   overflow: hidden !important;
+  background: #000 !important;
 }
 
 .catalog-card-media img {
@@ -12396,12 +12406,13 @@ body {
 
 .catalog-copy {
   padding: 16px !important;
-  background: #0a0e15 !important;
+  background: transparent !important;
   flex-grow: 1 !important;
   display: flex !important;
   flex-direction: column !important;
   gap: 10px !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+  border-top: none !important;
+  position: relative !important;
 }
 
 .catalog-title {
@@ -12414,16 +12425,24 @@ body {
   -webkit-line-clamp: 2 !important;
   -webkit-box-orient: vertical !important;
   overflow: hidden !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5) !important;
 }
 
 .catalog-genres {
   font-size: 0.75rem !important;
-  font-weight: 700 !important;
+  font-weight: 800 !important;
   color: #03fcbe !important;
   text-transform: uppercase !important;
-  letter-spacing: 0.05em !important;
+  letter-spacing: 0.06em !important;
   margin: 0 !important;
-  opacity: 0.9 !important;
+  opacity: 1 !important;
+}
+
+.catalog-grid {
+  content-visibility: auto;
+  contain-intrinsic-size: 1000px;
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .meta-row {
