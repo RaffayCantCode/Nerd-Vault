@@ -199,7 +199,7 @@ export const CatalogCard = memo(function CatalogCard({
       </div>
 
       <div className="catalog-copy">
-        <h3 className="catalog-title">{item.title}</h3>
+        <h3 className="catalog-title" title={item.title}>{item.title}</h3>
         {item.genres.length > 0 && (
           <p className="catalog-genres">
             {item.genres.slice(0, 2).join(" • ")}
