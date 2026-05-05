@@ -370,22 +370,28 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
 
     const returnContext = readBrowseReturnContext();
     if (!returnContext) {
+      // If no return context, check if we have a saved scroll position for the current URL
+      const savedScroll = window.sessionStorage.getItem(`scroll-${currentHref}`);
+      if (savedScroll) {
+        const timer = window.setTimeout(() => {
+          window.scrollTo({ top: parseInt(savedScroll, 10), behavior: "auto" });
+          hasRestoredScrollRef.current = true;
+        }, 10);
+        return () => window.clearTimeout(timer);
+      }
       hasRestoredScrollRef.current = true;
       return;
     }
 
-    // Restore scroll as soon as items are rendered — don't do exact URL comparison
-    // because the seed or other ephemeral params may differ slightly
+    // Restore scroll as soon as items are rendered
     const timer = window.setTimeout(() => {
       const target = returnContext.cardId
         ? document.querySelector<HTMLElement>(`[data-browse-card-id="${returnContext.cardId}"]`)
         : null;
 
       if (target) {
-        // Scroll the card into view with a small top margin so it's visible
         const nextTop = Math.max(0, window.scrollY + target.getBoundingClientRect().top - 112);
         window.scrollTo({ top: nextTop, behavior: "auto" });
-        // Brief highlight to orient the user
         target.style.transition = "box-shadow 300ms ease";
         target.style.boxShadow = "0 0 0 2px var(--gold)";
         window.setTimeout(() => {
@@ -400,7 +406,21 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
     }, 60);
 
     return () => window.clearTimeout(timer);
-  }, [isLoading]);
+  }, [isLoading, currentHref]);
+
+  // Smart Scroll Tracker: Save scroll position before leaving
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleScroll = () => {
+      if (!isLoading) {
+        window.sessionStorage.setItem(`scroll-${currentHref}`, window.scrollY.toString());
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [currentHref, isLoading]);
 
   useEffect(() => {
     featuredDeck.slice(0, 4).forEach((item) => {
