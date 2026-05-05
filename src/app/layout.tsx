@@ -1,9 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import { Poppins } from "next/font/google";
 import { ClientRoot } from "./client-root";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { OnboardingTour } from "@/components/onboarding-tour";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://nerdvault.site'),
   title: {
     default: "NerdVault",
     template: "%s · NerdVault",
@@ -17,19 +21,46 @@ export const metadata: Metadata = {
     "movie watchlist",
     "TV tracker",
     "NerdVault",
+    "nerdvault.site",
+    "entertainment archive",
+    "read stories",
+    "project gutenberg",
   ],
+  alternates: {
+    canonical: '/',
+  },
   openGraph: {
-    title: "NerdVault",
+    title: "NerdVault | Your Universe of Entertainment",
     description:
       "One vault for everything you watch and play. Folders, detail pages, and browse tuned for taste—not noise.",
-    type: "website",
-    locale: "en_US",
+    url: 'https://nerdvault.site',
     siteName: "NerdVault",
+    images: [
+      {
+        url: '/logo.jpg',
+        width: 800,
+        height: 600,
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
   },
   twitter: {
     card: "summary_large_image",
-    title: "NerdVault",
-    description: "Log what hit. Save what calls next.",
+    title: "NerdVault | Your Universe of Entertainment",
+    description: "Log what hit. Save what calls next. The ultimate platform for tracking everything you love.",
+    images: ['/logo.jpg'],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
   },
 };
 
@@ -48,12 +79,24 @@ const brandFont = Poppins({
   display: "swap",
 });
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const session = await auth();
+  let hasSeenOnboarding = true;
+
+  if (session?.user?.id) {
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { hasSeenOnboarding: true },
+    });
+    hasSeenOnboarding = user?.hasSeenOnboarding ?? false;
+  }
+
   return (
     <html lang="en">
       <ClientRoot fontVariable={brandFont.variable}>
+        {session?.user && !hasSeenOnboarding && <OnboardingTour hasSeenOnboarding={hasSeenOnboarding} />}
         {children}
       </ClientRoot>
     </html>

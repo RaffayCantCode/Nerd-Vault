@@ -16,6 +16,7 @@ export type BookSummary = {
   title: string;
   authors: string[];
   summary: string;
+  tagline: string;
   coverUrl: string | null;
   subjects: string[];
   genres: string[];

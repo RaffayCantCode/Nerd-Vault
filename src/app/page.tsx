@@ -4,10 +4,15 @@ import { signOutUser } from "@/app/sign-in/sign-out-action";
 import { BrowseResetLink } from "@/components/browse-reset-link";
 import { SiteHeader } from "@/components/site-header";
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 export default async function HomePage() {
   const session = await auth();
   const isSignedIn = Boolean(session?.user?.id);
+  
+  const settings = await prisma.siteSettings.findUnique({
+    where: { id: "global" },
+  });
 
   return (
     <div className="page-shell landing-page">
@@ -29,13 +34,12 @@ export default async function HomePage() {
               </div>
               
               <h1 className="landing-hero-title">
-                Your Universe of
-                <span className="landing-hero-accent">Entertainment</span>
+                {settings?.heroTitle || "Your Universe of"}
+                {!settings?.heroTitle && <span className="landing-hero-accent">Entertainment</span>}
               </h1>
               
               <p className="landing-hero-subtitle">
-                The ultimate platform for tracking, discovering, and sharing everything you love. 
-                Movies, TV shows, anime, and games - all in one beautifully crafted vault.
+                {settings?.heroSubtitle || "The ultimate platform for tracking, discovering, and sharing everything you love. Movies, TV shows, anime, and games - all in one beautifully crafted vault."}
               </p>
               
               <div className="landing-hero-stats">

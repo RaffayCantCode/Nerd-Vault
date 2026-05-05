@@ -15,6 +15,8 @@ model User {
   image                  String?
   bio                    String?               @db.Text
   passwordHash           String?
+  role                   UserRole              @default(USER)
+  hasSeenOnboarding      Boolean               @default(false)
   watchedVisibility      PrivacyLevel          @default(public)
   wishlistVisibility     PrivacyLevel          @default(friends)
   foldersDefaultVisibility PrivacyLevel        @default(public)
@@ -31,6 +33,19 @@ model User {
   friendOf               Friendship[]          @relation("FriendshipFriend")
   accounts               Account[]
   sessions               Session[]
+}
+
+model SiteSettings {
+  id             String   @id @default("global")
+  heroTitle      String?
+  heroSubtitle   String?
+  featuredMediaId String?
+  updatedAt      DateTime @updatedAt
+}
+
+enum UserRole {
+  USER
+  ADMIN
 }
 
 model Media {

@@ -187,7 +187,6 @@ export const CatalogCard = memo(function CatalogCard({
           decoding="async"
           onLoadStateChange={setIsImageLoaded}
         />
-        <div className="catalog-card-gradient" />
         <div className="catalog-sheen" />
         <div className="catalog-card-hover-overlay">
           <span className="catalog-card-hover-text">View Details</span>

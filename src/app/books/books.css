@@ -921,18 +921,33 @@
   font-size: 1.5rem;
 }
 
-.books-card-author,
-.books-card-summary {
+.books-card-author {
   margin: 0;
   color: var(--books-muted);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.books-card-tagline {
+  margin: 0;
+  color: var(--books-accent);
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  line-height: 1.3;
 }
 
 .books-card-summary {
+  margin: 0;
+  color: var(--books-muted);
   line-height: 1.6;
+  font-size: 0.94rem;
   display: -webkit-box;
-  -webkit-line-clamp: 4;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .books-card-actions {

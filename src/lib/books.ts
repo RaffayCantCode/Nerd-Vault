@@ -96,7 +96,15 @@ function mapBook(book: GutendexBook): BookSummary {
   const authors = (book.authors ?? [])
     .map((author) => author.name?.trim())
     .filter((value): value is string => Boolean(value));
-  const summary = book.summaries?.find(Boolean)?.trim() || `A Project Gutenberg edition of ${cleanedTitle}.`;
+  
+  const rawSummary = book.summaries?.find(Boolean)?.trim() || `A Project Gutenberg edition of ${cleanedTitle}.`;
+  
+  // Clean summary: remove half-cut text and limit length
+  const summary = rawSummary.length > 280 ? rawSummary.substring(0, 277) + "..." : rawSummary;
+  
+  // Generate a clean tagline from the subjects or summary
+  const tagline = book.subjects?.[0]?.split("--")[0]?.trim() || "A classic literary work";
+
   const downloadCount = book.download_count ?? 0;
   const pageCountEstimate = Math.max(80, Math.min(960, Math.round(120 + downloadCount / 20)));
 
@@ -105,6 +113,7 @@ function mapBook(book: GutendexBook): BookSummary {
     title: cleanedTitle,
     authors,
     summary,
+    tagline,
     coverUrl: book.formats?.["image/jpeg"] ?? null,
     subjects: (book.subjects ?? []).slice(0, 10),
     genres: deriveGenres(book.subjects ?? []),
@@ -118,7 +127,7 @@ async function fetchGutendex(url: URL) {
   const cacheKey = url.toString();
   const cached = gutendexResponseCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) {
-    return cached.payload;
+    return JSON.parse(JSON.stringify(cached.payload)); // Return a copy to avoid side effects
   }
 
   const response = await fetch(cacheKey, {
@@ -137,7 +146,7 @@ async function fetchGutendex(url: URL) {
     expiresAt: Date.now() + BOOK_LIST_CACHE_MS,
     payload,
   });
-  return payload;
+  return JSON.parse(JSON.stringify(payload));
 }
 
 async function fetchGutendexWithRetry(url: URL, attempts = 3) {
@@ -258,7 +267,11 @@ export async function fetchBooksPage({
   const safePage = Math.max(1, page);
   const searchTerms = buildBookSearchTerms(query, genre);
   const payload = await fetchGutendexPage(safePage, searchTerms);
-  const mappedItems = payload.results.map(mapBook).filter((book) => matchesGenre(book, genre));
+  
+  // Shuffle results to help users discover new books naturally
+  const shuffledResults = [...payload.results].sort(() => Math.random() - 0.5);
+  
+  const mappedItems = shuffledResults.map(mapBook).filter((book) => matchesGenre(book, genre));
 
   return {
     page: safePage,
@@ -296,7 +309,7 @@ export async function fetchBooksByIds(bookIds: number[]): Promise<BookSummary[]>
   const mapped = payload.results.map(mapBook);
   const order = new Map(normalizedIds.map((id, index) => [id, index]));
 
-  return mapped.sort((left, right) => (order.get(left.id) ?? 0) - (order.get(right.id) ?? 0));
+  return mapped.sort((left: BookSummary, right: BookSummary) => (order.get(left.id) ?? 0) - (order.get(right.id) ?? 0));
 }
 
 export async function fetchBookReaderPayload(bookId: number): Promise<BookReaderPayload> {

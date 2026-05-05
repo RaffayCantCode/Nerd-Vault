@@ -320,8 +320,9 @@ export function BooksWorkspace({
                 <Link href={`/books/${book.id}`} className="books-card-link">
                   <BookCover title={book.title} author={book.authors[0]} size="small" />
                   <div className="books-card-copy">
-                    <p className="books-card-title">{book.title}</p>
+                    <p className="books-card-title" title={book.title}>{book.title}</p>
                     <p className="books-card-author">{book.authors.join(", ") || "Unknown author"}</p>
+                    <p className="books-card-tagline">{book.tagline}</p>
                     <p className="books-card-summary">{book.summary}</p>
                   </div>
                 </Link>
