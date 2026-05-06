@@ -130,7 +130,7 @@ export const AppTopBar = memo(function AppTopBar({
   }
 
   return (
-    <section className={`app-topbar glass ${(inboxOpen || profileMenuOpen) ? "is-layered" : ""}`} style={{ marginBottom: "2rem" }}>
+    <section className={`app-topbar glass ${(inboxOpen || profileMenuOpen) ? "is-layered" : ""}`}>
       <div className="app-topbar-meta">
         <p className="eyebrow">Vault hub</p>
         <p className="app-topbar-summary">Friends, inbox, and your account stay within reach.</p>

@@ -218,6 +218,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
   const [isHeroInView, setIsHeroInView] = useState(true);
   const [isDocumentVisible, setIsDocumentVisible] = useState(true);
   const [isHeroPaused, setIsHeroPaused] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const resultsRef = useRef<HTMLDivElement | null>(null);
   const surfacingRef = useRef<HTMLElement | null>(null);
   const hasRestoredScrollRef = useRef(false);
@@ -523,6 +524,13 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
+
+    if (query.trim()) {
+      setFilter("all");
+      setGenre("all");
+      setSort("discovery");
+    }
+
     resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
@@ -583,6 +591,14 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
 
   return (
     <div className="workspace browse-workspace-root">
+      <AppTopBar
+        viewerId={viewerId}
+        viewerName={viewerName}
+        viewerAvatar={viewerAvatar}
+        initialProfile={initialProfile}
+        initialFriends={initialFriends}
+      />
+
       <section
         ref={surfacingRef}
         className="workspace-hero browse-surfacing-hero"
@@ -678,16 +694,8 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
         )}
       </section>
 
-      <AppTopBar
-        viewerId={viewerId}
-        viewerName={viewerName}
-        viewerAvatar={viewerAvatar}
-        initialProfile={initialProfile}
-        initialFriends={initialFriends}
-      />
-
       <section className="section-stack" style={{ paddingTop: 0 }}>
-        <div className="browse-toolbar">
+        <div className={`browse-toolbar ${isFilterOpen ? "is-open" : ""}`}>
           <div className="browse-toolbar-grid">
             <div className="browse-toolbar-copy">
               <p className="eyebrow">Browse</p>
@@ -707,45 +715,55 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
                 <strong>{isLoading ? "Refreshing..." : `${payload.totalResults.toLocaleString()} matched`}</strong>
               </div>
             </div>
+
+            <button
+              type="button"
+              className="button button-secondary browse-filter-toggle"
+              onClick={() => setIsFilterOpen(!isFilterOpen)}
+            >
+              {isFilterOpen ? "Hide Filters" : "Sort / Filter"}
+            </button>
           </div>
 
-          <div className="browse-toolbar-row">
-            <div className="search-cluster">
-              <div className="sort-chip-block">
-                <p className="sort-label">Sort</p>
-                <div className="picker-grid sort-chip-row">
-                  <button type="button" className={`picker-chip ${sort === "discovery" ? "is-active" : ""}`} onClick={() => setSort("discovery")}>
-                    Discovery
-                  </button>
-                  <button type="button" className={`picker-chip ${sort === "newest" ? "is-active" : ""}`} onClick={() => setSort("newest")}>
-                    Newest
-                  </button>
-                  <button type="button" className={`picker-chip ${sort === "rating" ? "is-active" : ""}`} onClick={() => setSort("rating")}>
-                    Top rated
-                  </button>
-                  <button type="button" className={`picker-chip ${sort === "title" ? "is-active" : ""}`} onClick={() => setSort("title")}>
-                    A-Z
-                  </button>
+          <div className="browse-toolbar-expandable">
+            <div className="browse-toolbar-row">
+              <div className="search-cluster">
+                <div className="sort-chip-block">
+                  <p className="sort-label">Sort</p>
+                  <div className="picker-grid sort-chip-row">
+                    <button type="button" className={`picker-chip ${sort === "discovery" ? "is-active" : ""}`} onClick={() => setSort("discovery")}>
+                      Discovery
+                    </button>
+                    <button type="button" className={`picker-chip ${sort === "newest" ? "is-active" : ""}`} onClick={() => setSort("newest")}>
+                      Newest
+                    </button>
+                    <button type="button" className={`picker-chip ${sort === "rating" ? "is-active" : ""}`} onClick={() => setSort("rating")}>
+                      Top rated
+                    </button>
+                    <button type="button" className={`picker-chip ${sort === "title" ? "is-active" : ""}`} onClick={() => setSort("title")}>
+                      A-Z
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <FilterChipBar active={filter} onChange={setFilter} />
+              <FilterChipBar active={filter} onChange={setFilter} />
 
-            <div className="chip-row">
-              <button type="button" className={`chip ${genre === "all" ? "is-active" : ""}`} onClick={() => setGenre("all")}>
-                All genres
-              </button>
-              {BROWSE_GENRES.map((itemGenre) => (
-                <button
-                  key={itemGenre}
-                  type="button"
-                  className={`chip ${genre === itemGenre ? "is-active" : ""}`}
-                  onClick={() => setGenre(itemGenre)}
-                >
-                  {itemGenre}
+              <div className="chip-row">
+                <button type="button" className={`chip ${genre === "all" ? "is-active" : ""}`} onClick={() => setGenre("all")}>
+                  All genres
                 </button>
-              ))}
+                {BROWSE_GENRES.map((itemGenre) => (
+                  <button
+                    key={itemGenre}
+                    type="button"
+                    className={`chip ${genre === itemGenre ? "is-active" : ""}`}
+                    onClick={() => setGenre(itemGenre)}
+                  >
+                    {itemGenre}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>

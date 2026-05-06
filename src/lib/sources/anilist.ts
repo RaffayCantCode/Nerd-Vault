@@ -543,11 +543,8 @@ function mapAnime(
     backdropUrl: item.bannerImage || item.coverImage?.extraLarge || item.coverImage?.large || fallbackImage,
     screenshots: dedupeImages([
       item.bannerImage,
-      item.coverImage?.extraLarge,
-      item.coverImage?.large,
-      ...(item.streamingEpisodes ?? []).length > 0 
-        ? item.streamingEpisodes!.map((ep) => ep.thumbnail) 
-        : [item.trailer?.thumbnail],
+      ...(item.streamingEpisodes ?? []).map((ep) => ep.thumbnail).filter(Boolean),
+      item.trailer?.thumbnail,
     ]),
     overview: cleanedDescription,
     credits: mapCredits(item.characters?.edges),
@@ -730,13 +727,18 @@ async function buildDetailedAnime(item: AniListMedia) {
       }) satisfies TmdbAnimeImageEnrichment,
   );
 
+  // Collect proper stills first (streaming episodes thumbnails)
+  const episodeStills = (item.streamingEpisodes ?? [])
+    .map((ep) => ep.thumbnail)
+    .filter((thumb): thumb is string => Boolean(thumb));
+
   return mergeDetailImages(
     {
       ...media,
       credits: mapCredits(item.characters?.edges),
       screenshots: dedupeImages([
-        ...(item.characters?.edges ?? []).map((entry) => entry.node?.image?.large),
         item.bannerImage,
+        ...episodeStills,
         item.trailer?.thumbnail,
         media.coverUrl,
       ]),

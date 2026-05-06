@@ -2796,17 +2796,34 @@ export default async function MediaDetailPage({
   const primaryExternalAction = media.type === "game" ? "Buy" : "Watch";
   const spotlightCredits = dedupeSpotlightCredits(media.credits).slice(0, 6);
   const gallery = uniqueGalleryImages(media).filter(img => {
-    // Filter out character portraits
-    if (media.source === "anilist" && img.includes("/characters/")) return false;
+    const lowerImg = img.toLowerCase();
     
+    // Filter out character portraits (Anilist often uses this path)
+    if (media.source === "anilist" && lowerImg.includes("/characters/")) return false;
+    
+    // Filter out common character portrait patterns
+    if (lowerImg.includes("portrait") || lowerImg.includes("character_art")) return false;
+
     // Naruto Specific Fix: Filter out movie-specific stills when on the main series page
     const isMainNaruto = media.title.toLowerCase() === "naruto" && media.year === 2002;
-    if (isMainNaruto && (img.includes("movie") || img.includes("the-last") || img.includes("boruto"))) {
+    if (isMainNaruto && (lowerImg.includes("movie") || lowerImg.includes("the-last") || lowerImg.includes("boruto"))) {
       return false;
     }
     
     return true;
-  }).slice(0, 6);
+  });
+
+  // Split gallery into stills (backdrops) and posters
+  const isPoster = (url: string) => url.toLowerCase().includes("poster") || url === media.coverUrl;
+  const galleryStills = gallery.filter(img => !isPoster(img));
+  const galleryPosters = gallery.filter(img => isPoster(img));
+
+  // Prioritize stills, but allow 1-2 posters if the gallery is thin
+  const finalGallery = [
+    ...galleryStills,
+    ...(galleryStills.length < 4 ? galleryPosters.slice(0, 2) : galleryPosters.slice(0, 1))
+  ].slice(0, 6);
+
   const moodLine = buildPremiseLine(media);
   const synopsisPreview = buildSynopsisPreview(media);
   const aboutText =
@@ -2973,14 +2990,15 @@ export default async function MediaDetailPage({
             </div>
           </section>
 
-          {gallery.length ? (
+          {finalGallery.length ? (
             <section className="section-stack detail-gallery-section" style={{ paddingTop: 0 }}>
               <div className="section-header">
                 <div>
-                  <p className="eyebrow">Gallery</p>
+                  <p className="eyebrow">Visuals</p>
+                  <h2 className="headline">Key stills</h2>
                 </div>
               </div>
-              <DetailGallery title={media.title} images={gallery} />
+              <DetailGallery title={media.title} images={finalGallery} />
             </section>
           ) : null}
 

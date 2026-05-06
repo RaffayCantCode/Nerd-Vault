@@ -888,6 +888,8 @@ html {
   gap: 0.75rem;
   background: rgba(255, 255, 255, 0.02);
   text-decoration: none;
+  min-width: 0;
+  width: 100% !important;
 }
 
 .franchise-card:hover {
@@ -921,6 +923,8 @@ html {
   font-size: 1.15rem !important;
   margin: 0 !important;
   color: white;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .franchise-card-meta {
@@ -985,17 +989,52 @@ html {
 
 @media (max-width: 900px) {
   .franchise-grid {
-    grid-template-columns: 1fr;
+    display: grid !important;
+    grid-template-columns: none !important;
+    grid-auto-flow: column !important;
+    grid-auto-columns: minmax(82vw, 1fr) !important;
+    gap: 1rem;
+    overflow-x: auto !important;
+    padding: 4px 1.5rem 1.5rem 1.5rem !important; /* Proper padding for "breathing room" */
+    margin-inline: -1.5rem !important; /* Pull back to screen edges so cards can scroll edge-to-edge */
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
   }
   
-  .related-actions-row {
-    flex-direction: column;
-    width: 100%;
+  .franchise-grid::-webkit-scrollbar {
+    display: none;
   }
   
-  .related-actions-row .action-button {
+  .franchise-card {
+    padding: 1.5rem;
+    min-height: auto !important;
+    min-width: 0;
     width: 100% !important;
+    flex-direction: column;
+    justify-content: center;
+    scroll-snap-align: center; /* Snap to center for a "proper" feel */
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
   }
+
+  .franchise-card-title {
+    font-size: 1.1rem !important;
+    line-height: 1.3 !important;
+  }
+
+  .franchise-subheader {
+    padding-inline: 0 !important;
+  }
+}
+  
+.related-actions-row {
+  flex-direction: column;
+  width: 100%;
+}
+
+.related-actions-row .action-button {
+  width: 100% !important;
 }
 
 /* ─── SCROLL FIXES ─── */
@@ -2060,12 +2099,16 @@ input {
 }
 
 .app-topbar {
+  position: sticky;
+  top: 1.5rem;
+  z-index: 100;
   padding: 18px 20px;
   border-radius: 26px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  margin-bottom: 2rem;
 }
 
 .app-topbar-copy {
@@ -2439,6 +2482,43 @@ input {
 .browse-toolbar {
   border-radius: 28px;
   padding: 22px;
+}
+
+.browse-toolbar-expandable {
+  display: block;
+}
+
+.browse-filter-toggle {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .browse-toolbar-expandable {
+    display: none;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  
+  .browse-toolbar.is-open .browse-toolbar-expandable {
+    display: block;
+  }
+  
+  .browse-filter-toggle {
+    display: flex !important;
+    width: 100%;
+    margin-top: 16px;
+    justify-content: center;
+  }
+  
+  .browse-toolbar .toolbar-stats {
+    display: none;
+  }
+
+  .browse-toolbar.is-open .toolbar-stats {
+    display: flex;
+    margin-top: 12px;
+  }
 }
 
 .auth-screen {
@@ -4393,14 +4473,34 @@ body {
 
 .sidebar-folder-modal {
   width: min(440px, calc(100vw - 32px));
+  max-height: min(680px, calc(100vh - 48px));
+  overflow-y: auto;
   padding: 20px;
   border-radius: 28px;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 14px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.03)),
     rgba(8, 12, 20, 0.9);
+  scrollbar-width: thin;
+}
+
+@media (max-width: 600px) {
+  .sidebar-modal-shell {
+    padding: 12px;
+    align-items: flex-end; /* Push to bottom on very small screens? No, center is better but more compact */
+    place-items: center;
+  }
+
+  .sidebar-folder-modal {
+    width: 100%;
+    max-height: calc(100vh - 24px);
+    border-radius: 24px;
+    padding: 18px;
+    gap: 12px;
+  }
 }
 
 .auth-required-overlay {
@@ -10495,9 +10595,12 @@ html {
   
   .hero-nav-controls {
     width: 100% !important;
-    justify-content: center !important;
-    gap: 10px !important;
-    padding: 0 10px !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    padding: 0 !important;
+    display: grid !important;
+    grid-template-columns: auto 1fr auto !important;
+    align-items: center !important;
   }
 
   .hero-nav-arrow {
@@ -10525,14 +10628,22 @@ html {
     overflow-x: auto !important;
     display: flex !important;
     gap: 8px !important;
-    max-width: calc(100vw - 140px) !important; /* Make room for both arrows */
-    padding: 4px 0 !important;
+    max-width: 100% !important;
+    padding: 8px 4px !important;
     scrollbar-width: none !important;
     -webkit-overflow-scrolling: touch !important;
+    justify-content: flex-start !important;
   }
 
   .surfacing-pills::-webkit-scrollbar {
     display: none !important;
+  }
+
+  .surfacing-pill {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+    padding: 8px 16px !important;
+    font-size: 0.8rem !important;
   }
 
   /* ─── Mobile Media Card Optimization ─── */
@@ -13227,6 +13338,7 @@ body {
 
 .expandable-related-section .franchise-grid {
   display: grid;
+  grid-template-columns: none !important;
   grid-auto-flow: column;
   grid-auto-columns: minmax(250px, 300px);
   gap: 14px;
@@ -13252,8 +13364,13 @@ body {
   }
 
   .detail-character-scroll,
-  .expandable-related-section .franchise-grid {
-    grid-auto-columns: minmax(84vw, 1fr);
+  .expandable-related-section .franchise-grid,
+  .franchise-grid {
+    display: grid !important;
+    grid-template-columns: none !important;
+    grid-auto-flow: column !important;
+    grid-auto-columns: minmax(84vw, 1fr) !important;
+    width: 100% !important;
   }
 }
 
@@ -14096,7 +14213,21 @@ body {
 }
 
 .detail-stage-franchise .franchise-grid {
-  grid-template-columns: 1fr !important;
+  grid-template-columns: none !important;
+  grid-auto-flow: row;
+}
+
+@media (max-width: 900px) {
+  .detail-stage-franchise .franchise-grid {
+    display: grid !important;
+    grid-template-columns: none !important;
+    grid-auto-flow: column !important;
+    grid-auto-columns: minmax(82vw, 1fr) !important;
+    padding: 4px 1.5rem 1.5rem 1.5rem !important;
+    margin-inline: -1.5rem !important;
+    scroll-snap-type: x mandatory;
+    overflow-x: auto !important;
+  }
 }
 
 .detail-stage-franchise .franchise-card {
