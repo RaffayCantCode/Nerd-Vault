@@ -5,9 +5,10 @@
 **Concept Overview:**
 NerdVault (NV) is a sleek, modern web platform that allows users to track, organize, and discover all forms of entertainment media in one place. Instead of using separate platforms for movies, games, anime, and shows, users can manage everything inside a unified “vault.” The platform combines personal media tracking, social interaction, and intelligent recommendations into a single seamless experience.
 
----
 
-<img width="1731" height="928" alt="2" src="https://github.com/user-attachments/assets/d7163fb8-4c41-4d74-b84b-9c98433a2d69" />
+
+<img width="1896" height="917" alt="2" src="https://github.com/user-attachments/assets/93ab3437-6399-44ee-a948-12c7b4e5d85a" />
+
 
 
 **Core Features:**
@@ -23,7 +24,8 @@ NerdVault (NV) is a sleek, modern web platform that allows users to track, organ
   * Wishlist
 * Clean, visual grid layout with cover images
 
-* <img width="1800" height="923" alt="1" src="https://github.com/user-attachments/assets/cedaadd0-dd23-4e7d-adfb-5092990705fc" />
+<img width="1714" height="923" alt="1" src="https://github.com/user-attachments/assets/688828ee-65dd-4651-ace4-8803ddb509d5" />
+
 
 
 2. **Smart Folders (Playlist System)**
@@ -56,9 +58,9 @@ NerdVault (NV) is a sleek, modern web platform that allows users to track, organ
 * Large media thumbnails (inspired by streaming platforms)
 * Soft animations and transitions
 
----
 
-<img width="1805" height="924" alt="4" src="https://github.com/user-attachments/assets/f727ab05-6bbb-4d1e-b173-063fd36a1c3d" />
+<img width="1753" height="911" alt="4" src="https://github.com/user-attachments/assets/db5cc73d-172d-45f7-8b21-cbebdadbb390" />
+
 
 
 **Main Pages / Screens:**
@@ -69,10 +71,11 @@ NerdVault (NV) is a sleek, modern web platform that allows users to track, organ
 * Friends (social interactions)
 * Profile (user stats, ratings, folders)
 
----
 
 
-<img width="1904" height="905" alt="8" src="https://github.com/user-attachments/assets/2b669005-9f6b-4b42-b8cc-a329002cafd9" />
+
+<img width="1770" height="803" alt="3" src="https://github.com/user-attachments/assets/41a4635e-17c9-4382-85e0-e675d4b45426" />
+
 
 
 **Future Enhancements:**
@@ -82,21 +85,6 @@ NerdVault (NV) is a sleek, modern web platform that allows users to track, organ
 * Friend compatibility percentage
 * Weekly activity summaries (like streaming stats)
 * Advanced review system similar to social review platforms
-
- 
- **Recommendation Engine**
-
-* Personalized recommendations based on user activity
-* Discovery of new and unexpected content
-* Mix of algorithm-based and exploration-based suggestions
-
-**Rating & Review System**
-
-* Users can rate media using a custom NerdVault scoring system
-* Write and share reviews
-* Like and interact with other users’ reviews
-
----
 
 **Technical Considerations:**
 
@@ -108,7 +96,6 @@ NerdVault (NV) is a sleek, modern web platform that allows users to track, organ
 * Scalable database design for user libraries and interactions
 * Real-time updates for social features
 
----
 
 **Goal:**
 To create a unified, visually stunning, and socially engaging platform where users can manage their entire entertainment life, discover new content, and connect with others through shared interests.
