@@ -49,6 +49,7 @@ const BROWSE_GENRES = [
   "Platformer",
   "Documentary",
 ] as const;
+const GAME_SAFE_GENRES = new Set(["all", "Action", "Adventure", "RPG", "Strategy", "Simulation", "Sports", "Platformer"]);
 const browseClientCache = new Map<string, CachedBrowsePayload>();
 
 function normalizePage(value: number) {
@@ -263,6 +264,12 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
     }
     setActivePage(1);
   }, [filter, genre, sort, deferredQuery]);
+
+  useEffect(() => {
+    if (filter === "game" && !GAME_SAFE_GENRES.has(genre)) {
+      setGenre("all");
+    }
+  }, [filter, genre]);
 
   useEffect(() => {
     let active = true;
@@ -818,10 +825,14 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
           </div>
         ) : null}
 
-        <div className={`catalog-grid ${isLoading ? "catalog-grid-loading" : ""}`} key={`${filter}-${payload.page}-${sort}-${genre}-${deferredQuery}`}>
-          {payload.items.map((item, index) => (
-            <CatalogCard key={item.id} item={item} priority={index < 8} />
-          ))}
+        <div className={`catalog-grid ${isLoading ? "catalog-grid-loading" : ""}`}>
+          {isLoading && !payload.items.length
+            ? Array.from({ length: 12 }).map((_, index) => (
+                <div key={`browse-skeleton-${index}`} className="catalog-card catalog-card-skeleton glass" aria-hidden="true" />
+              ))
+            : payload.items.map((item, index) => (
+                <CatalogCard key={item.id} item={item} priority={index < 8} />
+              ))}
         </div>
 
         {!isLoading && !error && !payload.items.length ? (

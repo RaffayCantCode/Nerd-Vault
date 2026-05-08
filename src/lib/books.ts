@@ -54,6 +54,8 @@ const AVAILABLE_BOOK_GENRES = Array.from(
 ).sort((left, right) => left.localeCompare(right));
 
 const gutendexResponseCache = new Map<string, { expiresAt: number; payload: GutendexResponse }>();
+const bookListPayloadCache = new Map<string, { expiresAt: number; payload: BookListPayload }>();
+const bookListInflight = new Map<string, Promise<BookListPayload>>();
 const readerPayloadCache = new Map<number, { expiresAt: number; payload: BookReaderPayload }>();
 const readerPayloadInflight = new Map<number, Promise<BookReaderPayload>>();
 
@@ -174,7 +176,7 @@ async function fetchGutendexWithRetry(url: URL, attempts = 3) {
   throw lastError instanceof Error ? lastError : new Error("Books request failed");
 }
 
-async function fetchGutendexPage(page: number, searchTerms = "") {
+async function fetchGutendexPage(page: number, searchTerms = ""): Promise<GutendexResponse> {
   const url = new URL(GUTENDEX_API_URL);
   url.searchParams.set("page", String(Math.max(1, page)));
 
@@ -274,20 +276,48 @@ export async function fetchBooksPage({
 }): Promise<BookListPayload> {
   const safePage = Math.max(1, page);
   const searchTerms = buildBookSearchTerms(query, genre);
-  const payload = await fetchGutendexPage(safePage, searchTerms);
-  
-  // Shuffle results to help users discover new books naturally
-  const shuffledResults = [...payload.results].sort(() => Math.random() - 0.5);
-  
-  const mappedItems = shuffledResults.map(mapBook).filter((book) => matchesGenre(book, genre));
+  const cacheKey = JSON.stringify({ page: safePage, query: searchTerms, genre });
+  const cached = bookListPayloadCache.get(cacheKey);
 
-  return {
-    page: safePage,
-    totalPages: Math.max(1, Math.ceil((payload.count || payload.results.length || 1) / BOOK_LIST_PAGE_SIZE)),
-    totalResults: payload.count || mappedItems.length,
-    availableGenres: AVAILABLE_BOOK_GENRES,
-    items: mappedItems,
-  };
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.payload;
+  }
+
+  const inflight = bookListInflight.get(cacheKey);
+  if (inflight) {
+    return inflight;
+  }
+
+  const request = (async () => {
+    const payload = await fetchGutendexPage(safePage, searchTerms);
+    const mappedItems = payload.results
+      .map((book): BookSummary => mapBook(book))
+      .filter((book: BookSummary) => matchesGenre(book, genre))
+      .sort((left: BookSummary, right: BookSummary) => right.downloadCount - left.downloadCount || left.title.localeCompare(right.title));
+
+    const nextPayload = {
+      page: safePage,
+      totalPages: Math.max(1, Math.ceil((payload.count || payload.results.length || 1) / BOOK_LIST_PAGE_SIZE)),
+      totalResults: payload.count || mappedItems.length,
+      availableGenres: AVAILABLE_BOOK_GENRES,
+      items: mappedItems,
+    } satisfies BookListPayload;
+
+    bookListPayloadCache.set(cacheKey, {
+      expiresAt: Date.now() + BOOK_LIST_CACHE_MS,
+      payload: nextPayload,
+    });
+
+    return nextPayload;
+  })();
+
+  bookListInflight.set(cacheKey, request);
+
+  try {
+    return await request;
+  } finally {
+    bookListInflight.delete(cacheKey);
+  }
 }
 
 export async function fetchBookSummary(bookId: number): Promise<BookSummary> {

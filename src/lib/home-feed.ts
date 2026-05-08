@@ -28,6 +28,8 @@ type SignalSeed = {
   origin: SeedOrigin;
 };
 
+const HOME_RECOMMENDATION_LIMIT = 16;
+
 function dedupeItems(items: MediaItem[]) {
   const seen = new Set<string>();
   return items.filter((item) => {
@@ -70,6 +72,37 @@ function buildSignals(item: MediaItem) {
   }
 
   return Array.from(roots).slice(0, 3);
+}
+
+function buildTasteTags(item: MediaItem) {
+  const tags = new Set<string>();
+  const genres = item.genres.map((genre) => genre.toLowerCase());
+  const text = `${item.title} ${item.originalTitle ?? ""} ${item.overview} ${item.details.collectionTitle ?? ""}`.toLowerCase();
+
+  if (genres.some((genre) => ["action", "martial arts", "shounen", "fighting"].includes(genre)) || /\b(power|battle|rival|combat|tournament)\b/.test(text)) {
+    tags.add("adrenaline");
+    tags.add("growth");
+  }
+  if (genres.some((genre) => ["crime", "thriller", "mystery", "psychological"].includes(genre)) || /\b(heist|cartel|detective|moral|corruption|secret)\b/.test(text)) {
+    tags.add("moral-complexity");
+    tags.add("tension");
+  }
+  if (genres.some((genre) => ["drama", "romance", "slice of life"].includes(genre)) || /\b(friendship|family|heart|relationship|coming of age)\b/.test(text)) {
+    tags.add("emotion");
+    tags.add("character-focus");
+  }
+  if (genres.some((genre) => ["fantasy", "adventure", "science fiction", "sci-fi", "rpg", "isekai"].includes(genre)) || /\b(world|kingdom|quest|future|magic|journey)\b/.test(text)) {
+    tags.add("worldbuilding");
+  }
+  if (item.type === "game" && /\b(tactical|ranked|competitive|fps|shooter|multiplayer|esports)\b/.test(text + " " + genres.join(" "))) {
+    tags.add("competitive");
+    tags.add("precision");
+  }
+  if (item.type === "game" && /\b(open world|exploration|crafting|survival|sandbox)\b/.test(text + " " + genres.join(" "))) {
+    tags.add("sandbox");
+  }
+
+  return Array.from(tags);
 }
 
 function parseInstallment(title: string) {
@@ -138,11 +171,14 @@ function scoreCandidate(seeds: SignalSeed[], candidate: MediaItem, ownedKeys: Se
 
   let score = candidate.rating * 1.5;
   const candidateRoot = buildTitleRoot(candidate);
+  const candidateTags = buildTasteTags(candidate);
   let strongestAffinity = 0;
 
   for (const seed of seeds) {
     const sharedGenres = candidate.genres.filter((genre) => seed.item.genres.includes(genre)).length;
+    const sharedTasteTags = candidateTags.filter((tag) => buildTasteTags(seed.item).includes(tag)).length;
     let affinity = sharedGenres * 14;
+    affinity += sharedTasteTags * 16;
 
     if (
       seed.item.details.studio &&
@@ -196,6 +232,7 @@ function topSignals(seeds: SignalSeed[]) {
   const counts = new Map<string, number>();
   seeds.forEach((seed) => {
     buildSignals(seed.item).forEach((signal) => counts.set(signal, (counts.get(signal) ?? 0) + seed.weight));
+    buildTasteTags(seed.item).forEach((signal) => counts.set(signal, (counts.get(signal) ?? 0) + seed.weight * 0.75));
   });
 
   return [...counts.entries()]
@@ -339,7 +376,7 @@ async function buildRecommendationsForType(type: MediaType, library: LibraryStat
     .filter((entry) => entry.score > 0)
     .sort((a, b) => b.score - a.score)
     .map((entry) => entry.candidate)
-    .slice(0, 8);
+    .slice(0, HOME_RECOMMENDATION_LIMIT);
 }
 
 function watchedItemsFromLibrary(library: LibraryState) {

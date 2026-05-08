@@ -85,3 +85,32 @@ export function optimizeMediaImageUrl(rawUrl?: string | null, intent: MediaImage
 
   return optimizeDirectImageUrl(rawUrl, intent);
 }
+
+export function chooseConnectionAwareIntent(
+  preferred: MediaImageIntent,
+  options?: {
+    saveData?: boolean;
+    effectiveType?: string;
+  },
+) {
+  const effectiveType = options?.effectiveType?.toLowerCase() ?? "";
+  const slowConnection = options?.saveData || effectiveType === "slow-2g" || effectiveType === "2g" || effectiveType === "3g";
+
+  if (!slowConnection) {
+    return preferred;
+  }
+
+  if (preferred === "lightbox") {
+    return "gallery";
+  }
+
+  if (preferred === "gallery" || preferred === "backdrop") {
+    return "cover";
+  }
+
+  if (preferred === "cover") {
+    return "thumb";
+  }
+
+  return preferred;
+}

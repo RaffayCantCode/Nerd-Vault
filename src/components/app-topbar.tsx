@@ -3,6 +3,7 @@
 import { memo, useEffect, useState } from "react";
 import Link from "next/link";
 import { signOutUser } from "@/app/sign-in/sign-out-action";
+import { MobileInstallButton } from "@/components/mobile-install-button";
 import {
   acceptFriend,
   dismissInboxNotification,
@@ -201,6 +202,8 @@ export const AppTopBar = memo(function AppTopBar({
         </div>
 
         <div className="topbar-action-group">
+          <MobileInstallButton />
+
           <Link href="/support" className="topbar-chip topbar-support-link">
             Support
           </Link>

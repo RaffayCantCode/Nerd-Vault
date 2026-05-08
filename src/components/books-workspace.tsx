@@ -18,6 +18,7 @@ const emptyPayload: BookListPayload = {
   items: [],
 };
 const booksPayloadCache = new Map<string, BookListPayload>();
+const booksInflightCache = new Map<string, Promise<BookListPayload & { ok?: boolean; message?: string }>>();
 
 function formatCompactNumber(value: number) {
   return new Intl.NumberFormat("en", { notation: "compact" }).format(value);
@@ -57,6 +58,16 @@ export function BooksWorkspace({
   const [clearingContinue, setClearingContinue] = useState<number | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const pathname = usePathname();
+  const currentRequestKey = useMemo(() => {
+    const search = new URLSearchParams({ page: String(page) });
+    if (submittedQuery.trim()) {
+      search.set("query", submittedQuery.trim());
+    }
+    if (activeGenre !== "All") {
+      search.set("genre", activeGenre);
+    }
+    return search.toString();
+  }, [activeGenre, page, submittedQuery]);
 
   useEffect(() => {
     const sync = () => {
@@ -105,41 +116,41 @@ export function BooksWorkspace({
       setError(null);
 
       try {
-        const search = new URLSearchParams({ page: String(page) });
-        if (submittedQuery.trim()) {
-          search.set("query", submittedQuery.trim());
-        }
-        if (activeGenre !== "All") {
-          search.set("genre", activeGenre);
-        }
-
-        const requestKey = search.toString();
+        const requestKey = currentRequestKey;
         const cached = booksPayloadCache.get(requestKey);
         if (cached) {
           if (active) {
-            setPayload(cached);
+            setPayload((prev) => page === 1 ? cached : ({ ...cached, items: dedupeBooks([...prev.items, ...cached.items]) }));
             setPage(cached.page || 1);
             setLoading(false);
           }
           return;
         }
 
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 12_000);
-        const response = await fetch(`/api/books?${requestKey}`, { cache: "force-cache", signal: controller.signal });
-        clearTimeout(timeoutId);
-        const nextPayload = (await response.json()) as BookListPayload & { ok?: boolean; message?: string };
+        const request =
+          booksInflightCache.get(requestKey) ??
+          fetch(`/api/books?${requestKey}`, { cache: "force-cache" })
+            .then(async (response) => {
+              const nextPayload = (await response.json()) as BookListPayload & { ok?: boolean; message?: string };
+              if (!response.ok || nextPayload.ok === false) {
+                throw new Error(nextPayload.message || "Could not load books");
+              }
+              return nextPayload;
+            })
+            .finally(() => {
+              booksInflightCache.delete(requestKey);
+            });
 
-        if (!response.ok || nextPayload.ok === false) {
-          throw new Error(nextPayload.message || "Could not load books");
-        }
+        booksInflightCache.set(requestKey, request);
+        const nextPayload = await request;
+
+        booksPayloadCache.set(requestKey, nextPayload);
 
         if (active) {
-          booksPayloadCache.set(requestKey, nextPayload);
           if (page === 1) {
             setPayload(nextPayload);
           } else {
-            setPayload(prev => ({ ...nextPayload, items: [...prev.items, ...nextPayload.items] }));
+            setPayload((prev) => ({ ...nextPayload, items: dedupeBooks([...prev.items, ...nextPayload.items]) }));
           }
           setPage(nextPayload.page || 1);
         }
@@ -159,7 +170,42 @@ export function BooksWorkspace({
     return () => {
       active = false;
     };
-  }, [activeGenre, initialGenre, initialPayload, initialQuery, page, submittedQuery]);
+  }, [activeGenre, currentRequestKey, initialGenre, initialPayload, initialQuery, page, submittedQuery]);
+
+  useEffect(() => {
+    if (loading || page >= payload.totalPages) {
+      return;
+    }
+
+    const nextSearch = new URLSearchParams({ page: String(page + 1) });
+    if (submittedQuery.trim()) {
+      nextSearch.set("query", submittedQuery.trim());
+    }
+    if (activeGenre !== "All") {
+      nextSearch.set("genre", activeGenre);
+    }
+
+    const nextRequestKey = nextSearch.toString();
+    if (booksPayloadCache.has(nextRequestKey) || booksInflightCache.has(nextRequestKey)) {
+      return;
+    }
+
+    const request = fetch(`/api/books?${nextRequestKey}`, { cache: "force-cache" })
+      .then(async (response) => {
+        const nextPayload = (await response.json()) as BookListPayload & { ok?: boolean; message?: string };
+        if (!response.ok || nextPayload.ok === false) {
+          throw new Error(nextPayload.message || "Could not load books");
+        }
+        booksPayloadCache.set(nextRequestKey, nextPayload);
+        return nextPayload;
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        booksInflightCache.delete(nextRequestKey);
+      });
+
+    booksInflightCache.set(nextRequestKey, request as Promise<BookListPayload & { ok?: boolean; message?: string }>);
+  }, [activeGenre, loading, page, payload.totalPages, submittedQuery]);
 
   function submitSearch(event: FormEvent) {
     event.preventDefault();
@@ -175,6 +221,35 @@ export function BooksWorkspace({
     () => ["All", ...(payload.availableGenres ?? [])],
     [payload.availableGenres],
   );
+
+  function dedupeBooks(items: BookSummary[]) {
+    const seen = new Set<number>();
+    return items.filter((book) => {
+      if (seen.has(book.id)) {
+        return false;
+      }
+      seen.add(book.id);
+      return true;
+    });
+  }
+
+  function renderBookSkeletons() {
+    return (
+      <div className="books-grid">
+        {Array.from({ length: 8 }).map((_, index) => (
+          <article key={`book-skeleton-${index}`} className="books-card books-card-skeleton" aria-hidden="true">
+            <div className="book-cover book-cover-small book-cover-skeleton" />
+            <div className="books-card-copy">
+              <div className="skeleton books-skeleton-line books-skeleton-title" />
+              <div className="skeleton books-skeleton-line books-skeleton-author" />
+              <div className="skeleton books-skeleton-line" />
+              <div className="skeleton books-skeleton-line books-skeleton-long" />
+            </div>
+          </article>
+        ))}
+      </div>
+    );
+  }
 
   function renderLoadMore() {
     if (page >= payload.totalPages) return null;
@@ -311,49 +386,47 @@ export function BooksWorkspace({
           </div>
 
           {error ? <div className="books-empty-state">{error}</div> : null}
-          {loading ? (
-            <div className="books-inline-loader">
-              <NVLoader compact label="Refreshing the library..." />
+          {loading && !payload.items.length ? renderBookSkeletons() : null}
+
+          {payload.items.length ? (
+            <div className="books-grid">
+              {payload.items.map((book) => (
+                <article key={book.id} className="books-card">
+                  <Link href={`/books/${book.id}`} className="books-card-link">
+                    <BookCover title={book.title} author={book.authors[0]} coverUrl={book.coverUrl} size="small" />
+                    <div className="books-card-copy">
+                      <p className="books-card-title" title={book.title}>{book.title}</p>
+                      <p className="books-card-author">{book.authors.join(", ") || "Unknown author"}</p>
+                      <p className="books-card-tagline">{book.tagline}</p>
+                      <p className="books-card-summary">{book.summary}</p>
+                    </div>
+                  </Link>
+                  <div className="books-card-meta">
+                    <span>{book.pageCountEstimate} pages est.</span>
+                    <span>{formatCompactNumber(book.downloadCount)} reads</span>
+                  </div>
+                  <div className="books-card-actions">
+                    <Link href={`/books/${book.id}`} className="books-card-button books-card-button-primary">
+                      Open book
+                    </Link>
+                    <button
+                      type="button"
+                      className="books-card-button"
+                      onClick={() => {
+                        if (!isSignedIn) {
+                          setShowAuthModal(true);
+                          return;
+                        }
+                        toggleBookWishlist(book.id);
+                      }}
+                    >
+                      {isWishlisted(book) ? "Saved" : "Wishlist"}
+                    </button>
+                  </div>
+                </article>
+              ))}
             </div>
           ) : null}
-
-          <div className="books-grid">
-            {payload.items.map((book) => (
-              <article key={book.id} className="books-card">
-                <Link href={`/books/${book.id}`} className="books-card-link">
-                  <BookCover title={book.title} author={book.authors[0]} size="small" />
-                  <div className="books-card-copy">
-                    <p className="books-card-title" title={book.title}>{book.title}</p>
-                    <p className="books-card-author">{book.authors.join(", ") || "Unknown author"}</p>
-                    <p className="books-card-tagline">{book.tagline}</p>
-                    <p className="books-card-summary">{book.summary}</p>
-                  </div>
-                </Link>
-                <div className="books-card-meta">
-                  <span>{book.pageCountEstimate} pages est.</span>
-                  <span>{formatCompactNumber(book.downloadCount)} reads</span>
-                </div>
-                <div className="books-card-actions">
-                  <Link href={`/books/${book.id}`} className="books-card-button books-card-button-primary">
-                    Open book
-                  </Link>
-                  <button
-                    type="button"
-                    className="books-card-button"
-                    onClick={() => {
-                      if (!isSignedIn) {
-                        setShowAuthModal(true);
-                        return;
-                      }
-                      toggleBookWishlist(book.id);
-                    }}
-                  >
-                    {isWishlisted(book) ? "Saved" : "Wishlist"}
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
 
           {!loading && !payload.items.length && !error ? (
             <div className="books-empty-state">No books matched that search yet. Try another author, title, or genre.</div>

@@ -8,10 +8,12 @@ export function RelatedMediaSection({
   items,
   visibleCount,
   onBeforeNavigate,
+  highlightedFromIndex,
 }: {
   items: MediaItem[];
   visibleCount?: number;
   onBeforeNavigate?: () => void;
+  highlightedFromIndex?: number | null;
 }) {
   const visibleItems = useMemo(
     () => (typeof visibleCount === "number" ? items.slice(0, visibleCount) : items),
@@ -22,7 +24,13 @@ export function RelatedMediaSection({
     <div className="related-media-section">
       <div className="catalog-grid">
         {visibleItems.map((item, index) => (
-          <CatalogCard key={item.id} item={item} priority={index < 8} onBeforeNavigate={onBeforeNavigate} />
+          <div
+            key={item.id}
+            data-related-index={index}
+            className={`related-media-slot ${highlightedFromIndex !== null && highlightedFromIndex !== undefined && index >= highlightedFromIndex ? "is-newly-revealed" : ""}`}
+          >
+            <CatalogCard item={item} priority={index < 8} onBeforeNavigate={onBeforeNavigate} />
+          </div>
         ))}
       </div>
 

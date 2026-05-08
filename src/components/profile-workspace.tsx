@@ -422,12 +422,13 @@ export function ProfileWorkspace({
                   <div className="folder-hero-cover-card" style={getFolderBackdropStyle(selectedFolder.coverUrl)} />
                   <div className="folder-hero-copy">
                     <p className="eyebrow">Folder view</p>
-                    <h1 className="display" style={{ fontSize: "clamp(3rem, 7vw, 5.4rem)" }}>
+                    <h1 className="display folder-hero-display">
                       {selectedFolder.name}
                     </h1>
-                    <p className="copy folder-hero-subcopy">
-                      {selectedFolder.items.length} saved picks
-                    </p>
+                    <div className="folder-hero-meta-strip">
+                      <span className="detail-pill">{selectedFolder.items.length} saved picks</span>
+                      <span className="detail-pill">{selectedFolder.visibility}</span>
+                    </div>
                   </div>
                   {viewingOwnProfile ? (
                     <div className="folder-hero-actions">
@@ -442,9 +443,11 @@ export function ProfileWorkspace({
                 </div>
               </div>
 
-              <p className="copy">
-                {selectedFolder.description?.trim() ? selectedFolder.description : "No description added for this folder yet."}
-              </p>
+              <div className="folder-hero-description glass">
+                <p className="copy">
+                  {selectedFolder.description?.trim() ? selectedFolder.description : "No description added for this folder yet."}
+                </p>
+              </div>
 
               {isEditingFolder ? (
                 <div className="folder-edit-panel glass">
@@ -574,10 +577,10 @@ export function ProfileWorkspace({
     <main className="workspace">
       <section className="workspace-hero glass folder-hero profile-stage">
         <div className="folder-hero-media" style={getFolderBackdropStyle(viewedProfile.avatarUrl)} />
-        <div className="workspace-hero-grid profile-stage-grid">
-          <div className="workspace-copy profile-stage-copy">
-            <div className="profile-hero-topbar">
-              <div className="profile-identity">
+          <div className="workspace-hero-grid profile-stage-grid">
+            <div className="workspace-copy profile-stage-copy">
+              <div className="profile-hero-topbar">
+                <div className="profile-identity">
                 {viewingOwnProfile ? (
                   <div className="profile-avatar-stack">
                     <label className="profile-avatar-edit" title="Change profile image">
@@ -605,12 +608,15 @@ export function ProfileWorkspace({
                 ) : (
                   <span className="profile-avatar profile-avatar-fallback">{(viewedProfile.name || userName).charAt(0).toUpperCase()}</span>
                 )}
-                <div>
+                <div className="profile-identity-copy">
                   <p className="eyebrow">{viewingOwnProfile ? (isDemo ? "Local vault" : "Your vault") : "Friend profile"}</p>
                   <h1 className="display profile-display">{viewedProfile.name || userName}</h1>
-                  <p className="copy profile-hero-subcopy">
-                    {viewedProfile.handle} - {folders.length} folders - {watched.length} logged - {wishlist.length} wishlisted
-                  </p>
+                  <div className="profile-hero-meta-row">
+                    <span className="detail-pill">{viewedProfile.handle}</span>
+                    <span className="detail-pill">{folders.length} folders</span>
+                    <span className="detail-pill">{watched.length} logged</span>
+                    <span className="detail-pill">{wishlist.length} wishlisted</span>
+                  </div>
                   {viewingOwnProfile ? (
                     <div className="profile-stage-actions">
                       <a href="#profile-watched" className="button button-primary">Watched</a>
@@ -621,10 +627,16 @@ export function ProfileWorkspace({
                 </div>
               </div>
             </div>
-            <p className="copy">{loading ? "Loading your saved profile..." : headlineCopy}</p>
+            <div className="profile-hero-description glass">
+              <p className="copy">{loading ? "Loading your saved profile..." : headlineCopy}</p>
+            </div>
             {profileMessage ? <p className="media-action-message">{profileMessage}</p> : null}
           </div>
           <aside className="info-panel glass profile-stage-stats">
+            <div className="profile-stage-stats-head">
+              <p className="eyebrow">At a glance</p>
+              <p className="copy">A cleaner read of your activity and saved shelves.</p>
+            </div>
             <div className="profile-stage-stats-grid">
               {profileStats.map((stat) => (
                 <div key={stat.label} className="profile-stage-stat">
@@ -650,7 +662,7 @@ export function ProfileWorkspace({
             <h2 className="headline">{viewingOwnProfile ? "Your people" : `${viewedProfile.name}'s friends`}</h2>
           </div>
         </div>
-        <div className="folder-list">
+        <div className="folder-list profile-friends-list">
           {friends.length ? (
             friends.map((friend) => (
               <Link key={friend.id} href={`/profile?user=${friend.id}`} className="folder-row glass">
@@ -682,7 +694,7 @@ export function ProfileWorkspace({
             <p className="eyebrow">Watched / Played</p>
             <h2 className="headline">{viewingOwnProfile ? "Recently logged" : "Visible watched"}</h2>
           </div>
-          <div className="library-controls">
+          <div className="library-controls profile-library-controls">
             <div className="library-control-block">
               <p className="eyebrow">Media</p>
               <div className="chip-row library-chip-row">
@@ -751,7 +763,7 @@ export function ProfileWorkspace({
             <p className="eyebrow">Wishlist</p>
             <h2 className="headline">{viewingOwnProfile ? "Waiting for the right night" : "Visible wishlist"}</h2>
           </div>
-          <div className="library-controls">
+          <div className="library-controls profile-library-controls">
             <div className="library-control-block">
               <p className="eyebrow">Media</p>
               <div className="chip-row library-chip-row">
@@ -821,13 +833,19 @@ export function ProfileWorkspace({
             <h2 className="headline">{viewingOwnProfile ? "Mood shelves" : "Visible folders"}</h2>
           </div>
         </div>
-        <input
-          className="search-input library-search-input"
-          type="search"
-          placeholder="Search folders..."
-          value={folderSearch}
-          onChange={(event) => setFolderSearch(event.target.value)}
-        />
+        <div className="profile-folder-toolbar glass">
+          <div>
+            <p className="eyebrow">Find a shelf</p>
+            <p className="copy">Jump into a list faster without scanning every card.</p>
+          </div>
+          <input
+            className="search-input library-search-input"
+            type="search"
+            placeholder="Search folders..."
+            value={folderSearch}
+            onChange={(event) => setFolderSearch(event.target.value)}
+          />
+        </div>
         <div className="folder-showcase-grid">
           {visibleFolders.length ? (
             visibleFolders.map((folder: StoredFolder) => (

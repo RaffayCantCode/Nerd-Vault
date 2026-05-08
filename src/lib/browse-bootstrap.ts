@@ -30,7 +30,7 @@ type BootstrapCatalog = {
 };
 
 export function getBrowseDiscoverySeed(timestamp = Date.now()) {
-  return Math.floor(Math.random() * 1000000);
+  return Math.floor(timestamp / DISCOVERY_SEED_WINDOW_MS);
 }
 
 function emptyBrowsePayload(): BrowsePayload {

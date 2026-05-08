@@ -89,6 +89,26 @@ export default async function HomePage() {
                   </div>
                 )}
               </div>
+
+              <form action="/browse" className="landing-quick-search glass">
+                <input
+                  type="search"
+                  name="query"
+                  placeholder="Search movies, anime, games, shows..."
+                  aria-label="Quick search"
+                />
+                <button type="submit" className="landing-cta landing-cta-primary">
+                  Search Now
+                </button>
+              </form>
+
+              <div className="landing-quick-actions">
+                <Link href="/browse?mediaType=movie" className="landing-quick-chip">Movies</Link>
+                <Link href="/browse?mediaType=show" className="landing-quick-chip">Shows</Link>
+                <Link href="/browse?mediaType=anime" className="landing-quick-chip">Anime</Link>
+                <Link href="/browse?mediaType=game" className="landing-quick-chip">Games</Link>
+                <Link href="/profile" className="landing-quick-chip">Wishlist</Link>
+              </div>
             </div>
             
             <div className="landing-hero-visual">

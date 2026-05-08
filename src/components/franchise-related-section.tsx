@@ -16,6 +16,7 @@ type FranchiseEntry = {
   };
   badge?: string;
   isActive?: boolean;
+  canOpen?: boolean;
 };
 
 export function FranchiseRelatedSection({
@@ -41,14 +42,30 @@ export function FranchiseRelatedSection({
     setNavigatingId(id);
   };
 
-  const renderCard = (entry: FranchiseEntry, index: number, isSecondary = false) => (
-    <Link
-      key={entry.id}
-      href={entry.href}
-      className={`glass franchise-card ${entry.isActive ? "is-active" : ""} ${navigatingId === entry.id ? "is-loading" : ""}`}
-      aria-current={entry.isActive ? "page" : undefined}
-      onClick={() => !entry.isActive && handleLinkClick(entry.id)}
-    >
+  const buildAvailabilityLine = (items: FranchiseEntry[]) => {
+    const openable = items.filter((entry) => entry.canOpen !== false);
+    const locked = items.filter((entry) => entry.canOpen === false);
+    const parts: string[] = [];
+
+    if (openable.length) {
+      parts.push(
+        `Open now: ${openable.map((entry) => entry.title).join(", ")}.`,
+      );
+    }
+
+    if (locked.length) {
+      parts.push(
+        `Informational only for now, these will not open yet: ${locked.map((entry) => entry.title).join(", ")}.`,
+      );
+    }
+
+    return parts.join(" ");
+  };
+
+  const renderCard = (entry: FranchiseEntry, index: number, isSecondary = false) => {
+    const cardClassName = `glass franchise-card ${entry.isActive ? "is-active" : ""} ${navigatingId === entry.id ? "is-loading" : ""} ${entry.canOpen === false ? "is-disabled" : ""}`;
+    const content = (
+      <>
       <div className="franchise-card-topline">
         <span className="eyebrow">{isSecondary ? "Movie" : "Entry"} {index + 1}</span>
         <span className="franchise-badge">
@@ -58,15 +75,41 @@ export function FranchiseRelatedSection({
             </div>
           ) : entry.isActive ? (
             "You are here"
+          ) : entry.canOpen === false ? (
+            "Won't open yet"
           ) : (
-            entry.badge ?? "Open"
+            entry.badge ?? "Opens"
           )}
         </span>
       </div>
       <h3 className="headline franchise-card-title">{entry.title}</h3>
       <p className="copy franchise-card-meta">{entry.meta}</p>
-    </Link>
-  );
+      <p className="copy franchise-card-state">
+        {entry.isActive ? "Current page." : entry.canOpen === false ? "This entry is shown for franchise order only and does not have its own page yet." : "This entry opens normally."}
+      </p>
+      </>
+    );
+
+    if (entry.canOpen === false) {
+      return (
+        <article key={entry.id} className={cardClassName} aria-disabled="true">
+          {content}
+        </article>
+      );
+    }
+
+    return (
+      <Link
+        key={entry.id}
+        href={entry.href}
+        className={cardClassName}
+        aria-current={entry.isActive ? "page" : undefined}
+        onClick={() => !entry.isActive && handleLinkClick(entry.id)}
+      >
+        {content}
+      </Link>
+    );
+  };
 
   return (
     <section className="section-stack" style={{ paddingTop: 0 }}>
@@ -89,6 +132,7 @@ export function FranchiseRelatedSection({
           <div className="franchise-grid">
             {entries.map((entry, index) => renderCard(entry, index))}
           </div>
+          <p className="copy franchise-availability-note">{buildAvailabilityLine(entries)}</p>
         </>
       ) : null}
 
@@ -103,6 +147,7 @@ export function FranchiseRelatedSection({
           <div className="franchise-grid">
             {secondaryEntries.map((entry, index) => renderCard(entry, index, true))}
           </div>
+          <p className="copy franchise-availability-note">{buildAvailabilityLine(secondaryEntries)}</p>
         </>
       ) : null}
     </section>

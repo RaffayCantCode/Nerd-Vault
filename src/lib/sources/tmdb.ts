@@ -563,7 +563,7 @@ async function getTmdbMoviePageWithMode(
   }
 
   return {
-    page: payload.page,
+    page,
     totalPages: Math.max(1, payload.total_pages),
     totalResults: payload.total_results,
     items: primaryItems,
@@ -632,7 +632,7 @@ async function getTmdbShowPageWithMode(
   }
 
   return {
-    page: payload.page,
+    page,
     totalPages: Math.max(1, payload.total_pages),
     totalResults: payload.total_results,
     items: primaryItems,

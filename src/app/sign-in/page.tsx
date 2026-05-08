@@ -124,6 +124,17 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
                   <label htmlFor="signup-password">Password</label>
                   <input id="signup-password" name="password" type="password" placeholder="At least 8 characters" required minLength={8} />
                 </div>
+                <div className="auth-field">
+                  <label htmlFor="signup-confirm-password">Confirm password</label>
+                  <input
+                    id="signup-confirm-password"
+                    name="confirmPassword"
+                    type="password"
+                    placeholder="Re-enter your password"
+                    required
+                    minLength={8}
+                  />
+                </div>
                 <button type="submit" className="button button-primary auth-submit-button">
                   Create account
                 </button>

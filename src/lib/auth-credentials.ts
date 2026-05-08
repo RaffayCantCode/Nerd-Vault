@@ -11,6 +11,10 @@ export const credentialsSignUpSchema = credentialsSignInSchema.extend({
     .trim()
     .min(2, "Name must be at least 2 characters.")
     .max(80, "Name must be 80 characters or fewer."),
+  confirmPassword: z.string().min(8, "Confirm your password."),
+}).refine((input) => input.password === input.confirmPassword, {
+  message: "Passwords do not match.",
+  path: ["confirmPassword"],
 });
 
 export function normalizeEmail(email: string) {

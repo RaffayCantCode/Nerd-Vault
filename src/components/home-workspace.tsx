@@ -8,7 +8,7 @@ import { NVLoader } from "@/components/nv-loader";
 import { writeDetailReturnTarget } from "@/lib/detail-return";
 import { ResilientMediaImage } from "@/components/resilient-media-image";
 
-const HOME_SECTION_PAGE_SIZE = 8;
+const HOME_SECTION_PAGE_SIZE = 10;
 
 const SECTION_ORDER = [
   { key: "movie", label: "Movies" },
@@ -285,22 +285,6 @@ export function HomeWorkspace({
             )}
           </section>
 
-          <section className="section-stack" style={{ paddingTop: 0 }}>
-            <div className="section-header">
-              <div>
-                <p className="eyebrow">For you</p>
-                <h2 className="headline">Series you'll probably like</h2>
-                <p className="copy" style={{ marginTop: 8, maxWidth: 760 }}>
-                  TV series picked from what you have actually marked as watched, so the lane gets better as you teach it your taste.
-                </p>
-              </div>
-            </div>
-            <div className="home-series-note glass">
-              <p className="copy">
-                Series picks live in the same shelf format as the other recommendation lanes below so covers and spacing stay consistent.
-              </p>
-            </div>
-          </section>
         </div>
         <aside className="home-board-side">
           <div className="info-panel glass home-side-panel">

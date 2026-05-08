@@ -22,13 +22,16 @@ export function clearAllAuthCookies() {
   const candidateDomains = hostname.includes(".")
     ? [hostname, `.${hostname}`]
     : [hostname];
-
   const isSecure = window.location.protocol === "https:";
   for (const cookieName of ALL_AUTH_COOKIE_NAMES) {
     expireCookie(cookieName, "/", undefined, isSecure);
     for (const domain of candidateDomains) {
       expireCookie(cookieName, "/", domain, isSecure);
     }
+  }
+  expireCookie("nv.redirect-to", "/", undefined, isSecure);
+  for (const domain of candidateDomains) {
+    expireCookie("nv.redirect-to", "/", domain, isSecure);
   }
 }
 
@@ -40,13 +43,6 @@ export function AuthCookieReset() {
       : [hostname];
 
     const isSecure = window.location.protocol === "https:";
-    for (const cookieName of ALL_AUTH_COOKIE_NAMES) {
-      expireCookie(cookieName, "/", undefined, isSecure);
-      for (const domain of candidateDomains) {
-        expireCookie(cookieName, "/", domain, isSecure);
-      }
-    }
-
     // Redirect after Google OAuth if a post-auth redirect was stashed.
     const postAuthRedirect = readCookie("nv.redirect-to");
     if (postAuthRedirect) {

@@ -28,10 +28,12 @@ function splitTitle(title: string) {
 export function BookCover({
   title,
   author,
+  coverUrl,
   size = "large",
 }: {
   title: string;
   author?: string;
+  coverUrl?: string | null;
   size?: "large" | "small";
 }) {
   const [accent, secondary, base] = coverThemes[hashTitle(title) % coverThemes.length];
@@ -51,6 +53,15 @@ export function BookCover({
     >
       <div className="book-cover-frame">
         <div className="book-cover-orbit" />
+        {coverUrl ? (
+          <img
+            className="book-cover-image"
+            src={coverUrl}
+            alt=""
+            loading={size === "small" ? "lazy" : "eager"}
+            decoding="async"
+          />
+        ) : null}
         <div className="book-cover-copy">
           <span className="book-cover-mark">NV Editions</span>
           <strong className="book-cover-title">

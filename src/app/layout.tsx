@@ -9,6 +9,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://nerdvault.site'),
+  manifest: "/manifest.webmanifest",
   title: {
     default: "NerdVault",
     template: "%s · NerdVault",
@@ -22,6 +23,11 @@ export const metadata: Metadata = {
     apple: [
       { url: '/icon', type: 'image/png', sizes: '256x256' },
     ],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "NerdVault",
   },
   keywords: [
     "media tracker",

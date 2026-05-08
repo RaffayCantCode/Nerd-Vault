@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { getMediaFallbackImage } from "@/lib/media-fallbacks";
-import { optimizeMediaImageUrl } from "@/lib/media-image";
+import { chooseConnectionAwareIntent, optimizeMediaImageUrl } from "@/lib/media-image";
 import { MediaItem } from "@/lib/types";
 
 const warmedImageUrls = new Set<string>();
@@ -44,18 +44,36 @@ export function ResilientMediaImage({
   const rawPrimaryCover = useProxy ? proxiedImage(item.coverUrl) ?? item.coverUrl : item.coverUrl;
   const rawSecondaryBackdrop = useProxy ? proxiedImage(item.backdropUrl) ?? item.backdropUrl : item.backdropUrl;
   const fallback = optimizeMediaImageUrl(rawFallback, "cover");
-  const primaryCover = optimizeMediaImageUrl(rawPrimaryCover, "cover");
-  const secondaryBackdrop = optimizeMediaImageUrl(rawSecondaryBackdrop, "backdrop");
-  const [src, setSrc] = useState(primaryCover || secondaryBackdrop || fallback);
+  const previewCover = optimizeMediaImageUrl(rawPrimaryCover, "thumb");
+  const previewBackdrop = optimizeMediaImageUrl(rawSecondaryBackdrop, "thumb");
+  const [src, setSrc] = useState(previewCover || previewBackdrop || fallback);
   const [loaded, setLoaded] = useState(false);
+  const [isUpgraded, setIsUpgraded] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
+  const connectionRef = useRef<{ saveData?: boolean; effectiveType?: string } | null>(null);
+
+  if (typeof navigator !== "undefined" && connectionRef.current === null) {
+    const connection = (navigator as Navigator & {
+      connection?: { saveData?: boolean; effectiveType?: string };
+    }).connection;
+    connectionRef.current = {
+      saveData: connection?.saveData,
+      effectiveType: connection?.effectiveType,
+    };
+  }
+
+  const connectionInfo = connectionRef.current ?? undefined;
+  const primaryCover = optimizeMediaImageUrl(rawPrimaryCover, chooseConnectionAwareIntent("cover", connectionInfo));
+  const secondaryBackdrop = optimizeMediaImageUrl(rawSecondaryBackdrop, chooseConnectionAwareIntent("backdrop", connectionInfo));
+  const upgradeTarget = primaryCover || secondaryBackdrop || fallback;
+  const initialTarget = previewCover || previewBackdrop || upgradeTarget;
 
   useEffect(() => {
     if (loading !== "eager" && fetchPriority !== "high") {
       return;
     }
 
-    const warmTargets = [primaryCover, secondaryBackdrop].filter(Boolean) as string[];
+    const warmTargets = [upgradeTarget].filter(Boolean) as string[];
     warmTargets.forEach((target) => {
       if (warmedImageUrls.has(target)) {
         return;
@@ -66,13 +84,14 @@ export function ResilientMediaImage({
       image.decoding = "async";
       image.src = target;
     });
-  }, [fetchPriority, loading, primaryCover, secondaryBackdrop]);
+  }, [fetchPriority, loading, upgradeTarget]);
 
   useEffect(() => {
     setLoaded(false);
+    setIsUpgraded(initialTarget === upgradeTarget);
     onLoadStateChange?.(false);
-    setSrc(primaryCover || secondaryBackdrop || fallback);
-  }, [fallback, onLoadStateChange, primaryCover, secondaryBackdrop]);
+    setSrc(initialTarget);
+  }, [initialTarget, onLoadStateChange, upgradeTarget]);
 
   // If the browser already has the image cached, naturalWidth is set immediately
   useEffect(() => {
@@ -82,11 +101,40 @@ export function ResilientMediaImage({
     }
   }, [onLoadStateChange, src]);
 
+  useEffect(() => {
+    if (!src || src === upgradeTarget || !upgradeTarget) {
+      return;
+    }
+
+    let cancelled = false;
+    const upgrade = () => {
+      if (!cancelled) {
+        setSrc(upgradeTarget);
+        setIsUpgraded(true);
+      }
+    };
+
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      const idleId = window.requestIdleCallback(upgrade, { timeout: 1200 });
+      return () => {
+        cancelled = true;
+        window.cancelIdleCallback(idleId);
+      };
+    }
+
+    const timer = globalThis.setTimeout(upgrade, loading === "eager" ? 0 : 120);
+    return () => {
+      cancelled = true;
+      globalThis.clearTimeout(timer);
+    };
+  }, [loading, src, upgradeTarget]);
+
   const combinedClass = [
     className, 
     "img-loaded-wrapper", 
     loaded ? "img-loaded" : "img-loading",
-    loading === "eager" ? "img-eager" : "img-lazy"
+    loading === "eager" ? "img-eager" : "img-lazy",
+    isUpgraded ? "img-upgraded" : "img-preview"
   ].filter(Boolean).join(" ");
 
   return (

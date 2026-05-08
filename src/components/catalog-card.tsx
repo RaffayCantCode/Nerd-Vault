@@ -11,6 +11,22 @@ import { MediaItem } from "@/lib/types";
 
 const BROWSE_LAST_URL_KEY = "nerdvault-browse-last-url";
 
+function getDetailRouteType(item: Pick<MediaItem, "source" | "type">) {
+  if (item.source !== "tmdb") {
+    return item.type;
+  }
+
+  if (item.type === "anime_movie") {
+    return "movie";
+  }
+
+  if (item.type === "anime") {
+    return "show";
+  }
+
+  return item.type;
+}
+
 function renderUserStars(rating?: number | null) {
   if (!rating) {
     return null;
@@ -36,20 +52,21 @@ export const CatalogCard = memo(function CatalogCard({
   const [isVisible, setIsVisible] = useState(priority);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const browseCardId = useMemo(() => `browse-card-${item.source}-${item.sourceId}`, [item.source, item.sourceId]);
+  const detailRouteType = useMemo(() => getDetailRouteType(item), [item]);
   const href = useMemo(
     () => ({
       pathname: `/media/${item.slug}`,
       query: {
         source: item.source,
         sourceId: item.sourceId,
-        type: item.type,
+        type: detailRouteType,
       },
     }),
-    [item.slug, item.source, item.sourceId, item.type],
+    [detailRouteType, item.slug, item.source, item.sourceId],
   );
   const routeHref = useMemo(
-    () => `/media/${item.slug}?source=${item.source}&sourceId=${item.sourceId}&type=${item.type}`,
-    [item.slug, item.source, item.sourceId, item.type],
+    () => `/media/${item.slug}?source=${item.source}&sourceId=${item.sourceId}&type=${detailRouteType}`,
+    [detailRouteType, item.slug, item.source, item.sourceId],
   );
 
   function warmRoute() {

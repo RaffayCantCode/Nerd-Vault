@@ -92,6 +92,7 @@ type FranchiseSectionData = {
     };
     badge?: string;
     isActive?: boolean;
+    canOpen?: boolean;
   }>;
   secondaryTitle?: string;
   secondaryEntries?: Array<{
@@ -108,6 +109,7 @@ type FranchiseSectionData = {
     };
     badge?: string;
     isActive?: boolean;
+    canOpen?: boolean;
   }>;
 };
 
@@ -128,6 +130,7 @@ type TimedDetailCacheEntry<T> = {
 
 const relatedMediaRailCache = new Map<string, TimedDetailCacheEntry<MediaItem[]>>();
 const franchiseSectionCache = new Map<string, TimedDetailCacheEntry<FranchiseSectionData | null>>();
+const franchiseAvailabilityCache = new Map<string, TimedDetailCacheEntry<boolean>>();
 
 const DETAIL_PALETTES: DetailPalette[] = [
   { accent: "#03fcbe", accentSoft: "rgba(3, 252, 190, 0.18)", glow: "rgba(3, 252, 190, 0.24)", edge: "rgba(3, 252, 190, 0.34)", haze: "rgba(158, 135, 255, 0.16)" },
@@ -355,6 +358,37 @@ function dedupeItems(items: MediaItem[]) {
     seen.add(key);
     return true;
   });
+}
+
+function getResolvedTmdbDetailType(type?: string) {
+  if (type === "anime") return "tv";
+  if (type === "anime_movie") return "movie";
+  return type === "show" ? "tv" : "movie";
+}
+
+function getDetailRouteType(item: Pick<MediaItem, "source" | "type">) {
+  if (item.source !== "tmdb") {
+    return item.type;
+  }
+
+  if (item.type === "anime_movie") {
+    return "movie";
+  }
+
+  if (item.type === "anime") {
+    return "show";
+  }
+
+  return item.type;
+}
+
+function isRoutableMediaItem(item: MediaItem | null | undefined) {
+  if (!item) return false;
+  if (!item.slug || !item.source || !item.sourceId || !item.title) return false;
+  if (item.source === "tmdb" && !["movie", "show", "anime", "anime_movie"].includes(item.type)) return false;
+  if (item.source === "anilist" && !["anime", "anime_movie"].includes(item.type)) return false;
+  if (item.source === "igdb" && item.type !== "game") return false;
+  return true;
 }
 
 function buildQueryVariants(title: string) {
@@ -1177,7 +1211,7 @@ function buildMediaHref(item: Pick<MediaItem, "slug" | "source" | "sourceId" | "
     query: {
       source: item.source,
       sourceId: item.sourceId,
-      type: item.type,
+      type: getDetailRouteType(item),
     },
   } as const;
 }
@@ -1233,6 +1267,65 @@ function writeTimedDetailCache<T>(cache: Map<string, TimedDetailCacheEntry<T>>, 
   });
 }
 
+async function canResolveMediaDetail(item: Pick<MediaItem, "source" | "sourceId" | "type">) {
+  const cacheKey = `${item.source}:${item.sourceId}:${item.type}`;
+  const cached = readTimedDetailCache(franchiseAvailabilityCache, cacheKey);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  let canOpen = false;
+
+  try {
+    if (item.source === "tmdb") {
+      await getTmdbMediaDetails(Number(item.sourceId), getResolvedTmdbDetailType(item.type));
+      canOpen = true;
+    } else if (item.source === "anilist") {
+      await getAniListAnimeDetails(Number(item.sourceId));
+      canOpen = true;
+    } else if (item.source === "jikan") {
+      await getAniListAnimeDetailsByMalId(Number(item.sourceId));
+      canOpen = true;
+    } else if (item.source === "igdb") {
+      await getIgdbGameDetails(Number(item.sourceId));
+      canOpen = true;
+    } else if (item.source === "local") {
+      canOpen = mockCatalog.some((entry) => entry.sourceId === item.sourceId);
+    }
+  } catch {
+    canOpen = false;
+  }
+
+  writeTimedDetailCache(franchiseAvailabilityCache, cacheKey, canOpen);
+  return canOpen;
+}
+
+async function markFranchiseEntriesOpenable<T extends {
+  isActive?: boolean;
+  href: {
+    query: {
+      source: string;
+      sourceId: string;
+      type: string;
+    };
+  };
+}>(entries: T[]) {
+  const resolved = await Promise.all(
+    entries.map(async (entry) => ({
+      ...entry,
+      canOpen: entry.isActive
+        ? true
+        : await canResolveMediaDetail({
+            source: entry.href.query.source as MediaItem["source"],
+            sourceId: entry.href.query.sourceId,
+            type: entry.href.query.type as MediaItem["type"],
+          }),
+    })),
+  );
+
+  return resolved;
+}
+
 async function buildFranchiseSection(media: MediaItem, animeFranchise?: AnimeFranchiseData): Promise<FranchiseSectionData | null> {
   const cacheKey = getDetailCacheKey(media);
   const cached = readTimedDetailCache(franchiseSectionCache, cacheKey);
@@ -1279,20 +1372,24 @@ async function buildFranchiseSectionUncached(media: MediaItem, animeFranchise?: 
         query: {
           source: "anilist",
           sourceId: String(entry.id),
-          type: "anime",
+          type: "anime_movie",
         },
       },
       badge: "Movie",
       isActive: String(entry.id) === media.sourceId,
     }));
-    const activeIndex = Math.max(0, mappedEntries.findIndex((entry) => entry.isActive));
+    const [openableEntries, openableMovies] = await Promise.all([
+      markFranchiseEntriesOpenable(mappedEntries),
+      markFranchiseEntriesOpenable(mappedMovies),
+    ]);
+    const activeIndex = Math.max(0, openableEntries.findIndex((entry) => entry.isActive));
 
     return {
       title: normalizeDisplayTitle(animeFranchise.title),
-      summary: buildFranchiseSummary(animeFranchise.title, activeIndex, mappedEntries.length),
-      entries: mappedEntries,
-      secondaryTitle: mappedMovies.length ? `${normalizeDisplayTitle(animeFranchise.title)} movies` : undefined,
-      secondaryEntries: mappedMovies,
+      summary: buildFranchiseSummary(animeFranchise.title, activeIndex, openableEntries.length),
+      entries: openableEntries,
+      secondaryTitle: openableMovies.length ? `${normalizeDisplayTitle(animeFranchise.title)} movies` : undefined,
+      secondaryEntries: openableMovies,
     };
   }
 
@@ -1309,31 +1406,37 @@ async function buildFranchiseSectionUncached(media: MediaItem, animeFranchise?: 
     if (combinedAnimeFallback.length >= 2) {
       const ordered = [...combinedAnimeFallback].sort(compareFranchiseItems);
       const activeIndex = Math.max(0, ordered.findIndex((candidate) => candidate.id === media.id));
+      const mappedEntries = ordered
+        .filter((entry) => entry.type === "anime")
+        .map((entry) => ({
+          id: entry.id,
+          title: normalizeDisplayTitle(entry.title),
+          meta: [entry.year || "Year TBD", `${entry.rating.toFixed(1)} / 10`, entry.details.runtime ?? entry.details.entryLabel ?? "Series"].filter(Boolean).join(" / "),
+          href: buildMediaHref(entry),
+          badge: buildFranchiseBadge(entry.title, parseInstallmentOrder(entry.title)),
+          isActive: entry.id === media.id,
+        }));
+      const mappedMovies = ordered
+        .filter((entry) => entry.type === "anime_movie")
+        .map((entry) => ({
+          id: entry.id,
+          title: normalizeDisplayTitle(entry.title),
+          meta: [entry.year || "Year TBD", `${entry.rating.toFixed(1)} / 10`, "Movie"].filter(Boolean).join(" / "),
+          href: buildMediaHref(entry),
+          badge: "Movie",
+          isActive: entry.id === media.id,
+        }));
+      const [openableEntries, openableMovies] = await Promise.all([
+        markFranchiseEntriesOpenable(mappedEntries),
+        markFranchiseEntriesOpenable(mappedMovies),
+      ]);
 
       return {
         title: normalizeDisplayTitle(media.details.collectionTitle ?? media.title),
         summary: buildFranchiseSummary(media.details.collectionTitle ?? media.title, activeIndex, ordered.length),
-        entries: ordered
-          .filter((entry) => entry.type === "anime")
-          .map((entry) => ({
-            id: entry.id,
-            title: normalizeDisplayTitle(entry.title),
-            meta: [entry.year || "Year TBD", `${entry.rating.toFixed(1)} / 10`, entry.details.runtime ?? entry.details.entryLabel ?? "Series"].filter(Boolean).join(" / "),
-            href: buildMediaHref(entry),
-            badge: buildFranchiseBadge(entry.title, parseInstallmentOrder(entry.title)),
-            isActive: entry.id === media.id,
-          })),
-        secondaryTitle: ordered.some((entry) => entry.type === "anime_movie") ? `${normalizeDisplayTitle(media.details.collectionTitle ?? media.title)} movies` : undefined,
-        secondaryEntries: ordered
-          .filter((entry) => entry.type === "anime_movie")
-          .map((entry) => ({
-            id: entry.id,
-            title: normalizeDisplayTitle(entry.title),
-            meta: [entry.year || "Year TBD", `${entry.rating.toFixed(1)} / 10`, "Movie"].filter(Boolean).join(" / "),
-            href: buildMediaHref(entry),
-            badge: "Movie",
-            isActive: entry.id === media.id,
-          })),
+        entries: openableEntries,
+        secondaryTitle: openableMovies.length ? `${normalizeDisplayTitle(media.details.collectionTitle ?? media.title)} movies` : undefined,
+        secondaryEntries: openableMovies,
       };
     }
 
@@ -1347,11 +1450,8 @@ async function buildFranchiseSectionUncached(media: MediaItem, animeFranchise?: 
       const ordered = [...combined].sort(compareFranchiseItems);
       const collectionName = media.details.collectionTitle ?? "Series collection";
       const activeIndex = Math.max(0, ordered.findIndex((candidate) => candidate.id === media.id));
-
-      return {
-        title: normalizeDisplayTitle(collectionName),
-        summary: buildFranchiseSummary(collectionName, activeIndex, ordered.length),
-        entries: ordered.map((entry) => ({
+      const openableEntries = await markFranchiseEntriesOpenable(
+        ordered.map((entry) => ({
           id: entry.id,
           title: normalizeDisplayTitle(entry.title),
           meta: [entry.year || "Year TBD", `${entry.rating.toFixed(1)} / 10`, entry.details.releaseInfo ?? entry.details.runtime ?? "Feature"].filter(Boolean).join(" / "),
@@ -1359,6 +1459,12 @@ async function buildFranchiseSectionUncached(media: MediaItem, animeFranchise?: 
           badge: buildFranchiseBadge(entry.title, parseInstallmentOrder(entry.title)),
           isActive: entry.id === media.id,
         })),
+      );
+
+      return {
+        title: normalizeDisplayTitle(collectionName),
+        summary: buildFranchiseSummary(collectionName, activeIndex, ordered.length),
+        entries: openableEntries,
       };
     }
   }
@@ -1372,11 +1478,8 @@ async function buildFranchiseSectionUncached(media: MediaItem, animeFranchise?: 
     if (combined.length >= 2) {
       const ordered = [...combined].sort(compareFranchiseItems);
       const activeIndex = Math.max(0, ordered.findIndex((candidate) => candidate.id === media.id));
-
-      return {
-        title: normalizeDisplayTitle(curatedUniverse.title),
-        summary: buildFranchiseSummary(curatedUniverse.title, activeIndex, ordered.length),
-        entries: ordered.map((entry) => ({
+      const openableEntries = await markFranchiseEntriesOpenable(
+        ordered.map((entry) => ({
           id: entry.id,
           title: normalizeDisplayTitle(entry.title),
           meta: [entry.year || "Year TBD", `${entry.rating.toFixed(1)} / 10`, entry.details.releaseInfo ?? entry.details.runtime ?? "Feature"].filter(Boolean).join(" / "),
@@ -1384,6 +1487,12 @@ async function buildFranchiseSectionUncached(media: MediaItem, animeFranchise?: 
           badge: buildFranchiseBadge(entry.title, parseInstallmentOrder(entry.title)),
           isActive: entry.id === media.id,
         })),
+      );
+
+      return {
+        title: normalizeDisplayTitle(curatedUniverse.title),
+        summary: buildFranchiseSummary(curatedUniverse.title, activeIndex, ordered.length),
+        entries: openableEntries,
       };
     }
   }
@@ -1409,27 +1518,35 @@ async function buildFranchiseSectionUncached(media: MediaItem, animeFranchise?: 
         curatedUniverse?.title ??
         media.details.collectionTitle ??
         normalizeDisplayTitle(extractFranchiseRoot(seriesEntries[0]?.title ?? media.title, media.type));
+      const [openableSeriesEntries, openableMovieEntries] = await Promise.all([
+        markFranchiseEntriesOpenable(
+          seriesEntries.map((entry) => ({
+            id: entry.id,
+            title: normalizeDisplayTitle(entry.title),
+            meta: [entry.year || "Year TBD", `${entry.rating.toFixed(1)} / 10`, entry.details.status ?? "Series"].filter(Boolean).join(" / "),
+            href: buildMediaHref(entry),
+            badge: buildFranchiseBadge(entry.title, parseInstallmentOrder(entry.title)),
+            isActive: entry.id === media.id,
+          })),
+        ),
+        markFranchiseEntriesOpenable(
+          movieEntries.map((entry) => ({
+            id: entry.id,
+            title: normalizeDisplayTitle(entry.title),
+            meta: [entry.year || "Year TBD", `${entry.rating.toFixed(1)} / 10`, entry.details.releaseInfo ?? entry.details.runtime ?? "Movie"].filter(Boolean).join(" / "),
+            href: buildMediaHref(entry),
+            badge: "Movie",
+            isActive: entry.id === media.id,
+          })),
+        ),
+      ]);
 
       return {
         title: normalizeDisplayTitle(title),
         summary: buildFranchiseSummary(title, activeIndex, seriesEntries.length || ordered.length),
-        entries: seriesEntries.map((entry) => ({
-          id: entry.id,
-          title: normalizeDisplayTitle(entry.title),
-          meta: [entry.year || "Year TBD", `${entry.rating.toFixed(1)} / 10`, entry.details.status ?? "Series"].filter(Boolean).join(" / "),
-          href: buildMediaHref(entry),
-          badge: buildFranchiseBadge(entry.title, parseInstallmentOrder(entry.title)),
-          isActive: entry.id === media.id,
-        })),
-        secondaryTitle: movieEntries.length ? `${normalizeDisplayTitle(title)} movies` : undefined,
-        secondaryEntries: movieEntries.map((entry) => ({
-          id: entry.id,
-          title: normalizeDisplayTitle(entry.title),
-          meta: [entry.year || "Year TBD", `${entry.rating.toFixed(1)} / 10`, entry.details.releaseInfo ?? entry.details.runtime ?? "Movie"].filter(Boolean).join(" / "),
-          href: buildMediaHref(entry),
-          badge: "Movie",
-          isActive: entry.id === media.id,
-        })),
+        entries: openableSeriesEntries,
+        secondaryTitle: openableMovieEntries.length ? `${normalizeDisplayTitle(title)} movies` : undefined,
+        secondaryEntries: openableMovieEntries,
       };
     }
   }
@@ -1459,11 +1576,8 @@ async function buildFranchiseSectionUncached(media: MediaItem, animeFranchise?: 
         media.details.collectionTitle ??
         normalizeDisplayTitle(extractFranchiseRoot(ordered[0]?.title ?? media.title, media.type));
       const activeIndex = Math.max(0, ordered.findIndex((candidate) => candidate.id === media.id));
-
-      return {
-        title: normalizeDisplayTitle(title),
-        summary: buildFranchiseSummary(title, activeIndex, ordered.length),
-        entries: ordered.map((entry) => ({
+      const openableEntries = await markFranchiseEntriesOpenable(
+        ordered.map((entry) => ({
           id: entry.id,
           title: normalizeDisplayTitle(entry.title),
           meta: [entry.year || "Year TBD", `${entry.rating.toFixed(1)} / 10`, entry.details.platform ?? entry.details.releaseInfo ?? "Game"].filter(Boolean).join(" / "),
@@ -1471,6 +1585,12 @@ async function buildFranchiseSectionUncached(media: MediaItem, animeFranchise?: 
           badge: buildFranchiseBadge(entry.title, parseInstallmentOrder(entry.title)),
           isActive: entry.id === media.id,
         })),
+      );
+
+      return {
+        title: normalizeDisplayTitle(title),
+        summary: buildFranchiseSummary(title, activeIndex, ordered.length),
+        entries: openableEntries,
       };
     }
   }
@@ -1583,7 +1703,7 @@ async function findRemoteMediaBySlug(slug: string, preferredSource?: string, pre
   }
 
   if ((preferredType === "movie" || preferredType === "show" || preferredType === "anime" || preferredType === "anime_movie") && (!preferredSource || preferredSource === "tmdb")) {
-    const tmdbType = (preferredType === "show" ? "show" : "movie");
+    const tmdbType = getResolvedTmdbDetailType(preferredType) === "tv" ? "show" : "movie";
     const quickTmdb = await withTimeout(
       browseTmdbCatalog({ type: tmdbType, page: 1, query: slugWords || slug, sort: "rating", seed: 3 }).catch(() => emptyBrowseResult()),
       emptyBrowseResult(),
@@ -1595,7 +1715,7 @@ async function findRemoteMediaBySlug(slug: string, preferredSource?: string, pre
         : undefined) ?? quickTmdb.items.find((item) => matchesSlugCandidate(item, slug));
     if (tmdbHit && (tmdbHit.type === "movie" || tmdbHit.type === "show")) {
       try {
-        const media = await getTmdbMediaDetails(Number(tmdbHit.sourceId), tmdbHit.type === "movie" ? "movie" : "tv");
+        const media = await getTmdbMediaDetails(Number(tmdbHit.sourceId), getResolvedTmdbDetailType(tmdbHit.type));
         return { media, animeFranchise: undefined };
       } catch {
         /* fall through */
@@ -1661,7 +1781,7 @@ async function findRemoteMediaBySlug(slug: string, preferredSource?: string, pre
       }
 
       if (match.source === "tmdb" && (match.type === "movie" || match.type === "show" || match.type === "anime" || match.type === "anime_movie")) {
-        const media = await getTmdbMediaDetails(Number(match.sourceId), (match.type === "show" ? "tv" : "movie"));
+        const media = await getTmdbMediaDetails(Number(match.sourceId), getResolvedTmdbDetailType(match.type));
         return { media };
       }
 
@@ -2580,8 +2700,10 @@ async function DeferredRelatedRail({ media, franchiseSection }: { media: MediaIt
     ...(franchiseSection?.secondaryEntries?.map((entry: any) => entry.href?.query?.sourceId) ?? []),
   ]);
 
-  const filteredRelated = related.filter((item) => 
-    !franchiseIds.has(item.id) && !franchiseSourceIds.has(item.sourceId)
+  const filteredRelated = related.filter((item) =>
+    isRoutableMediaItem(item) &&
+    !franchiseIds.has(item.id) &&
+    !franchiseSourceIds.has(item.sourceId)
   );
 
   return (
@@ -2624,8 +2746,8 @@ export default async function MediaDetailPage({
   if (source === "tmdb" && sourceId) {
     try {
       const id = Number(sourceId);
-      // Try movie first, then tv if it fails, unless we're sure it's a show
-      if (type === "show") {
+      const tmdbDetailType = getResolvedTmdbDetailType(type);
+      if (tmdbDetailType === "tv") {
         media = await getTmdbMediaDetails(id, "tv");
       } else {
         try {

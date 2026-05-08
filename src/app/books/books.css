@@ -1541,3 +1541,51 @@
     pointer-events: auto !important;
   }
 }
+
+.book-cover-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.34;
+  filter: saturate(0.92) contrast(1.02);
+}
+
+.book-cover-copy {
+  position: relative;
+  z-index: 1;
+}
+
+.book-cover-skeleton {
+  min-height: 220px;
+  border-radius: 18px;
+  background: linear-gradient(110deg, rgba(255,255,255,0.05) 8%, rgba(255,255,255,0.14) 18%, rgba(255,255,255,0.05) 33%);
+  background-size: 200% 100%;
+  animation: nvSkeleton 1.2s linear infinite;
+}
+
+.books-card-skeleton {
+  pointer-events: none;
+}
+
+.books-skeleton-line {
+  height: 11px;
+  border-radius: 999px;
+  background: linear-gradient(110deg, rgba(255,255,255,0.05) 8%, rgba(255,255,255,0.14) 18%, rgba(255,255,255,0.05) 33%);
+  background-size: 200% 100%;
+  animation: nvSkeleton 1.2s linear infinite;
+}
+
+.books-skeleton-title {
+  width: 82%;
+  height: 16px;
+}
+
+.books-skeleton-author {
+  width: 58%;
+}
+
+.books-skeleton-long {
+  width: 94%;
+}
