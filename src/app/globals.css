@@ -195,14 +195,13 @@ html {
   }
 
   .sidebar-nav-icon {
-    width: 48px !important;
-    height: 48px !important;
+    width: 24px !important;
+    height: 24px !important;
     flex-shrink: 0 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    transition: transform 0.2s ease !important;
+    display: block !important;
+    transition: transform 0.2s ease, color 0.2s ease !important;
     margin: 0 auto !important;
+    color: inherit !important;
   }
 
   .sidebar.sidebar-rail:hover .sidebar-nav-icon {
@@ -865,8 +864,8 @@ html {
 }
 
 .sidebar-signout-button .sidebar-nav-icon {
-  width: 42px !important;
-  height: 42px !important;
+  width: 24px !important;
+  height: 24px !important;
   margin-inline: auto !important;
 }
 
@@ -11492,6 +11491,66 @@ body {
   font-size: 0.93rem !important;
 }
 
+.books-reader-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* Book card button hover and responsive styles */
+.books-card-button {
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.books-card-button:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+.books-card-button:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.books-card-button-primary {
+  background: linear-gradient(135deg, #03fcbe, #9e87ff);
+  color: #0a0e1a;
+  font-weight: 600;
+  border: none;
+}
+
+.books-card-button-primary:hover {
+  background: linear-gradient(135deg, #02e0aa, #8c6ff0);
+  box-shadow: 0 8px 24px rgba(3, 252, 190, 0.3);
+  transform: translateY(-2px);
+}
+
+.books-card-button-primary:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Responsive adjustments for book buttons */
+@media (max-width: 720px) {
+  .books-reader-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .books-reader-actions .books-card-button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 .catalog-grid {
   gap: 14px !important;
 }
@@ -13821,13 +13880,72 @@ html {
 }
 
 .img-loading {
-  filter: blur(4px);
-  transform: scale(1.02);
+  filter: blur(2px);
+  transform: scale(1.01);
 }
 
 .img-loaded {
   filter: blur(0);
   transform: scale(1);
+}
+
+/* ─── Catalog Card Skeleton Placeholder ──────────────────────────────── */
+.catalog-card-skeleton {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.03) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s ease-in-out infinite;
+  border-radius: inherit;
+  z-index: 1;
+}
+
+.skeleton-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    transparent 100%
+  );
+  animation: skeletonShimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes skeletonShimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Hide skeleton when image is loaded */
+.catalog-card.has-media-loaded .catalog-card-skeleton {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+/* Smoother image reveal in catalog cards */
+.catalog-card-media {
+  position: relative;
+  overflow: hidden;
+}
+
+.catalog-card-media img {
+  opacity: 0;
+  transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.catalog-card-media img.img-loaded {
+  opacity: 1;
 }
 
 /* Page transitions */
@@ -14103,6 +14221,207 @@ body {
   max-height: none !important;
   overflow-x: auto;
   padding-bottom: 4px;
+}
+
+/* Mobile Filter Toggle Button */
+.books-mobile-filter-toggle {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.6rem 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 12px;
+}
+
+.books-mobile-filter-toggle:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.books-filter-badge {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #03fcbe, #9e87ff);
+  color: #0a0e1a;
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+.books-filter-badge:empty {
+  display: none;
+}
+
+/* Filter Panel */
+.books-filter-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.books-filter-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.books-filter-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+.books-sort-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.books-sort-chip {
+  min-height: 36px;
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.books-sort-chip:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.books-sort-chip.is-active {
+  background: linear-gradient(135deg, #03fcbe, #9e87ff);
+  border-color: transparent;
+  color: #0a0e1a;
+  font-weight: 600;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .books-mobile-filter-toggle {
+    display: flex;
+  }
+
+  .books-filter-panel {
+    display: none;
+    padding: 16px;
+    margin-top: 8px;
+    border-radius: 16px;
+    background: rgba(6, 9, 15, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(12px);
+  }
+
+  .books-filter-panel.is-open {
+    display: flex;
+    animation: slideDown 0.25s ease;
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .books-genre-row {
+    overflow-x: visible;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .books-genre-chip {
+    flex-shrink: 0;
+  }
+}
+
+/* Desktop - always show panel */
+@media (min-width: 769px) {
+  .books-filter-panel {
+    display: flex !important;
+  }
+
+  .books-filter-section {
+    gap: 10px;
+  }
+  
+  /* Hide old sort dropdown on desktop since we use chips now */
+  .books-sort-row {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Hide old sort dropdown on mobile - we use the chip panel instead */
+  .books-sort-row {
+    display: none;
+  }
+}
+
+.books-sort-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.books-sort-label {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+}
+
+.books-sort-select {
+  min-height: 40px;
+  padding: 0.5rem 1rem;
+  padding-right: 2.5rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+  font-size: 0.9rem;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23fff' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  transition: all 0.2s ease;
+}
+
+.books-sort-select:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.books-sort-select:focus {
+  outline: 2px solid rgba(3, 252, 190, 0.5);
+  outline-offset: 2px;
+}
+
+.books-sort-select option {
+  background: #1a1f2e;
+  color: white;
 }
 
 .books-grid {
@@ -14841,6 +15160,15 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.05);
   color: rgba(255, 255, 255, 0.92);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.landing-quick-chip:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
 }
 
 .detail-meta-row {

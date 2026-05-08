@@ -73,7 +73,7 @@ export function ResilientMediaImage({
       return;
     }
 
-    const warmTargets = [upgradeTarget].filter(Boolean) as string[];
+    const warmTargets = [upgradeTarget, initialTarget].filter((t): t is string => Boolean(t));
     warmTargets.forEach((target) => {
       if (warmedImageUrls.has(target)) {
         return;
@@ -84,7 +84,7 @@ export function ResilientMediaImage({
       image.decoding = "async";
       image.src = target;
     });
-  }, [fetchPriority, loading, upgradeTarget]);
+  }, [fetchPriority, loading, upgradeTarget, initialTarget]);
 
   useEffect(() => {
     setLoaded(false);

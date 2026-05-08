@@ -68,6 +68,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     // Database sessions keep the cookie payload tiny (opaque session token only),
     // which prevents REQUEST_HEADER_TOO_LARGE from giant JWT cookie chunks.
     strategy: "database",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+    updateAge: 24 * 60 * 60, // 24 hours
   },
   providers,
   pages: {
@@ -76,12 +78,25 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   // Let NextAuth use its default compact cookies. Custom overrides were
   // contributing to REQUEST_HEADER_TOO_LARGE by inflating cookie names.
   // The sessionToken default already respects __Secure- prefix in production.
+  cookies: {
+    sessionToken: {
+      name: process.env.NODE_ENV === "production" 
+        ? "__Secure-authjs.session-token" 
+        : "authjs.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+  },
   callbacks: {
-    async session({ session, token, user }) {
-      if (session.user) {
-        session.user.id = user?.id ?? token?.sub ?? "";
+    async session({ session, user }) {
+      // With database strategy, 'user' contains the full user object from the adapter
+      if (user?.id) {
+        session.user.id = user.id;
       }
-
       return session;
     },
     async redirect({ url, baseUrl }) {

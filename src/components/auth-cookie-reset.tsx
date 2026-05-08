@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-import { ALL_AUTH_COOKIE_NAMES } from "@/lib/auth-cookies";
+import { CLIENT_AUTH_RESET_COOKIE_NAMES } from "@/lib/auth-cookies";
 
 function expireCookie(name: string, path: string, domain?: string, secure = true) {
   const domainPart = domain ? `; domain=${domain}` : "";
@@ -15,15 +15,17 @@ function readCookie(name: string) {
   return match ? decodeURIComponent(match[1]) : undefined;
 }
 
-/** Aggressively clear every known auth-related cookie on the client.
- *  Use this before form submission to avoid 494 REQUEST_HEADER_TOO_LARGE. */
+/** Clear legacy and OAuth transient cookies on the client.
+ *  Use this before OAuth form submission to avoid 494 REQUEST_HEADER_TOO_LARGE.
+ *  Note: This does NOT clear the current valid session token. */
 export function clearAllAuthCookies() {
   const hostname = window.location.hostname;
   const candidateDomains = hostname.includes(".")
     ? [hostname, `.${hostname}`]
     : [hostname];
   const isSecure = window.location.protocol === "https:";
-  for (const cookieName of ALL_AUTH_COOKIE_NAMES) {
+  // Only clear legacy and OAuth transient cookies - NOT the current session token
+  for (const cookieName of CLIENT_AUTH_RESET_COOKIE_NAMES) {
     expireCookie(cookieName, "/", undefined, isSecure);
     for (const domain of candidateDomains) {
       expireCookie(cookieName, "/", domain, isSecure);

@@ -9,7 +9,7 @@ import { StoredFolder } from "@/lib/vault-types";
 
 function IconHome() {
   return (
-    <svg className="sidebar-nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden>
+    <svg className="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
         d="M4.5 10.5 12 4l7.5 6.5V19a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 19z"
         stroke="currentColor"
@@ -23,7 +23,7 @@ function IconHome() {
 
 function IconLanding() {
   return (
-    <svg className="sidebar-nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden>
+    <svg className="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
         d="M4.5 10.5 12 4l7.5 6.5V19a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 19z"
         stroke="currentColor"
@@ -37,7 +37,7 @@ function IconLanding() {
 
 function IconUser() {
   return (
-    <svg className="sidebar-nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden>
+    <svg className="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden>
       <circle cx="12" cy="8.5" r="3.25" stroke="currentColor" strokeWidth="1.65" />
       <path
         d="M6 19.5c.9-3.2 3.4-5 6-5s5.1 1.8 6 5"
@@ -51,7 +51,7 @@ function IconUser() {
 
 function IconCompass() {
   return (
-    <svg className="sidebar-nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden>
+    <svg className="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden>
       <circle cx="12" cy="12" r="7.25" stroke="currentColor" strokeWidth="1.65" />
       <path
         d="m13.2 10.8 3.3-6-6 3.3-3.3 6 6-3.3Z"
@@ -65,7 +65,7 @@ function IconCompass() {
 
 function IconDoor() {
   return (
-    <svg className="sidebar-nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden>
+    <svg className="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path d="M10 4h7v16h-7" stroke="currentColor" strokeWidth="1.65" strokeLinejoin="round" />
       <path d="M7 8v8" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" />
       <circle cx="14.5" cy="12" r="0.9" fill="currentColor" />
@@ -75,7 +75,7 @@ function IconDoor() {
 
 function IconLeave() {
   return (
-    <svg className="sidebar-nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden>
+    <svg className="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path d="M9 4.75H6.75A1.75 1.75 0 0 0 5 6.5v11a1.75 1.75 0 0 0 1.75 1.75H9" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" />
       <path d="M13.25 8.25 18 12l-4.75 3.75" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M17.75 12H9.5" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" />

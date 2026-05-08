@@ -1,13 +1,13 @@
 import { ImageResponse } from "next/og";
 
 export const size = {
-  width: 256,
-  height: 256,
+  width: 180,
+  height: 180,
 };
 
 export const contentType = "image/png";
 
-export default function Icon() {
+export default function AppleIcon() {
   return new ImageResponse(
     (
       <div
@@ -18,13 +18,13 @@ export default function Icon() {
           alignItems: "center",
           justifyContent: "center",
           background: "linear-gradient(135deg, #03fcbe 0%, #9e87ff 100%)",
-          borderRadius: 56,
+          borderRadius: 40,
         }}
       >
         <span
           style={{
             color: "#0a0e1a",
-            fontSize: 128,
+            fontSize: 90,
             lineHeight: 1,
             fontWeight: 900,
             fontFamily:

@@ -162,6 +162,7 @@ export const CatalogCard = memo(function CatalogCard({
       return;
     }
 
+    // Larger rootMargin for earlier preloading - images start loading before they enter viewport
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting) {
@@ -169,7 +170,7 @@ export const CatalogCard = memo(function CatalogCard({
           observer.disconnect();
         }
       },
-      { rootMargin: "80px", threshold: 0.05 },
+      { rootMargin: "400px", threshold: 0 },
     );
 
     observer.observe(element);
@@ -197,13 +198,21 @@ export const CatalogCard = memo(function CatalogCard({
       style={{ willChange: "transform, opacity" }}
     >
       <div className="catalog-card-media">
-        <ResilientMediaImage
-          item={item}
-          loading={priority ? "eager" : "lazy"}
-          fetchPriority={priority ? "high" : "auto"}
-          decoding="async"
-          onLoadStateChange={setIsImageLoaded}
-        />
+        {/* Skeleton placeholder - visible until image loads */}
+        {!isImageLoaded && (
+          <div className="catalog-card-skeleton" aria-hidden="true">
+            <div className="skeleton-shimmer" />
+          </div>
+        )}
+        {isVisible && (
+          <ResilientMediaImage
+            item={item}
+            loading={priority ? "eager" : "lazy"}
+            fetchPriority={priority ? "high" : "auto"}
+            decoding="async"
+            onLoadStateChange={setIsImageLoaded}
+          />
+        )}
         <div className="catalog-sheen" />
         {isNavigating ? (
           <div className="catalog-card-loader" aria-hidden="true">

@@ -90,12 +90,13 @@ export default async function HomePage() {
                 )}
               </div>
 
-              <form action="/browse" className="landing-quick-search glass">
+              <form action="/browse" method="GET" className="landing-quick-search glass">
                 <input
                   type="search"
                   name="query"
                   placeholder="Search movies, anime, games, shows..."
                   aria-label="Quick search"
+                  required
                 />
                 <button type="submit" className="landing-cta landing-cta-primary">
                   Search Now

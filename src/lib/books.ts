@@ -292,8 +292,13 @@ export async function fetchBooksPage({
     const payload = await fetchGutendexPage(safePage, searchTerms);
     const mappedItems = payload.results
       .map((book): BookSummary => mapBook(book))
-      .filter((book: BookSummary) => matchesGenre(book, genre))
-      .sort((left: BookSummary, right: BookSummary) => right.downloadCount - left.downloadCount || left.title.localeCompare(right.title));
+      .filter((book: BookSummary) => matchesGenre(book, genre));
+
+    // Shuffle randomly for variety each time books are loaded
+    for (let i = mappedItems.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [mappedItems[i], mappedItems[j]] = [mappedItems[j], mappedItems[i]];
+    }
 
     const nextPayload = {
       page: safePage,

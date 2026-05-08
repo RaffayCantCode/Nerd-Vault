@@ -17,6 +17,8 @@ const emptyPayload: BookListPayload = {
   availableGenres: [],
   items: [],
 };
+
+type SortMode = "relevance" | "title" | "author" | "popularity" | "length";
 const booksPayloadCache = new Map<string, BookListPayload>();
 const booksInflightCache = new Map<string, Promise<BookListPayload & { ok?: boolean; message?: string }>>();
 
@@ -49,6 +51,7 @@ export function BooksWorkspace({
   const [query, setQuery] = useState(initialQuery);
   const [submittedQuery, setSubmittedQuery] = useState(initialQuery);
   const [activeGenre, setActiveGenre] = useState(initialGenre);
+  const [sortMode, setSortMode] = useState<SortMode>("relevance");
   const [page, setPage] = useState(initialPayload.page || 1);
   const [payload, setPayload] = useState<BookListPayload>(initialPayload);
   const [wishlist, setWishlist] = useState<number[]>([]);
@@ -57,6 +60,7 @@ export function BooksWorkspace({
   const [continueReading, setContinueReading] = useState(initialContinue || []);
   const [clearingContinue, setClearingContinue] = useState<number | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const pathname = usePathname();
   const currentRequestKey = useMemo(() => {
     const search = new URLSearchParams({ page: String(page) });
@@ -222,6 +226,29 @@ export function BooksWorkspace({
     [payload.availableGenres],
   );
 
+  // Sort books client-side based on selected sort mode
+  const sortedItems = useMemo(() => {
+    const items = [...payload.items];
+    switch (sortMode) {
+      case "title":
+        return items.sort((a, b) => a.title.localeCompare(b.title));
+      case "author":
+        return items.sort((a, b) => {
+          const aAuthor = a.authors[0] || "Unknown";
+          const bAuthor = b.authors[0] || "Unknown";
+          return aAuthor.localeCompare(bAuthor);
+        });
+      case "popularity":
+        return items.sort((a, b) => b.downloadCount - a.downloadCount);
+      case "length":
+        return items.sort((a, b) => b.pageCountEstimate - a.pageCountEstimate);
+      case "relevance":
+      default:
+        // Keep original order (random from API)
+        return items;
+    }
+  }, [payload.items, sortMode]);
+
   function dedupeBooks(items: BookSummary[]) {
     const seen = new Set<number>();
     return items.filter((book) => {
@@ -289,21 +316,65 @@ export function BooksWorkspace({
               />
               <button type="submit">Search</button>
             </form>
-            <div className="books-genre-row">
-              {genreChips.map((genre) => (
-                <button
-                  key={genre}
-                  type="button"
-                  className={`books-genre-chip ${activeGenre === genre ? "is-active" : ""}`}
-                  onClick={() => {
-                    setActiveGenre(genre);
-                    setPage(1);
-                  }}
-                >
-                  {genre}
-                </button>
-              ))}
+            {/* Mobile Filter Toggle Button */}
+            <button
+              type="button"
+              className="books-mobile-filter-toggle"
+              onClick={() => setShowMobileFilters((prev) => !prev)}
+              aria-expanded={showMobileFilters}
+              aria-controls="books-filter-panel"
+            >
+              <span>{showMobileFilters ? "Close" : "Filter & Sort"}</span>
+              <span className="books-filter-badge">{activeGenre !== "All" ? activeGenre : sortMode !== "relevance" ? "Sorted" : ""}</span>
+            </button>
+
+            {/* Filter & Sort Panel - Collapsible on mobile */}
+            <div
+              id="books-filter-panel"
+              className={`books-filter-panel ${showMobileFilters ? "is-open" : ""}`}
+            >
+              <div className="books-filter-section">
+                <p className="books-filter-label">Genre</p>
+                <div className="books-genre-row">
+                  {genreChips.map((genre) => (
+                    <button
+                      key={genre}
+                      type="button"
+                      className={`books-genre-chip ${activeGenre === genre ? "is-active" : ""}`}
+                      onClick={() => {
+                        setActiveGenre(genre);
+                        setPage(1);
+                      }}
+                    >
+                      {genre}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="books-filter-section">
+                <p className="books-filter-label">Sort by</p>
+                <div className="books-sort-options">
+                  {[
+                    { value: "relevance", label: "Relevance" },
+                    { value: "title", label: "Title (A-Z)" },
+                    { value: "author", label: "Author (A-Z)" },
+                    { value: "popularity", label: "Most Popular" },
+                    { value: "length", label: "Longest First" },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={`books-sort-chip ${sortMode === option.value ? "is-active" : ""}`}
+                      onClick={() => setSortMode(option.value as SortMode)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
+
             <div className="books-hero-metadata">
               <span>{loading ? "Loading library..." : `${formatCompactNumber(payload.totalResults)} books found`}</span>
               <span>{wishlist.length} saved</span>
@@ -388,9 +459,9 @@ export function BooksWorkspace({
           {error ? <div className="books-empty-state">{error}</div> : null}
           {loading && !payload.items.length ? renderBookSkeletons() : null}
 
-          {payload.items.length ? (
+          {sortedItems.length ? (
             <div className="books-grid">
-              {payload.items.map((book) => (
+              {sortedItems.map((book) => (
                 <article key={book.id} className="books-card">
                   <Link href={`/books/${book.id}`} className="books-card-link">
                     <BookCover title={book.title} author={book.authors[0]} coverUrl={book.coverUrl} size="small" />

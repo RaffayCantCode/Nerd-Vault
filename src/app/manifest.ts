@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "NerdVault",
     short_name: "NerdVault",
-    description: "Track movies, shows, anime, games, and books in one fast vault.",
+    description: "Your vault for games, film, TV, and anime—track what lands, wishlist what's next.",
     start_url: "/",
     display: "standalone",
     background_color: "#060911",
