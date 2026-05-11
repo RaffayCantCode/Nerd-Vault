@@ -63,12 +63,17 @@ export function getAuthCookiesToDelete(cookieNames: Iterable<string>) {
       deletions.add(cookieName);
       continue;
     }
-    if (LEGACY_AUTH_COOKIE_NAMES.includes(cookieName) || OAUTH_TRANSIENT_COOKIE_NAMES.includes(cookieName)) {
+    // Never auto-delete active session token cookies in middleware-level cleanup.
+    // Keep cleanup focused on transient OAuth/state and broken chunked leftovers.
+    if (OAUTH_TRANSIENT_COOKIE_NAMES.includes(cookieName)) {
       deletions.add(cookieName);
       continue;
     }
 
-    if (LEGACY_AUTH_COOKIE_PREFIXES.some((prefix) => cookieName.startsWith(prefix))) {
+    if (
+      LEGACY_AUTH_COOKIE_PREFIXES.some((prefix) => cookieName.startsWith(prefix)) &&
+      !cookieName.endsWith(".session-token")
+    ) {
       deletions.add(cookieName);
     }
   }

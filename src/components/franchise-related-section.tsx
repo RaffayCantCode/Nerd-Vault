@@ -43,15 +43,8 @@ export function FranchiseRelatedSection({
   };
 
   const buildAvailabilityLine = (items: FranchiseEntry[]) => {
-    const openable = items.filter((entry) => entry.canOpen !== false);
     const locked = items.filter((entry) => entry.canOpen === false);
     const parts: string[] = [];
-
-    if (openable.length) {
-      parts.push(
-        `Open now: ${openable.map((entry) => entry.title).join(", ")}.`,
-      );
-    }
 
     if (locked.length) {
       parts.push(

@@ -91,6 +91,7 @@ export default async function HomePage() {
               </div>
 
               <form action="/browse" method="GET" className="landing-quick-search glass">
+                <input type="hidden" name="focus" value="results" />
                 <input
                   type="search"
                   name="query"
@@ -104,10 +105,10 @@ export default async function HomePage() {
               </form>
 
               <div className="landing-quick-actions">
-                <Link href="/browse?mediaType=movie" className="landing-quick-chip">Movies</Link>
-                <Link href="/browse?mediaType=show" className="landing-quick-chip">Shows</Link>
-                <Link href="/browse?mediaType=anime" className="landing-quick-chip">Anime</Link>
-                <Link href="/browse?mediaType=game" className="landing-quick-chip">Games</Link>
+                <Link href="/browse?focus=results&mediaType=movie" className="landing-quick-chip">Movies</Link>
+                <Link href="/browse?focus=results&mediaType=show" className="landing-quick-chip">Shows</Link>
+                <Link href="/browse?focus=results&mediaType=anime" className="landing-quick-chip">Anime</Link>
+                <Link href="/browse?focus=results&mediaType=game" className="landing-quick-chip">Games</Link>
                 <Link href="/profile" className="landing-quick-chip">Wishlist</Link>
               </div>
             </div>

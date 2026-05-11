@@ -368,6 +368,28 @@ export function ProfileWorkspace({
     ];
   }, [folders.length, friends.length, watched]);
 
+  if (isDemo) {
+    return (
+      <main className="workspace">
+        <section className="workspace-hero glass profile-stage profile-guest-safe">
+          <div className="workspace-hero-grid profile-stage-grid">
+            <div className="workspace-copy profile-stage-copy">
+              <p className="eyebrow">Guest mode</p>
+              <h1 className="display profile-display">Profile is available after sign in.</h1>
+              <p className="copy">
+                You can keep browsing as a guest, but profile, folders, and social features need an account session.
+              </p>
+              <div className="button-row">
+                <Link href="/sign-in?redirectTo=/profile" className="button button-primary">Sign in</Link>
+                <Link href="/browse" className="button button-secondary">Continue browsing</Link>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   function renderMediaPager(currentPage: number, totalPages: number, onChange: (nextPage: number) => void, label: string) {
     if (totalPages <= 1) {
       return null;

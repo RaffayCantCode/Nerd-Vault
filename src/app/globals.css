@@ -15763,3 +15763,105 @@ body {
   color: rgba(240, 245, 255, 0.8);
   max-width: 78ch;
 }
+
+/* UX stabilization and compact mobile pass */
+.catalog-card {
+  transform: translate3d(0, 0, 0) !important;
+}
+
+.catalog-card:hover {
+  transform: translateY(-6px) scale(1.015) translate3d(0, 0, 0) !important;
+}
+
+.catalog-card-skeleton {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.catalog-card.has-media-loaded .catalog-card-skeleton {
+  opacity: 0;
+  transition: opacity 180ms ease;
+  pointer-events: none;
+}
+
+.browse-top-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.browse-top-tab {
+  min-height: 38px;
+  padding-inline: 14px;
+}
+
+.app-topbar {
+  padding: 12px 14px !important;
+}
+
+.app-topbar-actions,
+.topbar-action-group,
+.button-row,
+.chip-row,
+.profile-section-nav {
+  flex-wrap: wrap !important;
+}
+
+.profile-guest-safe {
+  min-height: 0 !important;
+}
+
+.folder-hero {
+  min-height: 260px !important;
+}
+
+.folder-hero-cover-card {
+  width: 104px !important;
+  min-width: 104px !important;
+}
+
+@media (max-width: 900px) {
+  .workspace {
+    padding: 0 0.75rem 1.25rem 0.75rem !important;
+  }
+
+  .workspace-hero,
+  .profile-stage,
+  .home-hero,
+  .browse-surfacing-hero {
+    border-radius: 18px !important;
+  }
+
+  .workspace-hero {
+    padding: 14px !important;
+  }
+
+  .display,
+  .home-display,
+  .profile-display,
+  .folder-hero-display {
+    line-height: 1.04 !important;
+  }
+
+  .browse-toolbar-grid,
+  .browse-toolbar-row {
+    gap: 10px !important;
+  }
+
+  .browse-live-search-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .browse-search-submit,
+  .browse-search-clear {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .profile-stage-actions .button,
+  .folder-hero-actions .button,
+  .button-row .button {
+    flex: 1 1 180px;
+  }
+}

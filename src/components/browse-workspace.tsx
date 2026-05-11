@@ -184,6 +184,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
   const initialGenre = searchParams.get("genre") || "all";
   const initialSort = searchParams.get("sort");
   const initialQuery = searchParams.get("query") || "";
+  const initialFocus = searchParams.get("focus");
   const initialPage = Number(searchParams.get("page") || "1");
   const initialSeed = Number(searchParams.get("seed") || String(discoverySeed));
   const initialCatalogItems = dedupeItems(catalog).filter(
@@ -223,6 +224,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
   const resultsRef = useRef<HTMLDivElement | null>(null);
   const surfacingRef = useRef<HTMLElement | null>(null);
   const hasRestoredScrollRef = useRef(false);
+  const hasFocusedResultsRef = useRef(false);
   const didInitRef = useRef(false);
   const heroTimerRef = useRef<number | null>(null);
 
@@ -378,15 +380,6 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
 
     const returnContext = readBrowseReturnContext();
     if (!returnContext) {
-      // If no return context, check if we have a saved scroll position for the current URL
-      const savedScroll = window.sessionStorage.getItem(`scroll-${currentHref}`);
-      if (savedScroll) {
-        const timer = window.setTimeout(() => {
-          window.scrollTo({ top: parseInt(savedScroll, 10), behavior: "auto" });
-          hasRestoredScrollRef.current = true;
-        }, 10);
-        return () => window.clearTimeout(timer);
-      }
       hasRestoredScrollRef.current = true;
       return;
     }
@@ -416,19 +409,21 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
     return () => window.clearTimeout(timer);
   }, [isLoading, currentHref]);
 
-  // Smart Scroll Tracker: Save scroll position before leaving
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (
+      isLoading ||
+      hasFocusedResultsRef.current ||
+      initialFocus !== "results" ||
+      typeof window === "undefined"
+    ) {
+      return;
+    }
 
-    const handleScroll = () => {
-      if (!isLoading) {
-        window.sessionStorage.setItem(`scroll-${currentHref}`, window.scrollY.toString());
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [currentHref, isLoading]);
+    hasFocusedResultsRef.current = true;
+    window.setTimeout(() => {
+      resultsRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
+    }, 40);
+  }, [initialFocus, isLoading]);
 
   useEffect(() => {
     featuredDeck.slice(0, 4).forEach((item) => {

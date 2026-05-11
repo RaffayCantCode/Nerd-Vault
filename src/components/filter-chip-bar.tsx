@@ -8,21 +8,28 @@ type FilterChipBarProps = {
   onChange: (next: MediaType | "all") => void;
 };
 
-const filters: Array<MediaType | "all"> = ["all", "movie", "show", "anime", "game"];
+const topTabs: Array<MediaType> = ["movie", "anime", "show", "game"];
 
 export const FilterChipBar = memo(function FilterChipBar({ active, onChange }: FilterChipBarProps) {
   return (
-    <div className="chip-row">
-      {filters.map((filter) => (
+    <div className="chip-row browse-top-tabs">
+      {topTabs.map((filter) => (
         <button
           key={filter}
           type="button"
-          className={`chip ${active === filter ? "is-active" : ""}`}
+          className={`chip browse-top-tab ${active === filter ? "is-active" : ""}`}
           onClick={() => onChange(filter)}
         >
-          {filter === "all" ? "All" : `${filter.charAt(0).toUpperCase()}${filter.slice(1)}s`}
+          {filter === "show" ? "Series" : `${filter.charAt(0).toUpperCase()}${filter.slice(1)}s`}
         </button>
       ))}
+      <button
+        type="button"
+        className={`chip browse-top-tab ${active === "all" ? "is-active" : ""}`}
+        onClick={() => onChange("all")}
+      >
+        All
+      </button>
     </div>
   );
 });
