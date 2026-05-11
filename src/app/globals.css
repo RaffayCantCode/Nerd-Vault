@@ -15764,6 +15764,66 @@ body {
   max-width: 78ch;
 }
 
+/* Sidebar icon sizing fix */
+@media (min-width: 901px) {
+  .sidebar-nav-button,
+  .sidebar-signout-button,
+  .sidebar-folder-tile,
+  .sidebar-icon-button {
+    min-height: 56px !important;
+    border-radius: 16px !important;
+  }
+
+  .sidebar-nav-icon {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    min-height: 28px !important;
+  }
+
+  .sidebar-nav-icon path,
+  .sidebar-nav-icon circle {
+    vector-effect: non-scaling-stroke;
+    stroke-width: 2.1 !important;
+  }
+}
+
+/* Mobile surfacing controls in two rows */
+@media (max-width: 720px) {
+  .hero-nav-controls {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    grid-template-areas:
+      "pills pills"
+      "left right" !important;
+    gap: 10px !important;
+  }
+
+  .hero-nav-controls .surfacing-pills {
+    grid-area: pills;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    overflow: visible !important;
+  }
+
+  .hero-nav-controls .hero-nav-arrow:first-child {
+    grid-area: left;
+    justify-self: end;
+  }
+
+  .hero-nav-controls .hero-nav-arrow:last-child {
+    grid-area: right;
+    justify-self: start;
+  }
+
+  .surfacing-pill {
+    min-width: 104px;
+    justify-content: center;
+  }
+}
+
 /* UX stabilization and compact mobile pass */
 .catalog-card {
   transform: translate3d(0, 0, 0) !important;

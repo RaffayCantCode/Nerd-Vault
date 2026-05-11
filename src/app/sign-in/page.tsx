@@ -64,7 +64,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
   const redirectTo =
     resolveSafeRedirectPath(params.redirectTo) ??
     resolveSafeRedirectPath(headerList.get("referer")) ??
-    "/";
+    "/home";
 
   return (
     <div className="page-shell">
