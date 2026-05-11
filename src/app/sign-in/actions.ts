@@ -102,6 +102,21 @@ export async function signInWithCredentials(formData: FormData) {
   }
 
   const redirectTo = sanitizeRedirectTo(formData.get("redirectTo"));
+  const cookieStore = await cookies();
+  const cookieNames = cookieStore.getAll().map((cookie) => cookie.name);
+  const staleAuthCookies = getAuthCookiesToDelete(cookieNames);
+  const credentialFlowCookieReset = [
+    "authjs.session-token",
+    "__Secure-authjs.session-token",
+    "__Host-authjs.session-token",
+    "next-auth.session-token",
+    "__Secure-next-auth.session-token",
+    "__Host-next-auth.session-token",
+  ];
+
+  for (const cookieName of new Set([...staleAuthCookies, ...credentialFlowCookieReset])) {
+    cookieStore.delete(cookieName);
+  }
 
   try {
     await signIn("credentials", {

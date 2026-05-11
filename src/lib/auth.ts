@@ -65,9 +65,9 @@ if (googleConfigured) {
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: {
-    // Database sessions keep the cookie payload tiny (opaque session token only),
-    // which prevents REQUEST_HEADER_TOO_LARGE from giant JWT cookie chunks.
-    strategy: "database",
+    // Credentials auth is most reliable with JWT strategy.
+    // Keep token payload intentionally tiny to avoid cookie bloat.
+    strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
     updateAge: 24 * 60 * 60, // 24 hours
   },
@@ -92,10 +92,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
   },
   callbacks: {
-    async session({ session, user }) {
-      // With database strategy, 'user' contains the full user object from the adapter
+    async jwt({ token, user }) {
       if (user?.id) {
-        session.user.id = user.id;
+        token.sub = user.id;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (token?.sub && session.user) {
+        session.user.id = token.sub;
       }
       return session;
     },
