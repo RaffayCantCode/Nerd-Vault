@@ -170,7 +170,7 @@ export const CatalogCard = memo(function CatalogCard({
           observer.disconnect();
         }
       },
-      { rootMargin: "400px", threshold: 0 },
+      { rootMargin: "900px 0px", threshold: 0.01 },
     );
 
     observer.observe(element);
@@ -190,7 +190,7 @@ export const CatalogCard = memo(function CatalogCard({
       title={`Open ${item.title}`}
       id={browseCardId}
       data-browse-card-id={browseCardId}
-      className={`catalog-card ${showUserRatingBelow && item.userRating ? "has-user-rating" : ""} ${isNavigating ? "is-navigating" : ""} ${isVisible ? "is-visible" : ""} ${isImageLoaded ? "has-media-loaded" : ""}`}
+      className={`catalog-card ${showUserRatingBelow && item.userRating ? "has-user-rating" : ""} ${isNavigating ? "is-navigating" : ""} ${isVisible ? "is-visible" : ""} ${isImageLoaded ? "has-media-loaded" : "is-media-pending"}`}
       prefetch={true}
       onClick={handleNavigate}
       onMouseEnter={warmRoute}

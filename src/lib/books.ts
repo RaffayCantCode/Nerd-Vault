@@ -1,4 +1,5 @@
 import { BookListPayload, BookReaderPayload, BookSummary } from "@/lib/book-types";
+import { getModernCoverOverride } from "@/lib/book-cover-overrides";
 
 const GUTENDEX_API_URL = "https://gutendex.com/books";
 const GUTENDEX_SOURCE_PAGE_SIZE = 32;
@@ -68,6 +69,70 @@ function deriveGenres(subjects: string[]) {
   return matches.length ? matches.slice(0, 4) : ["Literary"];
 }
 
+function normalizeText(value: string) {
+  return value.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function tokenize(value: string) {
+  return normalizeText(value)
+    .split(/[^\p{L}\p{N}]+/u)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 1);
+}
+
+function genreTermsFor(genre: string) {
+  const normalizedGenre = normalizeText(genre);
+  const matched = BOOK_GENRE_RULES.find((rule) => normalizeText(rule.label) === normalizedGenre);
+  return matched ? matched.terms.map((term) => normalizeText(term)) : [];
+}
+
+function themedGenreScore(book: BookSummary, genre: string) {
+  const normalizedGenre = normalizeText(genre);
+  if (!normalizedGenre || normalizedGenre === "all") {
+    return 1;
+  }
+
+  const textBlob = normalizeText(
+    `${book.title} ${book.authors.join(" ")} ${book.summary} ${book.tagline} ${book.subjects.join(" ")} ${book.genres.join(" ")}`,
+  );
+  const directGenre = book.genres.some((entry) => normalizeText(entry) === normalizedGenre);
+  const subjectLine = normalizeText(book.subjects.join(" "));
+  const terms = genreTermsFor(genre);
+  let score = 0;
+
+  if (directGenre) score += 6;
+  if (subjectLine.includes(normalizedGenre)) score += 4;
+  for (const term of terms) {
+    if (textBlob.includes(term)) {
+      score += term.includes(" ") ? 2 : 1;
+    }
+  }
+
+  return score;
+}
+
+function relevanceScore(book: BookSummary, query: string) {
+  const terms = tokenize(query);
+  if (!terms.length) {
+    return 0;
+  }
+
+  const title = normalizeText(book.title);
+  const authors = normalizeText(book.authors.join(" "));
+  const subjects = normalizeText(book.subjects.join(" "));
+  const summary = normalizeText(`${book.summary} ${book.tagline}`);
+  let score = 0;
+
+  for (const term of terms) {
+    if (title.includes(term)) score += 10;
+    if (authors.includes(term)) score += 6;
+    if (subjects.includes(term)) score += 4;
+    if (summary.includes(term)) score += 2;
+  }
+
+  return score;
+}
+
 function cleanBookTitle(title: string) {
   const normalized = title
     .replace(/\s+/g, " ")
@@ -111,13 +176,15 @@ function mapBook(book: GutendexBook): BookSummary {
   const downloadCount = book.download_count ?? 0;
   const pageCountEstimate = Math.max(80, Math.min(960, Math.round(120 + downloadCount / 20)));
 
+  const modernCover = getModernCoverOverride(book.id);
+
   return {
     id: book.id,
     title: cleanedTitle,
     authors,
     summary,
     tagline,
-    coverUrl: book.formats?.["image/jpeg"] ?? null,
+    coverUrl: modernCover ?? book.formats?.["image/jpeg"] ?? null,
     subjects: (book.subjects ?? []).slice(0, 10),
     genres: deriveGenres(book.subjects ?? []),
     languages: book.languages ?? [],
@@ -192,15 +259,10 @@ function normalizeForSearch(value: string) {
 }
 
 function buildBookSearchTerms(query: string, genre: string) {
-  const terms = [query.trim()];
-  if (genre.trim() && genre.trim().toLowerCase() !== "all") {
-    terms.push(genre.trim());
-  }
-
-  return terms
-    .map((term) => term.replace(/\s+/g, " ").trim())
-    .filter(Boolean)
-    .join(" ");
+  return query
+    .trim()
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function matchesGenre(book: BookSummary, genre: string) {
@@ -289,21 +351,47 @@ export async function fetchBooksPage({
   }
 
   const request = (async () => {
-    const payload = await fetchGutendexPage(safePage, searchTerms);
-    const mappedItems = payload.results
-      .map((book): BookSummary => mapBook(book))
-      .filter((book: BookSummary) => matchesGenre(book, genre));
+    const normalizedGenre = normalizeForSearch(genre);
+    const needThemedFiltering = Boolean(normalizedGenre && normalizedGenre !== "all");
+    const scannedPages = needThemedFiltering ? 5 : 1;
+    const collected: BookSummary[] = [];
+    const seen = new Set<number>();
+    let sourceCount = 0;
 
-    // Shuffle randomly for variety each time books are loaded
-    for (let i = mappedItems.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [mappedItems[i], mappedItems[j]] = [mappedItems[j], mappedItems[i]];
+    for (let offset = 0; offset < scannedPages; offset += 1) {
+      const payload = await fetchGutendexPage(safePage + offset, searchTerms);
+      sourceCount = payload.count || sourceCount;
+      const mappedItems = payload.results.map((book): BookSummary => mapBook(book));
+
+      for (const item of mappedItems) {
+        if (seen.has(item.id)) continue;
+        seen.add(item.id);
+
+        const themeScore = themedGenreScore(item, genre);
+        if (needThemedFiltering && themeScore <= 0) {
+          continue;
+        }
+
+        collected.push(item);
+      }
     }
+
+    const mappedItems = collected
+      .map((item) => ({
+        item,
+        score: relevanceScore(item, query) + themedGenreScore(item, genre) * 3,
+      }))
+      .sort((left, right) => {
+        if (right.score !== left.score) return right.score - left.score;
+        return right.item.downloadCount - left.item.downloadCount;
+      })
+      .map((entry) => entry.item)
+      .slice(0, BOOK_LIST_PAGE_SIZE);
 
     const nextPayload = {
       page: safePage,
-      totalPages: Math.max(1, Math.ceil((payload.count || payload.results.length || 1) / BOOK_LIST_PAGE_SIZE)),
-      totalResults: payload.count || mappedItems.length,
+      totalPages: Math.max(1, Math.ceil((sourceCount || mappedItems.length || 1) / BOOK_LIST_PAGE_SIZE)),
+      totalResults: needThemedFiltering ? Math.max(mappedItems.length, Math.min(sourceCount, mappedItems.length * 6)) : (sourceCount || mappedItems.length),
       availableGenres: AVAILABLE_BOOK_GENRES,
       items: mappedItems,
     } satisfies BookListPayload;

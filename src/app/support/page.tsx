@@ -19,20 +19,46 @@ export default async function SupportPage() {
           <p className="copy support-lead">
             This page is the fastest path for reporting bugs, UX issues, and reliability problems. Clear reports directly improve release quality.
           </p>
+          <div className="support-action-row">
+            <a className="button button-primary" href="mailto:asifraffy@gmail.com?subject=NerdVault%20Support%20Request">
+              Send support email
+            </a>
+            <a className="button button-secondary" href="mailto:asifraffy@gmail.com?subject=NerdVault%20Bug%20Report">
+              Report a bug
+            </a>
+          </div>
         </header>
 
         <div className="support-badge-row">
           <span className="support-badge">Built with Codex</span>
-          <span className="support-badge">Developed in Cursor</span>
+          <span className="support-badge">Minor help: Windsurf</span>
           <span className="support-badge">Solo developer: Raffay</span>
           <span className="support-badge">Active beta</span>
         </div>
+
+        <section className="support-highlights">
+          <article className="support-highlight-card glass">
+            <p className="eyebrow">Fast lane</p>
+            <h3 className="headline support-card-title">Critical issues first</h3>
+            <p className="copy">Auth failures, broken navigation, and data-loss bugs are reviewed first.</p>
+          </article>
+          <article className="support-highlight-card glass">
+            <p className="eyebrow">Best reports</p>
+            <h3 className="headline support-card-title">Repro steps win</h3>
+            <p className="copy">Clear steps and screenshots significantly reduce fix time.</p>
+          </article>
+          <article className="support-highlight-card glass">
+            <p className="eyebrow">Build model</p>
+            <h3 className="headline support-card-title">Iterative shipping</h3>
+            <p className="copy">Fixes are shipped in focused passes so quality stays high and regressions stay low.</p>
+          </article>
+        </section>
 
         <div className="support-main-grid">
           <article className="support-card glass">
             <h2 className="headline support-card-title">How NerdVault is built</h2>
             <p className="copy">
-              NerdVault is developed fully with Codex, with workflow, iteration, and debugging support from Cursor. Core page architecture, UI changes, and bug-fix cycles are all handled through that build process.
+              NerdVault is built primarily with Codex across architecture, UI iteration, and bug-fix cycles. A smaller amount of support came from Windsurf during development.
             </p>
             <p className="copy">
               The project is maintained by one developer, Raffay, so feedback quality and reproducible reports make a huge difference in turnaround speed.
@@ -48,6 +74,14 @@ export default async function SupportPage() {
               </a>.
             </p>
             <p className="copy">Reports with steps to reproduce and device/browser details are prioritized first.</p>
+            <div className="support-template">
+              <p className="eyebrow">Quick template</p>
+              <pre>{`Page:
+Device + Browser:
+Steps:
+Expected:
+Actual:`}</pre>
+            </div>
           </article>
 
           <article className="support-guidelines glass">

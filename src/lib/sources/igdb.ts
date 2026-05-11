@@ -341,6 +341,9 @@ export async function browseIgdbGames(params: {
   const whereParts = [
     "version_parent = null",
     "cover != null",
+    "first_release_date != null",
+    "total_rating != null",
+    "total_rating_count >= 15",
   ];
 
   if (genreFilter) {
@@ -392,7 +395,23 @@ export async function browseIgdbGames(params: {
         : "sort total_rating_count desc;";
   const query = `fields ${fields}; where ${whereParts.join(" & ")}; ${sortClause} limit ${pageSize}; offset ${offset};`;
   const games = await igdbFetch<IgdbGame[]>(query);
-  const items = games.map(mapGame).filter(isUsefulGame);
+  let items = games.map(mapGame).filter(isUsefulGame);
+
+  // Safety refill: if a seed/sort window still yields an empty page,
+  // probe a few nearby windows so Games browse never renders blank.
+  if (!queryText && items.length === 0) {
+    const refillWindows = [1, 2, 3].map((step) => requestPage + step);
+    for (const refillPage of refillWindows) {
+      const refillOffset = (refillPage - 1) * pageSize;
+      const refillQuery = `fields ${fields}; where ${whereParts.join(" & ")}; ${sortClause} limit ${pageSize}; offset ${refillOffset};`;
+      const refillGames = await igdbFetch<IgdbGame[]>(refillQuery).catch(() => [] as IgdbGame[]);
+      const refillItems = refillGames.map(mapGame).filter(isUsefulGame);
+      if (refillItems.length) {
+        items = refillItems;
+        break;
+      }
+    }
+  }
 
   const countQuery = escapedQuery
     ? `search "${escapedQuery}"; where ${whereParts.join(" & ")};`

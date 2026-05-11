@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { AuthRequiredModal } from "@/components/auth-required-modal";
 import { BookCover } from "@/components/book-cover";
 import { BooksSidebar } from "@/components/books-sidebar";
@@ -47,6 +47,7 @@ export function BooksWorkspace({
   }>;
   isSignedIn?: boolean;
 }) {
+  const router = useRouter();
   const [theme, setTheme] = useState<BookTheme>("dark");
   const [query, setQuery] = useState(initialQuery);
   const [submittedQuery, setSubmittedQuery] = useState(initialQuery);
@@ -215,6 +216,7 @@ export function BooksWorkspace({
     event.preventDefault();
     setPage(1);
     setSubmittedQuery(query);
+    setShowMobileFilters(false);
   }
 
   function isWishlisted(book: BookSummary) {
@@ -344,6 +346,7 @@ export function BooksWorkspace({
                       onClick={() => {
                         setActiveGenre(genre);
                         setPage(1);
+                        setShowMobileFilters(false);
                       }}
                     >
                       {genre}
@@ -463,7 +466,19 @@ export function BooksWorkspace({
             <div className="books-grid">
               {sortedItems.map((book) => (
                 <article key={book.id} className="books-card">
-                  <Link href={`/books/${book.id}`} className="books-card-link">
+                  <Link
+                    href={`/books/${book.id}`}
+                    className="books-card-link"
+                    prefetch
+                    onMouseEnter={() => {
+                      router.prefetch(`/books/${book.id}`);
+                      router.prefetch(`/books/${book.id}/read`);
+                    }}
+                    onFocus={() => {
+                      router.prefetch(`/books/${book.id}`);
+                      router.prefetch(`/books/${book.id}/read`);
+                    }}
+                  >
                     <BookCover title={book.title} author={book.authors[0]} coverUrl={book.coverUrl} size="small" />
                     <div className="books-card-copy">
                       <p className="books-card-title" title={book.title}>{book.title}</p>
@@ -477,7 +492,12 @@ export function BooksWorkspace({
                     <span>{formatCompactNumber(book.downloadCount)} reads</span>
                   </div>
                   <div className="books-card-actions">
-                    <Link href={`/books/${book.id}`} className="books-card-button books-card-button-primary">
+                    <Link
+                      href={`/books/${book.id}`}
+                      className="books-card-button books-card-button-primary"
+                      prefetch
+                      onMouseEnter={() => router.prefetch(`/books/${book.id}`)}
+                    >
                       Open book
                     </Link>
                     <button
