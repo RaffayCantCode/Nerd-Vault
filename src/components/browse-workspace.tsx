@@ -31,25 +31,14 @@ type CachedBrowsePayload = {
 const BROWSE_LAST_URL_KEY = "nerdvault-browse-last-url";
 const DEFAULT_PAGE_SIZE = 48;
 const BROWSE_CLIENT_CACHE_TTL_MS = 1000 * 60 * 5;
-const BROWSE_GENRES = [
-  "Action",
-  "Adventure",
-  "Fantasy",
-  "Drama",
-  "Romance",
-  "Sci-Fi",
-  "Horror",
-  "Mystery & Thriller",
-  "Comedy",
-  "Family",
-  "Sports",
-  "RPG",
-  "Strategy",
-  "Simulation",
-  "Platformer",
-  "Documentary",
-] as const;
-const GAME_SAFE_GENRES = new Set(["all", "Action", "Adventure", "RPG", "Strategy", "Simulation", "Sports", "Platformer"]);
+const GENRES_BY_MEDIA: Record<MediaType | "all", string[]> = {
+  all: ["Action", "Adventure", "Fantasy", "Drama", "Romance", "Sci-Fi", "Horror", "Mystery & Thriller", "Comedy", "Family", "Sports", "Documentary"],
+  movie: ["Action", "Adventure", "Drama", "Romance", "Sci-Fi", "Horror", "Mystery & Thriller", "Comedy", "Family", "Documentary"],
+  show: ["Action", "Adventure", "Drama", "Romance", "Sci-Fi", "Horror", "Mystery & Thriller", "Comedy", "Family", "Documentary"],
+  anime: ["Action", "Adventure", "Fantasy", "Romance", "Drama", "Comedy", "Sci-Fi", "Mystery & Thriller", "Horror", "Sports", "Shonen", "Seinen"],
+  anime_movie: ["Action", "Adventure", "Fantasy", "Romance", "Drama", "Comedy", "Sci-Fi", "Mystery & Thriller", "Horror", "Sports", "Shonen", "Seinen"],
+  game: ["Action", "Adventure", "RPG", "Shooter", "Strategy", "Simulation", "Open World", "Platformer", "Puzzle", "Racing", "Sports", "Horror", "Fantasy"],
+};
 const browseClientCache = new Map<string, CachedBrowsePayload>();
 
 function normalizePage(value: number) {
@@ -267,11 +256,17 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
     setActivePage(1);
   }, [filter, genre, sort, deferredQuery]);
 
+  const availableGenres = useMemo(() => GENRES_BY_MEDIA[filter], [filter]);
+
   useEffect(() => {
-    if (filter === "game" && !GAME_SAFE_GENRES.has(genre)) {
+    if (genre === "all") {
+      return;
+    }
+
+    if (!availableGenres.includes(genre)) {
       setGenre("all");
     }
-  }, [filter, genre]);
+  }, [availableGenres, genre]);
 
   useEffect(() => {
     let active = true;
@@ -755,7 +750,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
                 <button type="button" className={`chip ${genre === "all" ? "is-active" : ""}`} onClick={() => setGenre("all")}>
                   All genres
                 </button>
-                {BROWSE_GENRES.map((itemGenre) => (
+                {availableGenres.map((itemGenre) => (
                   <button
                     key={itemGenre}
                     type="button"

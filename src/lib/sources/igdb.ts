@@ -4,6 +4,7 @@ import { getMediaFallbackImage } from "@/lib/media-fallbacks";
 import { rankCandidatesForQuery } from "@/lib/search-utils";
 import { MediaItem } from "@/lib/types";
 import { matchesFranchise } from "@/lib/franchise-utils";
+import { itemMatchesGenre } from "@/lib/catalog-utils";
 
 // Declare process.env for TypeScript
 declare const process: {
@@ -19,6 +20,38 @@ const IGDB_BASE_URL = "https://api.igdb.com/v4";
 const IGDB_IMAGE_BASE_URL = "https://images.igdb.com/igdb/image/upload/t_1080p";
 const TWITCH_TOKEN_URL = "https://id.twitch.tv/oauth2/token";
 const IGDB_CACHE_TTL_MS = 1000 * 60 * 30;
+const IGDB_NATIVE_GENRES = new Set([
+  "adventure",
+  "arcade",
+  "card",
+  "board",
+  "fighting",
+  "hack",
+  "slash",
+  "indie",
+  "moba",
+  "music",
+  "pinball",
+  "platform",
+  "point and click",
+  "puzzle",
+  "quiz",
+  "trivia",
+  "racing",
+  "real time strategy",
+  "rts",
+  "role playing",
+  "rpg",
+  "shooter",
+  "simulator",
+  "simulation",
+  "sport",
+  "sports",
+  "strategy",
+  "tactical",
+  "turn based strategy",
+  "visual novel",
+]);
 
 type IgdbCover = {
   image_id: string;
@@ -313,7 +346,12 @@ export async function browseIgdbGames(params: {
   const sort = params.sort ?? "discovery";
   const discoverySeed = params.seed ?? 1;
   const pageSize = Math.min(96, Math.max(10, params.pageSize ?? 24));
-  const genreFilter = params.genre && params.genre !== "all" ? params.genre.replace(/"/g, '\\"') : null;
+  const rawGenre = params.genre && params.genre !== "all" ? params.genre : "";
+  const normalizedGenre = rawGenre.trim().toLowerCase();
+  const canApplyNativeGenreFilter = normalizedGenre
+    ? Array.from(IGDB_NATIVE_GENRES).some((entry) => normalizedGenre.includes(entry) || entry.includes(normalizedGenre))
+    : false;
+  const genreFilter = canApplyNativeGenreFilter ? rawGenre.replace(/"/g, '\\"') : null;
 
   const fields = [
     "name",
@@ -396,6 +434,9 @@ export async function browseIgdbGames(params: {
   const query = `fields ${fields}; where ${whereParts.join(" & ")}; ${sortClause} limit ${pageSize}; offset ${offset};`;
   const games = await igdbFetch<IgdbGame[]>(query);
   let items = games.map(mapGame).filter(isUsefulGame);
+  if (rawGenre) {
+    items = items.filter((item) => itemMatchesGenre(item, rawGenre));
+  }
 
   // Safety refill: if a seed/sort window still yields an empty page,
   // probe a few nearby windows so Games browse never renders blank.
@@ -405,7 +446,10 @@ export async function browseIgdbGames(params: {
       const refillOffset = (refillPage - 1) * pageSize;
       const refillQuery = `fields ${fields}; where ${whereParts.join(" & ")}; ${sortClause} limit ${pageSize}; offset ${refillOffset};`;
       const refillGames = await igdbFetch<IgdbGame[]>(refillQuery).catch(() => [] as IgdbGame[]);
-      const refillItems = refillGames.map(mapGame).filter(isUsefulGame);
+      let refillItems = refillGames.map(mapGame).filter(isUsefulGame);
+      if (rawGenre) {
+        refillItems = refillItems.filter((item) => itemMatchesGenre(item, rawGenre));
+      }
       if (refillItems.length) {
         items = refillItems;
         break;

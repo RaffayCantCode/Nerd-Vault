@@ -32,6 +32,7 @@ const CANONICAL_GENRE_GROUPS: GenreGroup[] = [
   { label: "Shooter", terms: ["shooter", "first person shooter", "third person shooter", "hero shooter", "tactical shooter"] },
   { label: "Strategy", terms: ["strategy", "tactical", "tactics", "turn based strategy", "real time strategy", "moba"] },
   { label: "Simulation", terms: ["simulation", "simulator", "sandbox", "management", "life sim"] },
+  { label: "Open World", terms: ["open world", "sandbox", "exploration", "survival"] },
   { label: "Racing", terms: ["racing", "vehicular combat"] },
   { label: "Fighting", terms: ["fighting", "fighter"] },
   { label: "Puzzle", terms: ["puzzle"] },
