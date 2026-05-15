@@ -85,6 +85,25 @@ export function VaultWorkspace({
         </button>
       </div>
 
+      <div className="vault-shortcuts-container">
+        {tab === "for-you" ? (
+          <div className="profile-section-nav glass vault-shortcuts">
+            <button type="button" className="profile-section-nav-link" onClick={() => document.getElementById("home-upcoming")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Coming soon</button>
+            <button type="button" className="profile-section-nav-link" onClick={() => document.getElementById("home-tv-shows")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Series</button>
+            <button type="button" className="profile-section-nav-link" onClick={() => document.getElementById("home-movie")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Movies</button>
+            <button type="button" className="profile-section-nav-link" onClick={() => document.getElementById("home-anime")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Anime</button>
+            <button type="button" className="profile-section-nav-link" onClick={() => document.getElementById("home-game")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Games</button>
+          </div>
+        ) : (
+          <div className="profile-section-nav glass vault-shortcuts">
+            <button type="button" className="profile-section-nav-link" onClick={() => document.getElementById("profile-watched")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Watched</button>
+            <button type="button" className="profile-section-nav-link" onClick={() => document.getElementById("profile-wishlist")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Wishlist</button>
+            <button type="button" className="profile-section-nav-link" onClick={() => document.getElementById("profile-folders")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Folders</button>
+            <button type="button" className="profile-section-nav-link" onClick={() => document.getElementById("profile-friends")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Network</button>
+          </div>
+        )}
+      </div>
+
       <div className="vault-tab-panels">
         <div ref={forYouRef} className={`vault-tab-panel ${tab === "for-you" ? "is-active" : ""} ${animating ? "is-animating" : ""}`}>
           <HomeWorkspace viewerName={viewerName} feed={feed} />

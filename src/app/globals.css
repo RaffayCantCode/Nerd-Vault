@@ -16502,6 +16502,17 @@ body {
   background: rgba(255, 255, 255, 0.03);
 }
 
+.vault-shortcuts-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.vault-shortcuts-container .vault-shortcuts {
+  margin: 0;
+}
+
 .vault-tab {
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.04);

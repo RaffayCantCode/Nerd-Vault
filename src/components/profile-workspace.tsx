@@ -669,12 +669,6 @@ export function ProfileWorkspace({
             </div>
           </aside>
         </div>
-        <div className="profile-section-nav glass">
-          <a href="#profile-friends" className="profile-section-nav-link">Network</a>
-          <a href="#profile-watched" className="profile-section-nav-link">Watched</a>
-          <a href="#profile-wishlist" className="profile-section-nav-link">Wishlist</a>
-          <a href="#profile-folders" className="profile-section-nav-link">Lists</a>
-        </div>
       </section>
 
       <section id="profile-friends" className="section-stack" style={{ paddingTop: 0 }}>

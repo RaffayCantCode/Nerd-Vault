@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -215,15 +215,6 @@ export function HomeWorkspace({
               </p>
             </div>
           </aside>
-        </div>
-        <div className="profile-section-nav glass home-section-nav">
-          <a href="#home-upcoming" className="profile-section-nav-link">Coming soon</a>
-          <a href="#home-tv-shows" className="profile-section-nav-link">Series</a>
-          {SECTION_ORDER.map((section) => (
-            <a key={section.key} href={`#home-${section.key}`} className="profile-section-nav-link">
-              {section.label}
-            </a>
-          ))}
         </div>
       </section>
 
