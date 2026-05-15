@@ -93,10 +93,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   callbacks: {
     async jwt({ token, user }) {
-      if (user?.id) {
-        token.sub = user.id;
-      }
-      return token;
+      // IMPORTANT: Return ONLY the minimal fields needed to identify the session.
+      // NextAuth v5 + Google automatically populates `token` with name, email,
+      // picture, and the full Google account object (access_token, id_token,
+      // refresh_token, etc.). Returning the full token causes the JWT to exceed
+      // a single cookie's size limit (~4KB), forcing NextAuth to chunk it across
+      // 20+ cookies and blowing past Vercel's REQUEST_HEADER_TOO_LARGE limit.
+      return {
+        sub: user?.id ?? token.sub,
+        iat: token.iat,
+        exp: token.exp,
+        jti: token.jti,
+      };
     },
     async session({ session, token }) {
       if (token?.sub && session.user) {
