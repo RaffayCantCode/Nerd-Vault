@@ -16491,21 +16491,27 @@ body {
 }
 
 .vault-tab-row {
-  display: inline-flex;
+  display: flex;
+  margin: 16px auto; /* Centers the tab row and adds spacing */
   align-items: center;
-  padding: 6px;
-  border-radius: 16px;
-  gap: 8px;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 20px;
+  gap: 12px;
   width: fit-content;
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .vault-tab {
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.04);
   color: var(--text);
-  min-height: 38px;
-  padding: 0 14px;
-  border-radius: 12px;
+  min-height: 48px; /* Increased height */
+  padding: 0 28px; /* Wider padding */
+  font-size: 1.15rem; /* Much larger font */
+  font-weight: 600; /* Bolded for clarity */
+  letter-spacing: 0.01em;
+  border-radius: 14px;
   transition: transform 160ms ease, box-shadow 180ms ease, border-color 180ms ease, background 180ms ease;
 }
 
