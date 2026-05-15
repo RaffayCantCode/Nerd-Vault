@@ -53,7 +53,7 @@ export function BookDetail({
             <p className="books-eyebrow">Book detail</p>
             <h1 className="books-title books-title-detail">{book.title}</h1>
             <p className="books-copy">
-              {book.authors.join(", ") || "Unknown author"} · {book.pageCountEstimate} pages estimated · {formatCompactNumber(book.downloadCount)} reads
+              {book.authors.join(", ") || "Unknown author"} - {book.pageCountEstimate} pages estimated - {formatCompactNumber(book.downloadCount)} reads
             </p>
             <div className="books-detail-tags">
               {book.genres.map((genre) => (
@@ -115,7 +115,7 @@ export function BookDetail({
           <div className="books-detail-grid">
             <div className="books-detail-panel">
               <strong>Genres</strong>
-              <p>{book.genres.join(" · ")}</p>
+              <p>{book.genres.join(" - ")}</p>
             </div>
             <div className="books-detail-panel">
               <strong>Languages</strong>
@@ -123,7 +123,7 @@ export function BookDetail({
             </div>
             <div className="books-detail-panel">
               <strong>Subjects</strong>
-              <p>{book.subjects.slice(0, 4).join(" · ") || "General literature"}</p>
+              <p>{book.subjects.slice(0, 4).join(" - ") || "General literature"}</p>
             </div>
             <div className="books-detail-panel">
               <strong>Reader mode</strong>

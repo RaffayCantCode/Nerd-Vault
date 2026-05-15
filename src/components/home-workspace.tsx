@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -165,7 +165,7 @@ export function HomeWorkspace({
             <div className="home-panel-header">
               <div className="home-panel-icon">
                 <div className="home-panel-icon-bg" />
-                <span className="home-panel-icon-text">NV</span>
+                <img src="/brand/logo-mark-clean.svg" alt="NerdVault logo" className="home-panel-icon-text" />
               </div>
               <div className="home-panel-title">
                 <p className="eyebrow">Taste read</p>
@@ -383,3 +383,4 @@ export function HomeWorkspace({
     </main>
   );
 }
+

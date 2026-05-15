@@ -387,14 +387,17 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
 
       if (target) {
         const nextTop = Math.max(0, window.scrollY + target.getBoundingClientRect().top - 112);
-        window.scrollTo({ top: nextTop, behavior: "auto" });
+        const distance = Math.abs(nextTop - window.scrollY);
+        window.scrollTo({ top: nextTop, behavior: distance > 1400 ? "auto" : "smooth" });
         target.style.transition = "box-shadow 300ms ease";
         target.style.boxShadow = "0 0 0 2px var(--gold)";
         window.setTimeout(() => {
           target.style.boxShadow = "";
         }, 800);
       } else if (Number.isFinite(returnContext.scrollY) && returnContext.scrollY > 0) {
-        window.scrollTo({ top: Math.max(0, returnContext.scrollY), behavior: "auto" });
+        const nextTop = Math.max(0, returnContext.scrollY);
+        const distance = Math.abs(nextTop - window.scrollY);
+        window.scrollTo({ top: nextTop, behavior: distance > 1400 ? "auto" : "smooth" });
       }
 
       clearBrowseReturnContext();

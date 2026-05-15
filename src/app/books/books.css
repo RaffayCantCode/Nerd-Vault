@@ -92,8 +92,10 @@
 }
 
 .books-brand-mark {
-  font-size: 0.94rem;
-  font-weight: 700;
+  width: 26px !important;
+  height: 26px !important;
+  min-width: 26px !important;
+  border-radius: 8px !important;
 }
 
 .books-theme-toggle,

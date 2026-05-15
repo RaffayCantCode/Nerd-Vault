@@ -46,7 +46,6 @@ export function ResilientMediaImage({
   const fallback = optimizeMediaImageUrl(rawFallback, "cover");
   const previewCover = optimizeMediaImageUrl(rawPrimaryCover, "thumb");
   const previewBackdrop = optimizeMediaImageUrl(rawSecondaryBackdrop, "thumb");
-  const [src, setSrc] = useState(previewCover || previewBackdrop || fallback);
   const [loaded, setLoaded] = useState(false);
   const [isUpgraded, setIsUpgraded] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -66,7 +65,9 @@ export function ResilientMediaImage({
   const primaryCover = optimizeMediaImageUrl(rawPrimaryCover, chooseConnectionAwareIntent("cover", connectionInfo));
   const secondaryBackdrop = optimizeMediaImageUrl(rawSecondaryBackdrop, chooseConnectionAwareIntent("backdrop", connectionInfo));
   const upgradeTarget = primaryCover || secondaryBackdrop || fallback;
-  const initialTarget = previewCover || previewBackdrop || upgradeTarget;
+  const initialResolved = loading === "eager" ? (previewCover || previewBackdrop || fallback) : upgradeTarget;
+  const [src, setSrc] = useState(initialResolved);
+  const initialTarget = loading === "eager" ? (previewCover || previewBackdrop || upgradeTarget) : upgradeTarget;
 
   useEffect(() => {
     if (loading !== "eager" && fetchPriority !== "high") {
@@ -147,10 +148,11 @@ export function ResilientMediaImage({
       decoding={decoding}
       fetchPriority={fetchPriority}
       draggable={false}
-      style={{ 
+      style={{
         background: "rgba(255, 255, 255, 0.03)",
         willChange: "transform, opacity",
-        backfaceVisibility: "hidden"
+        backfaceVisibility: "hidden",
+        transition: "opacity 260ms ease, filter 260ms ease"
       }}
       onLoad={() => {
         setLoaded(true);

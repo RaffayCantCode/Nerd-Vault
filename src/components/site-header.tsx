@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { signOutUser } from "@/app/sign-in/sign-out-action";
 import { auth } from "@/lib/auth";
 import { BrandLogo } from "@/components/brand-logo";
@@ -27,8 +27,8 @@ export async function SiteHeader() {
             <Link href="/support" className="nav-link">
               Support
             </Link>
-            <Link href="/profile" className="nav-link">
-              Profile
+            <Link href="/home?tab=media" className="nav-link">
+              Vault
             </Link>
             <form action={signOutUser}>
               <button type="submit" className="nav-link nav-link-button">
@@ -44,8 +44,8 @@ export async function SiteHeader() {
             <Link href="/support" className="nav-link">
               Support
             </Link>
-            <Link href="/profile" className="nav-link">
-              Profile
+            <Link href="/home?tab=media" className="nav-link">
+              Vault
             </Link>
             <Link href="/sign-in" className="nav-link">
               Sign in
@@ -56,3 +56,4 @@ export async function SiteHeader() {
     </header>
   );
 }
+

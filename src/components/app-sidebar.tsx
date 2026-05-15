@@ -35,20 +35,6 @@ function IconLanding() {
   );
 }
 
-function IconUser() {
-  return (
-    <svg className="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="12" cy="8.5" r="3.25" stroke="currentColor" strokeWidth="1.65" />
-      <path
-        d="M6 19.5c.9-3.2 3.4-5 6-5s5.1 1.8 6 5"
-        stroke="currentColor"
-        strokeWidth="1.65"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
 function IconCompass() {
   return (
     <svg className="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -84,7 +70,7 @@ function IconLeave() {
 }
 
 type AppSidebarProps = {
-  active: "home" | "browse" | "profile";
+  active: "vault" | "browse";
   initialFolders?: StoredFolder[];
 };
 
@@ -107,21 +93,12 @@ export async function AppSidebar({ active, initialFolders = [] }: AppSidebarProp
           </Link>
           <Link
             href="/home"
-            className={`sidebar-nav-button ${active === "home" ? "is-active" : ""}`}
-            aria-label="Home"
-            title="Home"
+            className={`sidebar-nav-button ${active === "vault" ? "is-active" : ""}`}
+            aria-label="Vault"
+            title="Vault"
           >
             <IconHome />
-            <span className="sidebar-nav-label">Home</span>
-          </Link>
-          <Link
-            href="/profile"
-            className={`sidebar-nav-button ${active === "profile" ? "is-active" : ""}`}
-            aria-label="Profile"
-            title="Profile"
-          >
-            <IconUser />
-            <span className="sidebar-nav-label">Profile</span>
+            <span className="sidebar-nav-label">Vault</span>
           </Link>
           <BrowseResetLink
             className={`sidebar-nav-button ${active === "browse" ? "is-active" : ""}`}

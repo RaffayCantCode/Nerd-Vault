@@ -1,4 +1,4 @@
-import type { Metadata, Viewport } from "next";
+﻿import type { Metadata, Viewport } from "next";
 import { Poppins } from "next/font/google";
 import { ClientRoot } from "./client-root";
 import { auth } from "@/lib/auth";
@@ -8,21 +8,20 @@ import { AuthCookieReset } from "@/components/auth-cookie-reset";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://nerdvault.site'),
+  metadataBase: new URL("https://nerdvault.site"),
   manifest: "/manifest.webmanifest",
   title: {
     default: "NerdVault",
     template: "%s · NerdVault",
   },
   description:
-    "Your vault for games, film, TV, and anime—track what lands, wishlist what's next, smart folders like playlists, and discovery that feels curated.",
+    "Your vault for games, film, TV, and anime - track what lands, wishlist what's next, smart folders like playlists, and discovery that feels curated.",
   icons: {
     icon: [
-      { url: '/icon', type: 'image/png', sizes: '256x256' },
+      { url: "/brand/logo-mark-clean.svg", type: "image/svg+xml", sizes: "any" },
+      { url: "/brand/logo-mark.png", type: "image/png", sizes: "512x512" },
     ],
-    apple: [
-      { url: '/apple-icon', type: 'image/png', sizes: '180x180' },
-    ],
+    apple: [{ url: "/brand/logo-mark.png", type: "image/png", sizes: "180x180" }],
   },
   appleWebApp: {
     capable: true,
@@ -42,29 +41,29 @@ export const metadata: Metadata = {
     "project gutenberg",
   ],
   alternates: {
-    canonical: '/',
+    canonical: "/",
   },
   openGraph: {
     title: "NerdVault | Your Universe of Entertainment",
     description:
-      "One vault for everything you watch and play. Folders, detail pages, and browse tuned for taste—not noise.",
-    url: 'https://nerdvault.site',
+      "One vault for everything you watch and play. Folders, detail pages, and browse tuned for taste, not noise.",
+    url: "https://nerdvault.site",
     siteName: "NerdVault",
     images: [
       {
-        url: '/opengraph-image',
-        width: 1200,
-        height: 630,
+        url: "/brand/logo-wordmark.png",
+        width: 1024,
+        height: 1024,
       },
     ],
-    locale: 'en_US',
-    type: 'website',
+    locale: "en_US",
+    type: "website",
   },
   twitter: {
     card: "summary_large_image",
     title: "NerdVault | Your Universe of Entertainment",
     description: "Log what hit. Save what calls next. The ultimate platform for tracking everything you love.",
-    images: ['/opengraph-image'],
+    images: ["/brand/logo-wordmark.png"],
   },
   robots: {
     index: true,
@@ -72,9 +71,9 @@ export const metadata: Metadata = {
     googleBot: {
       index: true,
       follow: true,
-      'max-video-preview': -1,
-      'max-image-preview': 'large',
-      'max-snippet': -1,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
     },
   },
 };
@@ -109,7 +108,7 @@ export default async function RootLayout({
       hasSeenOnboarding = user?.hasSeenOnboarding ?? false;
     } catch (e) {
       console.error("User onboarding status could not be checked:", e);
-      hasSeenOnboarding = true; // Default to true to prevent tour crashing the site
+      hasSeenOnboarding = true;
     }
   }
 
@@ -123,3 +122,4 @@ export default async function RootLayout({
     </html>
   );
 }
+

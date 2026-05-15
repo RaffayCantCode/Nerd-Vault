@@ -775,12 +775,8 @@ html {
 .landing-page .landing-footer-logo {
   width: 44px;
   height: 44px;
-  display: grid;
-  place-items: center;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #03fcbe, #9e87ff);
-  color: #071018;
-  font-weight: 900;
+  display: block;
+  object-fit: contain;
 }
 
 .landing-page .landing-footer-name {
@@ -7664,11 +7660,10 @@ html {
 .nv-loader-glyph {
   position: relative;
   z-index: 2;
-  font-family: var(--font-display), sans-serif;
-  font-size: 2.2rem;
-  letter-spacing: 0.08em;
-  color: var(--text);
-  text-shadow: 0 0 18px rgba(3, 252, 190, 0.28);
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 14px rgba(41, 196, 196, 0.22));
 }
 
 .nv-loader-ring {
@@ -9417,19 +9412,17 @@ html {
   width: 48px !important;
   height: 48px !important;
   min-width: 48px !important;
-  background: linear-gradient(135deg, #03fcbe, #9e87ff) !important;
   border-radius: 12px !important;
-  color: #0a0e1a !important;
-  font-weight: 900 !important;
-  font-family: var(--font-display), sans-serif !important;
-  font-size: 1.35rem !important;
-  box-shadow: 0 4px 12px rgba(3, 252, 190, 0.2) !important;
+  box-shadow: 0 4px 12px rgba(23, 119, 129, 0.2) !important;
   transition: all 0.3s ease !important;
   flex-shrink: 0 !important;
+  overflow: hidden !important;
 }
 
-.brand-logo-unified-mark {
-  line-height: 1 !important;
+.brand-logo-unified-image {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
 }
 
 .brand.brand-rail .brand-mark-logo-unified {
@@ -9541,13 +9534,9 @@ html {
 }
 
 .landing-badge-text {
-  background: linear-gradient(135deg, #03fcbe, #9e87ff);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  font-weight: 700;
-  font-size: 1.1rem;
-  font-family: var(--font-display), sans-serif;
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
 }
 
 .landing-badge-label {
@@ -9745,13 +9734,9 @@ html {
 }
 
 .vault-text {
-  font-family: var(--font-display), sans-serif;
-  font-size: 1.5rem;
-  font-weight: 700;
-  background: linear-gradient(135deg, #03fcbe, #9e87ff);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  width: 80%;
+  height: 80%;
+  object-fit: contain;
 }
 
 .landing-particles {
@@ -16435,3 +16420,157 @@ body {
   }
 }
 
+
+/* Final brand-fit pass: ensure transparent mark sits naturally in compact shells */
+.nv-sidebar-panel .brand.brand-rail {
+  padding: 8px !important;
+  min-height: 68px !important;
+}
+
+.brand-mark-logo-unified {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.brand-logo-unified-image {
+  filter: drop-shadow(0 8px 18px rgba(24, 184, 194, 0.24));
+}
+
+.nv-loader-mark .nv-loader-glyph {
+  width: 58px !important;
+  height: 58px !important;
+  filter: drop-shadow(0 10px 18px rgba(24, 184, 194, 0.24));
+}
+
+.home-panel-icon-text {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+
+/* Unified Vault: profile header + tabbed dashboard */
+.vault-unified-shell {
+  display: grid;
+  gap: 14px;
+  min-height: 0;
+}
+
+.vault-profile-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 22px;
+}
+
+.vault-profile-bar-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.vault-profile-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  object-fit: cover;
+}
+
+.vault-profile-avatar-fallback {
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.vault-profile-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vault-tab-row {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px;
+  border-radius: 16px;
+  gap: 8px;
+  width: fit-content;
+}
+
+.vault-tab {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 12px;
+  transition: transform 160ms ease, box-shadow 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.vault-tab:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(24, 184, 194, 0.16);
+  border-color: rgba(24, 184, 194, 0.4);
+}
+
+.vault-tab.is-active {
+  background: linear-gradient(135deg, rgba(103, 188, 169, 0.26), rgba(40, 184, 194, 0.22));
+  border-color: rgba(24, 184, 194, 0.5);
+  box-shadow: 0 8px 18px rgba(24, 184, 194, 0.2);
+}
+
+.vault-tab-panels {
+  position: relative;
+}
+
+.vault-tab-panel {
+  display: none;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
+.vault-tab-panel.is-active {
+  display: block;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.vault-tab-panel.is-animating {
+  will-change: opacity, transform;
+}
+
+/* Micro-interaction polish */
+.catalog-card,
+.button,
+.picker-chip,
+.chip,
+.topbar-chip,
+.sidebar-nav-button {
+  transition: transform 160ms ease, box-shadow 180ms ease, border-color 180ms ease, background 180ms ease, opacity 180ms ease;
+}
+
+.catalog-card:hover,
+.button:hover,
+.picker-chip:hover,
+.chip:hover,
+.topbar-chip:hover {
+  box-shadow: 0 10px 22px rgba(24, 184, 194, 0.14);
+}
+
+@media (max-width: 900px) {
+  .vault-profile-bar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .vault-profile-actions {
+    width: 100%;
+  }
+
+  .vault-profile-actions .button {
+    flex: 1;
+  }
+}

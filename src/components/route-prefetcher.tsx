@@ -1,9 +1,9 @@
-"use client";
+﻿"use client";
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-const CORE_ROUTES = ["/browse", "/home", "/profile", "/books"] as const;
+const CORE_ROUTES = ["/browse", "/home", "/books"] as const;
 
 export function RoutePrefetcher() {
   const router = useRouter();
@@ -36,4 +36,5 @@ export function RoutePrefetcher() {
 
   return null;
 }
+
 

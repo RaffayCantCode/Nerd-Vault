@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { BookTheme } from "@/lib/book-types";
 import { writeBookTheme } from "@/lib/book-client";
+import { BrandLogo } from "@/components/brand-logo";
 
 function Glyph({ path }: { path: string }) {
   return (
@@ -149,7 +150,7 @@ export function BooksSidebar({
 
       <aside className="books-sidebar books-sidebar-rich books-sidebar-panel">
         <Link href="/books" className="books-brand" aria-label="Open books library">
-          <span className="books-brand-mark">NV</span>
+          <BrandLogo className="books-brand-mark" />
         </Link>
 
         <div className="books-sidebar-stack">

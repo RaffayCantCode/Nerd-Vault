@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Suspense, useState, useEffect } from "react";
 import Link from "next/link";
@@ -49,7 +49,7 @@ function AuthenticatedHomeContent({
     return (
       <div className="page-shell home-page">
         <div className="app-shell-layout home-layout">
-          <AppSidebar active="home" />
+          <AppSidebar active="vault" />
           <main className="workspace home-workspace">
             <HomeScrollReset />
             <AppTopBar viewerId={viewerId} viewerName={viewerName} viewerAvatar={viewerAvatar} />
@@ -66,7 +66,7 @@ function AuthenticatedHomeContent({
     return (
       <div className="page-shell home-page">
         <div className="app-shell-layout home-layout">
-          <AppSidebar active="home" />
+          <AppSidebar active="vault" />
           <main className="workspace home-workspace">
             <HomeScrollReset />
             <AppTopBar viewerId={viewerId} viewerName={viewerName} viewerAvatar={viewerAvatar} />
@@ -88,7 +88,7 @@ function AuthenticatedHomeContent({
   return (
     <div className="page-shell home-page">
       <div className="app-shell-layout home-layout">
-        <AppSidebar active="home" />
+        <AppSidebar active="vault" />
         <main className="workspace home-workspace">
           <HomeScrollReset />
           <AppTopBar viewerId={viewerId} viewerName={viewerName} viewerAvatar={viewerAvatar} />
@@ -108,7 +108,7 @@ function GuestHomeContent() {
   return (
     <div className="page-shell home-page">
       <div className="app-shell-layout home-layout">
-        <AppSidebar active="home" />
+        <AppSidebar active="vault" />
         <main className="workspace home-workspace">
           <AppTopBar viewerId="guest-vault" viewerName="Guest vault" />
           <section className="auth-screen">
@@ -196,7 +196,7 @@ export default function HomeHubPageClient() {
     return (
       <div className="page-shell home-page">
         <div className="app-shell-layout home-layout">
-          <AppSidebar active="home" />
+          <AppSidebar active="vault" />
           <main className="workspace home-workspace">
             <HomeScrollReset />
             <AppTopBar viewerId="guest-vault" viewerName="Loading..." />
@@ -221,3 +221,4 @@ export default function HomeHubPageClient() {
 
   return <GuestHomeContent />;
 }
+

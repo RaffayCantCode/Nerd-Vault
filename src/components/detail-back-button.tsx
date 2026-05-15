@@ -29,6 +29,15 @@ export function DetailBackButton({ className }: { className?: string }) {
       type="button"
       className={`button button-secondary detail-back-button ${className ?? ""}`.trim()}
       onClick={() => {
+        if (typeof window !== "undefined") {
+          const referrer = document.referrer || "";
+          const sameOrigin = referrer.startsWith(window.location.origin);
+          const fromBrowse = sameOrigin && new URL(referrer).pathname.startsWith("/browse");
+          if (fromBrowse && window.history.length > 1) {
+            router.back();
+            return;
+          }
+        }
         router.push(targetHref, { scroll: false });
       }}
     >

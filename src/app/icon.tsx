@@ -1,10 +1,6 @@
-import { ImageResponse } from "next/og";
+﻿import { ImageResponse } from "next/og";
 
-export const size = {
-  width: 256,
-  height: 256,
-};
-
+export const size = { width: 256, height: 256 };
 export const contentType = "image/png";
 
 export default function Icon() {
@@ -17,23 +13,14 @@ export default function Icon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(135deg, #03fcbe 0%, #9e87ff 100%)",
+          background: "#0b1220",
           borderRadius: 56,
         }}
       >
-        <span
-          style={{
-            color: "#0a0e1a",
-            fontSize: 128,
-            lineHeight: 1,
-            fontWeight: 900,
-            fontFamily:
-              "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
-            letterSpacing: "-0.06em",
-          }}
-        >
-          NV
-        </span>
+        <svg width="180" height="180" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+          <path d="M215 148H442L547 309V384L443 225H300V555H215V148Z" fill="#69BEAA"/>
+          <path d="M431 284L537 447H677V148H764V554H536L431 392V284Z" fill="#2CB8C1"/>
+        </svg>
       </div>
     ),
     size,

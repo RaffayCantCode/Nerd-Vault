@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CSSProperties, useEffect, useMemo, useState } from "react";
+import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { AuthRequiredModal } from "@/components/auth-required-modal";
 import { BooksSidebar } from "@/components/books-sidebar";
@@ -77,6 +77,7 @@ export function BookReader({
   const [draftPage, setDraftPage] = useState(String(Math.max(1, initialProgress?.currentPage ?? 1)));
   const [hasResolvedSavedPage, setHasResolvedSavedPage] = useState(Boolean(initialProgress));
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const paperRef = useRef<HTMLElement | null>(null);
   const pathname = usePathname();
 
   useEffect(() => {
@@ -133,7 +134,7 @@ export function BookReader({
           const isTimeout = message.includes("abort") || message.includes("timeout");
           setError(
             isTimeout
-              ? "This book is taking too long to load. Project Gutenberg may be slow right now—please try again in a moment."
+              ? "This book is taking too long to load. Project Gutenberg may be slow right now - please try again in a moment."
               : message,
           );
         }
@@ -150,6 +151,11 @@ export function BookReader({
       active = false;
     };
   }, [bookId, initialPayload]);
+
+  useEffect(() => {
+    if (!paperRef.current) return;
+    paperRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [currentPage]);
 
   const pageTargetSize = useMemo(() => {
     const fontDensity = readerSettings.fontScale / 100;
@@ -241,10 +247,10 @@ export function BookReader({
         return;
       }
 
-      if (event.key === "ArrowRight") {
+      if (event.key === "ArrowRight" || event.key.toLowerCase() === "j") {
         event.preventDefault();
         setCurrentPage((page) => clampPage(page + 1, totalPages));
-      } else if (event.key === "ArrowLeft") {
+      } else if (event.key === "ArrowLeft" || event.key.toLowerCase() === "k") {
         event.preventDefault();
         setCurrentPage((page) => clampPage(page - 1, totalPages));
       } else if (event.key === "+" || event.key === "=") {
@@ -330,7 +336,7 @@ export function BookReader({
               <p className="books-eyebrow">Dedicated reader</p>
               <h1 className="books-reader-title">{payload.book.title}</h1>
               <p className="books-copy books-reader-subcopy">
-                {payload.book.authors.join(", ") || "Unknown author"} · page {currentPage} of {totalPages} · {readingPercent}% read
+                {payload.book.authors.join(", ") || "Unknown author"} - page {currentPage} of {totalPages} - {readingPercent}% read
               </p>
               {!isSignedIn ? (
                 <p className="books-reader-guest-note">
@@ -512,6 +518,7 @@ export function BookReader({
           </section>
 
           <section
+            ref={paperRef}
             className={`books-reader-paper books-reader-paper-${readerSettings.fontFamily}`}
             style={
               {

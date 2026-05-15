@@ -1,4 +1,4 @@
-import Image from "next/image";
+﻿import Image from "next/image";
 import Link from "next/link";
 import { signOutUser } from "@/app/sign-in/sign-out-action";
 import { BrowseResetLink } from "@/components/browse-reset-link";
@@ -34,7 +34,7 @@ export default async function HomePage() {
           <div className="landing-hero-content">
             <div className="landing-hero-text">
               <div className="landing-hero-badge">
-                <span className="landing-badge-text">NV</span>
+                <Image src="/brand/logo-mark-clean.svg" alt="NerdVault logo" width={48} height={48} className="landing-badge-text" />
                 <span className="landing-badge-label">NerdVault</span>
               </div>
               
@@ -109,7 +109,7 @@ export default async function HomePage() {
                 <Link href="/browse?focus=results&mediaType=show" className="landing-quick-chip">Shows</Link>
                 <Link href="/browse?focus=results&mediaType=anime" className="landing-quick-chip">Anime</Link>
                 <Link href="/browse?focus=results&mediaType=game" className="landing-quick-chip">Games</Link>
-                <Link href="/profile" className="landing-quick-chip">Wishlist</Link>
+                <Link href="/home?tab=media" className="landing-quick-chip">Your Media</Link>
               </div>
             </div>
             
@@ -119,7 +119,7 @@ export default async function HomePage() {
                 <div className="vault-ring vault-ring-middle" />
                 <div className="vault-ring vault-ring-inner" />
                 <div className="vault-core">
-                  <span className="vault-text">NV</span>
+                  <Image src="/brand/logo-mark-clean.svg" alt="NerdVault logo" width={92} height={92} className="vault-text" />
                 </div>
               </div>
               <div className="landing-particles">
@@ -324,8 +324,8 @@ export default async function HomePage() {
                     <Link href="/home" className="cta-button cta-primary">
                       Open Your Vault
                     </Link>
-                    <Link href="/profile" className="cta-button cta-secondary">
-                      View Profile
+                    <Link href="/home?tab=media" className="cta-button cta-secondary">
+                      Open Media
                     </Link>
                   </div>
                 ) : (
@@ -413,11 +413,11 @@ export default async function HomePage() {
         <footer className="landing-footer">
           <div className="landing-footer-container">
             <div className="landing-footer-brand">
-              <span className="landing-footer-logo">NV</span>
+              <Image src="/brand/logo-mark-clean.svg" alt="NerdVault logo" width={28} height={28} className="landing-footer-logo" />
               <span className="landing-footer-name">NerdVault</span>
             </div>
             <p className="landing-footer-copy">
-              Your universe of entertainment. Movies, TV shows, anime, and games — all in one vault.
+              Your universe of entertainment. Movies, TV shows, anime, and games â€” all in one vault.
             </p>
           </div>
         </footer>
@@ -425,3 +425,4 @@ export default async function HomePage() {
     </div>
   );
 }
+

@@ -153,7 +153,7 @@ export function ExpandableRelatedSection({
                   Standalone title
                 </h2>
                 <p className="copy">
-                  This one is not part of a larger franchise or connected storyline based on the verified sources we have.
+                  This is a standalone title.
                 </p>
               </div>
             </div>

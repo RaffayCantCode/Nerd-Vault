@@ -25,29 +25,29 @@ export default async function AdminSettings() {
   return (
     <div className="admin-settings container" style={{ padding: '40px 20px' }}>
       <header style={{ marginBottom: 40 }}>
-        <h1 className="headline">Edit Site Settings</h1>
-        <p className="copy">Changes here update the homepage in real-time.</p>
+        <h1 className="headline">Edit Brand Messaging</h1>
+        <p className="copy">These fields control the landing hero headline and supporting brand statement.</p>
       </header>
 
       <form action={updateSettings} className="glass" style={{ padding: 30, borderRadius: 24, display: 'grid', gap: 20, maxWidth: 600 }}>
         <div className="auth-field">
-          <label htmlFor="heroTitle">Hero Title</label>
+          <label htmlFor="heroTitle">Hero Headline</label>
           <input 
             id="heroTitle" 
             name="heroTitle" 
             type="text" 
             defaultValue={settings.heroTitle || ""} 
-            placeholder="Your Universe of Entertainment"
+            placeholder="Your world of entertainment. Organized."
             style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
           />
         </div>
         <div className="auth-field">
-          <label htmlFor="heroSubtitle">Hero Subtitle</label>
+          <label htmlFor="heroSubtitle">Hero Supporting Copy</label>
           <textarea 
             id="heroSubtitle" 
             name="heroSubtitle" 
             defaultValue={settings.heroSubtitle || ""} 
-            placeholder="The ultimate platform for tracking..."
+            placeholder="Track, discover, and organize movies, shows, anime, and games in one vault."
             rows={4}
             style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
           />

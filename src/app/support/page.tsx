@@ -30,10 +30,10 @@ export default async function SupportPage() {
         </header>
 
         <div className="support-badge-row">
-          <span className="support-badge">Built with Codex</span>
-          <span className="support-badge">Minor help: Windsurf</span>
+          <span className="support-badge">Brand system live</span>
+          <span className="support-badge">Universe discovery updates</span>
           <span className="support-badge">Solo developer: Raffay</span>
-          <span className="support-badge">Active beta</span>
+          <span className="support-badge">Active support queue</span>
         </div>
 
         <section className="support-highlights">
@@ -56,12 +56,12 @@ export default async function SupportPage() {
 
         <div className="support-main-grid">
           <article className="support-card glass">
-            <h2 className="headline support-card-title">How NerdVault is built</h2>
+            <h2 className="headline support-card-title">How NerdVault ships updates</h2>
             <p className="copy">
-              NerdVault is built primarily with Codex across architecture, UI iteration, and bug-fix cycles. A smaller amount of support came from Windsurf during development.
+              NerdVault ships in focused passes: reliability first, then UX polish, then discoverability upgrades across movies, shows, anime, and games.
             </p>
             <p className="copy">
-              The project is maintained by one developer, Raffay, so feedback quality and reproducible reports make a huge difference in turnaround speed.
+              The project is maintained by one developer, so clear reproducible reports significantly improve turnaround speed.
             </p>
           </article>
 

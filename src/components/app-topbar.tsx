@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { memo, useEffect, useState } from "react";
 import Link from "next/link";
@@ -233,7 +233,7 @@ export const AppTopBar = memo(function AppTopBar({
                         <div className="topbar-inbox-copy">
                           <strong>{notification.message}</strong>
                           {notification.media ? <span>{notification.media.title}</span> : <span>{notification.type}</span>}
-                          {notification.ratingSnapshot ? <span>{`${"★".repeat(notification.ratingSnapshot)}${"☆".repeat(5 - notification.ratingSnapshot)}`}</span> : null}
+                          {notification.ratingSnapshot ? <span>{`${"â˜…".repeat(notification.ratingSnapshot)}${"â˜†".repeat(5 - notification.ratingSnapshot)}`}</span> : null}
                         </div>
                         <div className="topbar-inbox-actions">
                           {notification.type === "friend-request" ? (
@@ -262,7 +262,7 @@ export const AppTopBar = memo(function AppTopBar({
             <button
               type="button"
               className="topbar-user topbar-user-button"
-              title="Open profile menu"
+              title="Open vault menu"
               onClick={() => void toggleProfileMenu()}
             >
               {topbarAvatar ? (
@@ -281,8 +281,8 @@ export const AppTopBar = memo(function AppTopBar({
             {profileMenuOpen ? (
               <div className="topbar-panel glass profile-menu-panel">
                 <div className="topbar-user-results" style={{ display: 'grid', gap: 10 }}>
-                  <Link href="/profile" className="button button-secondary" style={{ width: '100%' }} onClick={() => setProfileMenuOpen(false)}>
-                    Open profile
+                  <Link href="/home?tab=media" className="button button-secondary" style={{ width: '100%' }} onClick={() => setProfileMenuOpen(false)}>
+                    Open vault
                   </Link>
                   {isGuest ? (
                     <Link href="/sign-in" className="button button-primary" style={{ width: '100%' }} onClick={() => setProfileMenuOpen(false)}>
@@ -304,3 +304,4 @@ export const AppTopBar = memo(function AppTopBar({
     </section>
   );
 });
+

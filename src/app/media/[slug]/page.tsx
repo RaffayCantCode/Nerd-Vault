@@ -12,7 +12,7 @@ import { MediaActions } from "@/components/media-actions";
 import { ResilientMediaImage } from "@/components/resilient-media-image";
 import { VaultClientPrimer } from "@/components/vault-client-primer";
 import { auth } from "@/lib/auth";
-import { getLibraryStateForUser, getViewerShellData } from "@/lib/vault-server";
+import { getLibraryStateForUser, getVaultProfilePayload, getViewerShellData } from "@/lib/vault-server";
 import { canonicalGenreLabels, sharedCanonicalGenreCount } from "@/lib/catalog-utils";
 import { dedupeGalleryImageUrls, canonicalGalleryImageKey } from "@/lib/gallery-image-key";
 import { optimizeMediaImageUrl } from "@/lib/media-image";
@@ -39,6 +39,46 @@ import {
 } from "@/lib/sources/tmdb";
 import { matchesFranchise, normalizeAnimeBaseTitle, isLikelyAnime, extractFranchiseRoot, isSameFranchise } from "@/lib/franchise-utils";
 import { MediaItem } from "@/lib/types";
+
+type FriendActivityEntry = {
+  friendId: string;
+  friendName: string;
+  friendHandle: string;
+  friendAvatarUrl?: string;
+  rating?: number | null;
+  review?: string | null;
+  watchedAt?: number;
+};
+
+async function buildFriendsActivity(
+  viewerId: string,
+  friends: Array<{ id: string; name: string; handle: string; avatarUrl?: string }>,
+  media: MediaItem,
+): Promise<FriendActivityEntry[]> {
+  const entries: Array<FriendActivityEntry | null> = await Promise.all(
+    friends.slice(0, 8).map(async (friend) => {
+      const payload = await getVaultProfilePayload(viewerId, friend.id).catch(() => null);
+      if (!payload?.canSeeWatched) return null;
+      const match = payload.watched.find(
+        (item) => item.source === media.source && item.sourceId === media.sourceId,
+      );
+      if (!match) return null;
+      return {
+        friendId: friend.id,
+        friendName: friend.name,
+        friendHandle: friend.handle,
+        friendAvatarUrl: friend.avatarUrl,
+        rating: match.userRating ?? null,
+        review: match.userReview ?? null,
+        watchedAt: match.watchedAt,
+      } satisfies FriendActivityEntry;
+    }),
+  );
+
+  return entries
+    .filter((entry): entry is FriendActivityEntry => entry !== null)
+    .sort((a, b) => (b.watchedAt ?? 0) - (a.watchedAt ?? 0));
+}
 
 type AnimeFranchiseData =
   | {
@@ -529,6 +569,7 @@ function buildTitleRoots(media: MediaItem) {
 
 const FRANCHISE_SIGNAL_RULES: Array<{ signal: string; matches: string[] }> = [
   { signal: "game of thrones", matches: ["game of thrones", "house of the dragon", "westeros", "targaryen", "iron throne", "seven kingdoms"] },
+  { signal: "marvel netflix", matches: ["jessica jones", "daredevil", "luke cage", "iron fist", "the defenders", "the punisher", "hell s kitchen"] },
   { signal: "daredevil", matches: ["daredevil", "matt murdock", "born again", "hell s kitchen", "wilson fisk", "kingpin"] },
   { signal: "star wars", matches: ["star wars", "jedi", "sith", "lightsaber", "galaxy far far away", "lucasfilm", "mandalorian", "thrawn", "ahsoka"] },
   { signal: "red dead", matches: ["red dead", "rockstar games", "outlaw", "frontier"] },
@@ -559,6 +600,36 @@ const CURATED_UNIVERSE_RULES: CuratedUniverseRule[] = [
     aliases: ["game of thrones", "house of the dragon", "seven kingdoms", "westeros", "targaryen"],
     entries: {
       show: ["Game of Thrones", "House of the Dragon", "A Knight of the Seven Kingdoms"],
+    },
+  },
+  {
+    key: "marvel-netflix",
+    title: "Marvel Netflix universe",
+    aliases: [
+      "marvel jessica jones",
+      "jessica jones",
+      "marvel daredevil",
+      "daredevil",
+      "marvel luke cage",
+      "luke cage",
+      "marvel iron fist",
+      "iron fist",
+      "the defenders",
+      "marvel the defenders",
+      "marvel the punisher",
+      "the punisher",
+      "hell s kitchen",
+      "marvel television",
+    ],
+    entries: {
+      show: [
+        "Marvel's Daredevil",
+        "Marvel's Jessica Jones",
+        "Marvel's Luke Cage",
+        "Marvel's Iron Fist",
+        "Marvel's The Defenders",
+        "Marvel's The Punisher",
+      ],
     },
   },
   {
@@ -718,6 +789,12 @@ function buildFranchiseSignals(media: MediaItem) {
 
   for (const titleRoot of buildTitleRoots(media)) {
     signals.add(titleRoot);
+  }
+
+  const curatedUniverse = getCuratedUniverseRule(media);
+  if (curatedUniverse) {
+    signals.add(curatedUniverse.key.replace(/-/g, " "));
+    curatedUniverse.aliases.slice(0, 4).forEach((alias) => signals.add(alias));
   }
 
   return Array.from(signals).filter((signal) => signal.length >= 3).slice(0, 3);
@@ -912,6 +989,7 @@ function candidateMatchesSignal(candidate: MediaItem, signals: string[]) {
   return signals.some((signal) => {
     const normalizedSignal = normalizeTitleSignal(signal);
     if (!normalizedSignal) return false;
+    if (normalizedSignal.length < 6) return false;
     return haystack.includes(normalizedSignal);
   });
 }
@@ -959,6 +1037,20 @@ function isSupplementalFranchiseCandidate(base: MediaItem, candidate: MediaItem)
 }
 
 function hasStrongFranchiseConnection(base: MediaItem, candidate: MediaItem, signals: string[]) {
+  if (base.source === "tmdb" && candidate.source === "tmdb") {
+    const baseCollectionId = base.details.collectionId;
+    const candidateCollectionId = candidate.details.collectionId;
+    if (baseCollectionId && candidateCollectionId) {
+      return baseCollectionId === candidateCollectionId;
+    }
+  }
+
+  if (base.source === "igdb" && candidate.source === "igdb") {
+    if (base.details.collectionId && candidate.details.collectionId && base.details.collectionId === candidate.details.collectionId) {
+      return true;
+    }
+  }
+
   const baseRoots = buildTitleRoots(base).filter(root => root.length >= 4);
   const candidateRoots = buildTitleRoots(candidate).filter(root => root.length >= 4);
   
@@ -972,7 +1064,7 @@ function hasStrongFranchiseConnection(base: MediaItem, candidate: MediaItem, sig
     }),
   );
 
-  if (sharesTitleRoot) {
+  if (sharesTitleRoot && isSameFranchise(base.title, candidate.title, base.type, candidate.type)) {
     return true;
   }
 
@@ -981,7 +1073,50 @@ function hasStrongFranchiseConnection(base: MediaItem, candidate: MediaItem, sig
     return true;
   }
 
-  return candidateMatchesSignal(candidate, signals);
+  return false;
+}
+
+function sourceFranchiseConfidence(base: MediaItem, candidate: MediaItem, signals: string[]) {
+  let confidence = 0;
+
+  if (base.source === "tmdb" && candidate.source === "tmdb") {
+    if (base.details.collectionId && candidate.details.collectionId) {
+      if (base.details.collectionId === candidate.details.collectionId) confidence += 90;
+      else confidence -= 30;
+    }
+  }
+
+  if (base.source === "igdb" && candidate.source === "igdb") {
+    if (base.details.collectionId && candidate.details.collectionId) {
+      if (base.details.collectionId === candidate.details.collectionId) confidence += 88;
+      else confidence -= 24;
+    }
+  }
+
+  const sameFamilyType =
+    (base.type === candidate.type) ||
+    ((base.type === "anime" || base.type === "anime_movie") && (candidate.type === "anime" || candidate.type === "anime_movie"));
+  if (sameFamilyType) confidence += 10;
+  else confidence -= 22;
+
+  if (hasStrictAnimeFranchiseConnection(base, candidate)) {
+    confidence += 74;
+  }
+
+  if (isSameFranchise(base.title, candidate.title, base.type, candidate.type)) {
+    confidence += 56;
+  }
+
+  if (candidateMatchesSignal(candidate, signals)) {
+    confidence += 10;
+  }
+
+  const sharedGenres = sharedCanonicalGenreCount(base, candidate);
+  const sharedTags = sharedSimilarityTagCount(base, candidate);
+  const sharedTopics = sharedTopicTokenCount(base, candidate);
+  confidence += sharedGenres * 4 + sharedTags * 5 + Math.min(2, sharedTopics) * 3;
+
+  return confidence;
 }
 
 function buildAnimeFamilyKeys(item: Pick<MediaItem, "title" | "originalTitle" | "details" | "type">) {
@@ -1914,6 +2049,10 @@ function scoreMoreLikeThisCandidate(base: MediaItem, candidate: MediaItem) {
     score -= 6;
   }
 
+  const franchiseSignals = buildFranchiseSignals(base);
+  const franchiseConfidence = sourceFranchiseConfidence(base, candidate, franchiseSignals);
+  score += Math.max(-20, Math.min(45, Math.floor(franchiseConfidence / 4)));
+
   return score;
 }
 
@@ -2383,6 +2522,7 @@ async function getRelatedMediaRailUncached(media: MediaItem) {
   const secondaryGenre = media.genres[1];
   const tertiaryGenre = media.genres[2];
   const collected: MediaItem[] = [];
+  const curatedUniverse = getCuratedUniverseRule(media);
 
   const titleRoot = buildTitleRoots(media)[0] || "";
 
@@ -2439,6 +2579,23 @@ async function getRelatedMediaRailUncached(media: MediaItem) {
         collected.push(...result.value.items);
       }
     });
+
+    if (curatedUniverse?.entries.show?.length) {
+      const curatedShowResults = await Promise.allSettled(
+        curatedUniverse.entries.show.slice(0, 8).map((title, index) =>
+          withTimeout(
+            browseTmdbCatalog({ type: "show", page: 1, query: title, sort: "rating", seed: 120 + index }),
+            emptyBrowseResult(),
+            850,
+          ),
+        ),
+      );
+      curatedShowResults.forEach((result) => {
+        if (result.status === "fulfilled") {
+          collected.push(...result.value.items);
+        }
+      });
+    }
   }
 
   if (media.type === "anime" || media.type === "anime_movie") {
@@ -2566,6 +2723,7 @@ async function getRelatedMediaRailUncached(media: MediaItem) {
     .map((candidate) => ({
       candidate,
       score: scoreMoreLikeThisCandidate(media, candidate),
+      franchiseConfidence: sourceFranchiseConfidence(media, candidate, buildFranchiseSignals(media)),
     }));
 
   const strictMatches = scored
@@ -2575,12 +2733,12 @@ async function getRelatedMediaRailUncached(media: MediaItem) {
       const sharedTags = sharedSimilarityTagCount(media, entry.candidate);
       const sharedPlatforms = sharedPlatformCount(media, entry.candidate);
       if (media.type === "game") {
-        return entry.score >= 22 && (sharedGenres >= 1 || sharedTags >= 1 || sharedPlatforms >= 1 || sharedTopics >= 2);
+        return entry.score >= 22 && entry.franchiseConfidence >= 6 && (sharedGenres >= 1 || sharedTags >= 1 || sharedPlatforms >= 1 || sharedTopics >= 2);
       }
       if (media.type === "movie" || media.type === "show") {
-        return entry.score >= 20 && (sharedGenres >= 1 || sharedTags >= 1 || sharedTopics >= 2);
+        return entry.score >= 20 && entry.franchiseConfidence >= 4 && (sharedGenres >= 1 || sharedTags >= 1 || sharedTopics >= 2);
       }
-      return entry.score >= 20 && (sharedGenres >= 1 || sharedTags >= 1 || sharedTopics >= 1);
+      return entry.score >= 20 && entry.franchiseConfidence >= 8 && (sharedGenres >= 1 || sharedTags >= 1 || sharedTopics >= 1);
     })
     .sort((left, right) => right.score - left.score)
     .map((entry) => entry.candidate)
@@ -2597,12 +2755,12 @@ async function getRelatedMediaRailUncached(media: MediaItem) {
       const sharedPlatforms = sharedPlatformCount(media, entry.candidate);
       const sharedTopics = sharedTopicTokenCount(media, entry.candidate);
       if (media.type === "game") {
-        return entry.score >= 16 && (sharedGenres >= 1 || sharedTags >= 1 || sharedPlatforms >= 1);
+        return entry.score >= 16 && entry.franchiseConfidence >= -2 && (sharedGenres >= 1 || sharedTags >= 1 || sharedPlatforms >= 1);
       }
       if (media.type === "movie" || media.type === "show") {
-        return entry.score >= 14 && (sharedGenres >= 1 || sharedTags >= 1 || sharedTopics >= 1);
+        return entry.score >= 14 && entry.franchiseConfidence >= -4 && (sharedGenres >= 1 || sharedTags >= 1 || sharedTopics >= 1);
       }
-      return entry.score >= 12 && (sharedGenres >= 1 || sharedTags >= 1 || sharedTopics >= 1);
+      return entry.score >= 12 && entry.franchiseConfidence >= 0 && (sharedGenres >= 1 || sharedTags >= 1 || sharedTopics >= 1);
     })
     .sort((left, right) => right.score - left.score)
     .map((entry) => entry.candidate)
@@ -2615,12 +2773,12 @@ async function getRelatedMediaRailUncached(media: MediaItem) {
       const sharedPlatforms = sharedPlatformCount(media, entry.candidate);
       const sharedTopics = sharedTopicTokenCount(media, entry.candidate);
       if (media.type === "game") {
-        return entry.score >= 12 && (sharedGenres >= 1 || sharedTags >= 1 || sharedPlatforms >= 1 || sharedTopics >= 1);
+        return entry.score >= 12 && entry.franchiseConfidence >= -6 && (sharedGenres >= 1 || sharedTags >= 1 || sharedPlatforms >= 1 || sharedTopics >= 1);
       }
       if (media.type === "movie" || media.type === "show") {
-        return entry.score >= 10 && (sharedGenres >= 1 || sharedTags >= 1 || sharedTopics >= 1);
+        return entry.score >= 10 && entry.franchiseConfidence >= -8 && (sharedGenres >= 1 || sharedTags >= 1 || sharedTopics >= 1);
       }
-      return entry.score >= 8 && (sharedGenres >= 1 || sharedTags >= 1 || sharedTopics >= 1 || entry.candidate.rating >= 7.2);
+      return entry.score >= 8 && entry.franchiseConfidence >= -2 && (sharedGenres >= 1 || sharedTags >= 1 || sharedTopics >= 1 || entry.candidate.rating >= 7.2);
     })
     .sort((left, right) => right.score - left.score)
     .map((entry) => entry.candidate)
@@ -2681,7 +2839,52 @@ async function getRelatedMediaRailUncached(media: MediaItem) {
     .map((entry) => entry.candidate)
     .slice(0, 24);
 
-  return dedupeItems([...mergedMatches, ...emergencyFallback]).slice(0, 24);
+  const baseMerged = dedupeItems([...mergedMatches, ...emergencyFallback]).slice(0, 24);
+  if (baseMerged.length >= 12 || !curatedUniverse) {
+    return baseMerged;
+  }
+
+  const curatedHints = Array.from(
+    new Set([
+      ...curatedUniverse.aliases,
+      ...(curatedUniverse.entries.show ?? []),
+      ...(curatedUniverse.entries.movie ?? []),
+      ...(curatedUniverse.entries.game ?? []),
+    ]),
+  ).slice(0, 10);
+
+  const curatedCandidates = await Promise.allSettled(
+    curatedHints.map((query, index) =>
+      media.type === "game"
+        ? withTimeout(
+            browseIgdbGames({ page: 1, query, sort: "rating", seed: 240 + index }),
+            emptyBrowseResult(),
+            900,
+          )
+        : media.type === "anime" || media.type === "anime_movie"
+          ? withTimeout(
+              browseAniListAnime({ page: 1, query, sort: "rating", seed: 240 + index }),
+              emptyBrowseResult(),
+              900,
+            )
+          : withTimeout(
+              browseTmdbCatalog({ type: media.type, page: 1, query, sort: "rating", seed: 240 + index }),
+              emptyBrowseResult(),
+              900,
+            ),
+    ),
+  );
+
+  const curatedPool = dedupeItems(
+    curatedCandidates.flatMap((result) => (result.status === "fulfilled" ? result.value.items : [])),
+  )
+    .filter((candidate) => `${candidate.source}-${candidate.sourceId}` !== `${media.source}-${media.sourceId}`)
+    .filter((candidate) => isCompatibleSimilarityType(media, candidate))
+    .filter((candidate) => !isSupplementalFranchiseCandidate(media, candidate))
+    .sort((left, right) => scoreMoreLikeThisCandidate(media, right) - scoreMoreLikeThisCandidate(media, left))
+    .slice(0, 18);
+
+  return dedupeItems([...baseMerged, ...curatedPool]).slice(0, 24);
 }
 
 async function DeferredRelatedRail({ media, franchiseSection }: { media: MediaItem, franchiseSection: any }) {
@@ -2882,6 +3085,9 @@ export default async function MediaDetailPage({
   }
   const [shellData, library] = dbData;
   const sidebarFolders = shellData?.folders ?? [];
+  const friendsActivity = viewerId !== "guest-vault" && shellData?.friends?.length
+    ? await buildFriendsActivity(viewerId, shellData.friends, media)
+    : [];
   const seriesContext = buildSeriesContext(media, franchiseSection);
   const runtimeLabel =
     media.type === "game"
@@ -3144,6 +3350,42 @@ export default async function MediaDetailPage({
               </div>
             </section>
           ) : null}
+
+          <section className="section-stack" style={{ paddingTop: 0 }}>
+            <div className="info-panel glass">
+              <p className="eyebrow">Friends activity</p>
+              <h2 className="headline" style={{ marginTop: 6 }}>
+                {friendsActivity.length ? "Friends who watched this" : "No friend activity yet"}
+              </h2>
+              {friendsActivity.length ? (
+                <div className="credit-list" style={{ marginTop: 14 }}>
+                  {friendsActivity.map((entry) => (
+                    <div key={entry.friendId} className="credit-row">
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        {entry.friendAvatarUrl ? (
+                          <img src={entry.friendAvatarUrl} alt={entry.friendName} className="folder-row-avatar" />
+                        ) : (
+                          <span className="folder-row-avatar folder-row-avatar-fallback">{entry.friendName.charAt(0).toUpperCase()}</span>
+                        )}
+                        <div>
+                          <strong>{entry.friendName}</strong>
+                          <div className="muted">{entry.friendHandle}</div>
+                        </div>
+                      </div>
+                      <div className="muted" style={{ textAlign: "right", maxWidth: 420 }}>
+                        <div>{entry.rating ? `${entry.rating} / 5` : "Watched"}</div>
+                        {entry.review ? <div>{entry.review.length > 120 ? `${entry.review.slice(0, 117)}...` : entry.review}</div> : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="copy" style={{ marginTop: 12 }}>
+                  Once friends watch or rate this title, their activity and written notes will appear here.
+                </p>
+              )}
+            </div>
+          </section>
 
           {/* Legacy detail block removed during cleanup.
           <section className="section-stack" style={{ paddingTop: 0 }}>

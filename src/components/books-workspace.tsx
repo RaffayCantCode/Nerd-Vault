@@ -398,7 +398,7 @@ export function BooksWorkspace({
           </div>
         </section>
 
-        {/* ── Continue Reading — dedicated section, not inside the hero ── */}
+        {/* Continue Reading: dedicated section, not inside the hero */}
         {continueReading && continueReading.length > 0 ? (
           <section className="books-continue-section-standalone">
             <div className="books-continue-header">
@@ -439,7 +439,7 @@ export function BooksWorkspace({
                         setClearingContinue(null);
                       }}
                     >
-                      {clearingContinue === item.bookId ? "..." : "×"}
+                      {clearingContinue === item.bookId ? "..." : "x"}
                     </button>
                   </div>
                 </div>
