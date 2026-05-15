@@ -1,46 +1,42 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-import { getAuthCookiesToDelete } from "@/lib/auth-cookies";
-
 /**
- * Proxy (middleware): purge stale NextAuth cookie chunks.
+ * Matches ONLY the numbered session-token chunk cookies that NextAuth v5
+ * creates when a JWT is too large to fit in a single 4 KB cookie, e.g.:
+ *   __Secure-authjs.session-token.0
+ *   __Secure-authjs.session-token.1
+ *   …
+ *   __Secure-authjs.session-token.20
  *
- * Google OAuth + NextAuth v5 can chunk an oversized JWT across 20+ numbered
- * cookies (e.g. __Secure-authjs.session-token.0 … .20, each ~4 KB), which
- * causes Vercel's 494 REQUEST_HEADER_TOO_LARGE error on every subsequent
- * request. Old chunks from previous sessions also accumulate without being
- * cleaned up automatically.
+ * These chunks from previous/failed logins accumulate and add up to 80+ KB of
+ * Cookie headers, causing Vercel's 494 REQUEST_HEADER_TOO_LARGE error.
  *
- * On every non-auth, non-static request this function deletes:
- *   - Chunked session-token cookies  (*.session-token.\d+)
- *   - Stale OAuth transient cookies  (state, nonce, pkce, csrf, callback-url)
- *   - Legacy next-auth.* prefixed cookies
- *
- * It intentionally NEVER deletes the active unchunked session token
- * (__Secure-authjs.session-token without a numeric suffix).
+ * NOTE: We intentionally do NOT delete transient OAuth cookies (pkce, state,
+ * nonce, csrf, callback-url). Those are tiny, expire in minutes, and deleting
+ * them while a Google sign-in flow is in progress causes the
+ * "InvalidCheck: pkceCodeVerifier value could not be parsed" server error.
  */
+const CHUNKED_SESSION_TOKEN_RE =
+  /^(?:__Secure-|__Host-)?(?:authjs|next-auth)\.session-token\.\d+$/;
+
 export function proxy(request: NextRequest) {
-  // Skip cleanup during the OAuth handshake so we don't clobber live state/
-  // nonce/pkce cookies that NextAuth needs to complete the Google sign-in flow.
-  if (request.nextUrl.pathname.startsWith("/api/auth")) {
-    return NextResponse.next();
-  }
+  const chunkedCookies = request.cookies
+    .getAll()
+    .filter((c) => CHUNKED_SESSION_TOKEN_RE.test(c.name));
 
-  const cookieNames = request.cookies.getAll().map((c) => c.name);
-  const toDelete = getAuthCookiesToDelete(cookieNames);
-
-  if (toDelete.length === 0) {
+  if (chunkedCookies.length === 0) {
     return NextResponse.next();
   }
 
   const response = NextResponse.next();
-  for (const name of toDelete) {
+  for (const { name } of chunkedCookies) {
     response.cookies.set({
       name,
       value: "",
       maxAge: 0,
       path: "/",
+      // Mirror the security flags so the browser accepts the deletion.
       secure: request.nextUrl.protocol === "https:",
       httpOnly: true,
       sameSite: "lax",

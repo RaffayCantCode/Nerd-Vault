@@ -54,10 +54,6 @@ if (googleConfigured) {
     Google({
       clientId: process.env.AUTH_GOOGLE_ID!,
       clientSecret: process.env.AUTH_GOOGLE_SECRET!,
-      authorization: { params: { prompt: "consent" } },
-      // Let NextAuth use its default PKCE check only.
-      // Avoiding an explicit state check reduces OAuth cookie bloat
-      // that was contributing to REQUEST_HEADER_TOO_LARGE on Vercel.
     }),
   );
 }
