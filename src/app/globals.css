@@ -1,3 +1,10 @@
+/* CSS map (search anchors):
+   [NV-BROWSE-HERO] Browse hero frame sizing
+   [NV-PROFILE-FOLDER] Profile + folder desktop sizing
+   [NV-MOBILE-CANONICAL] Legacy mobile sizing pass (kept for compatibility)
+   [NV-MOBILE-ALL-PAGES] Canonical cross-page mobile system
+*/
+
 :root {
   /* Landing Page Base Colors */
   --landing-bg-1: #0a0e1a;
@@ -13654,6 +13661,7 @@ html {
 }
 
 /* --- BROWSE PAGE LAYOUT FIXES --- */
+/* [NV-BROWSE-HERO] */
 .workspace.browse-workspace-root {
   padding-top: 0 !important;
   display: flex;
@@ -13661,18 +13669,18 @@ html {
 }
 
 .browse-workspace-root .workspace-hero {
-  border-radius: 0 0 34px 34px;
-  border-top: 0;
-  margin-bottom: 2rem;
-  width: calc(100% + 5rem);
-  margin-left: -2.5rem;
+  border-radius: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 1rem;
+  width: 100%;
+  margin-left: 0;
   z-index: 50; /* Ensure hero is above other relative content */
 }
 
 @media (max-width: 900px) {
   .browse-workspace-root .workspace-hero {
-    width: calc(100% + 24px);
-    margin-left: -12px;
+    border-radius: 16px;
+    margin-bottom: 0.9rem;
   }
 }
 
@@ -15332,6 +15340,7 @@ body {
 }
 
 /* Profile + folder polish pass */
+/* [NV-PROFILE-FOLDER] */
 
 .folder-hero {
   min-height: 340px;
@@ -15589,38 +15598,6 @@ body {
 
   .profile-stage-stats {
     width: 100%;
-  }
-}
-
-@media (max-width: 640px) {
-  .folder-hero {
-    min-height: 0;
-  }
-
-  .folder-hero-cover-card {
-    width: 108px;
-    min-width: 108px;
-  }
-
-  .folder-hero-display,
-  .profile-display {
-    font-size: clamp(1.8rem, 8vw, 2.5rem) !important;
-  }
-
-  .folder-hero-description,
-  .profile-hero-description,
-  .profile-library-controls,
-  .profile-folder-toolbar {
-    padding: 14px;
-    border-radius: 18px;
-  }
-
-  .profile-avatar-stack {
-    width: 100%;
-  }
-
-  .profile-stage-stat {
-    min-height: 82px;
   }
 }
 
@@ -15905,60 +15882,6 @@ body {
   min-height: 0 !important;
 }
 
-.folder-hero {
-  min-height: 260px !important;
-}
-
-.folder-hero-cover-card {
-  width: 104px !important;
-  min-width: 104px !important;
-}
-
-@media (max-width: 900px) {
-  .workspace {
-    padding: 0 0.75rem 1.25rem 0.75rem !important;
-  }
-
-  .workspace-hero,
-  .profile-stage,
-  .home-hero,
-  .browse-surfacing-hero {
-    border-radius: 18px !important;
-  }
-
-  .workspace-hero {
-    padding: 14px !important;
-  }
-
-  .display,
-  .home-display,
-  .profile-display,
-  .folder-hero-display {
-    line-height: 1.04 !important;
-  }
-
-  .browse-toolbar-grid,
-  .browse-toolbar-row {
-    gap: 10px !important;
-  }
-
-  .browse-live-search-row {
-    grid-template-columns: 1fr !important;
-  }
-
-  .browse-search-submit,
-  .browse-search-clear {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .profile-stage-actions .button,
-  .folder-hero-actions .button,
-  .button-row .button {
-    flex: 1 1 180px;
-  }
-}
-
 /* =========================================================
    Global Responsive Overhaul (Desktop + Mobile Harmony)
    ========================================================= */
@@ -16087,6 +16010,7 @@ body {
 }
 
 @media (max-width: 900px) {
+  /* [NV-MOBILE-CANONICAL] */
   .app-shell-layout {
     padding: 10px 10px 92px 10px !important;
   }
@@ -16104,6 +16028,34 @@ body {
     min-height: 0 !important;
     border-radius: 16px !important;
     padding: 12px !important;
+  }
+
+  .browse-workspace-root .workspace-hero {
+    width: 100% !important;
+    margin-left: 0 !important;
+    margin-bottom: 0.9rem !important;
+  }
+
+  .folder-hero,
+  .profile-stage,
+  .browse-surfacing-hero {
+    min-height: 0 !important;
+    height: auto !important;
+    border-radius: 16px !important;
+  }
+
+  .workspace-hero-grid,
+  .profile-stage-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    align-items: start !important;
+  }
+
+  .workspace-copy,
+  .workspace-copy-browse,
+  .profile-stage-copy,
+  .folder-hero-copy {
+    gap: 10px !important;
   }
 
   .display {
@@ -16196,6 +16148,41 @@ body {
     font-size: 1.12rem !important;
   }
 
+  .profile-stage-actions .button,
+  .folder-hero-actions .button,
+  .button-row .button {
+    flex: 1 1 100% !important;
+    min-height: 40px !important;
+  }
+
+  .folder-showcase-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .folder-showcase-card {
+    min-height: 0 !important;
+  }
+
+  .folder-showcase-art,
+  .folder-showcase-art-compact {
+    min-height: 96px !important;
+    height: 96px !important;
+  }
+
+  .folder-showcase-copy {
+    padding: 12px !important;
+    gap: 8px !important;
+  }
+
+  .profile-hero-description,
+  .folder-hero-description,
+  .profile-library-controls,
+  .profile-folder-toolbar {
+    padding: 12px !important;
+    border-radius: 14px !important;
+  }
+
   .folder-hero-cover-card {
     width: 88px !important;
     min-width: 88px !important;
@@ -16205,6 +16192,37 @@ body {
     width: 74px !important;
     height: 74px !important;
     border-radius: 18px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .display,
+  .profile-display,
+  .folder-hero-display,
+  .browse-hero-title {
+    font-size: clamp(1.35rem, 6.6vw, 1.92rem) !important;
+    line-height: 1.08 !important;
+  }
+
+  .copy {
+    font-size: 0.92rem !important;
+    line-height: 1.48 !important;
+  }
+
+  .profile-avatar {
+    width: 62px !important;
+    height: 62px !important;
+    border-radius: 14px !important;
+  }
+
+  .folder-hero-cover-card {
+    width: 78px !important;
+    min-width: 78px !important;
+  }
+
+  .profile-stage-stat {
+    min-height: 66px !important;
+    padding: 9px 10px !important;
   }
 }
 
@@ -16589,5 +16607,233 @@ body {
 
   .vault-profile-actions .button {
     flex: 1;
+  }
+}
+
+/* [NV-MOBILE-ALL-PAGES]
+   Canonical cross-page mobile system.
+   Keep phone/tablet layout edits here so behavior stays predictable. */
+@media (max-width: 900px) {
+  html,
+  body,
+  .page-shell {
+    overflow-x: hidden !important;
+    max-width: 100vw;
+  }
+
+  .app-shell-layout {
+    width: 100%;
+    max-width: 100%;
+    padding: 8px 8px 84px !important;
+    gap: 10px !important;
+  }
+
+  .workspace,
+  .container,
+  .landing-shell {
+    width: 100%;
+    max-width: 100%;
+    padding-inline: 0.5rem !important;
+  }
+
+  .workspace-hero,
+  .home-hero,
+  .detail-hero,
+  .folder-hero,
+  .profile-stage,
+  .browse-surfacing-hero,
+  .books-hero,
+  .support-page,
+  .auth-screen-card-signin {
+    min-height: 0 !important;
+    height: auto !important;
+    border-radius: 16px !important;
+  }
+
+  .workspace-hero-grid,
+  .detail-hero-grid,
+  .detail-info-grid,
+  .browse-toolbar-grid,
+  .profile-stage-grid,
+  .auth-screen-card-signin,
+  .landing-hero-content,
+  .landing-features-grid,
+  .platforms-grid,
+  .tv-shows-grid,
+  .support-main-grid,
+  .support-highlights {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .app-topbar,
+  .browse-toolbar,
+  .profile-library-controls,
+  .profile-folder-toolbar,
+  .folder-edit-panel,
+  .books-library,
+  .support-card,
+  .support-guidelines {
+    border-radius: 14px !important;
+    padding: 12px !important;
+  }
+
+  .app-topbar-actions,
+  .topbar-action-group {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+    width: 100%;
+  }
+
+  .topbar-search,
+  .topbar-people-search,
+  .topbar-profile-shell,
+  .topbar-inbox-shell {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .topbar-search-input,
+  .search-input,
+  .browse-search-input,
+  .books-search input {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .button-row .button,
+  .profile-stage-actions .button,
+  .folder-hero-actions .button,
+  .landing-hero-actions .landing-cta,
+  .landing-final-cta .cta-button,
+  .support-action-row .button {
+    width: 100%;
+    flex: 1 1 100% !important;
+    justify-content: center;
+  }
+
+  .detail-content {
+    padding: 12px !important;
+  }
+
+  .detail-poster-col {
+    max-width: 320px;
+    width: 100%;
+    margin-inline: auto;
+  }
+
+  .detail-credits-grid,
+  .detail-meta-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .books-shell {
+    padding-bottom: 80px;
+  }
+
+  .books-hero {
+    gap: 12px !important;
+    padding: 12px !important;
+  }
+
+  .books-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .books-card,
+  .books-feature-panel,
+  .books-continue-card-v2 {
+    min-height: 0 !important;
+    border-radius: 14px !important;
+  }
+
+  .books-continue-scroll {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .folder-showcase-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .folder-showcase-card {
+    min-height: 0 !important;
+  }
+
+  .folder-showcase-art,
+  .folder-showcase-art-compact {
+    min-height: 96px !important;
+    height: 96px !important;
+  }
+
+  .folder-showcase-copy {
+    padding: 12px !important;
+    gap: 8px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .display,
+  .home-display,
+  .profile-display,
+  .folder-hero-display,
+  .browse-hero-title,
+  .landing-hero-title,
+  .books-title,
+  .support-title,
+  .auth-screen-title {
+    font-size: clamp(1.3rem, 6.2vw, 1.9rem) !important;
+    line-height: 1.08 !important;
+  }
+
+  .copy,
+  .landing-hero-subtitle,
+  .support-lead,
+  .books-copy {
+    font-size: 0.92rem !important;
+    line-height: 1.48 !important;
+  }
+
+  .landing-hero {
+    padding: 1.25rem 0.65rem 1.75rem !important;
+  }
+
+  .landing-hero-stats {
+    grid-template-columns: 1fr !important;
+    gap: 0.6rem !important;
+  }
+
+  .landing-stat {
+    padding: 0.8rem 0.9rem !important;
+  }
+
+  .auth-screen-card-signin,
+  .auth-screen-copy-signin,
+  .auth-screen-panel-signin {
+    padding: 12px !important;
+    border-radius: 14px !important;
+  }
+
+  .books-grid,
+  .catalog-grid,
+  .profile-media-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .profile-avatar {
+    width: 62px !important;
+    height: 62px !important;
+    border-radius: 14px !important;
+  }
+
+  .folder-hero-cover-card {
+    width: 78px !important;
+    min-width: 78px !important;
   }
 }
