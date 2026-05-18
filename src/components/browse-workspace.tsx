@@ -29,7 +29,8 @@ type CachedBrowsePayload = {
 };
 
 const BROWSE_LAST_URL_KEY = "nerdvault-browse-last-url";
-const DEFAULT_PAGE_SIZE = 48;
+const BASE_PAGE_SIZE = 48;
+const XL_PAGE_SIZE = 60;
 const BROWSE_CLIENT_CACHE_TTL_MS = 1000 * 60 * 5;
 const GENRES_BY_MEDIA: Record<MediaType | "all", string[]> = {
   all: ["Action", "Adventure", "Fantasy", "Drama", "Romance", "Sci-Fi", "Horror", "Mystery & Thriller", "Comedy", "Family", "Sports", "Documentary"],
@@ -70,6 +71,10 @@ function dedupeItems(items: MediaItem[]) {
     seen.add(key);
     return true;
   });
+}
+
+function getMediaKey(item: MediaItem) {
+  return `${item.source}-${item.sourceId}`;
 }
 
 function buildSurfacingDeck(items: MediaItem[], fallbackItems: MediaItem[]) {
@@ -176,8 +181,9 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
   const initialFocus = searchParams.get("focus");
   const initialPage = Number(searchParams.get("page") || "1");
   const initialSeed = Number(searchParams.get("seed") || String(discoverySeed));
+  const surfacingKeys = useMemo(() => new Set(surfacingCatalog.map((item) => getMediaKey(item))), [surfacingCatalog]);
   const initialCatalogItems = dedupeItems(catalog).filter(
-    (item) => !surfacingCatalog.some((featuredItem) => featuredItem.id === item.id),
+    (item) => !surfacingKeys.has(getMediaKey(item)),
   );
   const canHydrateFromBootstrap =
     !initialQuery.trim() &&
@@ -197,11 +203,15 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
   const [query, setQuery] = useState(initialQuery);
   const deferredQuery = useDeferredValue(query);
   const [activePage, setActivePage] = useState(normalizePage(initialPage));
+  const [pageSize, setPageSize] = useState(() => {
+    if (typeof window === "undefined") return BASE_PAGE_SIZE;
+    return window.innerWidth >= 1700 ? XL_PAGE_SIZE : BASE_PAGE_SIZE;
+  });
   const [payload, setPayload] = useState<BrowseApiPayload>({
     page: 1,
     totalPages: Math.max(1, initialTotalPages),
     totalResults: initialCatalogItems.length,
-    items: canHydrateFromBootstrap ? initialCatalogItems.slice(0, DEFAULT_PAGE_SIZE) : [],
+    items: canHydrateFromBootstrap ? initialCatalogItems.slice(0, pageSize) : [],
   });
   const [isLoading, setIsLoading] = useState(!canHydrateFromBootstrap);
   const [error, setError] = useState<string | null>(null);
@@ -238,6 +248,17 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
     }
     setHeroIndex((current) => (current >= featuredDeck.length ? 0 : current));
   }, [featuredDeck.length]);
+
+  useEffect(() => {
+    function syncPageSize() {
+      const nextSize = window.innerWidth >= 1700 ? XL_PAGE_SIZE : BASE_PAGE_SIZE;
+      setPageSize((current) => (current === nextSize ? current : nextSize));
+    }
+
+    syncPageSize();
+    window.addEventListener("resize", syncPageSize);
+    return () => window.removeEventListener("resize", syncPageSize);
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -282,7 +303,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
           page: String(activePage),
           sort,
           seed: String(initialSeed),
-          pageSize: String(DEFAULT_PAGE_SIZE),
+          pageSize: String(pageSize),
         });
 
         if (genre !== "all") {
@@ -302,7 +323,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
 
           const nextPage = deferredQuery.trim() ? 1 : clampPage(cachedPayload.page || activePage, cachedPayload.totalPages || 1);
           const nextItems = dedupeItems(cachedPayload.items).filter(
-            (item) => !surfacingCatalog.some((featuredItem) => featuredItem.id === item.id),
+            (item) => !surfacingKeys.has(getMediaKey(item)),
           );
           setPayload({
             page: nextPage,
@@ -332,13 +353,13 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
 
         const nextPage = deferredQuery.trim() ? 1 : clampPage(nextPayload.page || activePage, nextPayload.totalPages || 1);
         const nextItems = dedupeItems(nextPayload.items).filter(
-          (item) => !surfacingCatalog.some((featuredItem) => featuredItem.id === item.id),
+          (item) => !surfacingKeys.has(getMediaKey(item)),
         );
         setPayload({
           page: nextPage,
           totalPages: Math.max(1, nextPayload.totalPages || 1),
           totalResults: nextPayload.totalResults || nextPayload.items.length,
-          items: nextItems.slice(0, DEFAULT_PAGE_SIZE),
+          items: nextItems.slice(0, pageSize),
         });
         if (nextPage !== activePage) {
           setActivePage(nextPage);
@@ -366,7 +387,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
       active = false;
       controller.abort();
     };
-  }, [activePage, deferredQuery, filter, genre, initialSeed, sort, surfacingCatalog]);
+  }, [activePage, deferredQuery, filter, genre, initialSeed, pageSize, sort, surfacingKeys]);
 
   useEffect(() => {
     if (isLoading || hasRestoredScrollRef.current || typeof window === "undefined") {
@@ -510,7 +531,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
       page: String(payload.page + 1),
       sort,
       seed: String(initialSeed),
-      pageSize: String(DEFAULT_PAGE_SIZE),
+      pageSize: String(pageSize),
     });
 
     if (genre !== "all") {
@@ -520,7 +541,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
     void prefetchBrowsePayload(params, controller.signal).catch(() => undefined);
 
     return () => controller.abort();
-  }, [deferredQuery, filter, genre, initialSeed, isLoading, payload.page, payload.totalPages, sort]);
+  }, [deferredQuery, filter, genre, initialSeed, isLoading, pageSize, payload.page, payload.totalPages, sort]);
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -564,7 +585,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
         <div className="pager-copy">
           <p className="eyebrow">Browse pages</p>
           <p className="copy">
-            Page {payload.page} of {payload.totalPages} with {DEFAULT_PAGE_SIZE} titles loaded each time.
+            Page {payload.page} of {payload.totalPages} with {pageSize} titles loaded each time.
           </p>
         </div>
         <div className="pager-actions">

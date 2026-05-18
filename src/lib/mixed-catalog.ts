@@ -35,9 +35,9 @@ type MixedSource = "movie" | "show" | "anime" | "game";
 
 type SourcePlan = {
   allocation: number;
-  sourceStartPage: number;
+  sourceStartIndex: number;
+  sourceEndIndex: number;
   pagesToFetch: number;
-  startOffset: number;
 };
 
 const SOURCE_ORDER: MixedSource[] = ["movie", "show", "anime", "game"];
@@ -109,16 +109,15 @@ function buildSourcePlans(pageSize: number, page: number) {
   return SOURCE_ORDER.reduce<Record<MixedSource, SourcePlan>>((plans, source, index) => {
     const allocation = baseAllocation + (index < remainder ? 1 : 0);
     const sourcePageSize = SOURCE_PAGE_SIZES[source];
-    const startIndex = Math.max(0, (page - 1) * allocation);
-    const sourceStartPage = Math.floor(startIndex / sourcePageSize) + 1;
-    const startOffset = startIndex % sourcePageSize;
-    const pagesToFetch = Math.max(2, Math.ceil((startOffset + allocation + sourcePageSize) / sourcePageSize));
+    const sourceStartIndex = Math.max(0, (page - 1) * allocation);
+    const sourceEndIndex = sourceStartIndex + allocation;
+    const pagesToFetch = Math.max(2, Math.ceil((sourceEndIndex + sourcePageSize) / sourcePageSize));
 
     plans[source] = {
       allocation,
-      sourceStartPage,
+      sourceStartIndex,
+      sourceEndIndex,
       pagesToFetch,
-      startOffset,
     };
 
     return plans;
@@ -188,7 +187,8 @@ async function fetchSourceWindow(
     seed: number;
   },
 ) {
-  const pages = Array.from({ length: plan.pagesToFetch }, (_, index) => plan.sourceStartPage + index);
+  // Always start from page one so each browse page slices a deterministic index range.
+  const pages = Array.from({ length: plan.pagesToFetch }, (_, index) => index + 1);
   const payloads = await Promise.all(
     pages.map((targetPage, index) =>
       withTimeout(
@@ -342,7 +342,7 @@ export async function browseMixedCatalog({
               seed: seed + index * 100,
             });
 
-            const primarySlice = result.items.slice(plans[source].startOffset, plans[source].startOffset + plans[source].allocation);
+            const primarySlice = result.items.slice(plans[source].sourceStartIndex, plans[source].sourceEndIndex);
 
             return {
               source,

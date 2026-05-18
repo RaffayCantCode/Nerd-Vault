@@ -12,6 +12,22 @@ type BrowsePayload = {
   items: MediaItem[];
 };
 
+function mediaKey(item: MediaItem) {
+  return `${item.source}-${item.sourceId}`;
+}
+
+function dedupeBySource(items: MediaItem[]) {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = mediaKey(item);
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const typeParam = searchParams.get("type");
@@ -89,12 +105,58 @@ export async function GET(request: NextRequest) {
     };
 
     const payload = await fetchByType(page);
+    let stableItems = dedupeBySource(payload.items);
+
+    if (!query.trim() && page > 1 && stableItems.length) {
+      const previousPayload = await fetchByType(page - 1).catch(() => null);
+      if (previousPayload) {
+        const blockedKeys = new Set(dedupeBySource(previousPayload.items).map((item) => mediaKey(item)));
+        const pageKeys = new Set<string>();
+        const uniqueItems: MediaItem[] = [];
+
+        for (const item of stableItems) {
+          const key = mediaKey(item);
+          if (blockedKeys.has(key) || pageKeys.has(key)) {
+            continue;
+          }
+          pageKeys.add(key);
+          uniqueItems.push(item);
+        }
+
+        let topUpPage = page + 1;
+        while (uniqueItems.length < pageSize && topUpPage <= payload.totalPages && topUpPage <= page + 3) {
+          const topUpPayload = await fetchByType(topUpPage).catch(() => null);
+          if (!topUpPayload?.items?.length) {
+            topUpPage += 1;
+            continue;
+          }
+
+          for (const item of dedupeBySource(topUpPayload.items)) {
+            const key = mediaKey(item);
+            if (blockedKeys.has(key) || pageKeys.has(key)) {
+              continue;
+            }
+            pageKeys.add(key);
+            uniqueItems.push(item);
+            if (uniqueItems.length >= pageSize) {
+              break;
+            }
+          }
+
+          topUpPage += 1;
+        }
+
+        stableItems = uniqueItems;
+      }
+    }
+
     const normalizedTotalPages = query.trim() ? 1 : Math.max(1, Math.floor(payload.totalPages || 1));
 
     return NextResponse.json(
       {
         ok: true,
         ...payload,
+        items: stableItems.slice(0, pageSize),
         totalPages: normalizedTotalPages,
       },
       {

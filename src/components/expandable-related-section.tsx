@@ -82,6 +82,11 @@ export function ExpandableRelatedSection({
         return;
       }
 
+      if (window.innerWidth >= 1700) {
+        setCardsPerRow(5);
+        return;
+      }
+
       setCardsPerRow(4);
     }
 
