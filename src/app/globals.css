@@ -16898,49 +16898,186 @@ body {
   border: 1px solid rgba(3, 12, 20, 0.12);
 }
 
-/* [NV-DESKTOP-XL]
-   Makes large desktops use available space and show denser title grids. */
-@media (min-width: 1536px) {
+/* [NV-BROWSE-DESKTOP-CANONICAL]
+   Single source of truth for desktop browse sizing and width behavior. */
+@media (min-width: 901px) {
   .app-shell-layout {
-    max-width: min(1920px, 98vw) !important;
-    padding-inline: clamp(12px, 1.2vw, 22px) !important;
+    max-width: min(1860px, 98vw) !important;
+    padding-inline: clamp(10px, 0.9vw, 18px) !important;
   }
 
-  .workspace {
-    max-width: min(1740px, 96vw) !important;
-    gap: 16px !important;
+  .workspace.browse-workspace-root {
+    width: 100% !important;
+    max-width: min(1760px, calc(100vw - 112px)) !important;
+    margin-inline: 0 0 !important;
+    gap: 14px !important;
   }
 
-  .catalog-grid {
-    grid-template-columns: repeat(auto-fill, minmax(172px, 1fr)) !important;
-    gap: 12px !important;
+  .browse-workspace-root .catalog-grid {
+    width: 100% !important;
+    grid-template-columns: repeat(auto-fill, minmax(clamp(184px, 11.2vw, 228px), 1fr)) !important;
+    gap: clamp(11px, 0.9vw, 15px) !important;
   }
 
-  .catalog-card {
-    min-height: 292px !important;
-  }
-
-  .workspace-hero {
-    min-height: clamp(260px, 40vh, 560px) !important;
-  }
-
-  .browse-toolbar,
-  .app-topbar,
-  .bottom-pager {
-    padding: 16px 18px !important;
+  .browse-workspace-root .catalog-card {
+    min-height: clamp(292px, 21vw, 356px) !important;
   }
 }
 
-@media (min-width: 1900px) {
-  .workspace {
-    max-width: min(1880px, 95vw) !important;
+@media (min-width: 1536px) {
+  .workspace.browse-workspace-root {
+    max-width: min(1880px, calc(100vw - 118px)) !important;
   }
 
-  .catalog-grid {
-    grid-template-columns: repeat(auto-fill, minmax(164px, 1fr)) !important;
+  .browse-workspace-root .catalog-grid {
+    grid-template-columns: repeat(auto-fill, minmax(clamp(196px, 10.6vw, 238px), 1fr)) !important;
+    gap: 12px !important;
   }
 
-  .catalog-card {
-    min-height: 276px !important;
+  .browse-workspace-root .catalog-card {
+    min-height: clamp(304px, 20vw, 372px) !important;
+  }
+}
+
+/* [NV-MOBILE-NAV-CANONICAL]
+   Single mobile navigation system: bottom dock for page routing + detail section jumps. */
+.nv-mobile-dock-wrap {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .app-shell-layout {
+    padding-bottom: 118px !important;
+  }
+
+  .sidebar-mobile-toggle {
+    display: none !important;
+  }
+
+  .nv-mobile-dock-wrap {
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+    z-index: 210;
+    display: grid;
+    gap: 8px;
+    pointer-events: none;
+  }
+
+  .nv-mobile-dock {
+    pointer-events: auto;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02)),
+      rgba(6, 10, 18, 0.94);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.38);
+    backdrop-filter: blur(18px);
+  }
+
+  .nv-mobile-dock-link {
+    min-height: 54px;
+    border: 1px solid transparent;
+    border-radius: 14px;
+    background: transparent;
+    color: rgba(238, 246, 255, 0.88);
+    display: grid;
+    place-items: center;
+    gap: 2px;
+    text-decoration: none;
+    font-size: 0.64rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: transform 160ms ease, color 160ms ease, background 180ms ease, border-color 180ms ease;
+    padding: 4px 2px;
+  }
+
+  .nv-mobile-dock-link svg {
+    width: 19px;
+    height: 19px;
+    display: block;
+  }
+
+  .nv-mobile-dock-link:hover,
+  .nv-mobile-dock-link:focus-visible {
+    color: #ffffff;
+    border-color: rgba(3, 252, 190, 0.34);
+    background: rgba(3, 252, 190, 0.1);
+    transform: translateY(-1px);
+    outline: none;
+  }
+
+  .nv-mobile-dock-link.is-active {
+    color: #03fcbe;
+    border-color: rgba(3, 252, 190, 0.5);
+    background:
+      linear-gradient(180deg, rgba(3, 252, 190, 0.2), rgba(3, 252, 190, 0.08)),
+      rgba(10, 17, 28, 0.94);
+    box-shadow: 0 8px 20px rgba(3, 252, 190, 0.2);
+  }
+
+  .nv-mobile-section-dock {
+    pointer-events: auto;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    padding: 7px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02)),
+      rgba(8, 12, 20, 0.92);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.32);
+    backdrop-filter: blur(14px);
+  }
+
+  .nv-mobile-section-chip {
+    min-height: 34px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(240, 248, 255, 0.95);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+  }
+
+  .nv-mobile-section-chip:hover,
+  .nv-mobile-section-chip:focus-visible {
+    border-color: rgba(3, 252, 190, 0.42);
+    background: rgba(3, 252, 190, 0.14);
+    color: #ffffff;
+    outline: none;
+  }
+
+  #detail-overview,
+  #detail-visuals,
+  #detail-friends,
+  #detail-related {
+    scroll-margin-top: 72px;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-shell-layout {
+    padding-bottom: 132px !important;
+  }
+
+  .nv-mobile-dock-link {
+    min-height: 52px;
+    font-size: 0.61rem;
+  }
+
+  .nv-mobile-section-chip {
+    min-height: 32px;
+    font-size: 0.66rem;
   }
 }

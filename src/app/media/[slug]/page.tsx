@@ -3199,7 +3199,7 @@ export default async function MediaDetailPage({
               sourceUrl={media.details.sourceUrl}
             />
           ) : null}
-          <section className="detail-hero glass">
+          <section id="detail-overview" className="detail-hero glass">
             <div className="hero-media">
               <img
                 src={optimizeMediaImageUrl(media.backdropUrl || media.coverUrl, "backdrop") ?? (media.backdropUrl || media.coverUrl)}
@@ -3319,7 +3319,7 @@ export default async function MediaDetailPage({
           </section>
 
           {finalGallery.length ? (
-            <section className="section-stack detail-gallery-section" style={{ paddingTop: 0 }}>
+            <section id="detail-visuals" className="section-stack detail-gallery-section" style={{ paddingTop: 0 }}>
               <div className="section-header">
                 <div>
                   <p className="eyebrow">Visuals</p>
@@ -3331,7 +3331,7 @@ export default async function MediaDetailPage({
           ) : null}
 
           {media.credits.length > spotlightCredits.length ? (
-            <section className="section-stack" style={{ paddingTop: 0 }}>
+            <section id="detail-credits" className="section-stack" style={{ paddingTop: 0 }}>
               <div className="info-panel glass">
                 <p className="eyebrow">Full credits</p>
                 <div className="credit-list">
@@ -3351,7 +3351,7 @@ export default async function MediaDetailPage({
             </section>
           ) : null}
 
-          <section className="section-stack" style={{ paddingTop: 0 }}>
+          <section id="detail-friends" className="section-stack" style={{ paddingTop: 0 }}>
             <div className="info-panel glass">
               <p className="eyebrow">Friends activity</p>
               <h2 className="headline" style={{ marginTop: 6 }}>
@@ -3427,8 +3427,9 @@ export default async function MediaDetailPage({
           </section>
           */}
 
+          <section id="detail-related" className="section-stack" style={{ paddingTop: 0 }}>
           <Suspense fallback={
-            <div className="section-stack" style={{ paddingTop: 0 }}>
+            <div>
               <div className="section-header">
                 <div>
                   <p className="eyebrow">Related context</p>
@@ -3439,6 +3440,7 @@ export default async function MediaDetailPage({
           }>
             <DeferredRelatedRail media={media} franchiseSection={franchiseSection} />
           </Suspense>
+          </section>
         </main>
       </div>
     </div>
