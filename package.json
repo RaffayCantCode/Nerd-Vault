@@ -5,8 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "preview": "npx opennextjs-cloudflare@1.19.11 build && npx opennextjs-cloudflare@1.19.11 preview",
+    "deploy": "npx opennextjs-cloudflare@1.19.11 build && npx opennextjs-cloudflare@1.19.11 deploy",
+    "cf:build": "npx opennextjs-cloudflare@1.19.11 build",
     "start": "next start",
     "lint": "tsc --noEmit",
     "clean": "node -e \"const fs=require('fs');['.next','tsconfig.tsbuildinfo'].forEach((p)=>fs.rmSync(p,{recursive:true,force:true}));\"",
@@ -22,20 +23,18 @@
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",
     "lucide-react": "^0.511.0",
-    "next": "^16.0.0",
+    "next": "16.2.4",
     "next-auth": "^5.0.0-beta.29",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "zod": "^3.24.4"
   },
   "devDependencies": {
-    "@opennextjs/cloudflare": "^1.19.11",
     "@types/node": "^22.15.3",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "docx": "^9.6.1",
     "prisma": "^6.7.0",
-    "typescript": "^5.8.3",
-    "wrangler": "^4.93.1"
+    "typescript": "^5.8.3"
   }
 }

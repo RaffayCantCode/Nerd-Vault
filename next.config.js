@@ -54,5 +54,9 @@ const nextConfig = {
 
 module.exports = nextConfig;
 
-const { initOpenNextCloudflareForDev } = require("@opennextjs/cloudflare");
-initOpenNextCloudflareForDev();
+try {
+  const { initOpenNextCloudflareForDev } = require("@opennextjs/cloudflare");
+  initOpenNextCloudflareForDev();
+} catch {
+  // Optional: install @opennextjs/cloudflare locally for Workers bindings in `next dev`
+}
