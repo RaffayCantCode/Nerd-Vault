@@ -59,6 +59,7 @@ if (googleConfigured) {
 }
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: true,
   adapter: PrismaAdapter(prisma),
   session: {
     // Credentials auth is most reliable with JWT strategy.

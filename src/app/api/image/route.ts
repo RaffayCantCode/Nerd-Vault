@@ -47,8 +47,8 @@ export async function GET(request: NextRequest) {
 
   try {
     const upstream = await fetch(normalized.toString(), {
+      method: "HEAD",
       headers: {
-        Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
         "User-Agent": "Mozilla/5.0 NerdVault/1.0",
       },
       next: { revalidate: 21600 },
@@ -61,13 +61,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const contentType = upstream.headers.get("content-type") ?? "image/jpeg";
-    const contentLength = upstream.headers.get("content-length");
-
-    return new NextResponse(upstream.body, {
+    return NextResponse.redirect(normalized.toString(), {
+      status: 307,
       headers: {
-        "Content-Type": contentType,
-        ...(contentLength ? { "Content-Length": contentLength } : {}),
         "Cache-Control": "public, max-age=21600, s-maxage=21600, stale-while-revalidate=86400",
       },
     });

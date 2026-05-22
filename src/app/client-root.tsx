@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { ActionFeedbackContainer } from "@/components/action-feedback";
 import { PerformanceOptimizer } from "@/components/performance-optimizer";
 import { RoutePrefetcher } from "@/components/route-prefetcher";
+import { ScrollManager } from "@/components/scroll-manager";
 
 export function ClientRoot({ 
   children,
@@ -14,6 +15,7 @@ export function ClientRoot({
 }) {
   return (
     <body className={`${fontVariable}`} style={{ ["--font-display" as string]: "var(--font-sans)" }}>
+      <ScrollManager />
       <PerformanceOptimizer />
       <RoutePrefetcher />
       <Suspense fallback={null}>{children}</Suspense>

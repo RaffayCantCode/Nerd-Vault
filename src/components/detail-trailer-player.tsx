@@ -54,11 +54,12 @@ function buildEmbedUrl(
   trailerUrl: string,
   id: string,
   quality: TrailerQuality,
+  muted: boolean,
 ) {
   if (provider === "youtube" && id) {
     const params = new URLSearchParams({
       autoplay: "1",
-      mute: "1",
+      mute: muted ? "1" : "0",
       controls: "1",
       rel: "0",
       playsinline: "1",
@@ -77,7 +78,7 @@ function buildEmbedUrl(
   if (provider === "dailymotion" && id) {
     const params = new URLSearchParams({
       autoplay: "1",
-      mute: "1",
+      mute: muted ? "1" : "0",
       queue_enable: "0",
     });
     return `https://www.dailymotion.com/embed/video/${id}?${params.toString()}`;
@@ -90,14 +91,15 @@ export function DetailTrailerPlayer({ title, trailerUrl, sourceUrl }: DetailTrai
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const sectionRef = useRef<HTMLElement | null>(null);
   const [quality, setQuality] = useState<TrailerQuality>("auto");
+  const [muted, setMuted] = useState(true);
   const [hasError, setHasError] = useState(false);
   
   const parsedTrailer = useMemo(() => parseTrailer(trailerUrl), [trailerUrl]);
   const provider = parsedTrailer?.provider ?? "unknown";
   const fallbackUrl = parsedTrailer?.watchUrl || sourceUrl || trailerUrl;
   const embedUrl = useMemo(
-    () => buildEmbedUrl(provider, trailerUrl, parsedTrailer?.id ?? "", quality),
-    [parsedTrailer?.id, provider, quality, trailerUrl],
+    () => buildEmbedUrl(provider, trailerUrl, parsedTrailer?.id ?? "", quality, muted),
+    [parsedTrailer?.id, provider, quality, muted, trailerUrl],
   );
   const supportsQualitySelection = provider === "youtube";
 
@@ -134,6 +136,19 @@ export function DetailTrailerPlayer({ title, trailerUrl, sourceUrl }: DetailTrai
       "*",
     );
   }, [quality, supportsQualitySelection]);
+
+  useEffect(() => {
+    if (!iframeRef.current) return;
+
+    iframeRef.current.contentWindow?.postMessage(
+      JSON.stringify({
+        event: "command",
+        func: muted ? "mute" : "unMute",
+        args: [],
+      }),
+      "*",
+    );
+  }, [muted]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !sectionRef.current || !iframeRef.current) {
@@ -200,23 +215,46 @@ export function DetailTrailerPlayer({ title, trailerUrl, sourceUrl }: DetailTrai
       </div>
 
       <div className="detail-trailer-footer">
-        {supportsQualitySelection ? (
-          <div className="detail-trailer-quality-row">
-            <span className="quality-label">Quality</span>
-            <div className="detail-trailer-quality-pills" role="group" aria-label="Trailer quality">
-              {QUALITY_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  className={`quality-pill ${quality === option.value ? "is-active" : ""}`}
-                  onClick={() => setQuality(option.value)}
-                >
-                  {option.label}
-                </button>
-              ))}
+        <div className="detail-trailer-controls-left">
+          {supportsQualitySelection ? (
+            <div className="detail-trailer-quality-row">
+              <span className="quality-label">Quality</span>
+              <div className="detail-trailer-quality-pills" role="group" aria-label="Trailer quality">
+                {QUALITY_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={`quality-pill ${quality === option.value ? "is-active" : ""}`}
+                    onClick={() => setQuality(option.value)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        ) : null}
+          ) : null}
+
+          <button
+            type="button"
+            className={`mute-toggle ${muted ? "is-muted" : "is-unmuted"}`}
+            onClick={() => setMuted((prev) => !prev)}
+            aria-label={muted ? "Unmute" : "Mute"}
+          >
+            {muted ? (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 5L6 9H2v6h4l5 4V5z" />
+                <line x1="23" y1="9" x2="17" y2="15" />
+                <line x1="17" y1="9" x2="23" y2="15" />
+              </svg>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 5L6 9H2v6h4l5 4V5z" />
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+              </svg>
+            )}
+          </button>
+        </div>
 
         <div className="detail-trailer-actions">
           <a href={fallbackUrl} target="_blank" rel="noreferrer" className="button button-secondary button-small">

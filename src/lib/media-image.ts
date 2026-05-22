@@ -2,7 +2,7 @@ export type MediaImageIntent = "thumb" | "cover" | "backdrop" | "gallery" | "lig
 
 // Optimized sizes for faster loading
 const TMDB_SIZES: Record<MediaImageIntent, string> = {
-  thumb: "w342",
+  thumb: "w154",
   cover: "w780",
   backdrop: "original",
   gallery: "w1280",
