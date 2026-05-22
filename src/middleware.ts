@@ -17,8 +17,7 @@ import { NextResponse } from "next/server";
  * them while a Google sign-in flow is in progress causes the
  * "InvalidCheck: pkceCodeVerifier value could not be parsed" server error.
  *
- * Uses middleware.ts (Edge) instead of proxy.ts (Node) for @opennextjs/cloudflare.
- * @see https://github.com/opennextjs/opennextjs-cloudflare/issues/962
+ * Cleans up stale session-token chunk cookies accumulated from failed logins.
  */
 const CHUNKED_SESSION_TOKEN_RE =
   /^(?:__Secure-|__Host-)?(?:authjs|next-auth)\.session-token\.\d+$/;
