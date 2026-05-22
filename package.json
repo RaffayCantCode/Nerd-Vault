@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "start": "next start",
     "lint": "tsc --noEmit",
     "clean": "node -e \"const fs=require('fs');['.next','tsconfig.tsbuildinfo'].forEach((p)=>fs.rmSync(p,{recursive:true,force:true}));\"",
@@ -27,11 +29,13 @@
     "zod": "^3.24.4"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "^1.19.11",
     "@types/node": "^22.15.3",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "docx": "^9.6.1",
     "prisma": "^6.7.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "wrangler": "^4.93.1"
   }
 }

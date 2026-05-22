@@ -10,17 +10,20 @@ import { NextResponse } from "next/server";
  *   __Secure-authjs.session-token.20
  *
  * These chunks from previous/failed logins accumulate and add up to 80+ KB of
- * Cookie headers, causing Vercel's 494 REQUEST_HEADER_TOO_LARGE error.
+ * Cookie headers, causing REQUEST_HEADER_TOO_LARGE errors at the edge.
  *
  * NOTE: We intentionally do NOT delete transient OAuth cookies (pkce, state,
  * nonce, csrf, callback-url). Those are tiny, expire in minutes, and deleting
  * them while a Google sign-in flow is in progress causes the
  * "InvalidCheck: pkceCodeVerifier value could not be parsed" server error.
+ *
+ * Uses middleware.ts (Edge) instead of proxy.ts (Node) for @opennextjs/cloudflare.
+ * @see https://github.com/opennextjs/opennextjs-cloudflare/issues/962
  */
 const CHUNKED_SESSION_TOKEN_RE =
   /^(?:__Secure-|__Host-)?(?:authjs|next-auth)\.session-token\.\d+$/;
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const chunkedCookies = request.cookies
     .getAll()
     .filter((c) => CHUNKED_SESSION_TOKEN_RE.test(c.name));
@@ -36,7 +39,6 @@ export function proxy(request: NextRequest) {
       value: "",
       maxAge: 0,
       path: "/",
-      // Mirror the security flags so the browser accepts the deletion.
       secure: request.nextUrl.protocol === "https:",
       httpOnly: true,
       sameSite: "lax",
