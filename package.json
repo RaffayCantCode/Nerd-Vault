@@ -5,9 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "preview": "npx opennextjs-cloudflare@1.19.11 build && npx opennextjs-cloudflare@1.19.11 preview",
-    "deploy": "npx opennextjs-cloudflare@1.19.11 build && npx opennextjs-cloudflare@1.19.11 deploy",
-    "cf:build": "npx opennextjs-cloudflare@1.19.11 build",
+    "preview": "npx @opennextjs/cloudflare@1.19.11 build && npx @opennextjs/cloudflare@1.19.11 preview",
+    "deploy": "npx @opennextjs/cloudflare@1.19.11 build && npx @opennextjs/cloudflare@1.19.11 deploy",
+    "cf:build": "npx @opennextjs/cloudflare@1.19.11 build",
     "start": "next start",
     "lint": "tsc --noEmit",
     "clean": "node -e \"const fs=require('fs');['.next','tsconfig.tsbuildinfo'].forEach((p)=>fs.rmSync(p,{recursive:true,force:true}));\"",
