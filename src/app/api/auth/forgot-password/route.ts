@@ -37,7 +37,8 @@ export async function POST(request: NextRequest) {
     await sendPasswordResetEmail(normalizedEmail, resetLink);
 
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (e) {
+    console.error("forgot-password error:", e);
     return NextResponse.json({ error: "Something went wrong. Try again later." }, { status: 500 });
   }
 }
