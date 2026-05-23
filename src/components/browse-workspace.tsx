@@ -589,19 +589,19 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
           </p>
         </div>
         <div className="pager-actions">
-          <button type="button" className="chip" disabled={payload.page <= 1 || isLoading} onClick={() => handlePageChange(payload.page - 1)}>
+          <button type="button" className="chip" disabled={activePage <= 1 || isLoading} onClick={() => handlePageChange(activePage - 1)}>
             Previous page
           </button>
           <div className="page-indicator">
-            <span>{payload.page}</span>
-            <span>/</span>
-            <span>{payload.totalPages}</span>
+            <span className="page-indicator-current">{activePage}</span>
+            <span className="page-indicator-slash">/</span>
+            <span className="page-indicator-total">{payload.totalPages}</span>
           </div>
           <button
             type="button"
             className="chip is-active"
-            disabled={payload.page >= payload.totalPages || isLoading}
-            onClick={() => handlePageChange(payload.page + 1)}
+            disabled={activePage >= payload.totalPages || isLoading}
+            onClick={() => handlePageChange(activePage + 1)}
           >
             Next page
           </button>

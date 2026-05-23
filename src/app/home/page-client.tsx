@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect } from "react";
 import Link from "next/link";
-import { signInWithCredentials } from "@/app/sign-in/actions";
+import { signInWithCredentials, signInWithGoogle } from "@/app/sign-in/actions";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopBar } from "@/components/app-topbar";
 import { HomeWorkspace } from "@/components/home-workspace";
@@ -152,9 +152,8 @@ function GuestHomeContent() {
                 <div className="auth-divider">
                   <span>or</span>
                 </div>
-                <form action="/api/auth/signin/google" method="POST">
+                <form action={signInWithGoogle}>
                   <input type="hidden" name="redirectTo" value="/home" />
-                  <input type="hidden" name="callbackUrl" value="/home" />
                   <button type="submit" className="button button-secondary auth-google-button" disabled={!googleReady}>
                     {googleReady ? "Continue with Google" : "Google sign-in not available"}
                   </button>

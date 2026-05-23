@@ -5,7 +5,7 @@ import { BrowseWorkspace } from "@/components/browse-workspace";
 import { VaultClientPrimer } from "@/components/vault-client-primer";
 import { getLibraryStateForUser, getViewerShellData } from "@/lib/vault-server";
 
-const INITIAL_BROWSE_TOTAL_PAGES = 1;
+const INITIAL_BROWSE_TOTAL_PAGES = 50;
 
 export default async function BrowsePage() {
   const discoverySeed = getBrowseDiscoverySeed();
