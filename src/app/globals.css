@@ -2702,6 +2702,23 @@ input {
   width: 100%;
 }
 
+.auth-alt-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 18px;
+}
+
+.auth-forgot-link {
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.auth-forgot-link:hover {
+  color: var(--gold);
+}
+
 .auth-screen-signin {
   min-height: calc(100svh - 100px);
   padding-top: clamp(1.25rem, 3vw, 2rem);

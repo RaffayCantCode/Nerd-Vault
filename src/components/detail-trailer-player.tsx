@@ -54,12 +54,11 @@ function buildEmbedUrl(
   trailerUrl: string,
   id: string,
   quality: TrailerQuality,
-  muted: boolean,
 ) {
   if (provider === "youtube" && id) {
     const params = new URLSearchParams({
       autoplay: "1",
-      mute: muted ? "1" : "0",
+      mute: "1",
       controls: "1",
       rel: "0",
       playsinline: "1",
@@ -78,7 +77,7 @@ function buildEmbedUrl(
   if (provider === "dailymotion" && id) {
     const params = new URLSearchParams({
       autoplay: "1",
-      mute: muted ? "1" : "0",
+      mute: "1",
       queue_enable: "0",
     });
     return `https://www.dailymotion.com/embed/video/${id}?${params.toString()}`;
@@ -98,8 +97,8 @@ export function DetailTrailerPlayer({ title, trailerUrl, sourceUrl }: DetailTrai
   const provider = parsedTrailer?.provider ?? "unknown";
   const fallbackUrl = parsedTrailer?.watchUrl || sourceUrl || trailerUrl;
   const embedUrl = useMemo(
-    () => buildEmbedUrl(provider, trailerUrl, parsedTrailer?.id ?? "", quality, muted),
-    [parsedTrailer?.id, provider, quality, muted, trailerUrl],
+    () => buildEmbedUrl(provider, trailerUrl, parsedTrailer?.id ?? "", quality),
+    [parsedTrailer?.id, provider, quality, trailerUrl],
   );
   const supportsQualitySelection = provider === "youtube";
 

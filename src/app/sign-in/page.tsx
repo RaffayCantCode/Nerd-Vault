@@ -1,7 +1,6 @@
 import { signInWithCredentials, signUpWithCredentials } from "@/app/sign-in/actions";
 import { headers } from "next/headers";
 import { SiteHeader } from "@/components/site-header";
-import { ClearAuthCookiesButton } from "@/components/clear-auth-cookies-button";
 import { GoogleSignInForm } from "@/components/google-sign-in-form";
 
 type SignInPageProps = {
@@ -165,8 +164,8 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
             </p>
             <GoogleSignInForm redirectTo={redirectTo} disabled={!googleReady} />
 
-            <div style={{ marginTop: 18 }}>
-              <ClearAuthCookiesButton />
+            <div className="auth-alt-actions">
+              <a href="/forgot-password" className="auth-forgot-link">Forgot password?</a>
             </div>
           </div>
         </section>

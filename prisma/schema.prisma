@@ -245,6 +245,15 @@ model VerificationToken {
   @@id([identifier, token])
 }
 
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expires   DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
 enum MediaType {
   movie
   show

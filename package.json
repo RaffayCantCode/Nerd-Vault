@@ -10,13 +10,14 @@
     "clean": "node -e \"const fs=require('fs');['.next','tsconfig.tsbuildinfo'].forEach((p)=>fs.rmSync(p,{recursive:true,force:true}));\"",
     "clean:deep": "node -e \"const fs=require('fs');['.next','tsconfig.tsbuildinfo','node_modules'].forEach((p)=>fs.rmSync(p,{recursive:true,force:true}));\"",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev"
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:push": "prisma db push",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
     "@prisma/adapter-pg": "^6.7.0",
     "@prisma/client": "^6.7.0",
-    "pg": "^8.16.0",
     "@types/canvas-confetti": "^1.9.0",
     "bcryptjs": "^3.0.3",
     "canvas-confetti": "^1.9.4",
@@ -24,12 +25,15 @@
     "lucide-react": "^0.511.0",
     "next": "16.2.6",
     "next-auth": "^5.0.0-beta.29",
+    "nodemailer": "^6.10.1",
+    "pg": "^8.16.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "zod": "^3.24.4"
   },
   "devDependencies": {
     "@types/node": "^22.15.3",
+    "@types/nodemailer": "^8.0.0",
     "@types/pg": "^8.11.14",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
