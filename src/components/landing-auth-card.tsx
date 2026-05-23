@@ -1,4 +1,4 @@
-import { signInWithCredentials, signInWithGoogle } from "@/app/sign-in/actions";
+import { signInWithCredentials } from "@/app/sign-in/actions";
 import { LandingFeatureCarousel } from "@/components/landing-feature-carousel";
 
 export function LandingAuthCard({ isSignedIn }: { isSignedIn: boolean }) {
@@ -38,7 +38,9 @@ export function LandingAuthCard({ isSignedIn }: { isSignedIn: boolean }) {
             </button>
           </div>
         </form>
-        <form action={signInWithGoogle} style={{ marginTop: 12 }}>
+        <form action="/api/auth/signin/google" method="POST" style={{ marginTop: 12 }}>
+          <input type="hidden" name="redirectTo" value="/home" />
+          <input type="hidden" name="callbackUrl" value="/home" />
           <button type="submit" className="button button-secondary">
             Continue with Google
           </button>

@@ -6,7 +6,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { credentialsSignInSchema, credentialsSignUpSchema, normalizeEmail } from "@/lib/auth-credentials";
-import { getAuthCookiesToDelete, OAUTH_TRANSIENT_COOKIE_NAMES } from "@/lib/auth-cookies";
+import { getAuthCookiesToDelete } from "@/lib/auth-cookies";
 import { signIn } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -21,34 +21,6 @@ function sanitizeRedirectTo(value: FormDataEntryValue | null | undefined) {
   }
 
   return trimmed || "/";
-}
-
-export async function signInWithGoogle(formData?: FormData) {
-  if (!process.env.AUTH_GOOGLE_ID || !process.env.AUTH_GOOGLE_SECRET || !process.env.AUTH_SECRET) {
-    redirect("/sign-in?mode=login&error=google-not-configured");
-  }
-
-  const cookieStore = await cookies();
-  const cookieNames = cookieStore.getAll().map((cookie) => cookie.name);
-  const staleAuthCookies = getAuthCookiesToDelete(cookieNames);
-
-  for (const cookieName of new Set([...OAUTH_TRANSIENT_COOKIE_NAMES, ...staleAuthCookies])) {
-    cookieStore.delete(cookieName);
-  }
-
-  const redirectTo = sanitizeRedirectTo(formData?.get("redirectTo"));
-  // Store destination in a lightweight short-lived cookie instead of the OAuth state
-  // to avoid REQUEST_HEADER_TOO_LARGE on Vercel.
-  // We set it as non-httpOnly so the client can read it after OAuth callback.
-  cookieStore.set("nv.redirect-to", redirectTo, {
-    httpOnly: false,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 5,
-    secure: process.env.NODE_ENV === "production",
-  });
-
-  await signIn("google", { redirectTo: "/" });
 }
 
 export async function signUpWithCredentials(formData: FormData) {

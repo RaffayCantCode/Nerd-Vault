@@ -19,7 +19,7 @@ async function validate() {
   // 2. Verify sign-in actions import without crashing
   try {
     const actionsMod = await import("../src/app/sign-in/actions");
-    if (!actionsMod.signInWithGoogle || !actionsMod.signInWithCredentials || !actionsMod.signUpWithCredentials) {
+    if (!actionsMod.signInWithCredentials || !actionsMod.signUpWithCredentials) {
       issues.push("Sign-in actions are incomplete");
     }
   } catch (error) {
