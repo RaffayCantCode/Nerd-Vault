@@ -118,9 +118,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         });
       }
     },
-    async signInError({ error }) {
-      console.error("[auth] signInError", error);
-    },
   },
   callbacks: {
     async signIn({ user, account }) {

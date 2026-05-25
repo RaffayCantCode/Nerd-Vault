@@ -277,14 +277,20 @@ export function DetailTrailerPlayer({ title, trailerUrl, sourceUrl }: DetailTrai
     }
 
     function syncTrailerScale() {
-      const width = shell.clientWidth;
-      const height = shell.clientHeight;
+      const frame = frameShellRef.current;
+      const playerHost = playerHostRef.current;
+      if (!frame || !playerHost) {
+        return;
+      }
+
+      const width = frame.clientWidth;
+      const height = frame.clientHeight;
       if (!width || !height) {
         return;
       }
 
       const scale = Math.min(width / YOUTUBE_PLAYER_WIDTH, height / YOUTUBE_PLAYER_HEIGHT, 1);
-      host.style.setProperty("--trailer-scale", scale.toFixed(4));
+      playerHost.style.setProperty("--trailer-scale", scale.toFixed(4));
     }
 
     syncTrailerScale();

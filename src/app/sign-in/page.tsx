@@ -44,7 +44,7 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
   OAuthCreateAccount: "Could not create your account in the database. Verify DATABASE_URL and run prisma db push.",
   CallbackRouteError: "Auth callback crashed on the server. Check Netlify logs for Prisma/database errors.",
   InvalidCheck: "OAuth security check failed (PKCE/state). Clear cookies for nerdvault.site and try again.",
-  google-not-configured: "Google sign-in is not configured in environment variables.",
+  "google-not-configured": "Google sign-in is not configured in environment variables.",
   "google-sign-in-failed": "Google sign-in failed before redirecting to Google.",
 };
 
