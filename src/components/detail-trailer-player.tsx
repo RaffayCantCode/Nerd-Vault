@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { loadYoutubeIframeApi, type YoutubePlayerInstance } from "@/lib/youtube-iframe-api";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type DetailTrailerPlayerProps = {
   title: string;
@@ -10,20 +9,34 @@ type DetailTrailerPlayerProps = {
 };
 
 type TrailerProvider = "youtube" | "dailymotion" | "unknown";
-type TrailerQuality = "auto" | "hd1080" | "hd720" | "large" | "medium";
-
-const YOUTUBE_PLAYER_WIDTH = 1920;
-const YOUTUBE_PLAYER_HEIGHT = 1080;
+type TrailerQuality = "auto" | "highres" | "hd1080" | "hd720" | "large" | "medium";
 
 const QUALITY_OPTIONS: Array<{ value: TrailerQuality; label: string }> = [
-  { value: "auto", label: "Auto" },
+  { value: "highres", label: "Best" },
   { value: "hd1080", label: "1080p" },
   { value: "hd720", label: "720p" },
   { value: "large", label: "480p" },
   { value: "medium", label: "360p" },
+  { value: "auto", label: "Auto" },
 ];
 
-const LOW_QUALITY_LEVELS = new Set(["small", "medium", "large", "tiny"]);
+const YOUTUBE_QUALITY: Record<TrailerQuality, string> = {
+  auto: "auto",
+  highres: "highres",
+  hd1080: "hd1080",
+  hd720: "hd720",
+  large: "large",
+  medium: "medium",
+};
+
+const DAILYMOTION_QUALITY: Record<TrailerQuality, string> = {
+  auto: "auto",
+  highres: "1080",
+  hd1080: "1080",
+  hd720: "720",
+  large: "480",
+  medium: "380",
+};
 
 function parseTrailer(trailerUrl: string) {
   try {
@@ -34,9 +47,14 @@ function parseTrailer(trailerUrl: string) {
       return id ? { provider: "youtube" as const, id, watchUrl: `https://www.youtube.com/watch?v=${id}` } : null;
     }
 
-    if (parsed.hostname.includes("youtube.com")) {
+    if (parsed.hostname.includes("youtube.com") || parsed.hostname.includes("youtube-nocookie.com")) {
       if (parsed.pathname.includes("/embed/")) {
         const id = parsed.pathname.split("/embed/")[1]?.split("/")[0];
+        return id ? { provider: "youtube" as const, id, watchUrl: `https://www.youtube.com/watch?v=${id}` } : null;
+      }
+
+      if (parsed.pathname.includes("/shorts/")) {
+        const id = parsed.pathname.split("/shorts/")[1]?.split("/")[0];
         return id ? { provider: "youtube" as const, id, watchUrl: `https://www.youtube.com/watch?v=${id}` } : null;
       }
 
@@ -44,8 +62,18 @@ function parseTrailer(trailerUrl: string) {
       return id ? { provider: "youtube" as const, id, watchUrl: `https://www.youtube.com/watch?v=${id}` } : null;
     }
 
+    if (parsed.hostname.includes("dai.ly")) {
+      const id = parsed.pathname.replace("/", "").split("/")[0];
+      return id ? { provider: "dailymotion" as const, id, watchUrl: `https://www.dailymotion.com/video/${id}` } : null;
+    }
+
     if (parsed.hostname.includes("dailymotion.com") && parsed.pathname.includes("/embed/video/")) {
       const id = parsed.pathname.split("/embed/video/")[1]?.split("/")[0];
+      return id ? { provider: "dailymotion" as const, id, watchUrl: `https://www.dailymotion.com/video/${id}` } : null;
+    }
+
+    if (parsed.hostname.includes("dailymotion.com") && parsed.pathname.includes("/video/")) {
+      const id = parsed.pathname.split("/video/")[1]?.split("/")[0];
       return id ? { provider: "dailymotion" as const, id, watchUrl: `https://www.dailymotion.com/video/${id}` } : null;
     }
 
@@ -55,231 +83,101 @@ function parseTrailer(trailerUrl: string) {
   }
 }
 
-function buildDailymotionEmbedUrl(id: string) {
+function resolveYoutubePlaybackQuality(quality: TrailerQuality) {
+  const preferredQuality = YOUTUBE_QUALITY[quality];
+  return preferredQuality === "auto" ? "default" : preferredQuality;
+}
+
+function postYoutubeCommand(iframe: HTMLIFrameElement | null, func: string, args: unknown[] = []) {
+  if (!iframe?.contentWindow) {
+    return;
+  }
+
+  iframe.contentWindow.postMessage(
+    JSON.stringify({
+      event: "command",
+      func,
+      args,
+    }),
+    "https://www.youtube.com",
+  );
+}
+
+function buildYoutubeEmbedUrl(videoId: string) {
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const params = new URLSearchParams({
+    autoplay: "1",
+    mute: "1",
+    controls: "1",
+    rel: "0",
+    playsinline: "1",
+    modestbranding: "1",
+    iv_load_policy: "3",
+    fs: "1",
+    enablejsapi: "1",
+    vq: "highres",
+    hd: "1",
+  });
+
+  if (origin) {
+    params.set("origin", origin);
+    params.set("widget_referrer", origin);
+  }
+
+  return `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
+}
+
+function buildDailymotionEmbedUrl(id: string, quality: TrailerQuality) {
   const params = new URLSearchParams({
     autoplay: "1",
     mute: "1",
     queue_enable: "0",
     "ui-start-screen-info": "0",
+    quality: DAILYMOTION_QUALITY[quality],
   });
   return `https://www.dailymotion.com/embed/video/${id}?${params.toString()}`;
-}
-
-function qualityToYoutubeLevel(quality: TrailerQuality) {
-  if (quality === "auto") {
-    return "hd1080";
-  }
-  return quality;
-}
-
-function applyYoutubeQuality(player: YoutubePlayerInstance, quality: TrailerQuality) {
-  const target = qualityToYoutubeLevel(quality);
-  try {
-    player.setPlaybackQuality(target);
-  } catch {
-    // YouTube may ignore this on some devices; reload fallback handles those cases.
-  }
-}
-
-function readYoutubeQuality(player: YoutubePlayerInstance) {
-  try {
-    return player.getPlaybackQuality();
-  } catch {
-    return "";
-  }
 }
 
 export function DetailTrailerPlayer({ title, trailerUrl, sourceUrl }: DetailTrailerPlayerProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const frameShellRef = useRef<HTMLDivElement | null>(null);
-  const playerHostRef = useRef<HTMLDivElement | null>(null);
-  const playerRef = useRef<YoutubePlayerInstance | null>(null);
   const sectionRef = useRef<HTMLElement | null>(null);
-  const qualityRef = useRef<TrailerQuality>("hd1080");
-  const appliedQualityRef = useRef<TrailerQuality | null>(null);
 
-  const [quality, setQuality] = useState<TrailerQuality>("hd1080");
+  const [quality, setQuality] = useState<TrailerQuality>("highres");
   const [muted, setMuted] = useState(true);
   const [hasError, setHasError] = useState(false);
-  const [playerReady, setPlayerReady] = useState(false);
 
   const parsedTrailer = useMemo(() => parseTrailer(trailerUrl), [trailerUrl]);
   const provider = parsedTrailer?.provider ?? "unknown";
-  const fallbackUrl = parsedTrailer?.watchUrl || sourceUrl || trailerUrl;
-  const supportsQualitySelection = provider === "youtube";
+  const fallbackUrl = parsedTrailer?.watchUrl || trailerUrl || sourceUrl;
+  const supportsQualitySelection = provider === "youtube" || provider === "dailymotion";
   const videoId = parsedTrailer?.id ?? "";
 
-  const dailymotionEmbedUrl = useMemo(() => {
-    if (provider !== "dailymotion" || !videoId) {
-      return trailerUrl;
+  const embedUrl = useMemo(() => {
+    if (provider === "youtube" && videoId) {
+      return buildYoutubeEmbedUrl(videoId);
     }
-    return buildDailymotionEmbedUrl(videoId);
-  }, [provider, trailerUrl, videoId]);
-
-  qualityRef.current = quality;
-
-  const reloadYoutubeAtCurrentTime = useCallback(
-    (player: YoutubePlayerInstance, targetQuality: TrailerQuality) => {
-      if (!videoId) {
-        return;
-      }
-
-      const startSeconds = Math.max(0, Math.floor(player.getCurrentTime?.() ?? 0));
-      player.loadVideoById({
-        videoId,
-        startSeconds,
-      });
-
-      window.setTimeout(() => {
-        applyYoutubeQuality(player, targetQuality);
-      }, 250);
-      window.setTimeout(() => {
-        applyYoutubeQuality(player, targetQuality);
-      }, 900);
-    },
-    [videoId],
-  );
-
-  const ensureHighQuality = useCallback(
-    (player: YoutubePlayerInstance, preferred: TrailerQuality) => {
-      if (preferred === "auto") {
-        applyYoutubeQuality(player, "hd1080");
-        return;
-      }
-
-      applyYoutubeQuality(player, preferred);
-
-      const current = readYoutubeQuality(player);
-      if (preferred === "hd1080" && current && LOW_QUALITY_LEVELS.has(current)) {
-        reloadYoutubeAtCurrentTime(player, preferred);
-      }
-    },
-    [reloadYoutubeAtCurrentTime],
-  );
+    if (provider === "dailymotion" && videoId) {
+      return buildDailymotionEmbedUrl(videoId, quality);
+    }
+    return trailerUrl;
+  }, [provider, quality, trailerUrl, videoId]);
 
   useEffect(() => {
-    if (provider !== "youtube" || !videoId || !playerHostRef.current) {
-      return;
-    }
-
-    let cancelled = false;
-    setPlayerReady(false);
     setHasError(false);
-    appliedQualityRef.current = null;
-
-    loadYoutubeIframeApi()
-      .then((YT) => {
-        if (cancelled || !playerHostRef.current) {
-          return;
-        }
-
-        playerRef.current?.destroy();
-        playerHostRef.current.innerHTML = "";
-
-        const origin = window.location.origin;
-        const player = new YT.Player(playerHostRef.current, {
-          videoId,
-          width: YOUTUBE_PLAYER_WIDTH,
-          height: YOUTUBE_PLAYER_HEIGHT,
-          playerVars: {
-            autoplay: 1,
-            controls: 1,
-            rel: 0,
-            playsinline: 1,
-            modestbranding: 1,
-            iv_load_policy: 3,
-            fs: 1,
-            origin,
-            enablejsapi: 1,
-          },
-          events: {
-            onReady: (event) => {
-              if (cancelled) {
-                return;
-              }
-              setPlayerReady(true);
-              event.target.mute();
-              ensureHighQuality(event.target, qualityRef.current);
-              event.target.playVideo();
-            },
-            onStateChange: (event) => {
-              if (cancelled || event.data !== YT.PlayerState.PLAYING) {
-                return;
-              }
-              ensureHighQuality(event.target, qualityRef.current);
-            },
-            onError: () => {
-              if (!cancelled) {
-                setHasError(true);
-              }
-            },
-          },
-        });
-
-        playerRef.current = player;
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setHasError(true);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-      setPlayerReady(false);
-      playerRef.current?.destroy();
-      playerRef.current = null;
-      if (playerHostRef.current) {
-        playerHostRef.current.innerHTML = "";
-      }
-    };
-  }, [ensureHighQuality, provider, videoId]);
-
-  useEffect(() => {
-    const player = playerRef.current;
-    if (!playerReady || !player || provider !== "youtube") {
-      return;
-    }
-
-    if (appliedQualityRef.current === null) {
-      appliedQualityRef.current = quality;
-      return;
-    }
-
-    if (appliedQualityRef.current === quality) {
-      return;
-    }
-
-    appliedQualityRef.current = quality;
-    reloadYoutubeAtCurrentTime(player, quality);
-  }, [playerReady, provider, quality, reloadYoutubeAtCurrentTime]);
-
-  useEffect(() => {
-    const player = playerRef.current;
-    if (!playerReady || !player) {
-      return;
-    }
-
-    if (muted) {
-      player.mute();
-      return;
-    }
-
-    player.unMute();
-    ensureHighQuality(player, qualityRef.current);
-  }, [ensureHighQuality, muted, playerReady]);
+  }, [trailerUrl, videoId]);
 
   useEffect(() => {
     const shell = frameShellRef.current;
-    const host = playerHostRef.current;
-    if (!shell || !host) {
+    const iframe = iframeRef.current;
+    if (!shell || !iframe) {
       return;
     }
 
     function syncTrailerScale() {
       const frame = frameShellRef.current;
-      const playerHost = playerHostRef.current;
-      if (!frame || !playerHost) {
+      const target = iframeRef.current;
+      if (!frame || !target) {
         return;
       }
 
@@ -289,15 +187,34 @@ export function DetailTrailerPlayer({ title, trailerUrl, sourceUrl }: DetailTrai
         return;
       }
 
-      const scale = Math.min(width / YOUTUBE_PLAYER_WIDTH, height / YOUTUBE_PLAYER_HEIGHT, 1);
-      playerHost.style.setProperty("--trailer-scale", scale.toFixed(4));
+      const scale = Math.min(width / 1920, height / 1080, 1);
+      target.style.setProperty("--trailer-scale", scale.toFixed(4));
     }
 
     syncTrailerScale();
     const observer = new ResizeObserver(syncTrailerScale);
     observer.observe(shell);
     return () => observer.disconnect();
-  }, [provider, videoId]);
+  }, [embedUrl]);
+
+  useEffect(() => {
+    if (provider !== "youtube") {
+      return;
+    }
+
+    const iframe = iframeRef.current;
+    if (!iframe) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      postYoutubeCommand(iframe, muted ? "mute" : "unMute", []);
+      postYoutubeCommand(iframe, "setPlaybackQuality", [resolveYoutubePlaybackQuality(quality)]);
+      postYoutubeCommand(iframe, "playVideo", []);
+    }, 220);
+
+    return () => window.clearTimeout(timer);
+  }, [embedUrl, muted, provider, quality]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !sectionRef.current) {
@@ -306,20 +223,14 @@ export function DetailTrailerPlayer({ title, trailerUrl, sourceUrl }: DetailTrai
 
     const observer = new IntersectionObserver(
       (entries) => {
-        const player = playerRef.current;
         const iframe = iframeRef.current;
         const entry = entries[0];
-
-        if (entry?.isIntersecting) {
-          player?.playVideo();
+        if (!iframe) {
           return;
         }
 
-        player?.pauseVideo();
-        iframe?.contentWindow?.postMessage(
-          JSON.stringify({ event: "command", func: "pauseVideo", args: [] }),
-          "https://www.dailymotion.com",
-        );
+        const command = entry?.isIntersecting ? "playVideo" : "pauseVideo";
+        postYoutubeCommand(iframe, command, []);
       },
       {
         threshold: 0.45,
@@ -329,11 +240,18 @@ export function DetailTrailerPlayer({ title, trailerUrl, sourceUrl }: DetailTrai
 
     observer.observe(sectionRef.current);
     return () => observer.disconnect();
-  }, [provider]);
+  }, [embedUrl]);
 
-  if (hasError || !parsedTrailer || (provider === "unknown" && !trailerUrl)) {
+  if (hasError || !parsedTrailer || !trailerUrl) {
     return null;
   }
+
+  const watchButtonLabel =
+    provider === "youtube"
+      ? "Watch on YouTube"
+      : provider === "dailymotion"
+        ? "Watch on Dailymotion"
+        : "Open trailer source";
 
   return (
     <section ref={sectionRef} className="detail-trailer-section glass">
@@ -343,21 +261,24 @@ export function DetailTrailerPlayer({ title, trailerUrl, sourceUrl }: DetailTrai
       </div>
 
       <div ref={frameShellRef} className="detail-trailer-frame-shell">
-        {provider === "youtube" ? (
-          <div ref={playerHostRef} className="detail-trailer-player-host" aria-label={`${title} trailer`} />
-        ) : (
-          <iframe
-            ref={iframeRef}
-            className="detail-trailer-frame"
-            src={dailymotionEmbedUrl}
-            title={`${title} trailer`}
-            width={YOUTUBE_PLAYER_WIDTH}
-            height={YOUTUBE_PLAYER_HEIGHT}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-            onError={() => setHasError(true)}
-          />
-        )}
+        <iframe
+          ref={iframeRef}
+          key={`${provider}-${videoId}-${embedUrl}`}
+          className="detail-trailer-frame"
+          src={embedUrl}
+          title={`${title} trailer`}
+          width={1920}
+          height={1080}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+          onLoad={() => {
+            if (provider !== "youtube") return;
+            const iframe = iframeRef.current;
+            postYoutubeCommand(iframe, muted ? "mute" : "unMute", []);
+            postYoutubeCommand(iframe, "setPlaybackQuality", [resolveYoutubePlaybackQuality(quality)]);
+          }}
+          onError={() => setHasError(true)}
+        />
       </div>
 
       <div className="detail-trailer-footer">
@@ -371,7 +292,9 @@ export function DetailTrailerPlayer({ title, trailerUrl, sourceUrl }: DetailTrai
                     key={option.value}
                     type="button"
                     className={`quality-pill ${quality === option.value ? "is-active" : ""}`}
-                    onClick={() => setQuality(option.value)}
+                    onClick={() => {
+                      setQuality(option.value);
+                    }}
                   >
                     {option.label}
                   </button>
@@ -404,7 +327,7 @@ export function DetailTrailerPlayer({ title, trailerUrl, sourceUrl }: DetailTrai
 
         <div className="detail-trailer-actions">
           <a href={fallbackUrl} target="_blank" rel="noreferrer" className="button button-secondary button-small">
-            Watch on YouTube
+            {watchButtonLabel}
           </a>
           {sourceUrl ? (
             <a href={sourceUrl} target="_blank" rel="noreferrer" className="button button-secondary button-small">

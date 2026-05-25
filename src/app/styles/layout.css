@@ -1,4 +1,4 @@
-﻿  max-width: 1120px;
+  max-width: 1120px;
   display: grid;
   grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.92fr);
   align-items: stretch;
@@ -159,8 +159,8 @@
 }
 
 .media-select:focus {
-  border-color: rgba(3, 252, 190, 0.28);
-  box-shadow: 0 0 0 4px rgba(3, 252, 190, 0.08);
+  border-color: rgba(105, 197, 172, 0.28);
+  box-shadow: 0 0 0 4px rgba(105, 197, 172, 0.08);
 }
 
 .media-select option {
@@ -323,7 +323,7 @@ body {
 
 .catalog-card.is-navigating {
   transform: scale(0.985);
-  border-color: rgba(3, 252, 190, 0.24);
+  border-color: rgba(105, 197, 172, 0.24);
   box-shadow: 0 24px 40px rgba(0, 0, 0, 0.34);
 }
 
@@ -410,10 +410,10 @@ body {
   display: grid;
   gap: 22px;
   --detail-accent: var(--gold);
-  --detail-accent-soft: rgba(3, 252, 190, 0.14);
-  --detail-glow: rgba(3, 252, 190, 0.2);
-  --detail-edge: rgba(3, 252, 190, 0.28);
-  --detail-haze: rgba(158, 135, 255, 0.14);
+  --detail-accent-soft: rgba(105, 197, 172, 0.14);
+  --detail-glow: rgba(105, 197, 172, 0.2);
+  --detail-edge: rgba(105, 197, 172, 0.28);
+  --detail-haze: rgba(30, 189, 194, 0.14);
 }
 
 .detail-hero {
@@ -939,8 +939,8 @@ body {
 }
 
 .surfacing-pill.is-active {
-  background: rgba(3, 252, 190, 0.12);
-  border-color: rgba(3, 252, 190, 0.45);
+  background: rgba(105, 197, 172, 0.12);
+  border-color: rgba(105, 197, 172, 0.45);
   color: var(--gold);
 }
 
@@ -1340,7 +1340,7 @@ body {
 .upload-field input {
   width: 100%;
   border-radius: 16px;
-  border: 1px dashed rgba(3, 252, 190, 0.28);
+  border: 1px dashed rgba(105, 197, 172, 0.28);
   background: rgba(255, 255, 255, 0.035);
   color: var(--muted);
   padding: 0.8rem 0.9rem;
@@ -1509,7 +1509,7 @@ body {
   padding-inline: 1rem;
 }
 
-/* â•â•â• DETAIL PAGE â€” THEATER LAYOUT â•â•â• */
+/* ═══ DETAIL PAGE — THEATER LAYOUT ═══ */
 
 /* Theater-style trailer: dominant, immersive, full width */
 .detail-theater-wrapper {
@@ -1667,7 +1667,7 @@ body {
   }
 }
 
-/* â•â•â• BRAND LOGO â€” OVERFLOW FIX â•â•â• */
+/* ═══ BRAND LOGO — OVERFLOW FIX ═══ */
 .brand-mark-logo {
   width: 52px !important;
   height: 52px !important;
@@ -1780,7 +1780,7 @@ body {
 .sidebar-nav-button:hover,
 .sidebar-nav-button.is-active {
   color: var(--text);
-  border-color: rgba(3, 252, 190, 0.24);
+  border-color: rgba(105, 197, 172, 0.24);
   background: rgba(255, 255, 255, 0.07);
   transform: translateY(-1px);
 }
@@ -1901,8 +1901,8 @@ body {
 .picker-chip:hover,
 .picker-chip.is-active {
   color: var(--text);
-  border-color: rgba(3, 252, 190, 0.28);
-  background: rgba(3, 252, 190, 0.09);
+  border-color: rgba(105, 197, 172, 0.28);
+  background: rgba(105, 197, 172, 0.09);
   transform: translateY(-1px);
 }
 
@@ -2027,7 +2027,7 @@ body {
 
 .folder-row:hover {
   transform: translateY(-2px);
-  border-color: rgba(3, 252, 190, 0.18);
+  border-color: rgba(105, 197, 172, 0.18);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
     rgba(12, 17, 27, 0.8);
@@ -2272,7 +2272,7 @@ body {
 
 .folder-showcase-card:hover {
   transform: translateY(-3px);
-  border-color: rgba(3, 252, 190, 0.18);
+  border-color: rgba(105, 197, 172, 0.18);
   box-shadow: 0 26px 58px rgba(0, 0, 0, 0.3);
 }
 
@@ -2675,7 +2675,7 @@ body {
   gap: 10px;
   padding: 14px 16px;
   border-radius: 22px;
-  border: 1px dashed rgba(3, 252, 190, 0.2);
+  border: 1px dashed rgba(105, 197, 172, 0.2);
   background: rgba(255, 255, 255, 0.03);
 }
 

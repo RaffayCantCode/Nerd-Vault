@@ -16,6 +16,7 @@ import { getLibraryStateForUser, getVaultProfilePayload, getViewerShellData } fr
 import { canonicalGenreLabels, sharedCanonicalGenreCount } from "@/lib/catalog-utils";
 import { dedupeGalleryImageUrls, canonicalGalleryImageKey } from "@/lib/gallery-image-key";
 import { optimizeMediaImageUrl } from "@/lib/media-image";
+import { decodeHtmlEntities } from "@/lib/text-utils";
 import { getMediaBySlug, mockCatalog } from "@/lib/mock-catalog";
 import {
   browseIgdbGames,
@@ -173,13 +174,13 @@ const franchiseSectionCache = new Map<string, TimedDetailCacheEntry<FranchiseSec
 const franchiseAvailabilityCache = new Map<string, TimedDetailCacheEntry<boolean>>();
 
 const DETAIL_PALETTES: DetailPalette[] = [
-  { accent: "#03fcbe", accentSoft: "rgba(3, 252, 190, 0.18)", glow: "rgba(3, 252, 190, 0.24)", edge: "rgba(3, 252, 190, 0.34)", haze: "rgba(158, 135, 255, 0.16)" },
+  { accent: "#69C5AC", accentSoft: "rgba(105, 197, 172, 0.18)", glow: "rgba(105, 197, 172, 0.24)", edge: "rgba(105, 197, 172, 0.34)", haze: "rgba(30, 189, 194, 0.16)" },
   { accent: "#ff8a7a", accentSoft: "rgba(255, 138, 122, 0.18)", glow: "rgba(255, 138, 122, 0.24)", edge: "rgba(255, 138, 122, 0.34)", haze: "rgba(255, 205, 126, 0.16)" },
   { accent: "#75caff", accentSoft: "rgba(117, 202, 255, 0.18)", glow: "rgba(117, 202, 255, 0.22)", edge: "rgba(117, 202, 255, 0.34)", haze: "rgba(125, 142, 255, 0.16)" },
   { accent: "#f0c56b", accentSoft: "rgba(240, 197, 107, 0.18)", glow: "rgba(240, 197, 107, 0.24)", edge: "rgba(240, 197, 107, 0.34)", haze: "rgba(255, 138, 122, 0.14)" },
   { accent: "#8df07d", accentSoft: "rgba(141, 240, 125, 0.16)", glow: "rgba(141, 240, 125, 0.22)", edge: "rgba(141, 240, 125, 0.3)", haze: "rgba(117, 202, 255, 0.14)" },
   { accent: "#ff78c6", accentSoft: "rgba(255, 120, 198, 0.16)", glow: "rgba(255, 120, 198, 0.2)", edge: "rgba(255, 120, 198, 0.32)", haze: "rgba(255, 185, 110, 0.15)" },
-  { accent: "#c6a4ff", accentSoft: "rgba(198, 164, 255, 0.18)", glow: "rgba(198, 164, 255, 0.22)", edge: "rgba(198, 164, 255, 0.34)", haze: "rgba(3, 252, 190, 0.14)" },
+  { accent: "#c6a4ff", accentSoft: "rgba(198, 164, 255, 0.18)", glow: "rgba(198, 164, 255, 0.22)", edge: "rgba(198, 164, 255, 0.34)", haze: "rgba(105, 197, 172, 0.14)" },
   { accent: "#ff9f58", accentSoft: "rgba(255, 159, 88, 0.18)", glow: "rgba(255, 159, 88, 0.22)", edge: "rgba(255, 159, 88, 0.34)", haze: "rgba(255, 120, 198, 0.14)" },
   { accent: "#71f0d4", accentSoft: "rgba(113, 240, 212, 0.18)", glow: "rgba(113, 240, 212, 0.22)", edge: "rgba(113, 240, 212, 0.34)", haze: "rgba(117, 202, 255, 0.14)" },
   { accent: "#ffdc78", accentSoft: "rgba(255, 220, 120, 0.18)", glow: "rgba(255, 220, 120, 0.2)", edge: "rgba(255, 220, 120, 0.32)", haze: "rgba(198, 164, 255, 0.16)" },
@@ -242,11 +243,11 @@ const DETAIL_EASTER_EGGS: Array<{
 ];
 
 function cleanNarrativeText(input?: string) {
-  const text = (input ?? "")
-    .replace(/\[[^\]]+\]/g, "")
-    .replace(/\b(written by|source:|courtesy of)\b.*$/i, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  const text = decodeHtmlEntities(
+    (input ?? "")
+      .replace(/\[[^\]]+\]/g, "")
+      .replace(/\b(written by|source:|courtesy of)\b.*$/i, ""),
+  );
 
   if (!text) return "No overview yet.";
   const sentences = text
@@ -3155,10 +3156,11 @@ export default async function MediaDetailPage({
   const moodLine = buildPremiseLine(media);
   const synopsisPreview = buildSynopsisPreview(media);
   const aboutText =
-    (media.overview ?? "")
-      .replace(/\[[^\]]+\]/g, "")
-      .replace(/\s+/g, " ")
-      .trim() || "No overview yet.";
+    decodeHtmlEntities(
+      (media.overview ?? "")
+        .replace(/\[[^\]]+\]/g, "")
+        .replace(/\s+/g, " "),
+    ) || "No overview yet.";
   const detailCollectionEntries =
     (media.type === "anime" || media.type === "anime_movie") && (animeFranchise?.seasonEntries?.length || animeFranchise?.entries.length)
       ? (animeFranchise.seasonEntries?.length ? animeFranchise.seasonEntries : animeFranchise.entries)

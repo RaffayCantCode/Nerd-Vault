@@ -75,7 +75,10 @@ type AppSidebarProps = {
 };
 
 export async function AppSidebar({ active, initialFolders = [] }: AppSidebarProps) {
-  const session = await auth();
+  const session = await auth().catch((error) => {
+    console.error("Auth session failed to load in app sidebar:", error);
+    return null;
+  });
   const userName = session?.user?.name || null;
   const shouldShowSignOut = Boolean(userName);
 

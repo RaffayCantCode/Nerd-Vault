@@ -1,5 +1,7 @@
 [build]
   command = "npx prisma generate && npx prisma db push && npm run build"
+  # Leave publish directory empty in Netlify UI when using @netlify/plugin-nextjs.
+  # Setting publish to ".next" serves the wrong output and breaks the live site.
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
@@ -10,6 +12,16 @@
 # Browse/search responses are keyed by query params; edge caching breaks pagination and filters.
 [[headers]]
   for = "/api/catalog/browse"
+  [headers.values]
+    Cache-Control = "private, no-store, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/api/catalog/*"
+  [headers.values]
+    Cache-Control = "private, no-store, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/api/social/search"
   [headers.values]
     Cache-Control = "private, no-store, max-age=0, must-revalidate"
 

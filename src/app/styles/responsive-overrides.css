@@ -1,4 +1,4 @@
-﻿
+
 .detail-side-stat-wide {
   grid-column: 1 / -1;
   min-height: 102px;
@@ -222,7 +222,7 @@ html {
 .browse-search-input:focus {
   border-color: var(--gold);
   background: rgba(255, 255, 255, 0.07);
-  box-shadow: 0 0 0 4px rgba(3, 252, 190, 0.1);
+  box-shadow: 0 0 0 4px rgba(105, 197, 172, 0.1);
 }
 
 .browse-hero-title {
@@ -288,8 +288,8 @@ html {
 
 .mute-toggle.is-unmuted {
   color: var(--gold);
-  border-color: rgba(3, 252, 190, 0.25);
-  background: rgba(3, 252, 190, 0.06);
+  border-color: rgba(105, 197, 172, 0.25);
+  background: rgba(105, 197, 172, 0.06);
 }
 
 .quality-label {
@@ -328,7 +328,7 @@ html {
 .quality-pill.is-active {
   background: var(--gold);
   color: #06090f;
-  box-shadow: 0 4px 12px rgba(3, 252, 190, 0.25);
+  box-shadow: 0 4px 12px rgba(105, 197, 172, 0.25);
 }
 
 .button-small {
@@ -401,7 +401,7 @@ html {
   transform: scale(1);
 }
 
-/* â”€â”€â”€ Catalog Card Skeleton Placeholder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─── Catalog Card Skeleton Placeholder ──────────────────────────────── */
 .catalog-card-skeleton {
   position: absolute;
   inset: 0;
@@ -763,7 +763,7 @@ body {
   font-size: 0.75rem;
   padding: 0.25rem 0.6rem;
   border-radius: 999px;
-  background: linear-gradient(135deg, #03fcbe, #9e87ff);
+  background: linear-gradient(135deg, #69C5AC, #1EBDC2);
   color: #0a0e1a;
   font-weight: 600;
   margin-left: 8px;
@@ -819,7 +819,7 @@ body {
 }
 
 .books-sort-chip.is-active {
-  background: linear-gradient(135deg, #03fcbe, #9e87ff);
+  background: linear-gradient(135deg, #69C5AC, #1EBDC2);
   border-color: transparent;
   color: #0a0e1a;
   font-weight: 600;
@@ -927,7 +927,7 @@ body {
 }
 
 .books-sort-select:focus {
-  outline: 2px solid rgba(3, 252, 190, 0.5);
+  outline: 2px solid rgba(105, 197, 172, 0.5);
   outline-offset: 2px;
 }
 
@@ -1171,7 +1171,7 @@ body {
   }
 }
 
-/* â•â•â• BOOKS â€” CONTINUE READING STANDALONE SECTION â•â•â• */
+/* ═══ BOOKS — CONTINUE READING STANDALONE SECTION ═══ */
 
 .books-continue-section-standalone {
   padding: 24px;
@@ -1214,7 +1214,7 @@ body {
 }
 
 .books-continue-card-v2:hover {
-  border-color: rgba(3, 252, 190, 0.22);
+  border-color: rgba(105, 197, 172, 0.22);
   background: rgba(255, 255, 255, 0.05);
 }
 
@@ -1247,7 +1247,7 @@ body {
 
 .books-continue-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #03fcbe, #9e87ff);
+  background: linear-gradient(90deg, #69C5AC, #1EBDC2);
   border-radius: 2px;
   transition: width 400ms ease;
 }
@@ -1349,31 +1349,22 @@ body {
   border-radius: 24px;
   overflow: hidden;
   background:
-    radial-gradient(circle at top right, rgba(3, 252, 190, 0.14), transparent 30%),
+    radial-gradient(circle at top right, rgba(105, 197, 172, 0.14), transparent 30%),
     rgba(4, 8, 14, 0.94);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.detail-trailer-frame,
-.detail-trailer-player-host {
+.detail-trailer-frame {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border: 0;
-}
-
-.detail-trailer-player-host iframe {
-  position: absolute !important;
-  top: 50% !important;
-  left: 50% !important;
+  top: 50%;
+  left: 50%;
   width: 1920px !important;
   height: 1080px !important;
   max-width: none !important;
   max-height: none !important;
+  border: 0;
   transform: translate(-50%, -50%) scale(var(--trailer-scale, 0.52));
   transform-origin: center center;
-  border: 0;
 }
 
 .brand-logo-shell {
@@ -1451,7 +1442,7 @@ body {
 
 .catalog-card:hover {
   transform: translateY(-12px) scale(1.04) translate3d(0, 0, 0) !important; /* Whole card comes forward */
-  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(3, 252, 190, 0.4) !important;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(105, 197, 172, 0.4) !important;
   z-index: 50 !important;
 }
 
@@ -1502,7 +1493,7 @@ body {
 
 .catalog-genres {
   font-weight: 900 !important;
-  color: #03fcbe !important;
+  color: #69C5AC !important;
   font-size: 0.72rem !important;
   text-transform: uppercase !important;
   letter-spacing: 0.08em !important;
@@ -1531,9 +1522,9 @@ body {
 }
 
 .catalog-card .pill.rating {
-  background: rgba(3, 252, 190, 0.25) !important;
-  border-color: rgba(3, 252, 190, 0.4) !important;
-  color: #03fcbe !important;
+  background: rgba(105, 197, 172, 0.25) !important;
+  border-color: rgba(105, 197, 172, 0.4) !important;
+  color: #69C5AC !important;
 }
 
 .catalog-review-preview {
@@ -2239,12 +2230,12 @@ body {
   overflow: hidden;
   gap: 0.7rem;
   padding-inline: 1.25rem;
-  box-shadow: 0 16px 34px color-mix(in srgb, var(--detail-accent, #03fcbe) 20%, transparent) !important;
+  box-shadow: 0 16px 34px color-mix(in srgb, var(--detail-accent, #69C5AC) 20%, transparent) !important;
 }
 
 .detail-layout .related-actions-row .action-button.action-button-gold:hover {
   transform: translateY(-1px) !important;
-  box-shadow: 0 20px 38px color-mix(in srgb, var(--detail-accent, #03fcbe) 24%, transparent) !important;
+  box-shadow: 0 20px 38px color-mix(in srgb, var(--detail-accent, #69C5AC) 24%, transparent) !important;
 }
 
 .detail-layout .related-actions-row .action-button.action-button-gold .expandable-count {
@@ -2779,7 +2770,7 @@ body {
   padding: clamp(16px, 2.4vw, 28px) !important;
   border-radius: 22px !important;
   background:
-    radial-gradient(circle at 0% 0%, rgba(3, 252, 190, 0.1), transparent 34%),
+    radial-gradient(circle at 0% 0%, rgba(105, 197, 172, 0.1), transparent 34%),
     radial-gradient(circle at 100% 0%, rgba(140, 111, 240, 0.12), transparent 36%),
     linear-gradient(180deg, rgba(11, 16, 26, 0.88), rgba(8, 12, 20, 0.92)) !important;
 }
@@ -2945,7 +2936,7 @@ body {
   .browse-surfacing-hero .hero-art::before {
     inset: 0;
     background:
-      radial-gradient(circle at 0% 0%, rgba(3, 252, 190, 0.16), transparent 38%),
+      radial-gradient(circle at 0% 0%, rgba(105, 197, 172, 0.16), transparent 38%),
       radial-gradient(circle at 100% 100%, rgba(140, 111, 240, 0.14), transparent 42%);
   }
 

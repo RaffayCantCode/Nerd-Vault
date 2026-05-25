@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { randomBytes } from "crypto";
+import { createHash, randomBytes } from "crypto";
 import { prisma } from "@/lib/prisma";
+import { getAuthBaseUrl } from "@/lib/auth-env";
 import { sendPasswordResetEmail } from "@/lib/email";
+
+export const runtime = "nodejs";
+
+function hashResetToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,23 +29,41 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "If an account with that email exists, a reset link has been sent." }, { status: 200 });
     }
 
-    const token = randomBytes(32).toString("hex");
+    const token = randomBytes(32).toString("base64url");
+    const tokenHash = hashResetToken(token);
+
+    await prisma.passwordResetToken.deleteMany({
+      where: {
+        email: normalizedEmail,
+        OR: [{ used: false }, { expires: { lt: new Date() } }],
+      },
+    });
 
     await prisma.passwordResetToken.create({
       data: {
         email: normalizedEmail,
-        token,
+        token: tokenHash,
         expires: new Date(Date.now() + 60 * 60 * 1000),
       },
     });
 
-    const resetLink = `${process.env.AUTH_URL ?? "https://nerdvault.site"}/reset-password?token=${token}`;
+    const baseUrl = getAuthBaseUrl() ?? "https://nerdvault.site";
+    const resetLink = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
 
     await sendPasswordResetEmail(normalizedEmail, resetLink);
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json(
+      { ok: true },
+      { headers: { "Cache-Control": "private, no-store, max-age=0, must-revalidate" } },
+    );
   } catch (e) {
     console.error("forgot-password error:", e);
-    return NextResponse.json({ error: "Something went wrong. Try again later." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Something went wrong. Try again later." },
+      {
+        status: 500,
+        headers: { "Cache-Control": "private, no-store, max-age=0, must-revalidate" },
+      },
+    );
   }
 }

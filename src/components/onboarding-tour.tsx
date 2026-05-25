@@ -148,9 +148,9 @@ export function OnboardingTour({ hasSeenOnboarding }: { hasSeenOnboarding: boole
         }
 
         .onboarding-dot.is-active {
-          background: #03fcbe;
+          background: #69C5AC;
           transform: scale(1.2);
-          box-shadow: 0 0 10px rgba(3, 252, 190, 0.5);
+          box-shadow: 0 0 10px rgba(105, 197, 172, 0.5);
         }
 
         .onboarding-actions {

@@ -17,5 +17,12 @@ export async function GET() {
   return NextResponse.json({
     ok: diagnostics.resolvedSecret && diagnostics.hasGoogleId && diagnostics.hasGoogleSecret,
     diagnostics,
+    smtp: {
+      hasHost: Boolean(process.env.SMTP_HOST?.trim()),
+      hasPort: Boolean(process.env.SMTP_PORT?.trim()),
+      hasUser: Boolean(process.env.SMTP_USER?.trim()),
+      hasPass: Boolean(process.env.SMTP_PASS?.trim()),
+      hasFrom: Boolean(process.env.SMTP_FROM?.trim()),
+    },
   });
 }

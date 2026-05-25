@@ -9,7 +9,9 @@ import { FilterChipBar } from "@/components/filter-chip-bar";
 import { NVLoader } from "@/components/nv-loader";
 import { SocialProfile } from "@/lib/vault-types";
 import { clearBrowseReturnContext, readBrowseReturnContext } from "@/lib/detail-return";
+import { ResilientMediaImage } from "@/components/resilient-media-image";
 import { optimizeMediaImageUrl } from "@/lib/media-image";
+import { decodeHtmlEntities } from "@/lib/text-utils";
 import { MediaItem, MediaType } from "@/lib/types";
 
 type SortMode = "discovery" | "newest" | "rating" | "title";
@@ -102,11 +104,43 @@ function writeBrowseClientCache(key: string, payload: BrowseApiPayload) {
 }
 
 function browseResponseMatchesRequest(payload: BrowseApiPayload, requestedPage: number, hasSearch: boolean) {
-  if (hasSearch) {
+  if (hasSearch || !payload.items?.length) {
     return true;
   }
 
-  return normalizePage(payload.page) === normalizePage(requestedPage);
+  const responsePage = normalizePage(payload.page || requestedPage);
+  return responsePage === normalizePage(requestedPage);
+}
+
+function normalizeBrowsePayload(
+  payload: BrowseApiPayload,
+  requestedPage: number,
+  pageSize: number,
+  surfacingKeys: Set<string>,
+) {
+  const nextPage = clampPage(payload.page || requestedPage, payload.totalPages || 1);
+  const nextItems = dedupeItems(payload.items).filter((item) => !surfacingKeys.has(getMediaKey(item)));
+
+  return {
+    page: nextPage,
+    totalPages: Math.max(1, payload.totalPages || 1),
+    totalResults: payload.totalResults || payload.items.length,
+    items: nextItems.slice(0, pageSize),
+  };
+}
+
+async function fetchBrowsePayload(params: URLSearchParams, signal?: AbortSignal) {
+  const response = await fetch(`/api/catalog/browse?${params.toString()}`, {
+    cache: "no-store",
+    signal,
+  });
+  const payload = (await response.json()) as BrowseApiPayload;
+
+  if (!response.ok || payload.ok === false) {
+    throw new Error(payload.message || "Could not load the browse page.");
+  }
+
+  return payload;
 }
 
 async function prefetchBrowsePayload(
@@ -120,21 +154,14 @@ async function prefetchBrowsePayload(
     return;
   }
 
-  const response = await fetch(`/api/catalog/browse?${requestKey}`, {
-    cache: "no-store",
-    signal,
-  });
-
-  if (!response.ok) {
+  try {
+    const payload = await fetchBrowsePayload(params, signal);
+    if (browseResponseMatchesRequest(payload, requestedPage, Boolean(params.get("query")?.trim()))) {
+      writeBrowseClientCache(requestKey, payload);
+    }
+  } catch {
     return;
   }
-
-  const payload = (await response.json()) as BrowseApiPayload;
-  if (payload.ok === false) {
-    return;
-  }
-
-  writeBrowseClientCache(requestKey, payload);
 }
 
 function preload(url?: string | null) {
@@ -217,12 +244,13 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
     if (typeof window === "undefined") return BASE_PAGE_SIZE;
     return window.innerWidth >= 1700 ? XL_PAGE_SIZE : BASE_PAGE_SIZE;
   });
-  const [payload, setPayload] = useState<BrowseApiPayload>({
+  const initialPayload: BrowseApiPayload = {
     page: 1,
     totalPages: Math.max(1, initialTotalPages),
     totalResults: initialCatalogItems.length,
     items: canHydrateFromBootstrap ? initialCatalogItems.slice(0, pageSize) : [],
-  });
+  };
+  const [payload, setPayload] = useState<BrowseApiPayload>(initialPayload);
   const [isLoading, setIsLoading] = useState(!canHydrateFromBootstrap);
   const [error, setError] = useState<string | null>(null);
   const [heroIndex, setHeroIndex] = useState(0);
@@ -231,9 +259,12 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
   const [isHeroPaused, setIsHeroPaused] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const resultsRef = useRef<HTMLDivElement | null>(null);
+  const mediaListRef = useRef<HTMLDivElement | null>(null);
   const catalogGridRef = useRef<HTMLDivElement | null>(null);
   const bottomPagerRef = useRef<HTMLDivElement | null>(null);
   const pendingResultsFocusRef = useRef<"top" | "bottom" | null>(null);
+  const lastStablePageRef = useRef(normalizePage(initialPage));
+  const lastStablePayloadRef = useRef<BrowseApiPayload>(initialPayload);
   const surfacingRef = useRef<HTMLElement | null>(null);
   const hasRestoredScrollRef = useRef(false);
   const hasFocusedResultsRef = useRef(false);
@@ -251,8 +282,16 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
   }, [catalog, payload.items, surfacingCatalog]);
 
   const featured = featuredDeck[heroIndex] ?? featuredDeck[0];
-  const currentHref = buildBrowseHref(filter, activePage, genre, deferredQuery, sort, initialSeed);
-  const showPager = !deferredQuery.trim() && payload.totalPages > 1;
+  const isSearchActive = Boolean(deferredQuery.trim());
+  const currentHref = buildBrowseHref(
+    isSearchActive ? "all" : filter,
+    isSearchActive ? 1 : activePage,
+    isSearchActive ? "all" : genre,
+    deferredQuery,
+    isSearchActive ? "discovery" : sort,
+    initialSeed,
+  );
+  const showPager = !isSearchActive && payload.totalPages > 1;
 
   useEffect(() => {
     if (!featuredDeck.length) {
@@ -309,19 +348,31 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
     async function loadPage() {
       const requestedPage = activePage;
       const hasSearch = Boolean(deferredQuery.trim());
-      setIsLoading(true);
+      const requestPage = hasSearch ? 1 : requestedPage;
+      const requestType = hasSearch ? "all" : filter;
+      const requestSort: SortMode = hasSearch ? "discovery" : sort;
+      const hasBootstrapGrid =
+        requestPage === 1 &&
+        !hasSearch &&
+        genre === "all" &&
+        filter === "all" &&
+        sort === "discovery" &&
+        payload.page === 1 &&
+        payload.items.length > 0;
+
+      setIsLoading(!hasBootstrapGrid);
       setError(null);
 
       try {
         const params = new URLSearchParams({
-          type: filter,
-          page: String(requestedPage),
-          sort,
+          type: requestType,
+          page: String(requestPage),
+          sort: requestSort,
           seed: String(initialSeed),
           pageSize: String(pageSize),
         });
 
-        if (genre !== "all") {
+        if (!hasSearch && genre !== "all") {
           params.set("genre", genre);
         }
 
@@ -333,68 +384,64 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
         const cachedPayload = readBrowseClientCache(requestKey);
         if (
           cachedPayload &&
-          browseResponseMatchesRequest(cachedPayload, requestedPage, hasSearch)
+          browseResponseMatchesRequest(cachedPayload, requestPage, hasSearch)
         ) {
           if (!active) {
             return;
           }
 
-          const nextPage = hasSearch ? 1 : clampPage(cachedPayload.page || requestedPage, cachedPayload.totalPages || 1);
-          const nextItems = dedupeItems(cachedPayload.items).filter(
-            (item) => !surfacingKeys.has(getMediaKey(item)),
-          );
-          setPayload({
-            page: nextPage,
-            totalPages: Math.max(1, cachedPayload.totalPages || 1),
-            totalResults: cachedPayload.totalResults || cachedPayload.items.length,
-            items: nextItems.slice(0, pageSize),
-          });
-          setActivePage(nextPage);
+          const normalized = normalizeBrowsePayload(cachedPayload, requestPage, pageSize, surfacingKeys);
+          setPayload(normalized);
+          lastStablePayloadRef.current = normalized;
+          lastStablePageRef.current = requestPage;
           setIsLoading(false);
           return;
         }
 
-        const response = await fetch(`/api/catalog/browse?${params.toString()}`, {
-          cache: hasSearch ? "no-store" : "default",
-          signal: controller.signal,
-        });
-        const nextPayload = (await response.json()) as BrowseApiPayload;
+        let nextPayload = await fetchBrowsePayload(params, controller.signal);
 
-        if (!response.ok || nextPayload.ok === false) {
-          throw new Error(nextPayload.message || "Could not load the browse page.");
-        }
-
-        if (!browseResponseMatchesRequest(nextPayload, requestedPage, hasSearch)) {
-          throw new Error("Browse results were stale. Refreshing this page...");
+        if (!browseResponseMatchesRequest(nextPayload, requestPage, hasSearch)) {
+          const retryParams = new URLSearchParams(params);
+          retryParams.set("_nv", String(Date.now()));
+          nextPayload = await fetchBrowsePayload(retryParams, controller.signal);
         }
 
         if (!active) {
           return;
         }
 
-        writeBrowseClientCache(requestKey, nextPayload);
-
-        const nextPage = hasSearch ? 1 : clampPage(nextPayload.page || requestedPage, nextPayload.totalPages || 1);
-        const nextItems = dedupeItems(nextPayload.items).filter(
-          (item) => !surfacingKeys.has(getMediaKey(item)),
-        );
-        setPayload({
-          page: nextPage,
-          totalPages: Math.max(1, nextPayload.totalPages || 1),
-          totalResults: nextPayload.totalResults || nextPayload.items.length,
-          items: nextItems.slice(0, pageSize),
-        });
-        setActivePage(nextPage);
+        if (nextPayload.items.length) {
+          writeBrowseClientCache(requestKey, nextPayload);
+          const normalized = normalizeBrowsePayload(nextPayload, requestPage, pageSize, surfacingKeys);
+          setPayload(normalized);
+          lastStablePayloadRef.current = normalized;
+          lastStablePageRef.current = requestPage;
+          setError(null);
+        } else if (nextPayload.totalResults === 0) {
+          const normalized = normalizeBrowsePayload(nextPayload, requestPage, pageSize, surfacingKeys);
+          setPayload(normalized);
+          lastStablePayloadRef.current = normalized;
+          lastStablePageRef.current = requestPage;
+          setError(null);
+        } else if (!hasBootstrapGrid) {
+          setPayload(lastStablePayloadRef.current);
+          if (activePage !== lastStablePageRef.current) {
+            setActivePage(lastStablePageRef.current);
+          }
+          setError("That page could not be loaded. Showing your last loaded page.");
+        }
       } catch (loadError) {
         if (!active || controller.signal.aborted) {
           return;
         }
 
-        setError(loadError instanceof Error ? loadError.message : "Could not load the browse page.");
-        setPayload((current) => ({
-          ...current,
-          items: [],
-        }));
+        if (!hasBootstrapGrid) {
+          setPayload(lastStablePayloadRef.current);
+          if (activePage !== lastStablePageRef.current) {
+            setActivePage(lastStablePageRef.current);
+          }
+          setError(loadError instanceof Error ? loadError.message : "That page could not be loaded. Showing your last loaded page.");
+        }
       } finally {
         if (active) {
           setIsLoading(false);
@@ -582,7 +629,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
       return;
     }
 
-    const target = catalogGridRef.current ?? resultsRef.current;
+    const target = mediaListRef.current ?? catalogGridRef.current ?? resultsRef.current;
     if (!target) {
       return;
     }
@@ -603,20 +650,12 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
       return;
     }
 
+    pendingResultsFocusRef.current = source;
     setActivePage(nextPage);
-
-    if (source === "bottom") {
-      pendingResultsFocusRef.current = "bottom";
-      return;
-    }
-
-    window.requestAnimationFrame(() => {
-      scrollToBrowseMediaList("smooth");
-    });
   }
 
   useEffect(() => {
-    if (isLoading || pendingResultsFocusRef.current !== "bottom") {
+    if (isLoading || !pendingResultsFocusRef.current) {
       return;
     }
 
@@ -753,7 +792,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
                     <span className="hero-stat">{featured.year || "Unknown year"}</span>
                     <span className="hero-stat">★ {featured.rating.toFixed(1)}</span>
                   </div>
-                  <p className="copy workspace-hero-copy">{featured.overview}</p>
+                  <p className="copy workspace-hero-copy">{decodeHtmlEntities(featured.overview)}</p>
                   <div className="button-row" style={{ marginTop: 20 }}>
                     <Link
                       href={{
@@ -774,11 +813,11 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
                   style={{ backgroundImage: `url(${optimizeMediaImageUrl(featured.coverUrl, "thumb") ?? featured.coverUrl})` }}
                   aria-hidden="true"
                 />
-                <img
-                  key={featured.coverUrl}
-                  src={optimizeMediaImageUrl(featured.coverUrl, "cover") ?? featured.coverUrl}
-                  alt={featured.title}
+                <ResilientMediaImage
+                  item={featured}
                   className="hero-art-image"
+                  displayIntent="cover"
+                  upgradeIntent="cover"
                   loading="eager"
                   fetchPriority="high"
                   decoding="async"
@@ -869,7 +908,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
 
         {renderPager("top")}
 
-        <div className="browse-status-dock-container">
+        <div ref={mediaListRef} className="browse-status-dock-container">
           <form className="browse-live-search browse-search-dock glass" onSubmit={handleSubmit}>
             <label className="sort-label" htmlFor="browse-live-search">Search results</label>
             <div className="browse-live-search-row">

@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 
 import { credentialsSignInSchema, credentialsSignUpSchema, normalizeEmail } from "@/lib/auth-credentials";
 import { getAuthCookiesToDelete } from "@/lib/auth-cookies";
+import { getAuthSecret, getGoogleClientId, getGoogleClientSecret } from "@/lib/auth-env";
 import { signIn } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -24,7 +25,7 @@ function sanitizeRedirectTo(value: FormDataEntryValue | null | undefined) {
 }
 
 export async function signInWithGoogle(formData?: FormData) {
-  if (!process.env.AUTH_GOOGLE_ID || !process.env.AUTH_GOOGLE_SECRET || !process.env.AUTH_SECRET) {
+  if (!getGoogleClientId() || !getGoogleClientSecret() || !getAuthSecret()) {
     redirect("/sign-in?mode=login&error=google-not-configured");
   }
 

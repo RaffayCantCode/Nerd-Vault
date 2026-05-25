@@ -6,11 +6,31 @@ import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 
 import { credentialsSignInSchema, normalizeEmail } from "@/lib/auth-credentials";
-import { getAuthBaseUrl, getAuthSecret } from "@/lib/auth-env";
+import { getAuthBaseUrl, getAuthSecret, getGoogleClientId, getGoogleClientSecret } from "@/lib/auth-env";
 import { prisma } from "@/lib/prisma";
 
 const authSecret = getAuthSecret();
 const authBaseUrl = getAuthBaseUrl();
+const googleClientId = getGoogleClientId();
+const googleClientSecret = getGoogleClientSecret();
+
+if (authSecret) {
+  process.env.AUTH_SECRET = authSecret;
+  process.env.NEXTAUTH_SECRET = authSecret;
+}
+
+if (authBaseUrl) {
+  process.env.AUTH_URL = authBaseUrl;
+  process.env.NEXTAUTH_URL = authBaseUrl;
+}
+
+if (googleClientId) {
+  process.env.AUTH_GOOGLE_ID = googleClientId;
+}
+
+if (googleClientSecret) {
+  process.env.AUTH_GOOGLE_SECRET = googleClientSecret;
+}
 
 if (process.env.NODE_ENV === "production" && !authSecret) {
   console.error(
@@ -19,8 +39,8 @@ if (process.env.NODE_ENV === "production" && !authSecret) {
 }
 
 const googleConfigured = Boolean(
-  process.env.AUTH_GOOGLE_ID?.trim() &&
-    process.env.AUTH_GOOGLE_SECRET?.trim() &&
+  googleClientId &&
+    googleClientSecret &&
     authSecret,
 );
 
@@ -66,8 +86,8 @@ const providers: Provider[] = [
 if (googleConfigured) {
   providers.unshift(
     Google({
-      clientId: process.env.AUTH_GOOGLE_ID!,
-      clientSecret: process.env.AUTH_GOOGLE_SECRET!,
+      clientId: googleClientId!,
+      clientSecret: googleClientSecret!,
       // Link Google to an existing email/password account instead of failing the callback.
       allowDangerousEmailAccountLinking: true,
     }),
@@ -77,7 +97,6 @@ if (googleConfigured) {
 export const { handlers, signIn, signOut, auth } = NextAuth({
   secret: authSecret,
   trustHost: true,
-  ...(authBaseUrl ? { basePath: "/api/auth", url: authBaseUrl } : {}),
   adapter: PrismaAdapter(prisma),
   debug: process.env.AUTH_DEBUG === "true",
   session: {

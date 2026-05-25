@@ -96,7 +96,10 @@ const brandFont = Poppins({
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const session = await auth();
+  const session = await auth().catch((error) => {
+    console.error("Auth session failed to load in root layout:", error);
+    return null;
+  });
   let hasSeenOnboarding = true;
 
   if (session?.user?.id) {

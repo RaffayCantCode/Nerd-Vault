@@ -1,10 +1,10 @@
-﻿:root {
+:root {
   /* Landing Page Base Colors */
   --landing-bg-1: #0a0e1a;
   --landing-bg-2: #1a1f36;
   --landing-bg-3: #0f1419;
-  --landing-accent-1: #03fcbe;
-  --landing-accent-2: #9e87ff;
+  --landing-accent-1: #69C5AC;
+  --landing-accent-2: #1EBDC2;
 
   /* App Theme (Darker versions of Landing Page colors) */
   --bg: #05070c; /* Darker than #0a0e1a */
@@ -18,14 +18,14 @@
   
   --text: #f6f7fb;
   --muted: #8a94ad;
-  --gold: #02e0aa; /* Slightly darker/more saturated version of #03fcbe */
-  --blue: #8c6ff0; /* Slightly darker version of #9e87ff */
+  --gold: #69C5AC; /* Slightly darker/more saturated version of #69C5AC */
+  --blue: #1EBDC2; /* Slightly darker version of #1EBDC2 */
   
   --shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
   --radius-xl: 28px;
   --radius-lg: 20px;
   --radius-md: 14px;
-  --focus-ring: rgba(2, 224, 170, 0.4);
+  --focus-ring: rgba(105, 197, 172, 0.4);
 }
 
 /* Global App Background */
@@ -35,7 +35,7 @@ body:not(.landing-page) {
 }
 
 ::selection {
-  background: rgba(2, 224, 170, 0.25);
+  background: rgba(105, 197, 172, 0.25);
   color: var(--text);
 }
 
@@ -357,15 +357,15 @@ html {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    background: rgba(3, 252, 190, 0.25) !important;
-    border: 2px solid rgba(3, 252, 190, 0.45) !important;
+    background: rgba(105, 197, 172, 0.25) !important;
+    border: 2px solid rgba(105, 197, 172, 0.45) !important;
     border-radius: 50% !important;
-    color: #03fcbe !important;
+    color: #69C5AC !important;
     transform: translateY(-50%) !important; /* Fixed in viewport middle */
     cursor: pointer !important;
     transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
     backdrop-filter: blur(12px) !important;
-    box-shadow: 0 0 25px rgba(3, 252, 190, 0.3) !important;
+    box-shadow: 0 0 25px rgba(105, 197, 172, 0.3) !important;
   }
 
   .is-mobile-open .sidebar-mobile-toggle {
@@ -557,14 +557,14 @@ html {
 }
 
 .detail-layout .related-actions-row .action-button-gold {
-  background: linear-gradient(135deg, var(--detail-accent, #03fcbe), color-mix(in srgb, var(--detail-accent, #03fcbe) 58%, #ffffff 42%)) !important;
+  background: linear-gradient(135deg, var(--detail-accent, #69C5AC), color-mix(in srgb, var(--detail-accent, #69C5AC) 58%, #ffffff 42%)) !important;
   color: #041018 !important;
-  border-color: color-mix(in srgb, var(--detail-accent, #03fcbe) 55%, rgba(255, 255, 255, 0.12));
-  box-shadow: 0 20px 44px color-mix(in srgb, var(--detail-accent, #03fcbe) 24%, transparent);
+  border-color: color-mix(in srgb, var(--detail-accent, #69C5AC) 55%, rgba(255, 255, 255, 0.12));
+  box-shadow: 0 20px 44px color-mix(in srgb, var(--detail-accent, #69C5AC) 24%, transparent);
 }
 
 .detail-layout .related-actions-row .action-button-gold:hover {
-  box-shadow: 0 26px 54px color-mix(in srgb, var(--detail-accent, #03fcbe) 32%, transparent) !important;
+  box-shadow: 0 26px 54px color-mix(in srgb, var(--detail-accent, #69C5AC) 32%, transparent) !important;
 }
 
 .franchise-subheader {
@@ -637,7 +637,7 @@ html {
 .landing-page .landing-final-cta .cta-primary {
   color: rgba(248, 252, 255, 0.98) !important;
   text-shadow: 0 1px 10px rgba(4, 10, 18, 0.22) !important;
-  box-shadow: 0 18px 40px rgba(3, 252, 190, 0.2);
+  box-shadow: 0 18px 40px rgba(105, 197, 172, 0.2);
 }
 
 .landing-page .landing-hero .landing-cta-secondary,
@@ -657,8 +657,8 @@ html {
   position: relative;
   overflow: hidden;
   background:
-    radial-gradient(circle at 20% 30%, rgba(3, 252, 190, 0.12), transparent 30%),
-    radial-gradient(circle at 80% 70%, rgba(158, 135, 255, 0.14), transparent 34%),
+    radial-gradient(circle at 20% 30%, rgba(105, 197, 172, 0.12), transparent 30%),
+    radial-gradient(circle at 80% 70%, rgba(30, 189, 194, 0.14), transparent 34%),
     linear-gradient(180deg, rgba(7, 11, 18, 0.6), rgba(7, 11, 18, 0.92));
 }
 
@@ -691,7 +691,7 @@ html {
 }
 
 .landing-page .landing-final-cta .cta-title {
-  background: linear-gradient(135deg, #ffffff, #d9fff7 36%, #9e87ff 100%);
+  background: linear-gradient(135deg, #ffffff, #d9fff7 36%, #1EBDC2 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -778,7 +778,7 @@ html {
   display: grid;
   place-items: center;
   border-radius: 14px;
-  background: linear-gradient(135deg, #03fcbe, #9e87ff);
+  background: linear-gradient(135deg, #69C5AC, #1EBDC2);
   color: #071018;
   font-weight: 900;
 }
@@ -820,7 +820,7 @@ html {
 
 .landing-page .landing-footer-link:hover {
   color: #ffffff;
-  border-color: rgba(3, 252, 190, 0.3);
+  border-color: rgba(105, 197, 172, 0.3);
   background: rgba(255, 255, 255, 0.08);
 }
 
@@ -898,7 +898,7 @@ html {
   }
 }
 
-/* â”€â”€â”€ FRANCHISE & RELATED SECTION OVERHAUL â”€â”€â”€ */
+/* ─── FRANCHISE & RELATED SECTION OVERHAUL ─── */
 .expandable-related-section {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   margin-top: 4rem !important;
@@ -939,7 +939,7 @@ html {
 
 .franchise-card.is-active {
   border-color: var(--gold);
-  background: rgba(3, 252, 190, 0.05);
+  background: rgba(105, 197, 172, 0.05);
   pointer-events: none;
 }
 
@@ -1007,12 +1007,12 @@ html {
   background: var(--gold) !important;
   color: #06090f !important;
   font-weight: 700 !important;
-  box-shadow: 0 0 20px rgba(3, 252, 190, 0.3) !important;
+  box-shadow: 0 0 20px rgba(105, 197, 172, 0.3) !important;
 }
 
 .action-button-gold:hover {
   transform: translateY(-2px) !important;
-  box-shadow: 0 0 30px rgba(3, 252, 190, 0.5) !important;
+  box-shadow: 0 0 30px rgba(105, 197, 172, 0.5) !important;
 }
 
 .expandable-icon {
@@ -1075,7 +1075,7 @@ html {
   width: 100% !important;
 }
 
-/* â”€â”€â”€ SCROLL FIXES â”€â”€â”€ */
+/* ─── SCROLL FIXES ─── */
 .catalog-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -1144,7 +1144,7 @@ main {
 .catalog-card:hover {
   transform: translateY(-8px) scale(1.02);
   border-color: var(--gold);
-  box-shadow: 0 12px 40px rgba(3, 252, 190, 0.15);
+  box-shadow: 0 12px 40px rgba(105, 197, 172, 0.15);
   z-index: 10;
 }
 
@@ -1556,8 +1556,8 @@ body {
   font-family: var(--font-sans), sans-serif;
   color: var(--text);
   background:
-    radial-gradient(circle at top, rgba(158, 135, 255, 0.18), transparent 34%),
-    radial-gradient(circle at 82% 16%, rgba(3, 252, 190, 0.12), transparent 22%),
+    radial-gradient(circle at top, rgba(30, 189, 194, 0.18), transparent 34%),
+    radial-gradient(circle at 82% 16%, rgba(105, 197, 172, 0.12), transparent 22%),
     radial-gradient(circle at 12% 74%, rgba(124, 139, 178, 0.08), transparent 30%),
     linear-gradient(180deg, #091018 0%, #05070c 46%, #030407 100%);
 }
@@ -1626,7 +1626,7 @@ input {
   pointer-events: none;
   background:
     linear-gradient(110deg, rgba(5, 8, 13, 0.95) 0%, rgba(5, 8, 13, 0.58) 46%, rgba(5, 8, 13, 0.9) 100%),
-    radial-gradient(circle at 18% 88%, rgba(3, 252, 190, 0.09), transparent 42%),
+    radial-gradient(circle at 18% 88%, rgba(105, 197, 172, 0.09), transparent 42%),
     radial-gradient(circle at top right, rgba(157, 184, 255, 0.14), transparent 32%);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
@@ -1728,7 +1728,7 @@ input {
   position: relative;
   overflow: hidden;
   background:
-    radial-gradient(circle at top right, rgba(3, 252, 190, 0.12), transparent 32%),
+    radial-gradient(circle at top right, rgba(105, 197, 172, 0.12), transparent 32%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
     rgba(8, 11, 17, 0.54);
 }
@@ -1739,8 +1739,8 @@ input {
   inset: 0;
   pointer-events: none;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.06), transparent 24%, transparent 70%, rgba(158, 135, 255, 0.08)),
-    radial-gradient(circle at bottom left, rgba(158, 135, 255, 0.1), transparent 34%);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.06), transparent 24%, transparent 70%, rgba(30, 189, 194, 0.08)),
+    radial-gradient(circle at bottom left, rgba(30, 189, 194, 0.1), transparent 34%);
 }
 
 .landing-auth-panel > * {
@@ -2612,8 +2612,8 @@ input {
 .auth-mode-chip:hover,
 .auth-mode-chip.is-active {
   color: var(--text);
-  border-color: rgba(3, 252, 190, 0.26);
-  background: rgba(3, 252, 190, 0.08);
+  border-color: rgba(105, 197, 172, 0.26);
+  background: rgba(105, 197, 172, 0.08);
   transform: translateY(-1px);
 }
 
@@ -2647,7 +2647,7 @@ input {
 }
 
 .auth-field input:focus {
-  border-color: rgba(3, 252, 190, 0.28);
+  border-color: rgba(105, 197, 172, 0.28);
   background: rgba(255, 255, 255, 0.06);
 }
 
@@ -2691,8 +2691,8 @@ input {
 
 .auth-feedback-success {
   color: #d7ffef;
-  border-color: rgba(3, 252, 190, 0.18);
-  background: rgba(3, 252, 190, 0.12);
+  border-color: rgba(105, 197, 172, 0.18);
+  background: rgba(105, 197, 172, 0.12);
 }
 
 .auth-google-button {

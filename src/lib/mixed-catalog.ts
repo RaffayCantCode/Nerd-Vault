@@ -8,11 +8,18 @@ import {
 } from "@/lib/catalog-utils";
 import { dedupeMediaKey, rankCandidatesForQuery, validateSearchResults } from "@/lib/search-utils";
 import { MediaItem } from "@/lib/types";
+import {
+  isServerlessDeploy,
+  MIXED_GENRE_MAX_API_PAGES,
+  MIXED_GENRE_MAX_DEPTH_ROUNDS,
+} from "@/lib/serverless-limits";
 
 const MIXED_CACHE_TTL_MS = 1000 * 60 * 30;
 const SEARCH_FETCH_PAGES = 2;
-const MIXED_CACHE_VERSION = "interleaved-v3";
-const GENRE_MAX_API_PAGES = 40;
+const MIXED_CACHE_VERSION = "interleaved-v5";
+const GENRE_MAX_API_PAGES = MIXED_GENRE_MAX_API_PAGES;
+const GENRE_FETCH_TIMEOUT_MS = isServerlessDeploy ? 4500 : 7000;
+const DEFAULT_FETCH_TIMEOUT_MS = isServerlessDeploy ? 4000 : 5000;
 
 type BrowsePayload = {
   page: number;
@@ -215,7 +222,7 @@ async function fetchSourceCatalogUpTo(
         totalResults: 0,
         items: [] as MediaItem[],
       },
-      query ? 3000 : genreActive ? 7000 : 5000,
+      query ? 3000 : genreActive ? GENRE_FETCH_TIMEOUT_MS : DEFAULT_FETCH_TIMEOUT_MS,
     ).catch(() => ({
       page: apiPage,
       totalPages: 1,
@@ -354,7 +361,7 @@ async function buildInterleavedBrowsePage({
   const baseBuffer = Math.ceil(pageSize / SOURCE_ORDER.length) + 4;
   const genreBufferBoost = genreActive ? Math.ceil(pageSize / 2) : 0;
   let extraDepth = 0;
-  const maxDepthRounds = genreActive ? 8 : 2;
+  const maxDepthRounds = genreActive ? MIXED_GENRE_MAX_DEPTH_ROUNDS : isServerlessDeploy ? 1 : 2;
 
   let bufferedMaxNative = SOURCE_ORDER.reduce(
     (acc, source) => {

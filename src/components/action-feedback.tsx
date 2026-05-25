@@ -129,10 +129,10 @@ function FeedbackToast({
       case "success":
         return (
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" className="animate-success">
-            <circle cx="12" cy="12" r="10" stroke="#03fcbe" strokeWidth="2" fill="none" />
+            <circle cx="12" cy="12" r="10" stroke="#69C5AC" strokeWidth="2" fill="none" />
             <path
               d="M8 12l3 3 5-6"
-              stroke="#03fcbe"
+              stroke="#69C5AC"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -159,7 +159,7 @@ function FeedbackToast({
       case "milestone":
         return (
           <div style={{ position: "relative" }}>
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="#03fcbe" className="milestone-badge">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="#69C5AC" className="milestone-badge">
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
             </svg>
             <SparkleBurst />
@@ -178,13 +178,13 @@ function FeedbackToast({
   const getColors = () => {
     switch (item.type) {
       case "success":
-        return { border: "rgba(3, 252, 190, 0.3)", bg: "rgba(3, 252, 190, 0.08)" };
+        return { border: "rgba(105, 197, 172, 0.3)", bg: "rgba(105, 197, 172, 0.08)" };
       case "heart":
         return { border: "rgba(255, 71, 87, 0.3)", bg: "rgba(255, 71, 87, 0.08)" };
       case "star":
         return { border: "rgba(255, 193, 7, 0.3)", bg: "rgba(255, 193, 7, 0.08)" };
       case "milestone":
-        return { border: "rgba(158, 135, 255, 0.4)", bg: "rgba(158, 135, 255, 0.12)" };
+        return { border: "rgba(30, 189, 194, 0.4)", bg: "rgba(30, 189, 194, 0.12)" };
       default:
         return { border: "rgba(255, 255, 255, 0.1)", bg: "rgba(255, 255, 255, 0.04)" };
     }
@@ -228,7 +228,7 @@ function FeedbackToast({
             <ConfettiParticle
               key={i}
               delay={i * 100}
-              color={["#03fcbe", "#9e87ff", "#ff4757", "#ffc107"][i % 4]}
+              color={["#69C5AC", "#1EBDC2", "#ff4757", "#ffc107"][i % 4]}
             />
           ))}
         </div>

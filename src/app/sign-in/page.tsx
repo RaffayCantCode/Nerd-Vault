@@ -2,6 +2,7 @@ import { signInWithCredentials, signUpWithCredentials } from "@/app/sign-in/acti
 import { headers } from "next/headers";
 import { SiteHeader } from "@/components/site-header";
 import { GoogleSignInForm } from "@/components/google-sign-in-form";
+import { getAuthSecret, getGoogleClientId, getGoogleClientSecret } from "@/lib/auth-env";
 
 type SignInPageProps = {
   searchParams: Promise<{
@@ -73,7 +74,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
   const mode = params.mode === "signup" ? "signup" : "login";
   const feedback = getMessageCopy(params.success, params.error);
   const googleReady = Boolean(
-    process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET && process.env.AUTH_SECRET,
+    getGoogleClientId() && getGoogleClientSecret() && getAuthSecret(),
   );
   const redirectTo =
     resolveSafeRedirectPath(params.redirectTo) ??

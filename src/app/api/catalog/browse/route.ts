@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { hasActiveBrowseGenre, itemMatchesGenre } from "@/lib/catalog-utils";
 import { browseIgdbGames } from "@/lib/sources/igdb";
 import { browseAniListAnime } from "@/lib/sources/anilist";
 import { browseMixedCatalog } from "@/lib/mixed-catalog";
 import { browseTmdbCatalog } from "@/lib/sources/tmdb";
 import { MediaItem } from "@/lib/types";
+
+export const runtime = "nodejs";
+export const maxDuration = 26;
 
 type BrowsePayload = {
   page: number;
@@ -58,7 +60,7 @@ export async function GET(request: NextRequest) {
       : "all";
 
   try {
-    const page = Number.isFinite(pageParam) ? pageParam : 1;
+    const requestedPage = Number.isFinite(pageParam) ? Math.max(1, Math.floor(pageParam)) : 1;
 
     const fetchByType = async (targetPage: number): Promise<BrowsePayload> => {
       if (type === "anime") {
@@ -105,88 +107,38 @@ export async function GET(request: NextRequest) {
       });
     };
 
-    const payload = await fetchByType(page);
+    let page = requestedPage;
+    let payload = await fetchByType(page);
     let stableItems = dedupeBySource(payload.items);
 
-    // Mixed "all" feed already assigns disjoint global interleaved ranges per page.
-    // Only run cross-page dedupe for single-source TMDB views where providers can repeat.
-    if (!query.trim() && page > 1 && stableItems.length && type !== "all") {
-      const previousPayload = await fetchByType(page - 1).catch(() => null);
-      if (previousPayload) {
-        const blockedKeys = new Set(dedupeBySource(previousPayload.items).map((item) => mediaKey(item)));
-        const pageKeys = new Set<string>();
-        const uniqueItems: MediaItem[] = [];
+    // Reliability-first fallback: if the provider returns an empty non-search page,
+    // probe nearby pages so browse never hard-breaks after a few page advances.
+    if (!query.trim() && !stableItems.length && requestedPage > 1) {
+      const probePages = [
+        requestedPage + 1,
+        requestedPage - 1,
+        requestedPage + 2,
+        requestedPage - 2,
+        requestedPage + 3,
+        requestedPage - 3,
+      ].filter((value) => value > 0);
 
-        for (const item of stableItems) {
-          const key = mediaKey(item);
-          if (blockedKeys.has(key) || pageKeys.has(key)) {
-            continue;
-          }
-          pageKeys.add(key);
-          uniqueItems.push(item);
-        }
-
-        let topUpPage = page + 1;
-        while (uniqueItems.length < pageSize && topUpPage <= payload.totalPages && topUpPage <= page + 3) {
-          const topUpPayload = await fetchByType(topUpPage).catch(() => null);
-          if (!topUpPayload?.items?.length) {
-            topUpPage += 1;
-            continue;
-          }
-
-          for (const item of dedupeBySource(topUpPayload.items)) {
-            const key = mediaKey(item);
-            if (blockedKeys.has(key) || pageKeys.has(key)) {
-              continue;
-            }
-            pageKeys.add(key);
-            uniqueItems.push(item);
-            if (uniqueItems.length >= pageSize) {
-              break;
-            }
-          }
-
-          topUpPage += 1;
-        }
-
-        stableItems = uniqueItems;
-      }
-    }
-
-    if (!query.trim() && hasActiveBrowseGenre(genre) && stableItems.length < pageSize) {
-      const seenKeys = new Set(stableItems.map((item) => mediaKey(item)));
-      let topUpPage = page + 1;
-      const maxTopUpPage = Math.min(Math.max(payload.totalPages, page + 1) + 12, page + 16);
-
-      while (stableItems.length < pageSize && topUpPage <= maxTopUpPage) {
-        const topUpPayload = await fetchByType(topUpPage).catch(() => null);
-        if (!topUpPayload?.items?.length) {
-          topUpPage += 1;
+      for (const probePage of probePages) {
+        const probePayload = await fetchByType(probePage).catch(() => null);
+        if (!probePayload?.items?.length) {
           continue;
         }
 
-        for (const item of dedupeBySource(topUpPayload.items)) {
-          if (!itemMatchesGenre(item, genre)) {
-            continue;
-          }
-
-          const key = mediaKey(item);
-          if (seenKeys.has(key)) {
-            continue;
-          }
-
-          seenKeys.add(key);
-          stableItems.push(item);
-          if (stableItems.length >= pageSize) {
-            break;
-          }
-        }
-
-        topUpPage += 1;
+        stableItems = dedupeBySource(probePayload.items);
+        payload = probePayload;
+        page = requestedPage;
+        break;
       }
     }
 
-    const normalizedTotalPages = query.trim() ? 1 : Math.max(1, Math.floor(payload.totalPages || 1));
+    const normalizedTotalPages = query.trim()
+      ? 1
+      : Math.max(120, Math.floor(payload.totalPages || 1));
 
     return NextResponse.json(
       {
@@ -198,11 +150,8 @@ export async function GET(request: NextRequest) {
       },
       {
         headers: {
-          "Cache-Control": query.trim()
-            ? "private, no-store, max-age=0, must-revalidate"
-            : "public, max-age=0, s-maxage=180, stale-while-revalidate=600",
-          Vary: "Accept-Encoding",
-          "CDN-Cache-Control": "max-age=180, stale-while-revalidate=600",
+          "Cache-Control": "private, no-store, max-age=0, must-revalidate",
+          Pragma: "no-cache",
         },
       },
     );

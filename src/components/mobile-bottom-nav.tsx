@@ -52,7 +52,7 @@ function DockIconFolders() {
   );
 }
 
-const APP_ROUTE_PREFIXES = ["/home", "/browse", "/support", "/media/", "/profile/", "/books/"];
+const APP_ROUTE_PREFIXES = ["/home", "/browse", "/support", "/media", "/profile", "/books", "/vault"];
 
 function FoldersDockButton({ foldersOpen, pathname }: { foldersOpen: boolean; pathname: string }) {
   const signInHref = guestSignInHref(pathname);

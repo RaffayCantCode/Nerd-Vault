@@ -1,4 +1,4 @@
-﻿    display: block;
+    display: block;
     white-space: normal;
     line-height: 1.35;
   }
@@ -86,7 +86,7 @@
     max-width: 220px !important;
   }
 
-  /* â”€â”€â”€ Landing Page Mobile Fixes (Cut-off text) â”€â”€â”€ */
+  /* ─── Landing Page Mobile Fixes (Cut-off text) ─── */
   .platform-card {
     padding: 1.5rem !important;
     width: 100% !important;
@@ -686,15 +686,15 @@ body {
 }
 
 .books-card-button-primary {
-  background: linear-gradient(135deg, #03fcbe, #9e87ff);
+  background: linear-gradient(135deg, #69C5AC, #1EBDC2);
   color: #0a0e1a;
   font-weight: 600;
   border: none;
 }
 
 .books-card-button-primary:hover {
-  background: linear-gradient(135deg, #02e0aa, #8c6ff0);
-  box-shadow: 0 8px 24px rgba(3, 252, 190, 0.3);
+  background: linear-gradient(135deg, #69C5AC, #1EBDC2);
+  box-shadow: 0 8px 24px rgba(105, 197, 172, 0.3);
   transform: translateY(-2px);
 }
 
@@ -1602,8 +1602,8 @@ body {
   --line-strong: rgba(88, 186, 255, 0.28);
   --text: #f5f7ff;
   --muted: #96a3c7;
-  --gold: #8b5cff;
-  --blue: #39b8ff;
+  --gold: #69C5AC;
+  --blue: #1EBDC2;
   --cyan: #38e1cf;
   --focus-ring: rgba(110, 188, 255, 0.58);
   --shadow: 0 28px 72px rgba(2, 6, 16, 0.54);
@@ -1858,7 +1858,7 @@ body {
   .catalog-card:hover,
   .catalog-card:focus-visible {
     transform: translateY(-8px) scale(1.02) !important;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(3, 252, 190, 0.3) !important;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(105, 197, 172, 0.3) !important;
   }
 
   .catalog-card:hover img,
@@ -2551,7 +2551,7 @@ body {
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--detail-accent, #03fcbe) 65%, #eaf6ff 35%);
+  color: color-mix(in srgb, var(--detail-accent, #69C5AC) 65%, #eaf6ff 35%);
 }
 
 .detail-vibe-value {
@@ -2572,9 +2572,9 @@ body {
   min-height: 42px;
   padding: 0.65rem 0.9rem;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--detail-accent, #03fcbe) 38%, rgba(255, 255, 255, 0.1));
+  border: 1px solid color-mix(in srgb, var(--detail-accent, #69C5AC) 38%, rgba(255, 255, 255, 0.1));
   background:
-    linear-gradient(135deg, var(--detail-accent-soft, rgba(3, 252, 190, 0.14)), rgba(255, 255, 255, 0.03)),
+    linear-gradient(135deg, var(--detail-accent-soft, rgba(105, 197, 172, 0.14)), rgba(255, 255, 255, 0.03)),
     rgba(8, 11, 18, 0.84);
   color: #f5fbff;
   font-size: 0.86rem;

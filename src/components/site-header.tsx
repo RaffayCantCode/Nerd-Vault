@@ -5,7 +5,10 @@ import { BrandLogo } from "@/components/brand-logo";
 import { BrowseResetLink } from "@/components/browse-reset-link";
 
 export async function SiteHeader() {
-  const session = await auth();
+  const session = await auth().catch((error) => {
+    console.error("Auth session failed to load in site header:", error);
+    return null;
+  });
   const isSignedIn = Boolean(session?.user?.id);
 
   return (
