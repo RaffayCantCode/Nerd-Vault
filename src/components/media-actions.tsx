@@ -353,7 +353,15 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
               style={{ backgroundImage: `linear-gradient(135deg, rgba(6, 9, 16, 0.18), rgba(6, 9, 16, 0.82)), url(${item.backdropUrl || item.coverUrl})` }}
               aria-hidden="true"
             />
-            <ResilientMediaImage item={item} className="media-action-hero-image" loading="eager" decoding="async" fetchPriority="high" />
+            <ResilientMediaImage
+              item={item}
+              className="media-action-hero-image"
+              displayIntent="cover"
+              upgradeIntent="cover"
+              loading="eager"
+              decoding="async"
+              fetchPriority="high"
+            />
             <div className="media-action-hero-copy">
               <p className="eyebrow">Library</p>
               <strong>{item.title}</strong>

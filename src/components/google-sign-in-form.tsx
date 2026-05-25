@@ -1,11 +1,11 @@
 "use client";
 
-import { clearAllAuthCookies } from "@/components/auth-cookie-reset";
+import { clearLegacyAuthCookies } from "@/components/auth-cookie-reset";
 import { signInWithGoogle } from "@/app/sign-in/actions";
 
 export function GoogleSignInForm({ redirectTo, disabled }: { redirectTo: string; disabled: boolean }) {
   async function handleSubmit(formData: FormData) {
-    clearAllAuthCookies();
+    clearLegacyAuthCookies();
     await signInWithGoogle(formData);
   }
 

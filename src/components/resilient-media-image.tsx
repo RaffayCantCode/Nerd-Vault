@@ -2,7 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { getMediaFallbackImage } from "@/lib/media-fallbacks";
-import { chooseConnectionAwareIntent, optimizeMediaImageUrl } from "@/lib/media-image";
+import {
+  buildMediaImageSrcSet,
+  chooseConnectionAwareIntent,
+  MediaImageIntent,
+  optimizeMediaImageUrl,
+} from "@/lib/media-image";
 import { MediaItem } from "@/lib/types";
 
 const warmedImageUrls = new Set<string>();
@@ -14,6 +19,8 @@ type ResilientMediaImageProps = {
   loading?: "eager" | "lazy";
   decoding?: "sync" | "async" | "auto";
   fetchPriority?: "high" | "low" | "auto";
+  displayIntent?: MediaImageIntent;
+  upgradeIntent?: MediaImageIntent;
   onLoadStateChange?: (loaded: boolean) => void;
   useProxy?: boolean;
 };
@@ -30,6 +37,17 @@ function proxiedImage(url?: string) {
   }
 }
 
+function warmImageUrl(url?: string) {
+  if (!url || warmedImageUrls.has(url)) {
+    return;
+  }
+
+  warmedImageUrls.add(url);
+  const image = new Image();
+  image.decoding = "async";
+  image.src = url;
+}
+
 export function ResilientMediaImage({
   item,
   className,
@@ -37,15 +55,15 @@ export function ResilientMediaImage({
   loading = "lazy",
   decoding = "async",
   fetchPriority = "auto",
+  displayIntent = "thumb",
+  upgradeIntent = "cover",
   onLoadStateChange,
   useProxy = false,
 }: ResilientMediaImageProps) {
   const rawFallback = useProxy ? proxiedImage(getMediaFallbackImage(item)) ?? getMediaFallbackImage(item) : getMediaFallbackImage(item);
   const rawPrimaryCover = useProxy ? proxiedImage(item.coverUrl) ?? item.coverUrl : item.coverUrl;
   const rawSecondaryBackdrop = useProxy ? proxiedImage(item.backdropUrl) ?? item.backdropUrl : item.backdropUrl;
-  const fallback = optimizeMediaImageUrl(rawFallback, "cover");
-  const previewCover = optimizeMediaImageUrl(rawPrimaryCover, "thumb");
-  const previewBackdrop = optimizeMediaImageUrl(rawSecondaryBackdrop, "thumb");
+
   const [loaded, setLoaded] = useState(false);
   const [isUpgraded, setIsUpgraded] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -62,39 +80,62 @@ export function ResilientMediaImage({
   }
 
   const connectionInfo = connectionRef.current ?? undefined;
-  const primaryCover = optimizeMediaImageUrl(rawPrimaryCover, chooseConnectionAwareIntent("cover", connectionInfo));
-  const secondaryBackdrop = optimizeMediaImageUrl(rawSecondaryBackdrop, chooseConnectionAwareIntent("backdrop", connectionInfo));
-  const upgradeTarget = primaryCover || secondaryBackdrop || fallback;
-  const initialResolved = loading === "eager" ? (previewCover || previewBackdrop || fallback) : upgradeTarget;
-  const [src, setSrc] = useState(initialResolved);
-  const initialTarget = loading === "eager" ? (previewCover || previewBackdrop || upgradeTarget) : upgradeTarget;
+  const resolvedDisplayIntent = chooseConnectionAwareIntent(displayIntent, connectionInfo);
+  const resolvedUpgradeIntent = chooseConnectionAwareIntent(upgradeIntent, connectionInfo);
+
+  const fallback = optimizeMediaImageUrl(rawFallback, "cover");
+  const previewSrc =
+    optimizeMediaImageUrl(rawPrimaryCover, resolvedDisplayIntent) ||
+    optimizeMediaImageUrl(rawSecondaryBackdrop, "thumb") ||
+    fallback;
+  const upgradeSrc =
+    optimizeMediaImageUrl(rawPrimaryCover, resolvedUpgradeIntent) ||
+    optimizeMediaImageUrl(rawSecondaryBackdrop, resolvedUpgradeIntent) ||
+    fallback;
+  const secondaryBackdrop = optimizeMediaImageUrl(rawSecondaryBackdrop, resolvedUpgradeIntent);
+  const shouldProgress = Boolean(previewSrc && upgradeSrc && previewSrc !== upgradeSrc);
+
+  const [src, setSrc] = useState(shouldProgress ? previewSrc : upgradeSrc);
+  const srcSet = buildMediaImageSrcSet(rawPrimaryCover || rawSecondaryBackdrop, resolvedUpgradeIntent);
 
   useEffect(() => {
-    if (loading !== "eager" && fetchPriority !== "high") {
+    const nextPreview = shouldProgress ? previewSrc : upgradeSrc;
+    setLoaded(false);
+    setIsUpgraded(!shouldProgress);
+    onLoadStateChange?.(false);
+    setSrc(nextPreview);
+
+    if (shouldProgress) {
+      warmImageUrl(upgradeSrc);
+    }
+
+    if (loading === "eager" || fetchPriority === "high") {
+      warmImageUrl(upgradeSrc);
+      warmImageUrl(previewSrc);
+    }
+  }, [item.coverUrl, item.backdropUrl, onLoadStateChange, previewSrc, shouldProgress, upgradeSrc, loading, fetchPriority]);
+
+  useEffect(() => {
+    if (!shouldProgress || !upgradeSrc) {
       return;
     }
 
-    const warmTargets = [upgradeTarget, initialTarget].filter((t): t is string => Boolean(t));
-    warmTargets.forEach((target) => {
-      if (warmedImageUrls.has(target)) {
-        return;
+    let cancelled = false;
+    const fullImage = new Image();
+    fullImage.decoding = "async";
+    fullImage.onload = () => {
+      if (!cancelled) {
+        setSrc(upgradeSrc);
+        setIsUpgraded(true);
       }
+    };
+    fullImage.src = upgradeSrc;
 
-      warmedImageUrls.add(target);
-      const image = new Image();
-      image.decoding = "async";
-      image.src = target;
-    });
-  }, [fetchPriority, loading, upgradeTarget, initialTarget]);
+    return () => {
+      cancelled = true;
+    };
+  }, [shouldProgress, upgradeSrc]);
 
-  useEffect(() => {
-    setLoaded(false);
-    setIsUpgraded(initialTarget === upgradeTarget);
-    onLoadStateChange?.(false);
-    setSrc(initialTarget);
-  }, [initialTarget, onLoadStateChange, upgradeTarget]);
-
-  // If the browser already has the image cached, naturalWidth is set immediately
   useEffect(() => {
     if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
       setLoaded(true);
@@ -102,58 +143,28 @@ export function ResilientMediaImage({
     }
   }, [onLoadStateChange, src]);
 
-  useEffect(() => {
-    if (!src || src === upgradeTarget || !upgradeTarget) {
-      return;
-    }
-
-    let cancelled = false;
-    const upgrade = () => {
-      if (!cancelled) {
-        setSrc(upgradeTarget);
-        setIsUpgraded(true);
-      }
-    };
-
-    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-      const idleId = window.requestIdleCallback(upgrade, { timeout: 1200 });
-      return () => {
-        cancelled = true;
-        window.cancelIdleCallback(idleId);
-      };
-    }
-
-    const timer = globalThis.setTimeout(upgrade, loading === "eager" ? 0 : 120);
-    return () => {
-      cancelled = true;
-      globalThis.clearTimeout(timer);
-    };
-  }, [loading, src, upgradeTarget]);
-
   const combinedClass = [
-    className, 
-    "img-loaded-wrapper", 
+    className,
+    "img-loaded-wrapper",
     loaded ? "img-loaded" : "img-loading",
     loading === "eager" ? "img-eager" : "img-lazy",
-    isUpgraded ? "img-upgraded" : "img-preview"
-  ].filter(Boolean).join(" ");
+    isUpgraded ? "img-upgraded" : "img-preview",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <img
       ref={imgRef}
       className={combinedClass}
       src={src}
+      srcSet={srcSet}
+      sizes={srcSet ? "(max-width: 720px) 42vw, 220px" : undefined}
       alt={alt ?? item.title}
       loading={loading}
       decoding={decoding}
       fetchPriority={fetchPriority}
       draggable={false}
-      style={{
-        background: "rgba(255, 255, 255, 0.03)",
-        willChange: "transform, opacity",
-        backfaceVisibility: "hidden",
-        transition: "opacity 260ms ease, filter 260ms ease"
-      }}
       onLoad={() => {
         setLoaded(true);
         onLoadStateChange?.(true);
@@ -163,7 +174,7 @@ export function ResilientMediaImage({
           setSrc(secondaryBackdrop);
           return;
         }
-        if (src !== fallback) {
+        if (src !== fallback && fallback) {
           setSrc(fallback);
           return;
         }

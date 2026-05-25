@@ -1,7 +1,8 @@
+import Link from "next/link";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopBar } from "@/components/app-topbar";
-import { SiteHeader } from "@/components/site-header";
 import { auth } from "@/lib/auth";
+import { guestSignInHref } from "@/lib/guest";
 
 export default async function SupportPage() {
   const session = await auth();
@@ -107,22 +108,11 @@ Actual:`}</pre>
     </section>
   );
 
-  if (!isSignedIn) {
-    return (
-      <div className="page-shell">
-        <SiteHeader />
-        <main className="container landing-shell">
-          {content}
-        </main>
-      </div>
-    );
-  }
-
   return (
-    <div className="page-shell">
+    <div className="page-shell support-page-shell">
       <div className="app-shell-layout">
-        <AppSidebar active="browse" initialFolders={[]} />
-        <main className="workspace">
+        <AppSidebar active="vault" initialFolders={isSignedIn ? [] : undefined} />
+        <main className="workspace support-workspace">
           <AppTopBar
             viewerId={viewerId}
             viewerName={viewerName}
@@ -130,6 +120,14 @@ Actual:`}</pre>
             initialProfile={null}
             initialFriends={[]}
           />
+          {!isSignedIn ? (
+            <div className="guest-support-banner glass">
+              <p className="copy">Browsing as a guest. Sign in to sync vault data and get faster support follow-up.</p>
+              <Link href={guestSignInHref("/support")} className="button button-primary">
+                Sign in
+              </Link>
+            </div>
+          ) : null}
           {content}
         </main>
       </div>

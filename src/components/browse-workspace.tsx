@@ -101,17 +101,27 @@ function writeBrowseClientCache(key: string, payload: BrowseApiPayload) {
   });
 }
 
+function browseResponseMatchesRequest(payload: BrowseApiPayload, requestedPage: number, hasSearch: boolean) {
+  if (hasSearch) {
+    return true;
+  }
+
+  return normalizePage(payload.page) === normalizePage(requestedPage);
+}
+
 async function prefetchBrowsePayload(
   params: URLSearchParams,
   signal?: AbortSignal,
 ) {
   const requestKey = params.toString();
-  if (readBrowseClientCache(requestKey)) {
+  const requestedPage = normalizePage(Number(params.get("page") || "1"));
+  const cached = readBrowseClientCache(requestKey);
+  if (cached && browseResponseMatchesRequest(cached, requestedPage, Boolean(params.get("query")?.trim()))) {
     return;
   }
 
   const response = await fetch(`/api/catalog/browse?${requestKey}`, {
-    cache: "default",
+    cache: "no-store",
     signal,
   });
 
@@ -221,6 +231,9 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
   const [isHeroPaused, setIsHeroPaused] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const resultsRef = useRef<HTMLDivElement | null>(null);
+  const catalogGridRef = useRef<HTMLDivElement | null>(null);
+  const bottomPagerRef = useRef<HTMLDivElement | null>(null);
+  const pendingResultsFocusRef = useRef<"top" | "bottom" | null>(null);
   const surfacingRef = useRef<HTMLElement | null>(null);
   const hasRestoredScrollRef = useRef(false);
   const hasFocusedResultsRef = useRef(false);
@@ -294,13 +307,15 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
     const controller = new AbortController();
 
     async function loadPage() {
+      const requestedPage = activePage;
+      const hasSearch = Boolean(deferredQuery.trim());
       setIsLoading(true);
       setError(null);
 
       try {
         const params = new URLSearchParams({
           type: filter,
-          page: String(activePage),
+          page: String(requestedPage),
           sort,
           seed: String(initialSeed),
           pageSize: String(pageSize),
@@ -310,18 +325,21 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
           params.set("genre", genre);
         }
 
-        if (deferredQuery.trim()) {
+        if (hasSearch) {
           params.set("query", deferredQuery.trim());
         }
 
         const requestKey = params.toString();
         const cachedPayload = readBrowseClientCache(requestKey);
-        if (cachedPayload) {
+        if (
+          cachedPayload &&
+          browseResponseMatchesRequest(cachedPayload, requestedPage, hasSearch)
+        ) {
           if (!active) {
             return;
           }
 
-          const nextPage = deferredQuery.trim() ? 1 : clampPage(cachedPayload.page || activePage, cachedPayload.totalPages || 1);
+          const nextPage = hasSearch ? 1 : clampPage(cachedPayload.page || requestedPage, cachedPayload.totalPages || 1);
           const nextItems = dedupeItems(cachedPayload.items).filter(
             (item) => !surfacingKeys.has(getMediaKey(item)),
           );
@@ -329,14 +347,15 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
             page: nextPage,
             totalPages: Math.max(1, cachedPayload.totalPages || 1),
             totalResults: cachedPayload.totalResults || cachedPayload.items.length,
-            items: nextItems,
+            items: nextItems.slice(0, pageSize),
           });
+          setActivePage(nextPage);
           setIsLoading(false);
           return;
         }
 
         const response = await fetch(`/api/catalog/browse?${params.toString()}`, {
-          cache: "default",
+          cache: hasSearch ? "no-store" : "default",
           signal: controller.signal,
         });
         const nextPayload = (await response.json()) as BrowseApiPayload;
@@ -345,13 +364,17 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
           throw new Error(nextPayload.message || "Could not load the browse page.");
         }
 
+        if (!browseResponseMatchesRequest(nextPayload, requestedPage, hasSearch)) {
+          throw new Error("Browse results were stale. Refreshing this page...");
+        }
+
         if (!active) {
           return;
         }
 
         writeBrowseClientCache(requestKey, nextPayload);
 
-        const nextPage = deferredQuery.trim() ? 1 : clampPage(nextPayload.page || activePage, nextPayload.totalPages || 1);
+        const nextPage = hasSearch ? 1 : clampPage(nextPayload.page || requestedPage, nextPayload.totalPages || 1);
         const nextItems = dedupeItems(nextPayload.items).filter(
           (item) => !surfacingKeys.has(getMediaKey(item)),
         );
@@ -361,9 +384,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
           totalResults: nextPayload.totalResults || nextPayload.items.length,
           items: nextItems.slice(0, pageSize),
         });
-        if (nextPage !== activePage) {
-          setActivePage(nextPage);
-        }
+        setActivePage(nextPage);
       } catch (loadError) {
         if (!active || controller.signal.aborted) {
           return;
@@ -440,12 +461,13 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
 
     hasFocusedResultsRef.current = true;
     window.setTimeout(() => {
-      resultsRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
+      scrollToBrowseMediaList("auto");
     }, 40);
   }, [initialFocus, isLoading]);
 
   useEffect(() => {
     featuredDeck.slice(0, 4).forEach((item) => {
+      preload(optimizeMediaImageUrl(item.coverUrl, "thumb") ?? item.coverUrl);
       preload(optimizeMediaImageUrl(item.backdropUrl, "backdrop") ?? item.backdropUrl);
       preload(optimizeMediaImageUrl(item.coverUrl, "cover") ?? item.coverUrl);
     });
@@ -552,20 +574,62 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
       setSort("discovery");
     }
 
-    resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    scrollToBrowseMediaList("smooth");
   }
 
-  function handlePageChange(targetPage: number) {
+  function scrollToBrowseMediaList(behavior: ScrollBehavior = "smooth") {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const target = catalogGridRef.current ?? resultsRef.current;
+    if (!target) {
+      return;
+    }
+
+    const topOffset = window.innerWidth <= 900 ? 92 : 116;
+    const nextTop = Math.max(0, window.scrollY + target.getBoundingClientRect().top - topOffset);
+    const distance = Math.abs(nextTop - window.scrollY);
+
+    window.scrollTo({
+      top: nextTop,
+      behavior: distance > 1600 ? "auto" : behavior,
+    });
+  }
+
+  function handlePageChange(targetPage: number, source: "top" | "bottom" = "top") {
     const nextPage = clampPage(targetPage, payload.totalPages);
-    if (nextPage === activePage) {
+    if (nextPage === activePage || isLoading) {
       return;
     }
 
     setActivePage(nextPage);
-    window.setTimeout(() => {
-      resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 0);
+
+    if (source === "bottom") {
+      pendingResultsFocusRef.current = "bottom";
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      scrollToBrowseMediaList("smooth");
+    });
   }
+
+  useEffect(() => {
+    if (isLoading || pendingResultsFocusRef.current !== "bottom") {
+      return;
+    }
+
+    pendingResultsFocusRef.current = null;
+
+    const timer = window.setTimeout(() => {
+      window.requestAnimationFrame(() => {
+        scrollToBrowseMediaList("smooth");
+      });
+    }, 80);
+
+    return () => window.clearTimeout(timer);
+  }, [isLoading, activePage, payload.items.length]);
 
   function setHeroIndexWithReset(nextIndex: number) {
     if (!featuredDeck.length) {
@@ -581,15 +645,26 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
     }
 
     return (
-      <div className={`bottom-pager bottom-pager-${position} glass`}>
+      <div
+        ref={position === "bottom" ? bottomPagerRef : undefined}
+        className={`bottom-pager bottom-pager-${position} glass`}
+      >
         <div className="pager-copy">
           <p className="eyebrow">Browse pages</p>
           <p className="copy">
-            Page {payload.page} of {payload.totalPages} with {pageSize} titles loaded each time.
+            Page {activePage} of {payload.totalPages} with {pageSize} titles loaded each time.
           </p>
         </div>
         <div className="pager-actions">
-          <button type="button" className="chip" disabled={activePage <= 1 || isLoading} onClick={() => handlePageChange(activePage - 1)}>
+          <button
+            type="button"
+            className="chip"
+            disabled={activePage <= 1 || isLoading}
+            onClick={(event) => {
+              event.stopPropagation();
+              handlePageChange(activePage - 1, position);
+            }}
+          >
             Previous page
           </button>
           <div className="page-indicator">
@@ -601,7 +676,10 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
             type="button"
             className="chip is-active"
             disabled={activePage >= payload.totalPages || isLoading}
-            onClick={() => handlePageChange(activePage + 1)}
+            onClick={(event) => {
+              event.stopPropagation();
+              handlePageChange(activePage + 1, position);
+            }}
           >
             Next page
           </button>
@@ -693,7 +771,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
               <div className="hero-art">
                 <div
                   className="hero-art-backdrop"
-                  style={{ backgroundImage: `url(${optimizeMediaImageUrl(featured.coverUrl, "cover") ?? featured.coverUrl})` }}
+                  style={{ backgroundImage: `url(${optimizeMediaImageUrl(featured.coverUrl, "thumb") ?? featured.coverUrl})` }}
                   aria-hidden="true"
                 />
                 <img
@@ -820,7 +898,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
                 ? error
                 : isLoading
                   ? "Loading results..."
-                  : `Showing ${payload.items.length} titles on page ${payload.page}${showPager ? ` of ${payload.totalPages}` : ""}.`}
+                  : `Showing ${payload.items.length} titles on page ${activePage}${showPager ? ` of ${payload.totalPages}` : ""}.`}
             </p>
             <div className={`refresh-pulse ${isLoading ? "is-active" : ""}`} />
           </div>
@@ -839,13 +917,16 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
           </div>
         ) : null}
 
-        <div className={`catalog-grid ${isLoading ? "catalog-grid-loading" : ""}`}>
+        <div
+          ref={catalogGridRef}
+          className={`catalog-grid browse-results-grid ${isLoading ? "catalog-grid-loading is-page-transitioning" : ""}`}
+        >
           {isLoading && !payload.items.length
             ? Array.from({ length: 12 }).map((_, index) => (
                 <div key={`browse-skeleton-${index}`} className="catalog-card catalog-card-skeleton glass" aria-hidden="true" />
               ))
             : payload.items.map((item, index) => (
-                <CatalogCard key={item.id} item={item} priority={index < 8} />
+                <CatalogCard key={item.id} item={item} priority={index < 4} />
               ))}
         </div>
 

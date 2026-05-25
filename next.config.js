@@ -18,6 +18,10 @@ const nextConfig = {
       },
       {
         protocol: 'https',
+        hostname: 's4.anilist.co',
+      },
+      {
+        protocol: 'https',
         hostname: 'myanimelist.net',
       },
       {
@@ -41,11 +45,11 @@ const nextConfig = {
   },
   headers: async () => [
     {
-      source: '/api/catalog/(.*)',
+      source: '/api/catalog/browse',
       headers: [
         {
           key: 'Cache-Control',
-          value: 'public, max-age=300, stale-while-revalidate=3600',
+          value: 'public, max-age=0, s-maxage=180, stale-while-revalidate=600',
         },
       ],
     },

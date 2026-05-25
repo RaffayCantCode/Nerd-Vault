@@ -17,7 +17,7 @@ declare const process: {
 };
 
 const IGDB_BASE_URL = "https://api.igdb.com/v4";
-const IGDB_IMAGE_BASE_URL = "https://images.igdb.com/igdb/image/upload/t_1080p";
+const IGDB_IMAGE_BASE_URL = "https://images.igdb.com/igdb/image/upload/t_cover_big";
 const TWITCH_TOKEN_URL = "https://id.twitch.tv/oauth2/token";
 const IGDB_CACHE_TTL_MS = 1000 * 60 * 30;
 const IGDB_NATIVE_GENRES = new Set([
@@ -438,11 +438,15 @@ export async function browseIgdbGames(params: {
     items = items.filter((item) => itemMatchesGenre(item, rawGenre));
   }
 
-  // Safety refill: if a seed/sort window still yields an empty page,
-  // probe a few nearby windows so Games browse never renders blank.
-  if (!queryText && items.length === 0) {
-    const refillWindows = [1, 2, 3].map((step) => requestPage + step);
+  // Safety refill: if a seed/sort window still yields too few genre matches,
+  // probe nearby windows so browse pages stay full.
+  if (!queryText && (items.length === 0 || (rawGenre && items.length < pageSize))) {
+    const targetCount = Math.min(pageSize, 48);
+    const refillWindows = Array.from({ length: 8 }, (_, step) => requestPage + step + 1);
     for (const refillPage of refillWindows) {
+      if (items.length >= targetCount) {
+        break;
+      }
       const refillOffset = (refillPage - 1) * pageSize;
       const refillQuery = `fields ${fields}; where ${whereParts.join(" & ")}; ${sortClause} limit ${pageSize}; offset ${refillOffset};`;
       const refillGames = await igdbFetch<IgdbGame[]>(refillQuery).catch(() => [] as IgdbGame[]);
@@ -451,8 +455,7 @@ export async function browseIgdbGames(params: {
         refillItems = refillItems.filter((item) => itemMatchesGenre(item, rawGenre));
       }
       if (refillItems.length) {
-        items = refillItems;
-        break;
+        items = dedupeBySource([...items, ...refillItems]).slice(0, targetCount);
       }
     }
   }

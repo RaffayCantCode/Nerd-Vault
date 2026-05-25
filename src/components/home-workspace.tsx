@@ -83,23 +83,22 @@ export function HomeWorkspace({
   viewerName: string;
   feed: HomeFeed;
 }) {
-  useEffect(() => {
-    // Safety reset: if a mobile overlay previously left overflow locked,
-    // Home should always restore normal page scrolling.
-    document.body.style.removeProperty("overflow");
-  }, []);
-
-  // Show loading state if feed is empty or still loading
-  if (!feed) {
-    return <HomeWorkspaceLoading />;
-  }
-
   const [sectionPages, setSectionPages] = useState<Record<string, number>>({
     show: 1,
     movie: 1,
     anime: 1,
     game: 1,
   });
+
+  useEffect(() => {
+    // Safety reset: if a mobile overlay previously left overflow locked,
+    // Home should always restore normal page scrolling.
+    document.body.style.removeProperty("overflow");
+  }, []);
+
+  if (!feed) {
+    return <HomeWorkspaceLoading />;
+  }
 
   function setSectionPage(sectionKey: string, nextPage: number) {
     setSectionPages((current) => ({
@@ -245,7 +244,13 @@ export function HomeWorkspace({
                     onClick={() => writeDetailReturnTarget({ href: "/home", label: "Back to home" })}
                   >
                     <div className="home-upcoming-poster" aria-hidden="true">
-                      <ResilientMediaImage item={entry.continuation} loading="lazy" decoding="async" />
+                      <ResilientMediaImage
+                        item={entry.continuation}
+                        displayIntent="thumb"
+                        upgradeIntent="cover"
+                        loading="lazy"
+                        decoding="async"
+                      />
                     </div>
                     <div className="home-upcoming-copy-stack">
                     <p className="eyebrow">{entry.label}</p>

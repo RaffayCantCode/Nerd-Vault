@@ -34,11 +34,26 @@ function resolveSafeRedirectPath(value?: string | null) {
   return null;
 }
 
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  Configuration: "Auth is misconfigured on the server. Check AUTH_SECRET, AUTH_URL, and DATABASE_URL in Netlify.",
+  AccessDenied: "Google sign-in was cancelled or denied.",
+  OAuthAccountNotLinked:
+    "This email already has an account. Sign in with email/password first, or use the same Google account you registered with.",
+  OAuthSignin: "Google sign-in could not start. Try again in a private window.",
+  OAuthCallback: "Google callback failed. This is usually a database or redirect URI issue — check Netlify function logs.",
+  OAuthCreateAccount: "Could not create your account in the database. Verify DATABASE_URL and run prisma db push.",
+  CallbackRouteError: "Auth callback crashed on the server. Check Netlify logs for Prisma/database errors.",
+  InvalidCheck: "OAuth security check failed (PKCE/state). Clear cookies for nerdvault.site and try again.",
+  google-not-configured: "Google sign-in is not configured in environment variables.",
+  "google-sign-in-failed": "Google sign-in failed before redirecting to Google.",
+};
+
 function getMessageCopy(success?: string, error?: string) {
   if (error) {
+    const decoded = decodeURIComponent(error.replace(/\+/g, " "));
     return {
       tone: "error",
-      text: error,
+      text: AUTH_ERROR_MESSAGES[decoded] ?? decoded,
     };
   }
 
@@ -80,7 +95,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
             </p>
             <p className="copy" style={{ marginTop: 14 }}>
               {googleReady
-                ? "Google sign-in is available. If it fails on Vercel, the Google OAuth app likely needs the correct production callback URL."
+                ? "Google sign-in is available. If it fails after account selection, verify AUTH_URL, AUTH_SECRET, DATABASE_URL, and the Google OAuth redirect URI for https://nerdvault.site/api/auth/callback/google."
                 : "Google sign-in still needs AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET, and AUTH_SECRET configured."}
             </p>
           </div>
@@ -160,7 +175,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
             </div>
 
             <p className="copy">
-              Use Google if you want the one-click route and already have your OAuth keys connected in Vercel.
+              Use Google if you want the one-click route and already have your OAuth keys connected in production.
             </p>
             <GoogleSignInForm redirectTo={redirectTo} disabled={!googleReady} />
 

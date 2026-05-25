@@ -6,7 +6,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { credentialsSignInSchema, credentialsSignUpSchema, normalizeEmail } from "@/lib/auth-credentials";
-import { getAuthCookiesToDelete, OAUTH_TRANSIENT_COOKIE_NAMES } from "@/lib/auth-cookies";
+import { getAuthCookiesToDelete } from "@/lib/auth-cookies";
 import { signIn } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -32,7 +32,9 @@ export async function signInWithGoogle(formData?: FormData) {
   const cookieNames = cookieStore.getAll().map((cookie) => cookie.name);
   const staleAuthCookies = getAuthCookiesToDelete(cookieNames);
 
-  for (const cookieName of new Set([...OAUTH_TRANSIENT_COOKIE_NAMES, ...staleAuthCookies])) {
+  // Only clear stale session chunks here. OAuth PKCE/state cookies are cleared on the
+  // client right before submit; deleting them again server-side can break the callback.
+  for (const cookieName of staleAuthCookies) {
     cookieStore.delete(cookieName);
   }
 
@@ -45,7 +47,16 @@ export async function signInWithGoogle(formData?: FormData) {
     secure: process.env.NODE_ENV === "production",
   });
 
-  await signIn("google", { redirectTo: "/" });
+  try {
+    await signIn("google", { redirectTo });
+  } catch (error) {
+    if (error instanceof AuthError) {
+      const code = error.type ?? "google-sign-in-failed";
+      redirect(`/sign-in?mode=login&error=${encodeURIComponent(code)}&redirectTo=${encodeURIComponent(redirectTo)}`);
+    }
+
+    throw error;
+  }
 }
 
 export async function signUpWithCredentials(formData: FormData) {

@@ -23,6 +23,20 @@ const CHUNKED_SESSION_TOKEN_RE =
   /^(?:__Secure-|__Host-)?(?:authjs|next-auth)\.session-token\.\d+$/;
 
 export function middleware(request: NextRequest) {
+  const { pathname, hostname } = request.nextUrl;
+
+  // Never touch cookies during the OAuth handshake.
+  if (pathname.startsWith("/api/auth")) {
+    return NextResponse.next();
+  }
+
+  // Keep a single canonical host so AUTH_URL, cookies, and Google redirects stay aligned.
+  if (hostname === "www.nerdvault.site") {
+    const canonical = new URL(request.url);
+    canonical.hostname = "nerdvault.site";
+    return NextResponse.redirect(canonical, 308);
+  }
+
   const chunkedCookies = request.cookies
     .getAll()
     .filter((c) => CHUNKED_SESSION_TOKEN_RE.test(c.name));
@@ -47,5 +61,6 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
+  // Never run middleware on Auth.js routes (OAuth callback + error page).
+  matcher: ["/((?!api/auth|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
 };

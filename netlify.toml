@@ -1,8 +1,34 @@
 [build]
-  command = "npx prisma db push && npm run build"
-  publish = ".next"
+  command = "npx prisma generate && npx prisma db push && npm run build"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# Browse/search responses are keyed by query params; edge caching breaks pagination and filters.
+[[headers]]
+  for = "/api/catalog/browse"
+  [headers.values]
+    Cache-Control = "private, no-store, max-age=0, must-revalidate"
 
 [[headers]]
-  for = "/api/catalog/*"
+  for = "/api/auth/*"
   [headers.values]
-    Cache-Control = "public, max-age=300, stale-while-revalidate=3600"
+    Cache-Control = "private, no-store, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/_next/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=86400, stale-while-revalidate=604800"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=86400, stale-while-revalidate=604800"

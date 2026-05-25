@@ -1485,13 +1485,24 @@ main {
 
   .bottom-pager-bottom {
     position: sticky;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
-    z-index: 35;
-    margin-bottom: calc(env(safe-area-inset-bottom, 0px) + 4px);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 92px);
+    z-index: 230;
+    margin-top: 18px;
+    margin-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+    pointer-events: auto;
+    touch-action: manipulation;
+    isolation: isolate;
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
       rgba(9, 12, 18, 0.96);
     box-shadow: 0 18px 40px rgba(0, 0, 0, 0.34);
+  }
+
+  .bottom-pager-bottom .pager-actions,
+  .bottom-pager-bottom .chip,
+  .bottom-pager-bottom .page-indicator {
+    pointer-events: auto;
+    touch-action: manipulation;
   }
 
   .bottom-pager-bottom .pager-copy {
@@ -11931,7 +11942,25 @@ body {
 }
 
 .bottom-pager-bottom {
+  position: sticky;
+  z-index: 60;
+  pointer-events: auto;
+  touch-action: manipulation;
   transition: transform 180ms ease, opacity 180ms ease, box-shadow 180ms ease;
+}
+
+.browse-workspace-root .section-stack {
+  padding-bottom: 24px;
+}
+
+.browse-workspace-root .browse-results-grid {
+  scroll-margin-top: 116px;
+}
+
+@media (max-width: 900px) {
+  .browse-workspace-root .browse-results-grid {
+    scroll-margin-top: 92px;
+  }
 }
 
 .catalog-grid-loading {
@@ -13933,21 +13962,30 @@ html {
 
 /* --- GLOBAL PERFORMANCE & SMOOTHNESS --- */
 .img-loaded-wrapper {
-  opacity: 0;
-  transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  will-change: opacity, transform;
+  opacity: 0.72;
+  transition: opacity 0.22s ease, filter 0.22s ease, transform 0.22s ease;
+  will-change: opacity;
 }
 
-.img-loaded-wrapper.img-loaded {
+.img-loaded-wrapper.img-preview.img-loaded {
+  opacity: 0.92;
+}
+
+.img-loaded-wrapper.img-upgraded.img-loaded {
   opacity: 1;
 }
 
-.img-loading {
-  filter: blur(2px);
-  transform: scale(1.01);
+.img-loading.img-preview {
+  filter: blur(4px);
+  transform: scale(1.02);
 }
 
-.img-loaded {
+.img-loaded.img-preview:not(.img-upgraded) {
+  filter: blur(0);
+  transform: scale(1);
+}
+
+.img-upgraded.img-loaded {
   filter: blur(0);
   transform: scale(1);
 }
@@ -14002,12 +14040,11 @@ html {
   overflow: hidden;
 }
 
-.catalog-card-media img {
-  opacity: 0;
-  transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+.catalog-card-media img.img-loaded-wrapper {
+  transition: opacity 0.22s ease, filter 0.22s ease;
 }
 
-.catalog-card-media img.img-loaded {
+.catalog-card-media img.img-loaded-wrapper.img-upgraded.img-loaded {
   opacity: 1;
 }
 
@@ -14906,11 +14943,26 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.detail-trailer-frame {
+.detail-trailer-frame,
+.detail-trailer-player-host {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+  border: 0;
+}
+
+/* YouTube picks stream tier from the iframe's native 1920×1080 surface, then we scale it to fit. */
+.detail-trailer-player-host iframe {
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  width: 1920px !important;
+  height: 1080px !important;
+  max-width: none !important;
+  max-height: none !important;
+  transform: translate(-50%, -50%) scale(var(--trailer-scale, 0.52));
+  transform-origin: center center;
   border: 0;
 }
 
@@ -17009,6 +17061,80 @@ body {
    Single mobile navigation system: bottom dock for page routing + detail section jumps. */
 .nv-mobile-dock-wrap {
   display: none;
+}
+
+body > .nv-mobile-dock-wrap {
+  position: fixed;
+  z-index: 220;
+}
+
+/* Keep main app content clickable above the collapsed mobile sidebar shell */
+.app-shell-layout > .workspace,
+.app-shell-layout > main {
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+.guest-vault-shell {
+  display: grid;
+  gap: 18px;
+  padding: clamp(18px, 3vw, 28px);
+  border-radius: 22px;
+}
+
+.guest-vault-actions {
+  flex-wrap: wrap;
+}
+
+.guest-support-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border-radius: 16px;
+}
+
+.guest-auth-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 240;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(4, 8, 14, 0.62);
+  backdrop-filter: blur(6px);
+}
+
+.guest-auth-modal {
+  position: relative;
+  width: min(100%, 420px);
+  padding: 22px;
+  border-radius: 20px;
+}
+
+.guest-auth-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+
+.guest-auth-actions {
+  margin-top: 16px;
+}
+
+.browse-workspace-root .catalog-grid.is-page-transitioning {
+  opacity: 0.72;
+  transform: translateY(4px);
+  transition: opacity 180ms ease, transform 180ms ease;
+  pointer-events: none;
+}
+
+.browse-workspace-root .catalog-grid:not(.is-page-transitioning) {
+  transition: opacity 220ms ease, transform 220ms ease;
 }
 
 @media (max-width: 900px) {

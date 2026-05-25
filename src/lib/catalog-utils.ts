@@ -90,6 +90,34 @@ export function itemMatchesGenre(item: MediaItem, genre: string) {
   return itemGenres.some((itemGenre) => matchesTerm(itemGenre, normalizedGenre));
 }
 
+const BROWSE_GENRE_API_ALIASES: Record<string, { movie?: string; show?: string; anime?: string; game?: string }> = {
+  "Sci-Fi": { movie: "Science Fiction", show: "Science Fiction", anime: "Sci-Fi", game: "Sci-Fi" },
+  Comedy: { movie: "Comedy", show: "Comedy", anime: "Comedy", game: "Comedy" },
+  "Mystery & Thriller": { movie: "Thriller", show: "Thriller", anime: "Mystery", game: "Adventure" },
+  Documentary: { movie: "Documentary", show: "Documentary", anime: "Documentary", game: "Simulator" },
+  Family: { movie: "Family", show: "Family", anime: "Slice of Life", game: "Adventure" },
+  Sports: { movie: "Sport", show: "Sport", anime: "Sports", game: "Sport" },
+  Shonen: { anime: "Shounen" },
+  Seinen: { anime: "Seinen" },
+  "Open World": { game: "Adventure" },
+  Platformer: { game: "Platform" },
+};
+
+export function hasActiveBrowseGenre(genre: string) {
+  return Boolean(genre && genre !== "all");
+}
+
+export function resolveBrowseGenreForSource(
+  genre: string,
+  source: "movie" | "show" | "anime" | "game",
+) {
+  if (!hasActiveBrowseGenre(genre)) {
+    return "";
+  }
+
+  return BROWSE_GENRE_API_ALIASES[genre]?.[source] ?? genre;
+}
+
 export function itemGenreLabels(item: MediaItem, scope: MediaType | "all" = "all") {
   const labels = canonicalGenreLabels(item);
 

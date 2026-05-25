@@ -3215,7 +3215,14 @@ export default async function MediaDetailPage({
               {/* Wide info grid: poster + details side by side */}
               <div className="detail-info-grid">
                 <aside className="detail-poster-col glass">
-                  <ResilientMediaImage item={media} loading="eager" decoding="async" fetchPriority="high" />
+                  <ResilientMediaImage
+                    item={media}
+                    displayIntent="cover"
+                    upgradeIntent="cover"
+                    loading="eager"
+                    decoding="async"
+                    fetchPriority="high"
+                  />
                 </aside>
 
                 <div className="detail-copy-col">

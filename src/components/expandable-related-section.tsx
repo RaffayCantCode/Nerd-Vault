@@ -63,7 +63,8 @@ export function ExpandableRelatedSection({
   const initialRows = 2;
   const additionalRowsPerExpand = 1;
   const relatedContainerRef = useRef<HTMLDivElement | null>(null);
-  const previousVisibleCountRef = useRef(cardsPerRow * initialRows);
+  const previousVisibleCountRef = useRef(0);
+  const userExpandedRef = useRef(false);
 
   useEffect(() => {
     function syncCardsPerRow() {
@@ -98,6 +99,8 @@ export function ExpandableRelatedSection({
   useEffect(() => {
     setVisibleRows(initialRows);
     setHighlightedFromIndex(null);
+    userExpandedRef.current = false;
+    previousVisibleCountRef.current = cardsPerRow * initialRows;
   }, [cardsPerRow, related.length]);
 
   const visibleCount = useMemo(() => cardsPerRow * visibleRows, [cardsPerRow, visibleRows]);
@@ -105,32 +108,40 @@ export function ExpandableRelatedSection({
   const canCollapse = visibleRows > initialRows;
 
   useEffect(() => {
-    const previousVisibleCount = previousVisibleCountRef.current;
-
-    if (visibleCount > previousVisibleCount && relatedContainerRef.current) {
-      setHighlightedFromIndex(previousVisibleCount);
-
-      const target = relatedContainerRef.current.querySelector<HTMLElement>(`[data-related-index="${previousVisibleCount}"]`);
-      if (target) {
-        window.setTimeout(() => {
-          target.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
-        }, 90);
-      }
-
-      const timeout = window.setTimeout(() => setHighlightedFromIndex(null), 1200);
+    if (!userExpandedRef.current || visibleRows <= initialRows) {
       previousVisibleCountRef.current = visibleCount;
-      return () => window.clearTimeout(timeout);
+      return;
     }
 
+    const previousVisibleCount = previousVisibleCountRef.current;
+    if (visibleCount <= previousVisibleCount || !relatedContainerRef.current) {
+      previousVisibleCountRef.current = visibleCount;
+      return;
+    }
+
+    setHighlightedFromIndex(previousVisibleCount);
+
+    const target = relatedContainerRef.current.querySelector<HTMLElement>(
+      `[data-related-index="${previousVisibleCount}"]`,
+    );
+    if (target) {
+      window.setTimeout(() => {
+        target.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+      }, 90);
+    }
+
+    const timeout = window.setTimeout(() => setHighlightedFromIndex(null), 1200);
     previousVisibleCountRef.current = visibleCount;
-    return;
-  }, [visibleCount]);
+    return () => window.clearTimeout(timeout);
+  }, [initialRows, visibleCount, visibleRows]);
 
   function handleExpand() {
+    userExpandedRef.current = true;
     setVisibleRows((current) => current + additionalRowsPerExpand);
   }
 
   function handleCollapse() {
+    userExpandedRef.current = false;
     setVisibleRows(initialRows);
     setHighlightedFromIndex(null);
     window.setTimeout(() => {

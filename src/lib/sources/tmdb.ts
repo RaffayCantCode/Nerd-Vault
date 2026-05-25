@@ -5,7 +5,7 @@ import { browseAniListAnime } from "@/lib/sources/anilist";
 import { getMediaFallbackImage } from "@/lib/media-fallbacks";
 
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
-const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/original";
+const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500";
 const TMDB_CACHE_TTL_MS = 1000 * 60 * 30;
 
 type TmdbGenre = {
@@ -434,8 +434,46 @@ async function getGenreMaps() {
 
 function findGenreId(genres: Map<number, string>, genreName?: string) {
   if (!genreName || genreName === "all") return null;
-  const match = [...genres.entries()].find(([, name]) => name.toLowerCase() === genreName.toLowerCase());
-  return match?.[0] ?? null;
+
+  const normalized = genreName
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9\s]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const exact = [...genres.entries()].find(([, name]) => name.toLowerCase() === genreName.toLowerCase());
+  if (exact) {
+    return exact[0];
+  }
+
+  const aliasHints: Record<string, string[]> = {
+    "sci fi": ["science fiction"],
+    comedy: ["comedy"],
+    "mystery and thriller": ["thriller", "mystery", "crime"],
+    documentary: ["documentary"],
+    family: ["family"],
+    sports: ["sport", "sports"],
+    horror: ["horror"],
+    fantasy: ["fantasy"],
+    adventure: ["adventure"],
+    action: ["action"],
+    drama: ["drama"],
+    romance: ["romance"],
+  };
+
+  const hints = aliasHints[normalized] ?? [normalized];
+  for (const hint of hints) {
+    const fuzzy = [...genres.entries()].find(([, name]) => {
+      const genreValue = name.toLowerCase();
+      return genreValue === hint || genreValue.includes(hint) || hint.includes(genreValue);
+    });
+    if (fuzzy) {
+      return fuzzy[0];
+    }
+  }
+
+  return null;
 }
 
 export async function getTmdbStarterCatalog() {
@@ -555,11 +593,22 @@ async function getTmdbMoviePageWithMode(
   const payload = await tmdbFetch<TmdbPagedResponse>(path);
   let primaryItems = payload.results.map((item) => mapMovieOrShow(item, "movie", movieGenres)).filter(isUsefulMovie);
 
-  // If we filtered out too many items, fetch next page to fill up the results
-  if (primaryItems.length < 12 && payload.page < payload.total_pages) {
-    const nextPage = await tmdbFetch<TmdbPagedResponse>(path.replace(`page=${requestPage}`, `page=${requestPage + 1}`));
+  const targetCount = genreId ? 20 : 12;
+  let nextRequestPage = requestPage + 1;
+  while (primaryItems.length < targetCount && nextRequestPage <= payload.total_pages && nextRequestPage <= requestPage + 6) {
+    const nextPath = path.replace(`page=${requestPage}`, `page=${nextRequestPage}`);
+    const nextPage = await tmdbFetch<TmdbPagedResponse>(nextPath).catch(() => ({
+      page: nextRequestPage,
+      total_pages: payload.total_pages,
+      total_results: payload.total_results,
+      results: [] as TmdbListItem[],
+    }));
     const extraItems = nextPage.results.map((item) => mapMovieOrShow(item, "movie", movieGenres)).filter(isUsefulMovie);
-    primaryItems = [...primaryItems, ...extraItems].slice(0, 20);
+    if (!extraItems.length) {
+      break;
+    }
+    primaryItems = dedupeBySource([...primaryItems, ...extraItems]).slice(0, 20);
+    nextRequestPage += 1;
   }
 
   return {
@@ -624,11 +673,22 @@ async function getTmdbShowPageWithMode(
   const payload = await tmdbFetch<TmdbPagedResponse>(path);
   let primaryItems = payload.results.map((item) => mapMovieOrShow(item, "show", tvGenres)).filter(isUsefulShow);
 
-  // If we filtered out too many items, fetch next page to fill up the results
-  if (primaryItems.length < 12 && payload.page < payload.total_pages) {
-    const nextPage = await tmdbFetch<TmdbPagedResponse>(path.replace(`page=${requestPage}`, `page=${requestPage + 1}`));
+  const targetCount = genreId ? 20 : 12;
+  let nextRequestPage = requestPage + 1;
+  while (primaryItems.length < targetCount && nextRequestPage <= payload.total_pages && nextRequestPage <= requestPage + 6) {
+    const nextPath = path.replace(`page=${requestPage}`, `page=${nextRequestPage}`);
+    const nextPage = await tmdbFetch<TmdbPagedResponse>(nextPath).catch(() => ({
+      page: nextRequestPage,
+      total_pages: payload.total_pages,
+      total_results: payload.total_results,
+      results: [] as TmdbListItem[],
+    }));
     const extraItems = nextPage.results.map((item) => mapMovieOrShow(item, "show", tvGenres)).filter(isUsefulShow);
-    primaryItems = [...primaryItems, ...extraItems].slice(0, 20);
+    if (!extraItems.length) {
+      break;
+    }
+    primaryItems = dedupeBySource([...primaryItems, ...extraItems]).slice(0, 20);
+    nextRequestPage += 1;
   }
 
   return {

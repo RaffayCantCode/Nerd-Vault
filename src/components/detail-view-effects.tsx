@@ -1,12 +1,17 @@
 "use client";
 
 import { memo, useEffect, useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { scrollPageToTopSoon } from "@/lib/scroll-to-top";
 
 export const DetailViewEffects = memo(function DetailViewEffects() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const searchKey = searchParams.toString();
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "auto" });
+    scrollPageToTopSoon();
 
     const rafId = window.requestAnimationFrame(() => {
       setIsReady(true);
@@ -15,7 +20,7 @@ export const DetailViewEffects = memo(function DetailViewEffects() {
     return () => {
       window.cancelAnimationFrame(rafId);
     };
-  }, []);
+  }, [pathname, searchKey]);
 
   return <div className={`detail-view-fade ${isReady ? "is-ready" : ""}`} aria-hidden="true" />;
 });

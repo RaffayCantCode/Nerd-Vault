@@ -73,21 +73,24 @@ export function PerformanceOptimizer() {
     if (typeof window === "undefined" || typeof document === "undefined") return;
 
     const addResourceHints = () => {
-      const domains = [
-        { href: "https://image.tmdb.org", as: "image" },
-        { href: "https://images.igdb.com", as: "image" },
-      ];
+      const domains = ["https://image.tmdb.org", "https://images.igdb.com", "https://s4.anilist.co"];
 
-      domains.forEach(({ href, as }) => {
+      domains.forEach((href) => {
+        if (document.querySelector(`link[data-nv-hint="preconnect"][href="${href}"]`)) {
+          return;
+        }
+
         const link = document.createElement("link");
         link.rel = "preconnect";
         link.href = href;
         link.crossOrigin = "anonymous";
+        link.dataset.nvHint = "preconnect";
         document.head.appendChild(link);
 
         const dnsLink = document.createElement("link");
         dnsLink.rel = "dns-prefetch";
         dnsLink.href = href;
+        dnsLink.dataset.nvHint = "dns-prefetch";
         document.head.appendChild(dnsLink);
       });
     };

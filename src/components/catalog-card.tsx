@@ -10,6 +10,18 @@ import { optimizeMediaImageUrl } from "@/lib/media-image";
 import { MediaItem } from "@/lib/types";
 
 const BROWSE_LAST_URL_KEY = "nerdvault-browse-last-url";
+const warmedCardThumbs = new Set<string>();
+
+function warmImage(url: string) {
+  if (warmedCardThumbs.has(url)) {
+    return;
+  }
+
+  warmedCardThumbs.add(url);
+  const image = new Image();
+  image.decoding = "async";
+  image.src = url;
+}
 
 function getDetailRouteType(item: Pick<MediaItem, "source" | "type">) {
   if (item.source !== "tmdb") {
@@ -78,17 +90,16 @@ export const CatalogCard = memo(function CatalogCard({
     warmedRef.current = true;
     
     // Low priority preloading to avoid main thread lag
-    window.requestIdleCallback?.(() => {
-      const cover = new Image();
-      cover.decoding = "async";
-      cover.src = optimizeMediaImageUrl(item.coverUrl, priority ? "cover" : "thumb") ?? item.coverUrl;
+    const thumbUrl = optimizeMediaImageUrl(item.coverUrl, "thumb") ?? item.coverUrl;
+    const cover = new Image();
+    cover.decoding = "async";
+    cover.src = thumbUrl;
 
-      if (priority) {
-        const backdrop = new Image();
-        backdrop.decoding = "async";
-        backdrop.src = optimizeMediaImageUrl(item.backdropUrl, "backdrop") ?? item.backdropUrl;
-      }
-    }, { timeout: 2000 });
+    if (priority) {
+      const fullCover = new Image();
+      fullCover.decoding = "async";
+      fullCover.src = optimizeMediaImageUrl(item.coverUrl, "cover") ?? item.coverUrl;
+    }
   }
 
   function handleNavigate(event: React.MouseEvent) {
@@ -124,7 +135,7 @@ export const CatalogCard = memo(function CatalogCard({
     }
 
     warmRoute();
-    router.push(routeHref, { scroll: false });
+    router.push(routeHref, { scroll: true });
   }
 
   useEffect(() => {
@@ -166,11 +177,15 @@ export const CatalogCard = memo(function CatalogCard({
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting) {
+          const thumbUrl = optimizeMediaImageUrl(item.coverUrl, "thumb");
+          if (thumbUrl) {
+            warmImage(thumbUrl);
+          }
           setIsVisible(true);
           observer.disconnect();
         }
       },
-      { rootMargin: "900px 0px", threshold: 0.01 },
+      { rootMargin: "420px 0px", threshold: 0.01 },
     );
 
     observer.observe(element);
@@ -207,8 +222,10 @@ export const CatalogCard = memo(function CatalogCard({
         {isVisible && (
           <ResilientMediaImage
             item={item}
+            displayIntent="thumb"
+            upgradeIntent="cover"
             loading={priority ? "eager" : "lazy"}
-            fetchPriority={priority ? "high" : "auto"}
+            fetchPriority={priority ? "high" : "low"}
             decoding="async"
             onLoadStateChange={setIsImageLoaded}
           />

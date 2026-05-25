@@ -6,9 +6,23 @@ import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 
 import { credentialsSignInSchema, normalizeEmail } from "@/lib/auth-credentials";
+import { getAuthBaseUrl, getAuthSecret } from "@/lib/auth-env";
 import { prisma } from "@/lib/prisma";
 
-const googleConfigured = Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET);
+const authSecret = getAuthSecret();
+const authBaseUrl = getAuthBaseUrl();
+
+if (process.env.NODE_ENV === "production" && !authSecret) {
+  console.error(
+    "[auth] Missing AUTH_SECRET (or NEXTAUTH_SECRET) in the Netlify runtime environment. Google sign-in will fail with error=Configuration.",
+  );
+}
+
+const googleConfigured = Boolean(
+  process.env.AUTH_GOOGLE_ID?.trim() &&
+    process.env.AUTH_GOOGLE_SECRET?.trim() &&
+    authSecret,
+);
 
 const providers: Provider[] = [
   Credentials({
@@ -54,13 +68,18 @@ if (googleConfigured) {
     Google({
       clientId: process.env.AUTH_GOOGLE_ID!,
       clientSecret: process.env.AUTH_GOOGLE_SECRET!,
+      // Link Google to an existing email/password account instead of failing the callback.
+      allowDangerousEmailAccountLinking: true,
     }),
   );
 }
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  secret: authSecret,
   trustHost: true,
+  ...(authBaseUrl ? { basePath: "/api/auth", url: authBaseUrl } : {}),
   adapter: PrismaAdapter(prisma),
+  debug: process.env.AUTH_DEBUG === "true",
   session: {
     // Credentials auth is most reliable with JWT strategy.
     // Keep token payload intentionally tiny to avoid cookie bloat.
@@ -71,6 +90,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   providers,
   pages: {
     signIn: "/sign-in",
+    error: "/sign-in",
   },
   // Let NextAuth use its default compact cookies. Custom overrides were
   // contributing to REQUEST_HEADER_TOO_LARGE by inflating cookie names.
@@ -88,7 +108,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
     },
   },
+  events: {
+    async signIn({ user, account, isNewUser }) {
+      if (process.env.AUTH_DEBUG === "true") {
+        console.info("[auth] signIn", {
+          provider: account?.provider,
+          userId: user.id,
+          isNewUser,
+        });
+      }
+    },
+    async signInError({ error }) {
+      console.error("[auth] signInError", error);
+    },
+  },
   callbacks: {
+    async signIn({ user, account }) {
+      if (account?.provider === "google" && !user.email) {
+        return false;
+      }
+
+      return true;
+    },
     async jwt({ token, user }) {
       // IMPORTANT: Return ONLY the minimal fields needed to identify the session.
       // NextAuth v5 + Google automatically populates `token` with name, email,

@@ -1,21 +1,28 @@
 export type MediaImageIntent = "thumb" | "cover" | "backdrop" | "gallery" | "lightbox";
 
-// Optimized sizes for faster loading
+/** Display-sized requests — avoids downloading poster originals on grid cards. */
 const TMDB_SIZES: Record<MediaImageIntent, string> = {
   thumb: "w154",
-  cover: "w780",
-  backdrop: "original",
+  cover: "w342",
+  backdrop: "w780",
   gallery: "w1280",
   lightbox: "original",
 };
 
-// IGDB uses progressive loading
 const IGDB_SIZES: Record<MediaImageIntent, string> = {
-  thumb: "t_cover_big",
-  cover: "t_1080p",
-  backdrop: "t_1080p",
+  thumb: "t_cover_small",
+  cover: "t_cover_big",
+  backdrop: "t_720p",
   gallery: "t_1080p",
   lightbox: "t_1080p",
+};
+
+const ANILIST_COVER_SIZES: Record<MediaImageIntent, string> = {
+  thumb: "medium",
+  cover: "large",
+  backdrop: "extraLarge",
+  gallery: "extraLarge",
+  lightbox: "extraLarge",
 };
 
 function optimizeTmdbImage(url: URL, intent: MediaImageIntent) {
@@ -28,19 +35,27 @@ function optimizeIgdbImage(url: URL, intent: MediaImageIntent) {
   return url.toString();
 }
 
+function optimizeAnilistImage(url: URL, intent: MediaImageIntent) {
+  const bucket = ANILIST_COVER_SIZES[intent];
+  if (/\/cover\/(extraLarge|large|medium)\//i.test(url.pathname)) {
+    url.pathname = url.pathname.replace(/\/cover\/(extraLarge|large|medium)\//i, `/cover/${bucket}/`);
+  }
+  return url.toString();
+}
+
 function optimizeUnsplashImage(url: URL, intent: MediaImageIntent) {
   const width =
     intent === "thumb"
-      ? "420"
+      ? "320"
       : intent === "cover"
-        ? "760"
+        ? "480"
         : intent === "gallery"
           ? "960"
-          : "1400";
+          : "1280";
   url.searchParams.set("auto", "format");
   url.searchParams.set("fit", "crop");
   url.searchParams.set("w", width);
-  url.searchParams.set("q", "76");
+  url.searchParams.set("q", intent === "thumb" ? "68" : "76");
   return url.toString();
 }
 
@@ -54,6 +69,10 @@ function optimizeDirectImageUrl(rawUrl: string, intent: MediaImageIntent) {
 
     if (url.hostname === "images.igdb.com") {
       return optimizeIgdbImage(url, intent);
+    }
+
+    if (url.hostname.includes("anilist.co")) {
+      return optimizeAnilistImage(url, intent);
     }
 
     if (url.hostname.includes("unsplash.com")) {
@@ -84,6 +103,17 @@ export function optimizeMediaImageUrl(rawUrl?: string | null, intent: MediaImage
   }
 
   return optimizeDirectImageUrl(rawUrl, intent);
+}
+
+export function buildMediaImageSrcSet(rawUrl?: string | null, intent: MediaImageIntent = "cover") {
+  const thumb = optimizeMediaImageUrl(rawUrl, "thumb");
+  const sized = optimizeMediaImageUrl(rawUrl, intent);
+
+  if (!thumb || !sized || thumb === sized) {
+    return undefined;
+  }
+
+  return `${thumb} 200w, ${sized} 400w`;
 }
 
 export function chooseConnectionAwareIntent(

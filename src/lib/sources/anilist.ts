@@ -539,8 +539,8 @@ function mapAnime(
         ...((item.tags ?? []).filter((tag) => (tag.rank ?? 0) >= 70).slice(0, 6).map((tag) => tag.name ?? "")),
       ].filter(Boolean)),
     ),
-    coverUrl: item.coverImage?.extraLarge || item.coverImage?.large || item.coverImage?.medium || fallbackImage,
-    backdropUrl: item.bannerImage || item.coverImage?.extraLarge || item.coverImage?.large || fallbackImage,
+    coverUrl: item.coverImage?.large || item.coverImage?.medium || item.coverImage?.extraLarge || fallbackImage,
+    backdropUrl: item.bannerImage || item.coverImage?.large || item.coverImage?.medium || fallbackImage,
     screenshots: dedupeImages([
       item.bannerImage,
       ...(item.streamingEpisodes ?? []).map((ep) => ep.thumbnail).filter(Boolean),

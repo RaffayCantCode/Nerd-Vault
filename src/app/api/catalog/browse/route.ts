@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { hasActiveBrowseGenre, itemMatchesGenre } from "@/lib/catalog-utils";
 import { browseIgdbGames } from "@/lib/sources/igdb";
 import { browseAniListAnime } from "@/lib/sources/anilist";
 import { browseMixedCatalog } from "@/lib/mixed-catalog";
@@ -107,7 +108,9 @@ export async function GET(request: NextRequest) {
     const payload = await fetchByType(page);
     let stableItems = dedupeBySource(payload.items);
 
-    if (!query.trim() && page > 1 && stableItems.length) {
+    // Mixed "all" feed already assigns disjoint global interleaved ranges per page.
+    // Only run cross-page dedupe for single-source TMDB views where providers can repeat.
+    if (!query.trim() && page > 1 && stableItems.length && type !== "all") {
       const previousPayload = await fetchByType(page - 1).catch(() => null);
       if (previousPayload) {
         const blockedKeys = new Set(dedupeBySource(previousPayload.items).map((item) => mediaKey(item)));
@@ -150,18 +153,56 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    if (!query.trim() && hasActiveBrowseGenre(genre) && stableItems.length < pageSize) {
+      const seenKeys = new Set(stableItems.map((item) => mediaKey(item)));
+      let topUpPage = page + 1;
+      const maxTopUpPage = Math.min(Math.max(payload.totalPages, page + 1) + 12, page + 16);
+
+      while (stableItems.length < pageSize && topUpPage <= maxTopUpPage) {
+        const topUpPayload = await fetchByType(topUpPage).catch(() => null);
+        if (!topUpPayload?.items?.length) {
+          topUpPage += 1;
+          continue;
+        }
+
+        for (const item of dedupeBySource(topUpPayload.items)) {
+          if (!itemMatchesGenre(item, genre)) {
+            continue;
+          }
+
+          const key = mediaKey(item);
+          if (seenKeys.has(key)) {
+            continue;
+          }
+
+          seenKeys.add(key);
+          stableItems.push(item);
+          if (stableItems.length >= pageSize) {
+            break;
+          }
+        }
+
+        topUpPage += 1;
+      }
+    }
+
     const normalizedTotalPages = query.trim() ? 1 : Math.max(1, Math.floor(payload.totalPages || 1));
 
     return NextResponse.json(
       {
         ok: true,
-        ...payload,
-        items: stableItems.slice(0, pageSize),
+        page,
         totalPages: normalizedTotalPages,
+        totalResults: payload.totalResults,
+        items: stableItems.slice(0, pageSize),
       },
       {
         headers: {
-          "Cache-Control": "public, max-age=60, s-maxage=3600, stale-while-revalidate=86400",
+          "Cache-Control": query.trim()
+            ? "private, no-store, max-age=0, must-revalidate"
+            : "public, max-age=0, s-maxage=180, stale-while-revalidate=600",
+          Vary: "Accept-Encoding",
+          "CDN-Cache-Control": "max-age=180, stale-while-revalidate=600",
         },
       },
     );

@@ -2338,12 +2338,19 @@ body {
 
 @media (max-width: 900px) {
   .nv-sidebar-shell {
-    position: fixed !important;
-    inset: 0 auto 0 0 !important;
+    position: static !important;
     width: 0 !important;
     height: 0 !important;
-    z-index: 190 !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    z-index: 1 !important;
     pointer-events: none !important;
+  }
+
+  .nv-sidebar-shell .nv-sidebar-panel,
+  .nv-sidebar-shell .nv-sidebar-mobile-backdrop,
+  .nv-sidebar-shell .nv-sidebar-mobile-toggle {
+    pointer-events: auto !important;
   }
 
   .nv-sidebar-mobile-toggle {

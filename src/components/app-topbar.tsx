@@ -14,6 +14,8 @@ import {
   subscribeVaultChanges,
 } from "@/lib/vault-client";
 import { SocialProfile } from "@/lib/vault-types";
+import { GuestAuthPrompt } from "@/components/guest-auth-prompt";
+import { guestSignInHref, isGuestViewer } from "@/lib/guest";
 
 type AppTopBarProps = {
   viewerId: string;
@@ -30,8 +32,10 @@ export const AppTopBar = memo(function AppTopBar({
   initialProfile = null,
   initialFriends = [],
 }: AppTopBarProps) {
-  const isGuest = viewerId === "guest-vault";
+  const isGuest = isGuestViewer(viewerId);
   const [query, setQuery] = useState("");
+  const [guestPromptOpen, setGuestPromptOpen] = useState(false);
+  const [guestPromptCopy, setGuestPromptCopy] = useState({ title: "Sign in required", message: "Sign in to use this feature." });
   const [inboxOpen, setInboxOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [viewerProfile, setViewerProfile] = useState<SocialProfile | null>(initialProfile);
@@ -98,8 +102,20 @@ export const AppTopBar = memo(function AppTopBar({
     setProfileMenuOpen(false);
   }
 
+  function openGuestPrompt(title: string, message: string) {
+    setGuestPromptCopy({ title, message });
+    setGuestPromptOpen(true);
+    setInboxOpen(false);
+    setProfileMenuOpen(false);
+  }
+
   async function toggleInbox() {
     setProfileMenuOpen(false);
+
+    if (isGuest) {
+      openGuestPrompt("Inbox requires sign-in", "Sign in to receive recommendations, friend requests, and inbox updates.");
+      return;
+    }
 
     if (inboxOpen) {
       setInboxOpen(false);
@@ -144,7 +160,12 @@ export const AppTopBar = memo(function AppTopBar({
             type="search"
             placeholder="Search people..."
             value={query}
-            onFocus={() => closeOverlays()}
+            onFocus={() => {
+              closeOverlays();
+              if (isGuest) {
+                openGuestPrompt("Search people after sign-in", "Sign in to find friends, send requests, and manage your network.");
+              }
+            }}
             onChange={(event) => setQuery(event.target.value)}
           />
 
@@ -209,12 +230,7 @@ export const AppTopBar = memo(function AppTopBar({
           </Link>
 
           <div className="topbar-inbox-shell">
-            <button
-              type="button"
-              className="topbar-chip"
-              disabled={isGuest}
-              onClick={() => void toggleInbox()}
-            >
+            <button type="button" className="topbar-chip" onClick={() => void toggleInbox()}>
               Inbox {unreadCount ? `(${unreadCount})` : ""}
             </button>
 
@@ -285,9 +301,14 @@ export const AppTopBar = memo(function AppTopBar({
                     Open vault
                   </Link>
                   {isGuest ? (
-                    <Link href="/sign-in" className="button button-primary" style={{ width: '100%' }} onClick={() => setProfileMenuOpen(false)}>
-                      Sign in
-                    </Link>
+                    <>
+                      <Link href={guestSignInHref("/home")} className="button button-primary" style={{ width: "100%" }} onClick={() => setProfileMenuOpen(false)}>
+                        Sign in
+                      </Link>
+                      <Link href="/browse" className="button button-secondary" style={{ width: "100%" }} onClick={() => setProfileMenuOpen(false)}>
+                        Browse as guest
+                      </Link>
+                    </>
                   ) : (
                     <form action={signOutUser} style={{ width: '100%' }}>
                       <button type="submit" className="button button-primary topbar-menu-button" style={{ width: '100%' }}>
@@ -301,6 +322,13 @@ export const AppTopBar = memo(function AppTopBar({
           </div>
         </div>
       </div>
+      <GuestAuthPrompt
+        isOpen={guestPromptOpen}
+        title={guestPromptCopy.title}
+        message={guestPromptCopy.message}
+        redirectTo="/home"
+        onClose={() => setGuestPromptOpen(false)}
+      />
     </section>
   );
 });

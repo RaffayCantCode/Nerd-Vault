@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-import { CLIENT_AUTH_RESET_COOKIE_NAMES } from "@/lib/auth-cookies";
+import { LEGACY_AUTH_COOKIE_NAMES } from "@/lib/auth-cookies";
 
 function expireCookie(name: string, path: string, domain?: string, secure = true) {
   const domainPart = domain ? `; domain=${domain}` : "";
@@ -15,26 +15,36 @@ function readCookie(name: string) {
   return match ? decodeURIComponent(match[1]) : undefined;
 }
 
-/** Clear legacy and OAuth transient cookies on the client.
- *  Use this before OAuth form submission to avoid 494 REQUEST_HEADER_TOO_LARGE.
- *  Note: This does NOT clear the current valid session token. */
-export function clearAllAuthCookies() {
+/** Clear only legacy NextAuth cookies and stale session chunks — not active OAuth PKCE/state cookies. */
+export function clearLegacyAuthCookies() {
   const hostname = window.location.hostname;
   const candidateDomains = hostname.includes(".")
     ? [hostname, `.${hostname}`]
     : [hostname];
   const isSecure = window.location.protocol === "https:";
-  // Only clear legacy and OAuth transient cookies - NOT the current session token
-  for (const cookieName of CLIENT_AUTH_RESET_COOKIE_NAMES) {
+
+  for (const cookieName of LEGACY_AUTH_COOKIE_NAMES) {
     expireCookie(cookieName, "/", undefined, isSecure);
     for (const domain of candidateDomains) {
       expireCookie(cookieName, "/", domain, isSecure);
     }
   }
-  expireCookie("nv.redirect-to", "/", undefined, isSecure);
-  for (const domain of candidateDomains) {
-    expireCookie("nv.redirect-to", "/", domain, isSecure);
+
+  const chunkedPattern = /^(?:__Secure-|__Host-)?(?:authjs|next-auth)\.session-token\.\d+$/;
+  for (const cookie of document.cookie.split(";")) {
+    const name = cookie.split("=")[0]?.trim();
+    if (name && chunkedPattern.test(name)) {
+      expireCookie(name, "/", undefined, isSecure);
+      for (const domain of candidateDomains) {
+        expireCookie(name, "/", domain, isSecure);
+      }
+    }
   }
+}
+
+/** @deprecated Use clearLegacyAuthCookies — clearing OAuth cookies breaks Google callback. */
+export function clearAllAuthCookies() {
+  clearLegacyAuthCookies();
 }
 
 export function AuthCookieReset() {
@@ -46,6 +56,11 @@ export function AuthCookieReset() {
 
     const isSecure = window.location.protocol === "https:";
     // Redirect after Google OAuth if a post-auth redirect was stashed.
+    const pathname = window.location.pathname;
+    if (pathname.startsWith("/api/auth") || pathname.startsWith("/sign-in")) {
+      return;
+    }
+
     const postAuthRedirect = readCookie("nv.redirect-to");
     if (postAuthRedirect) {
       expireCookie("nv.redirect-to", "/", undefined, isSecure);

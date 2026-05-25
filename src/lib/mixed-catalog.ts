@@ -1,28 +1,18 @@
 import { browseIgdbGames } from "@/lib/sources/igdb";
 import { browseAniListAnime } from "@/lib/sources/anilist";
 import { browseTmdbCatalog } from "@/lib/sources/tmdb";
-import { itemMatchesGenre } from "@/lib/catalog-utils";
+import {
+  hasActiveBrowseGenre,
+  itemMatchesGenre,
+  resolveBrowseGenreForSource,
+} from "@/lib/catalog-utils";
 import { dedupeMediaKey, rankCandidatesForQuery, validateSearchResults } from "@/lib/search-utils";
 import { MediaItem } from "@/lib/types";
 
-const MIXED_CACHE_TTL_MS = 1000 * 60 * 30; // Increase to 30 minutes
+const MIXED_CACHE_TTL_MS = 1000 * 60 * 30;
 const SEARCH_FETCH_PAGES = 2;
-
-// Add a utility for fetching with a timeout to prevent hanging the whole request
-async function withTimeout<T>(promise: Promise<T>, fallback: T, timeoutMs: number): Promise<T> {
-  let timeoutId: any;
-  const timeoutPromise = new Promise<T>((resolve) => {
-    timeoutId = setTimeout(() => resolve(fallback), timeoutMs);
-  });
-
-  return Promise.race([
-    promise.then((result) => {
-      clearTimeout(timeoutId);
-      return result;
-    }),
-    timeoutPromise,
-  ]);
-}
+const MIXED_CACHE_VERSION = "interleaved-v3";
+const GENRE_MAX_API_PAGES = 40;
 
 type BrowsePayload = {
   page: number;
@@ -33,11 +23,10 @@ type BrowsePayload = {
 
 type MixedSource = "movie" | "show" | "anime" | "game";
 
-type SourcePlan = {
-  allocation: number;
-  sourceStartIndex: number;
-  sourceEndIndex: number;
-  pagesToFetch: number;
+type InterleavedSlot = {
+  source: MixedSource;
+  nativeIndex: number;
+  globalIndex: number;
 };
 
 const SOURCE_ORDER: MixedSource[] = ["movie", "show", "anime", "game"];
@@ -56,31 +45,35 @@ const mixedCatalogCache = new Map<
   }
 >();
 
+async function withTimeout<T>(promise: Promise<T>, fallback: T, timeoutMs: number): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<T>((resolve) => {
+    timeoutId = setTimeout(() => resolve(fallback), timeoutMs);
+  });
+
+  return Promise.race([
+    promise.then((result) => {
+      if (timeoutId) clearTimeout(timeoutId);
+      return result;
+    }),
+    timeoutPromise,
+  ]);
+}
+
+function mediaKey(item: MediaItem) {
+  return `${item.source}-${item.sourceId}`;
+}
+
 function dedupeBySource(items: MediaItem[]) {
   const seen = new Set<string>();
   return items.filter((item) => {
-    const key = `${item.source}-${item.sourceId}`;
+    const key = mediaKey(item);
     if (seen.has(key)) {
       return false;
     }
     seen.add(key);
     return true;
   });
-}
-
-function interleaveBuckets(...buckets: MediaItem[][]) {
-  const working = buckets.map((bucket) => [...bucket]);
-  const mixed: MediaItem[] = [];
-
-  while (working.some((bucket) => bucket.length)) {
-    for (const bucket of working) {
-      if (bucket.length) {
-        mixed.push(bucket.shift() as MediaItem);
-      }
-    }
-  }
-
-  return mixed;
 }
 
 function sortMediaItems(
@@ -102,26 +95,39 @@ function sortMediaItems(
   return items;
 }
 
-function buildSourcePlans(pageSize: number, page: number) {
-  const baseAllocation = Math.floor(pageSize / SOURCE_ORDER.length);
-  const remainder = pageSize % SOURCE_ORDER.length;
+function planInterleavedPage(pageSize: number, page: number) {
+  const globalStart = (page - 1) * pageSize;
+  const globalEnd = page * pageSize;
+  const slots: InterleavedSlot[] = [];
+  const maxNativeBySource: Record<MixedSource, number> = {
+    movie: 0,
+    show: 0,
+    anime: 0,
+    game: 0,
+  };
 
-  return SOURCE_ORDER.reduce<Record<MixedSource, SourcePlan>>((plans, source, index) => {
-    const allocation = baseAllocation + (index < remainder ? 1 : 0);
-    const sourcePageSize = SOURCE_PAGE_SIZES[source];
-    const sourceStartIndex = Math.max(0, (page - 1) * allocation);
-    const sourceEndIndex = sourceStartIndex + allocation;
-    const pagesToFetch = Math.max(2, Math.ceil((sourceEndIndex + sourcePageSize) / sourcePageSize));
+  for (let globalIndex = globalStart; globalIndex < globalEnd; globalIndex += 1) {
+    const sourceIndex = globalIndex % SOURCE_ORDER.length;
+    const source = SOURCE_ORDER[sourceIndex];
+    const nativeIndex = Math.floor(globalIndex / SOURCE_ORDER.length);
+    slots.push({ source, nativeIndex, globalIndex });
+    maxNativeBySource[source] = Math.max(maxNativeBySource[source], nativeIndex);
+  }
 
-    plans[source] = {
-      allocation,
-      sourceStartIndex,
-      sourceEndIndex,
-      pagesToFetch,
-    };
+  return { slots, maxNativeBySource, globalStart, globalEnd };
+}
 
-    return plans;
-  }, {} as Record<MixedSource, SourcePlan>);
+function estimateInterleavedCapacity(counts: Record<MixedSource, number>) {
+  let maxGlobalEnd = 0;
+
+  SOURCE_ORDER.forEach((source, sourceIndex) => {
+    const count = counts[source] ?? 0;
+    if (count > 0) {
+      maxGlobalEnd = Math.max(maxGlobalEnd, (count - 1) * SOURCE_ORDER.length + sourceIndex + 1);
+    }
+  });
+
+  return maxGlobalEnd;
 }
 
 async function fetchSourcePage(
@@ -139,12 +145,14 @@ async function fetchSourcePage(
     seed: number;
   },
 ) {
+  const apiGenre = resolveBrowseGenreForSource(genre, source) || genre;
+
   if (source === "movie" || source === "show") {
     return browseTmdbCatalog({
       type: source,
       page,
       query,
-      genre,
+      genre: apiGenre,
       sort,
       seed,
       pageSize: SOURCE_PAGE_SIZES[source],
@@ -155,7 +163,7 @@ async function fetchSourcePage(
     return browseAniListAnime({
       page,
       query,
-      genre,
+      genre: apiGenre,
       sort,
       seed,
       pageSize: SOURCE_PAGE_SIZES[source],
@@ -165,16 +173,16 @@ async function fetchSourcePage(
   return browseIgdbGames({
     page,
     query,
-    genre,
+    genre: apiGenre,
     sort,
     seed,
     pageSize: SOURCE_PAGE_SIZES[source],
   });
 }
 
-async function fetchSourceWindow(
+async function fetchSourceCatalogUpTo(
   source: MixedSource,
-  plan: SourcePlan,
+  maxNativeIndex: number,
   {
     query,
     genre,
@@ -187,45 +195,219 @@ async function fetchSourceWindow(
     seed: number;
   },
 ) {
-  // Always start from page one so each browse page slices a deterministic index range.
-  const pages = Array.from({ length: plan.pagesToFetch }, (_, index) => index + 1);
-  const payloads = await Promise.all(
-    pages.map((targetPage, index) =>
-      withTimeout(
-        fetchSourcePage(source, targetPage, {
-          query,
-          genre,
-          sort,
-          seed: seed,
-        }),
-        {
-          page: targetPage,
-          totalPages: 1,
-          totalResults: 0,
-          items: [] as MediaItem[],
-        },
-        // More generous timeout for initial page load vs search
-        query ? 3000 : 5000
-      ).catch(() => ({
-        page: targetPage,
+  const genreActive = hasActiveBrowseGenre(genre);
+  const minItemsNeeded = maxNativeIndex + 1;
+  const perPage = SOURCE_PAGE_SIZES[source];
+  const maxApiPages = genreActive
+    ? GENRE_MAX_API_PAGES
+    : Math.max(3, Math.ceil(minItemsNeeded / perPage) + 3);
+  const collected: MediaItem[] = [];
+  let totalResults = 0;
+  let lastApiTotalPages = 1;
+  let emptyStreak = 0;
+
+  for (let apiPage = 1; apiPage <= maxApiPages; apiPage += 1) {
+    const payload = await withTimeout(
+      fetchSourcePage(source, apiPage, { query, genre, sort, seed }),
+      {
+        page: apiPage,
         totalPages: 1,
         totalResults: 0,
         items: [] as MediaItem[],
-      })),
+      },
+      query ? 3000 : genreActive ? 7000 : 5000,
+    ).catch(() => ({
+      page: apiPage,
+      totalPages: 1,
+      totalResults: 0,
+      items: [] as MediaItem[],
+    }));
+
+    lastApiTotalPages = Math.max(1, payload.totalPages || 1);
+    totalResults = Math.max(totalResults, payload.totalResults || 0);
+
+    let acceptedThisPage = 0;
+    for (const item of payload.items) {
+      if (!genreActive || itemMatchesGenre(item, genre)) {
+        collected.push(item);
+        acceptedThisPage += 1;
+      }
+    }
+
+    emptyStreak = acceptedThisPage === 0 ? emptyStreak + 1 : 0;
+
+    const sorted = sortMediaItems(dedupeBySource(collected), sort);
+    if (sorted.length >= minItemsNeeded) {
+      return { items: sorted, totalResults };
+    }
+
+    if (!genreActive && apiPage >= lastApiTotalPages) {
+      return { items: sorted, totalResults };
+    }
+
+    if (genreActive && apiPage >= lastApiTotalPages && emptyStreak >= 2) {
+      return { items: sorted, totalResults };
+    }
+
+    if (genreActive && apiPage >= maxApiPages) {
+      return { items: sorted, totalResults };
+    }
+  }
+
+  return {
+    items: sortMediaItems(dedupeBySource(collected), sort),
+    totalResults,
+  };
+}
+
+function fillInterleavedSlots(
+  slots: InterleavedSlot[],
+  catalogBySource: Record<MixedSource, MediaItem[]>,
+  globalEnd: number,
+  pageSize: number,
+) {
+  const usedOnPage = new Set<string>();
+
+  function takeAtGlobalIndex(globalIndex: number) {
+    const source = SOURCE_ORDER[globalIndex % SOURCE_ORDER.length];
+    const nativeIndex = Math.floor(globalIndex / SOURCE_ORDER.length);
+    const candidate = catalogBySource[source][nativeIndex];
+    if (!candidate) {
+      return null;
+    }
+
+    const key = mediaKey(candidate);
+    if (usedOnPage.has(key)) {
+      return null;
+    }
+
+    usedOnPage.add(key);
+    return candidate;
+  }
+
+  const pageSlots: Array<MediaItem | null> = slots.map((slot) => takeAtGlobalIndex(slot.globalIndex));
+
+  let cursor = globalEnd;
+  const maxCursor = globalEnd + pageSize * SOURCE_ORDER.length * 4;
+
+  for (let slotIndex = 0; slotIndex < pageSlots.length; slotIndex += 1) {
+    if (pageSlots[slotIndex]) {
+      continue;
+    }
+
+    while (cursor < maxCursor && !pageSlots[slotIndex]) {
+      pageSlots[slotIndex] = takeAtGlobalIndex(cursor);
+      cursor += 1;
+    }
+  }
+
+  return pageSlots.filter((item): item is MediaItem => item !== null);
+}
+
+async function loadCatalogsForPage({
+  genre,
+  sort,
+  seed,
+  bufferedMaxNative,
+}: {
+  genre: string;
+  sort: "discovery" | "newest" | "rating" | "title";
+  seed: number;
+  bufferedMaxNative: Record<MixedSource, number>;
+}) {
+  const catalogs = await Promise.all(
+    SOURCE_ORDER.map((source, index) =>
+      fetchSourceCatalogUpTo(source, bufferedMaxNative[source], {
+        query: "",
+        genre,
+        sort,
+        seed: seed + index * 100,
+      }),
     ),
   );
 
-  const totalResults = payloads.find((payload) => payload.totalResults > 0)?.totalResults ?? 0;
-  const items = dedupeBySource(
-    payloads
-      .flatMap((payload) => payload.items)
-      .filter((item) => !genre || genre === "all" || itemMatchesGenre(item, genre)),
+  return SOURCE_ORDER.reduce(
+    (acc, source, index) => {
+      acc[source] = catalogs[index].items;
+      return acc;
+    },
+    {} as Record<MixedSource, MediaItem[]>,
+  );
+}
+
+async function buildInterleavedBrowsePage({
+  page,
+  pageSize,
+  genre,
+  sort,
+  seed,
+}: {
+  page: number;
+  pageSize: number;
+  genre: string;
+  sort: "discovery" | "newest" | "rating" | "title";
+  seed: number;
+}) {
+  const genreActive = hasActiveBrowseGenre(genre);
+  const { slots, maxNativeBySource, globalEnd } = planInterleavedPage(pageSize, page);
+
+  const baseBuffer = Math.ceil(pageSize / SOURCE_ORDER.length) + 4;
+  const genreBufferBoost = genreActive ? Math.ceil(pageSize / 2) : 0;
+  let extraDepth = 0;
+  const maxDepthRounds = genreActive ? 8 : 2;
+
+  let bufferedMaxNative = SOURCE_ORDER.reduce(
+    (acc, source) => {
+      acc[source] = maxNativeBySource[source] + baseBuffer + genreBufferBoost;
+      return acc;
+    },
+    {} as Record<MixedSource, number>,
   );
 
+  let catalogBySource = await loadCatalogsForPage({ genre, sort, seed, bufferedMaxNative });
+  let pageItems = fillInterleavedSlots(slots, catalogBySource, globalEnd, pageSize);
+
+  while (pageItems.length < pageSize && extraDepth < maxDepthRounds) {
+    const previousLengths = SOURCE_ORDER.map((source) => catalogBySource[source].length);
+    extraDepth += 1;
+    const step = Math.ceil(pageSize / SOURCE_ORDER.length) + 2;
+
+    bufferedMaxNative = SOURCE_ORDER.reduce(
+      (acc, source) => {
+        acc[source] = bufferedMaxNative[source] + step;
+        return acc;
+      },
+      {} as Record<MixedSource, number>,
+    );
+
+    catalogBySource = await loadCatalogsForPage({ genre, sort, seed, bufferedMaxNative });
+    const nextItems = fillInterleavedSlots(slots, catalogBySource, globalEnd, pageSize);
+    if (nextItems.length <= pageItems.length) {
+      const grew = SOURCE_ORDER.some((source, index) => catalogBySource[source].length > previousLengths[index]);
+      if (!grew) {
+        break;
+      }
+    }
+    pageItems = nextItems;
+  }
+
+  const counts = SOURCE_ORDER.reduce(
+    (acc, source) => {
+      acc[source] = catalogBySource[source].length;
+      return acc;
+    },
+    {} as Record<MixedSource, number>,
+  );
+
+  const interleavedCapacity = estimateInterleavedCapacity(counts);
+  const totalPages = Math.max(1, Math.ceil(interleavedCapacity / pageSize));
+
   return {
-    totalResults,
-    items: sortMediaItems(items, sort),
-  };
+    page,
+    totalPages,
+    totalResults: interleavedCapacity,
+    items: validateSearchResults(pageItems.slice(0, pageSize)),
+  } satisfies BrowsePayload;
 }
 
 async function buildSearchPayload({
@@ -245,23 +427,23 @@ async function buildSearchPayload({
     SOURCE_ORDER.map(async (source, sourceIndex) => {
       const pages = Array.from({ length: SEARCH_FETCH_PAGES }, (_, index) => index + 1);
       const payloads = await Promise.all(
-        pages.map((page) =>
+        pages.map((apiPage) =>
           withTimeout(
-            fetchSourcePage(source, page, {
+            fetchSourcePage(source, apiPage, {
               query,
               genre,
               sort,
               seed: seed + sourceIndex * 10,
             }),
             {
-              page,
+              page: apiPage,
               totalPages: 1,
               totalResults: 0,
               items: [] as MediaItem[],
             },
-            2500 // Faster timeout for search to keep UI snappy
+            2500,
           ).catch(() => ({
-            page,
+            page: apiPage,
             totalPages: 1,
             totalResults: 0,
             items: [] as MediaItem[],
@@ -310,6 +492,7 @@ export async function browseMixedCatalog({
   const safePageSize = Math.min(72, Math.max(16, pageSize));
   const safeQuery = query.trim();
   const cacheKey = JSON.stringify({
+    v: MIXED_CACHE_VERSION,
     page: safePage,
     query: safeQuery,
     genre,
@@ -331,38 +514,13 @@ export async function browseMixedCatalog({
         seed,
         pageSize: safePageSize,
       })
-    : await (async () => {
-        const plans = buildSourcePlans(safePageSize, safePage);
-        const windows = await Promise.all(
-          SOURCE_ORDER.map(async (source, index) => {
-            const result = await fetchSourceWindow(source, plans[source], {
-              query: "",
-              genre,
-              sort,
-              seed: seed + index * 100,
-            });
-
-            const primarySlice = result.items.slice(plans[source].sourceStartIndex, plans[source].sourceEndIndex);
-
-            return {
-              source,
-              totalResults: result.totalResults,
-              primarySlice,
-            };
-          }),
-        );
-
-        const pageItems = dedupeBySource(interleaveBuckets(...windows.map((entry) => entry.primarySlice)));
-        const stableItems = validateSearchResults(pageItems.slice(0, safePageSize));
-        const totalResults = windows.reduce((sum, entry) => sum + entry.totalResults, 0);
-
-        return {
-          page: safePage,
-          totalPages: Math.max(1, Math.ceil(totalResults / safePageSize)),
-          totalResults,
-          items: stableItems,
-        } satisfies BrowsePayload;
-      })();
+    : await buildInterleavedBrowsePage({
+        page: safePage,
+        pageSize: safePageSize,
+        genre,
+        sort,
+        seed,
+      });
 
   mixedCatalogCache.set(cacheKey, {
     expiresAt: Date.now() + MIXED_CACHE_TTL_MS,
