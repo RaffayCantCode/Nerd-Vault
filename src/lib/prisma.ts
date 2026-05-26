@@ -9,17 +9,20 @@ const globalForPrisma = globalThis as unknown as {
 
 function getPool() {
   if (!globalForPrisma.pool) {
-    const connectionString = process.env.DATABASE_URL ?? "";
-    const requiresSsl =
-      /sslmode=require/i.test(connectionString) ||
-      /neon\.tech|supabase\.co|render\.com|railway\.app/i.test(connectionString);
+    const raw = process.env.DATABASE_URL ?? "";
+    const needsSsl =
+      /sslmode/i.test(raw) || /supabase\.co|neon\.tech|render\.com|railway\.app/i.test(raw);
+
+    const connectionString = needsSsl
+      ? raw.replace(/[\?&]sslmode=[^&]+/g, "")
+      : raw;
 
     globalForPrisma.pool = new Pool({
       connectionString,
       max: process.env.NODE_ENV === "production" ? 1 : 8,
       idleTimeoutMillis: 10_000,
       connectionTimeoutMillis: 15_000,
-      ssl: requiresSsl ? { rejectUnauthorized: false } : undefined,
+      ssl: needsSsl ? { rejectUnauthorized: false } : false,
     });
   }
   return globalForPrisma.pool;
