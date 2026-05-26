@@ -3989,8 +3989,7 @@ body {
 .sidebar-folder-tile,
 .topbar-chip,
 .button,
-.chip,
-.catalog-card {
+.chip {
   will-change: transform;
 }
 
@@ -4100,16 +4099,18 @@ body {
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.24);
 }
 
-.app-topbar {
-  position: relative;
-  z-index: 40;
-  overflow: visible;
-  padding: 12px 14px;
-  border-radius: 22px;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 14px;
+@media (max-width: 900px) {
+  .app-topbar {
+    position: relative;
+    z-index: 40;
+    overflow: visible;
+    padding: 12px 14px;
+    border-radius: 22px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 14px;
+  }
 }
 
 .app-topbar.is-layered {
@@ -17153,11 +17154,15 @@ body > .nv-mobile-dock-wrap {
   .nv-mobile-dock {
     pointer-events: auto;
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-auto-flow: column;
     align-items: center;
-    gap: 6px;
-    padding: 8px 10px;
+    gap: 4px;
+    padding: 8px 12px;
     border-radius: 18px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
     border: 1px solid rgba(255, 255, 255, 0.14);
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02)),
@@ -17166,8 +17171,13 @@ body > .nv-mobile-dock-wrap {
     backdrop-filter: blur(18px);
   }
 
+  .nv-mobile-dock::-webkit-scrollbar {
+    display: none;
+  }
+
   .nv-mobile-dock-link {
     min-height: 54px;
+    min-width: 58px;
     border: 1px solid transparent;
     border-radius: 14px;
     background: transparent;
@@ -17181,13 +17191,15 @@ body > .nv-mobile-dock-wrap {
     letter-spacing: 0.02em;
     cursor: pointer;
     transition: transform 160ms ease, color 160ms ease, background 180ms ease, border-color 180ms ease;
-    padding: 4px 2px;
+    padding: 4px 6px;
+    flex-shrink: 0;
   }
 
   .nv-mobile-dock-link svg {
     width: 19px;
     height: 19px;
     display: block;
+    flex-shrink: 0;
   }
 
   .nv-mobile-dock-link:hover,

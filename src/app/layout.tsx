@@ -51,9 +51,9 @@ export const metadata: Metadata = {
     siteName: "NerdVault",
     images: [
       {
-        url: "/brand/logo-wordmark.png",
-        width: 1024,
-        height: 1024,
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
       },
     ],
     locale: "en_US",
@@ -63,7 +63,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "NerdVault | Your Universe of Entertainment",
     description: "Log what hit. Save what calls next. The ultimate platform for tracking everything you love.",
-    images: ["/brand/logo-wordmark.png"],
+    images: ["/opengraph-image"],
   },
   robots: {
     index: true,

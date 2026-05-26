@@ -115,7 +115,7 @@ export function DetailGallery({
               onClick={() => setActiveIndex(index)}
               aria-label={`Open ${title} image ${index + 1}`}
             >
-              <img src={slide.src} alt={`${title} still ${index + 1}`} loading={index < 2 ? "eager" : "lazy"} decoding="async" />
+              <img src={slide.src} alt={`${title} still ${index + 1}`} loading={index < 2 ? "eager" : "lazy"} decoding="async" onError={(e) => { e.currentTarget.style.display = "none"; }} />
             </button>
           ))}
         </div>
@@ -203,6 +203,7 @@ export function DetailGallery({
                   alt={`${title} fullscreen still ${(activeIndex ?? 0) + 1}`}
                   loading="eager"
                   decoding="async"
+                  onError={(e) => { e.currentTarget.style.display = "none"; }}
                 />
                 <div className="detail-lightbox-meta">
                   <span>{(activeIndex ?? 0) + 1}</span>
@@ -224,6 +225,7 @@ export function DetailGallery({
                           alt={`${title} thumbnail ${index + 1}`}
                           loading="lazy"
                           decoding="async"
+                          onError={(e) => { e.currentTarget.style.display = "none"; }}
                         />
                       </button>
                     ))}

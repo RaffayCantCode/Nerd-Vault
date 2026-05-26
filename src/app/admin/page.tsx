@@ -34,9 +34,6 @@ export default async function AdminDashboard() {
           <h2 className="headline" style={{ marginBottom: 15 }}>Media Operations</h2>
           <p className="copy" style={{ marginBottom: 20 }}>Monitor catalog health across movies, TV shows, anime, and games.</p>
           <p><strong>Total Media:</strong> {mediaCount}</p>
-          <Link href="/admin/media" className="button button-secondary" style={{ marginTop: 20, width: '100%' }}>
-            Manage Media
-          </Link>
         </div>
 
         <div className="admin-card glass" style={{ padding: 30, borderRadius: 24 }}>

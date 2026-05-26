@@ -56,7 +56,7 @@ export async function signInWithGoogle(formData?: FormData) {
       redirect(`/sign-in?mode=login&error=${encodeURIComponent(code)}&redirectTo=${encodeURIComponent(redirectTo)}`);
     }
 
-    throw error;
+    redirect(`/sign-in?mode=login&error=${encodeURIComponent("google-sign-in-failed")}&redirectTo=${encodeURIComponent(redirectTo)}`);
   }
 }
 
@@ -140,6 +140,6 @@ export async function signInWithCredentials(formData: FormData) {
       );
     }
 
-    throw error;
+    redirect(`/sign-in?mode=login&error=${encodeURIComponent("sign-in-failed")}&redirectTo=${encodeURIComponent(redirectTo)}`);
   }
 }

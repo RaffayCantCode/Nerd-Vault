@@ -6,7 +6,9 @@ import { signOutUser } from "@/app/sign-in/sign-out-action";
 import { MobileInstallButton } from "@/components/mobile-install-button";
 import {
   acceptFriend,
+  declineFriend,
   dismissInboxNotification,
+  fetchFriendSuggestions,
   fetchProfilePayload,
   fetchUserSearch,
   markInboxRead,
@@ -43,6 +45,8 @@ export const AppTopBar = memo(function AppTopBar({
   const [userResults, setUserResults] = useState<Array<{ id: string; name: string; handle: string; avatarUrl?: string; relationship: string }>>([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
   const [hasLoadedSocial, setHasLoadedSocial] = useState(Boolean(initialProfile));
+  const [suggestions, setSuggestions] = useState<Array<{ id: string; name: string; handle: string; avatarUrl?: string; mutualCount: number }>>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
 
   useEffect(() => {
     setViewerProfile(initialProfile);
@@ -129,13 +133,24 @@ export const AppTopBar = memo(function AppTopBar({
   async function toggleProfileMenu() {
     setInboxOpen(false);
 
-    if (profileMenuOpen) {
-      setProfileMenuOpen(false);
+    if (isGuest) {
+      openGuestPrompt("Sign in to use the vault menu", "Sign in to manage your profile, settings, and friends.");
       return;
     }
 
-    await ensureSocialLoaded();
-    setProfileMenuOpen(true);
+    setProfileMenuOpen(!profileMenuOpen);
+
+    if (!profileMenuOpen && !suggestions.length && !suggestionsLoading) {
+      setSuggestionsLoading(true);
+      try {
+        const results = await fetchFriendSuggestions();
+        setSuggestions(results);
+      } catch {
+        // silently ignore
+      } finally {
+        setSuggestionsLoading(false);
+      }
+    }
   }
 
   async function ensureSocialLoaded() {
@@ -253,9 +268,14 @@ export const AppTopBar = memo(function AppTopBar({
                         </div>
                         <div className="topbar-inbox-actions">
                           {notification.type === "friend-request" ? (
-                            <button type="button" className="button button-primary" onClick={() => void acceptFriend(notification.fromUserId)}>
-                              Accept
-                            </button>
+                            <>
+                              <button type="button" className="button button-primary" onClick={() => void acceptFriend(notification.fromUserId)}>
+                                Accept
+                              </button>
+                              <button type="button" className="button button-secondary" onClick={() => void declineFriend(notification.fromUserId)}>
+                                Decline
+                              </button>
+                            </>
                           ) : null}
                           <button type="button" className="button button-secondary" onClick={() => void markInboxRead(notification.id)}>
                             Mark read
@@ -310,11 +330,36 @@ export const AppTopBar = memo(function AppTopBar({
                       </Link>
                     </>
                   ) : (
-                    <form action={signOutUser} style={{ width: '100%' }}>
-                      <button type="submit" className="button button-primary topbar-menu-button" style={{ width: '100%' }}>
-                        Sign out
-                      </button>
-                    </form>
+                    <>
+                      {suggestions.length > 0 ? (
+                        <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 10, display: "grid", gap: 8 }}>
+                          <p className="sort-label" style={{ margin: 0 }}>People you may know</p>
+                          {suggestions.map((s) => (
+                            <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0" }}>
+                              {s.avatarUrl ? (
+                                <img src={s.avatarUrl} alt={s.name} style={{ width: 28, height: 28, borderRadius: "50%" }} />
+                              ) : (
+                                <span style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(255,255,255,0.08)", display: "grid", placeItems: "center", fontSize: "0.75rem" }}>
+                                  {s.name.charAt(0)}
+                                </span>
+                              )}
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <strong style={{ fontSize: "0.85rem" }}>{s.name}</strong>
+                                <span style={{ display: "block", fontSize: "0.75rem", color: "var(--muted)" }}>{s.mutualCount} mutual friend{s.mutualCount !== 1 ? "s" : ""}</span>
+                              </div>
+                              <button type="button" className="button button-primary" style={{ padding: "4px 10px", fontSize: "0.78rem" }} onClick={() => { void requestFriend(s.id); setSuggestions((prev) => prev.filter((x) => x.id !== s.id)); }}>
+                                Add
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                      <form action={signOutUser} style={{ width: '100%', borderTop: suggestions.length > 0 ? "1px solid rgba(255,255,255,0.08)" : "none", paddingTop: suggestions.length > 0 ? 10 : 0 }}>
+                        <button type="submit" className="button button-primary topbar-menu-button" style={{ width: '100%' }}>
+                          Sign out
+                        </button>
+                      </form>
+                    </>
                   )}
                 </div>
               </div>

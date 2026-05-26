@@ -214,7 +214,23 @@ export function DetailTrailerPlayer({ title, trailerUrl, sourceUrl }: DetailTrai
     }, 220);
 
     return () => window.clearTimeout(timer);
-  }, [embedUrl, muted, provider, quality]);
+  }, [embedUrl, provider]);
+
+  useEffect(() => {
+    if (provider !== "youtube") return;
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+
+    postYoutubeCommand(iframe, "setPlaybackQuality", [resolveYoutubePlaybackQuality(quality)]);
+  }, [quality, provider]);
+
+  useEffect(() => {
+    if (provider !== "youtube") return;
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+
+    postYoutubeCommand(iframe, muted ? "mute" : "unMute", []);
+  }, [muted, provider]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !sectionRef.current) {

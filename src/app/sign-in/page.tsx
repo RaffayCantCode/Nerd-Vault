@@ -89,16 +89,8 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
           <div className="auth-screen-copy auth-screen-copy-signin">
             <p className="eyebrow">Account access</p>
             <h1 className="auth-screen-title">
-              Step into your archive.
+              Sign in or create an account.
             </h1>
-            <p className="copy">
-              Create your own NerdVault account with email and password, or use Google when you want the faster route in.
-            </p>
-            <p className="copy" style={{ marginTop: 14 }}>
-              {googleReady
-                ? "Google sign-in is available. If it fails after account selection, verify AUTH_URL, AUTH_SECRET, DATABASE_URL, and the Google OAuth redirect URI for https://nerdvault.site/api/auth/callback/google."
-                : "Google sign-in still needs AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET, and AUTH_SECRET configured."}
-            </p>
           </div>
 
           <div className="auth-screen-panel auth-screen-panel-signin glass">
@@ -175,9 +167,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
               <span>or</span>
             </div>
 
-            <p className="copy">
-              Use Google if you want the one-click route and already have your OAuth keys connected in production.
-            </p>
+
             <GoogleSignInForm redirectTo={redirectTo} disabled={!googleReady} />
 
             <div className="auth-alt-actions">

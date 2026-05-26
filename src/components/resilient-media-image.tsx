@@ -22,12 +22,10 @@ type ResilientMediaImageProps = {
   displayIntent?: MediaImageIntent;
   upgradeIntent?: MediaImageIntent;
   onLoadStateChange?: (loaded: boolean) => void;
-  useProxy?: boolean;
 };
 
 function proxiedImage(url?: string) {
   if (!url) return url;
-
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== "https:") return url;
@@ -38,10 +36,7 @@ function proxiedImage(url?: string) {
 }
 
 function warmImageUrl(url?: string) {
-  if (!url || warmedImageUrls.has(url)) {
-    return;
-  }
-
+  if (!url || warmedImageUrls.has(url)) return;
   warmedImageUrls.add(url);
   const image = new Image();
   image.decoding = "async";
@@ -58,30 +53,26 @@ export function ResilientMediaImage({
   displayIntent = "thumb",
   upgradeIntent = "cover",
   onLoadStateChange,
-  useProxy = false,
 }: ResilientMediaImageProps) {
-  const rawFallback = useProxy ? proxiedImage(getMediaFallbackImage(item)) ?? getMediaFallbackImage(item) : getMediaFallbackImage(item);
-  const rawPrimaryCover = useProxy ? proxiedImage(item.coverUrl) ?? item.coverUrl : item.coverUrl;
-  const rawSecondaryBackdrop = useProxy ? proxiedImage(item.backdropUrl) ?? item.backdropUrl : item.backdropUrl;
-
   const [loaded, setLoaded] = useState(false);
   const [isUpgraded, setIsUpgraded] = useState(false);
+  const [retryProxy, setRetryProxy] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const connectionRef = useRef<{ saveData?: boolean; effectiveType?: string } | null>(null);
 
   if (typeof navigator !== "undefined" && connectionRef.current === null) {
-    const connection = (navigator as Navigator & {
-      connection?: { saveData?: boolean; effectiveType?: string };
-    }).connection;
-    connectionRef.current = {
-      saveData: connection?.saveData,
-      effectiveType: connection?.effectiveType,
-    };
+    const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+    connectionRef.current = { saveData: connection?.saveData, effectiveType: connection?.effectiveType };
   }
 
   const connectionInfo = connectionRef.current ?? undefined;
   const resolvedDisplayIntent = chooseConnectionAwareIntent(displayIntent, connectionInfo);
   const resolvedUpgradeIntent = chooseConnectionAwareIntent(upgradeIntent, connectionInfo);
+
+  const rawFallback = getMediaFallbackImage(item);
+  const rawPrimaryCover = retryProxy ? proxiedImage(item.coverUrl) ?? item.coverUrl : item.coverUrl;
+  const rawSecondaryBackdrop = retryProxy ? proxiedImage(item.backdropUrl) ?? item.backdropUrl : item.backdropUrl;
 
   const fallback = optimizeMediaImageUrl(rawFallback, "cover");
   const previewSrc =
@@ -103,12 +94,10 @@ export function ResilientMediaImage({
     setLoaded(false);
     setIsUpgraded(!shouldProgress);
     onLoadStateChange?.(false);
+    setRetryProxy(false);
     setSrc(nextPreview);
 
-    if (shouldProgress) {
-      warmImageUrl(upgradeSrc);
-    }
-
+    if (shouldProgress) warmImageUrl(upgradeSrc);
     if (loading === "eager" || fetchPriority === "high") {
       warmImageUrl(upgradeSrc);
       warmImageUrl(previewSrc);
@@ -116,31 +105,31 @@ export function ResilientMediaImage({
   }, [item.coverUrl, item.backdropUrl, onLoadStateChange, previewSrc, shouldProgress, upgradeSrc, loading, fetchPriority]);
 
   useEffect(() => {
-    if (!shouldProgress || !upgradeSrc) {
-      return;
-    }
-
+    if (!shouldProgress || !upgradeSrc) return;
     let cancelled = false;
     const fullImage = new Image();
     fullImage.decoding = "async";
     fullImage.onload = () => {
-      if (!cancelled) {
-        setSrc(upgradeSrc);
-        setIsUpgraded(true);
-      }
+      if (!cancelled) { setSrc(upgradeSrc); setIsUpgraded(true); }
     };
     fullImage.src = upgradeSrc;
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [shouldProgress, upgradeSrc]);
 
   useEffect(() => {
     if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
       setLoaded(true);
       onLoadStateChange?.(true);
+      return;
     }
+    if (timeoutRef.current) return;
+    timeoutRef.current = setTimeout(() => {
+      setLoaded(true);
+      onLoadStateChange?.(true);
+    }, 10_000);
+    return () => {
+      if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
+    };
   }, [onLoadStateChange, src]);
 
   const combinedClass = [
@@ -149,9 +138,7 @@ export function ResilientMediaImage({
     loaded ? "img-loaded" : "img-loading",
     loading === "eager" ? "img-eager" : "img-lazy",
     isUpgraded ? "img-upgraded" : "img-preview",
-  ]
-    .filter(Boolean)
-    .join(" ");
+  ].filter(Boolean).join(" ");
 
   return (
     <img
@@ -165,11 +152,12 @@ export function ResilientMediaImage({
       decoding={decoding}
       fetchPriority={fetchPriority}
       draggable={false}
-      onLoad={() => {
-        setLoaded(true);
-        onLoadStateChange?.(true);
-      }}
+      onLoad={() => { setLoaded(true); onLoadStateChange?.(true); }}
       onError={() => {
+        if (!retryProxy && (item.coverUrl || item.backdropUrl)) {
+          setRetryProxy(true);
+          return;
+        }
         if (src !== secondaryBackdrop && secondaryBackdrop) {
           setSrc(secondaryBackdrop);
           return;

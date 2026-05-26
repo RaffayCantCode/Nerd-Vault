@@ -324,3 +324,52 @@ export async function dismissInboxNotification(notificationId: string) {
     method: "DELETE",
   });
 }
+
+export async function declineFriend(fromUserId: string) {
+  await mutate("/api/social/friends/decline", {
+    method: "POST",
+    body: JSON.stringify({ fromUserId }),
+  });
+}
+
+export async function removeFriend(friendId: string) {
+  await mutate("/api/social/friends/remove", {
+    method: "POST",
+    body: JSON.stringify({ friendId }),
+  });
+}
+
+export async function fetchFriendSuggestions() {
+  const response = await fetch("/api/social/suggestions", { cache: "no-store" });
+  const payload = await response.json();
+  return payload.results as Array<{ id: string; name: string; handle: string; avatarUrl?: string; mutualCount: number }>;
+}
+
+export type FriendActivityEntry = {
+  id: string;
+  type: "watched" | "folder";
+  friendId: string;
+  friendName: string;
+  friendAvatar?: string;
+  media?: { id: string; title: string; slug: string; type: string; coverUrl?: string; rating?: number | null };
+  rating?: number | null;
+  notes?: string | null;
+  folderName?: string;
+  folderSlug?: string;
+  createdAt: string;
+};
+
+export async function fetchFriendActivity() {
+  const response = await fetch("/api/activity", { cache: "no-store" });
+  const payload = await response.json();
+  return payload.results as FriendActivityEntry[];
+}
+
+export async function fetchFriendsData() {
+  const response = await fetch("/api/friends", { cache: "no-store" });
+  const payload = await response.json();
+  return {
+    friends: payload.friends as Array<{ id: string; name: string; handle: string; avatarUrl?: string }>,
+    suggestions: payload.suggestions as Array<{ id: string; name: string; handle: string; avatarUrl?: string; mutualCount: number }>,
+  };
+}

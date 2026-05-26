@@ -49,6 +49,34 @@ function IconCompass() {
   );
 }
 
+function IconBook() {
+  return (
+    <svg className="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M5 4.5h14v15H5z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M9 4.5v6.2l2.5-1.6L14 10.7V4.5" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconActivity() {
+  return (
+    <svg className="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M4 12h4l3 8 4-16 3 8h4" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconPeople() {
+  return (
+    <svg className="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="9" cy="8" r="3.25" stroke="currentColor" strokeWidth="1.65" />
+      <circle cx="17" cy="10" r="2.25" stroke="currentColor" strokeWidth="1.65" />
+      <path d="M3 19.5c0-3.5 2.5-6 6-6s6 2.5 6 6" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" />
+      <path d="M15 18c0-2.5 2-4 4-4s4 1.5 4 4" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function IconDoor() {
   return (
     <svg className="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -70,7 +98,7 @@ function IconLeave() {
 }
 
 type AppSidebarProps = {
-  active: "vault" | "browse";
+  active: "vault" | "browse" | "books" | "activity" | "friends";
   initialFolders?: StoredFolder[];
 };
 
@@ -111,6 +139,33 @@ export async function AppSidebar({ active, initialFolders = [] }: AppSidebarProp
             <IconCompass />
             <span className="sidebar-nav-label">Browse</span>
           </BrowseResetLink>
+          <Link
+            href="/books"
+            className={`sidebar-nav-button ${active === "books" ? "is-active" : ""}`}
+            aria-label="Books"
+            title="Books"
+          >
+            <IconBook />
+            <span className="sidebar-nav-label">Books</span>
+          </Link>
+          <Link
+            href="/activity"
+            className={`sidebar-nav-button ${active === "activity" ? "is-active" : ""}`}
+            aria-label="Friend Activity"
+            title="Friend Activity"
+          >
+            <IconActivity />
+            <span className="sidebar-nav-label">Activity</span>
+          </Link>
+          <Link
+            href="/friends"
+            className={`sidebar-nav-button ${active === "friends" ? "is-active" : ""}`}
+            aria-label="Friends"
+            title="Friends"
+          >
+            <IconPeople />
+            <span className="sidebar-nav-label">Friends</span>
+          </Link>
         </nav>
 
         <div className="sidebar-rail-divider" />

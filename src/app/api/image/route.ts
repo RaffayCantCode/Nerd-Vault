@@ -6,6 +6,7 @@ const ALLOWED_HOSTS = new Set([
   "images.igdb.com",
   "image.tmdb.org",
   "s4.anilist.co",
+  "anilist.co",
 ]);
 
 function isAllowedRemote(url: URL) {

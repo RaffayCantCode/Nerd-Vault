@@ -10,6 +10,7 @@ import { DetailViewEffects } from "@/components/detail-view-effects";
 import { ExpandableRelatedSection } from "@/components/expandable-related-section";
 import { MediaActions } from "@/components/media-actions";
 import { ResilientMediaImage } from "@/components/resilient-media-image";
+import { SafeImg } from "@/components/safe-img";
 import { VaultClientPrimer } from "@/components/vault-client-primer";
 import { auth } from "@/lib/auth";
 import { getLibraryStateForUser, getVaultProfilePayload, getViewerShellData } from "@/lib/vault-server";
@@ -3203,7 +3204,7 @@ export default async function MediaDetailPage({
           ) : null}
           <section id="detail-overview" className="detail-hero glass">
             <div className="hero-media">
-              <img
+              <SafeImg
                 src={optimizeMediaImageUrl(media.backdropUrl || media.coverUrl, "backdrop") ?? (media.backdropUrl || media.coverUrl)}
                 alt={`${media.title} backdrop`}
                 loading="eager"
@@ -3372,7 +3373,7 @@ export default async function MediaDetailPage({
                     <div key={entry.friendId} className="credit-row">
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         {entry.friendAvatarUrl ? (
-                          <img src={entry.friendAvatarUrl} alt={entry.friendName} className="folder-row-avatar" />
+                          <SafeImg src={entry.friendAvatarUrl} alt={entry.friendName} className="folder-row-avatar" />
                         ) : (
                           <span className="folder-row-avatar folder-row-avatar-fallback">{entry.friendName.charAt(0).toUpperCase()}</span>
                         )}

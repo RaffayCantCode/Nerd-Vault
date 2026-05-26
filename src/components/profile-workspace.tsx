@@ -7,7 +7,7 @@ import { CatalogCard } from "@/components/catalog-card";
 import { ImageAdjusterModal } from "@/components/image-adjuster-modal";
 import { NVLoader } from "@/components/nv-loader";
 import { MediaItem } from "@/lib/types";
-import { deleteLibraryFolder, fetchProfilePayload, primeProfilePayload, saveFolder, saveProfileSettings, subscribeVaultChanges } from "@/lib/vault-client";
+import { deleteLibraryFolder, fetchProfilePayload, primeProfilePayload, removeFriend, saveFolder, saveProfileSettings, subscribeVaultChanges } from "@/lib/vault-client";
 import { PrivacyLevel, SocialProfile, StoredFolder, VaultProfilePayload } from "@/lib/vault-types";
 
 type LibrarySortMode = "recent" | "title" | "rating";
@@ -681,8 +681,8 @@ export function ProfileWorkspace({
         <div className="folder-list profile-friends-list">
           {friends.length ? (
             friends.map((friend) => (
-              <Link key={friend.id} href={`/profile?user=${friend.id}`} className="folder-row glass">
-                <div className="folder-row-main">
+              <div key={friend.id} className="folder-row glass">
+                <Link href={`/profile?user=${friend.id}`} className="folder-row-main" style={{ flex: 1 }}>
                   {friend.avatarUrl ? (
                     <img src={friend.avatarUrl} alt={friend.name} className="folder-row-avatar" />
                   ) : (
@@ -692,8 +692,18 @@ export function ProfileWorkspace({
                     <strong>{friend.name}</strong>
                     <span className="muted">{friend.handle}</span>
                   </div>
-                </div>
-              </Link>
+                </Link>
+                {viewingOwnProfile ? (
+                  <button
+                    type="button"
+                    className="button button-secondary"
+                    style={{ padding: "4px 12px", fontSize: "0.8rem", flexShrink: 0 }}
+                    onClick={() => { if (confirm(`Remove ${friend.name} as a friend?`)) { void removeFriend(friend.id); } }}
+                  >
+                    Unfriend
+                  </button>
+                ) : null}
+              </div>
             ))
           ) : (
             <div className="folder-empty glass">

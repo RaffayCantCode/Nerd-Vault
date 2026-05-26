@@ -39,7 +39,7 @@ export default async function AdminUsers() {
               <tr key={user.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                 <td style={{ padding: '20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    {user.image ? <img src={user.image} style={{ width: 32, height: 32, borderRadius: '50%' }} /> : <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#69C5AC', color: '#000', display: 'grid', placeItems: 'center', fontWeight: 'bold' }}>{user.name?.[0]}</div>}
+                    {user.image ? <img src={user.image} alt={user.name ?? "User avatar"} style={{ width: 32, height: 32, borderRadius: '50%' }} /> : <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#69C5AC', color: '#000', display: 'grid', placeItems: 'center', fontWeight: 'bold' }}>{user.name?.[0]}</div>}
                     {user.name}
                   </div>
                 </td>

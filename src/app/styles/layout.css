@@ -235,6 +235,7 @@
 
 body {
   overflow-x: hidden;
+  overscroll-behavior: none;
 }
 
 /* Expandable Related Section */
@@ -1248,8 +1249,7 @@ body {
 .sidebar-folder-tile,
 .topbar-chip,
 .button,
-.chip,
-.catalog-card {
+.chip {
   will-change: transform;
 }
 

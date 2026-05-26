@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CatalogCard } from "@/components/catalog-card";
 import { HomeFeed } from "@/lib/home-feed";
-import { NVLoader } from "@/components/nv-loader";
 import { writeDetailReturnTarget } from "@/lib/detail-return";
 import { ResilientMediaImage } from "@/components/resilient-media-image";
 

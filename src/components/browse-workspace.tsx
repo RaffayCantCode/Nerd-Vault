@@ -228,15 +228,18 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
     (!initialSort || initialSort === "discovery") &&
     normalizePage(initialPage) === 1;
 
-  const [filter, setFilter] = useState<MediaType | "all">(
+  const [filter, setFilterState] = useState<MediaType | "all">(
     initialFilter === "movie" || initialFilter === "show" || initialFilter === "anime" || initialFilter === "game"
       ? initialFilter
       : "all",
   );
-  const [genre, setGenre] = useState(initialGenre || "all");
-  const [sort, setSort] = useState<SortMode>(
+  const [genre, setGenreState] = useState(initialGenre || "all");
+  const [sort, setSortState] = useState<SortMode>(
     initialSort === "newest" || initialSort === "rating" || initialSort === "title" ? initialSort : "discovery",
   );
+  function setFilter(next: MediaType | "all") { setFilterState(next); setActivePage(1); }
+  function setGenre(next: string) { setGenreState(next); setActivePage(1); }
+  function setSort(next: SortMode) { setSortState(next); setActivePage(1); }
   const [query, setQuery] = useState(initialQuery);
   const deferredQuery = useDeferredValue(query);
   const [activePage, setActivePage] = useState(normalizePage(initialPage));
@@ -924,7 +927,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
                 Search
               </button>
               {query.trim() ? (
-                <button type="button" className="button button-secondary browse-search-clear" onClick={() => setQuery("")}>
+                <button type="button" className="button button-secondary browse-search-clear" onClick={() => { setQuery(""); setActivePage(1); }}>
                   Clear
                 </button>
               ) : null}

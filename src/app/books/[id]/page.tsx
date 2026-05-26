@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import { BookDetail } from "@/components/book-detail";
 import { getBookProgress, getSessionUserId } from "@/lib/book-progress-server";
 import { fetchBookSummary } from "@/lib/books";
@@ -10,7 +11,7 @@ export default async function BookDetailPage({ params }: { params: Promise<{ id:
   const progress = userId && Number.isFinite(bookId) ? await getBookProgress(userId, bookId).catch(() => null) : null;
 
   if (!book) {
-    throw new Error("Book not found");
+    notFound();
   }
 
   return <BookDetail book={book} initialProgress={progress} isSignedIn={Boolean(userId)} />;

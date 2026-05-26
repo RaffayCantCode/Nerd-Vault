@@ -38,7 +38,7 @@ export default async function BrowsePage() {
             catalog={bootstrapCatalog.catalog}
             surfacingCatalog={bootstrapCatalog.surfacing}
             discoverySeed={discoverySeed}
-            initialBootstrapPageSize={bootstrapCatalog.catalog.length || 12}
+            initialBootstrapPageSize={Math.max(bootstrapCatalog.catalog.length, 48)}
             initialTotalPages={INITIAL_BROWSE_TOTAL_PAGES}
             viewerId={viewerId}
             viewerName={viewerName}

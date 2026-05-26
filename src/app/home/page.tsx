@@ -36,7 +36,7 @@ export default async function HomeHubPage({
     );
   }
 
-  await ensureCurrentUserRecord();
+  await ensureCurrentUserRecord().catch(() => undefined);
 
   const [shellData, library] = await Promise.all([
     getViewerShellData(session.user.id).catch(() => ({ folders: [], viewerProfile: null, friends: [] })),
@@ -48,7 +48,7 @@ export default async function HomeHubPage({
   const initialTab = resolvedSearchParams?.tab === "media" ? "your-media" : "for-you";
   const profilePayload = await getVaultProfilePayload(session.user.id, requestedUser ?? session.user.id).catch(() => undefined);
 
-  const feed = await buildHomeFeed(library);
+  const feed = await buildHomeFeed(library).catch(() => ({ greeting: "Welcome back! Start building your collection.", sections: { movie: [], show: [], anime: [], anime_movie: [], game: [], all: [] }, upcoming: [], watchedCounts: { movie: 0, show: 0, anime: 0, anime_movie: 0, game: 0, all: 0 } }));
 
   return (
     <div className="page-shell home-page">

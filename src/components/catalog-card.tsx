@@ -210,7 +210,7 @@ export const CatalogCard = memo(function CatalogCard({
       onClick={handleNavigate}
       onMouseEnter={warmRoute}
       onFocus={warmRoute}
-      style={{ willChange: "transform, opacity" }}
+
     >
       <div className="catalog-card-media">
         {/* Skeleton placeholder - visible until image loads */}

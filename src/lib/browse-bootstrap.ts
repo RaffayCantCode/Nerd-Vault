@@ -209,12 +209,12 @@ export async function getBrowseBootstrapCatalog(seed: number): Promise<Bootstrap
 
   const catalog = dedupeItems(
     interleaveBootstrapBuckets(
-      pickFirstUnique(movies, 3),
-      pickFirstUnique(shows, 3),
-      pickFirstUnique(anime, 3),
-      pickFirstUnique(games, 3),
+      pickFirstUnique(movies, 24),
+      pickFirstUnique(shows, 24),
+      pickFirstUnique(anime, 24),
+      pickFirstUnique(games, 24),
     ),
-  ).slice(0, 12);
+  ).slice(0, 48);
 
   return {
     surfacing,

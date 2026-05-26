@@ -1152,3 +1152,215 @@ export async function dismissNotification(userId: string, notificationId: string
     },
   });
 }
+
+export async function declineFriendRequest(viewerId: string, fromUserId: string) {
+  await prisma.friendRequest.updateMany({
+    where: {
+      fromUserId,
+      toUserId: viewerId,
+      status: "pending",
+    },
+    data: {
+      status: "declined",
+    },
+  });
+
+  await createNotification({
+    userId: fromUserId,
+    fromUserId: viewerId,
+    type: "info",
+    message: "Your friend request was declined.",
+  });
+}
+
+export async function removeFriend(viewerId: string, friendId: string) {
+  await prisma.$transaction(async (tx) => {
+    await tx.friendship.deleteMany({
+      where: {
+        OR: [
+          { userId: viewerId, friendId },
+          { userId: friendId, friendId: viewerId },
+        ],
+      },
+    });
+
+    await tx.friendRequest.deleteMany({
+      where: {
+        OR: [
+          { fromUserId: viewerId, toUserId: friendId },
+          { fromUserId: friendId, toUserId: viewerId },
+        ],
+      },
+    });
+  });
+}
+
+export async function getFriendSuggestions(viewerId: string, limit = 6) {
+  const friendIds = await getFriendIds(viewerId);
+  if (!friendIds.length) return [];
+
+  const friendsOfFriends = await prisma.friendship.findMany({
+    where: {
+      userId: { in: friendIds },
+      friendId: {
+        not: viewerId,
+        notIn: friendIds,
+      },
+    },
+    select: {
+      friendId: true,
+    },
+    take: limit * 3,
+  });
+
+  const candidateIds = [...new Set(friendsOfFriends.map((r) => r.friendId))];
+  if (!candidateIds.length) return [];
+
+  const users = await prisma.user.findMany({
+    where: { id: { in: candidateIds } },
+    select: { id: true, name: true, image: true },
+    take: limit,
+  });
+
+  const idToCount = new Map<string, number>();
+  for (const r of friendsOfFriends) {
+    idToCount.set(r.friendId, (idToCount.get(r.friendId) || 0) + 1);
+  }
+
+  const sorted = users
+    .sort((a, b) => (idToCount.get(b.id) || 0) - (idToCount.get(a.id) || 0))
+    .slice(0, limit)
+    .map((u) => ({
+      id: u.id,
+      name: u.name ?? "Unknown",
+      handle: u.name ?? "",
+      avatarUrl: u.image ?? undefined,
+      mutualCount: idToCount.get(u.id) || 0,
+    }));
+
+  return sorted;
+}
+
+export type FriendActivityEntry = {
+  id: string;
+  type: "watched" | "folder";
+  friendId: string;
+  friendName: string;
+  friendAvatar?: string;
+  media?: {
+    id: string;
+    title: string;
+    slug: string;
+    type: string;
+    coverUrl?: string;
+    rating?: number | null;
+  };
+  rating?: number | null;
+  notes?: string | null;
+  folderName?: string;
+  folderSlug?: string;
+  createdAt: Date;
+};
+
+export async function getFriendActivity(viewerId: string, limit = 30): Promise<FriendActivityEntry[]> {
+  const friendIds = await getFriendIds(viewerId);
+  if (!friendIds.length) return [];
+
+  const [friends, watched, folderItems] = await Promise.all([
+    prisma.user.findMany({
+      where: { id: { in: friendIds } },
+      select: { id: true, name: true, image: true, watchedVisibility: true },
+    }),
+    prisma.watchedItem.findMany({
+      where: { userId: { in: friendIds } },
+      include: { media: { select: { id: true, title: true, slug: true, type: true, coverUrl: true, rating: true } } },
+      orderBy: { watchedAt: "desc" },
+      take: limit,
+    }),
+    prisma.folderItem.findMany({
+      where: { folder: { userId: { in: friendIds }, visibility: { in: ["public", "friends"] } } },
+      include: {
+        media: { select: { id: true, title: true, slug: true, type: true, coverUrl: true, rating: true } },
+        folder: { select: { id: true, name: true, slug: true, userId: true, visibility: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+    }),
+  ]);
+
+  const friendMap = new Map(friends.map((f) => [f.id, f]));
+
+  const privacyCheckedFolderItems = folderItems.filter((fi) => {
+    const friend = friendMap.get(fi.folder.userId);
+    if (!friend) return false;
+    return canViewPrivacy(fi.folder.userId, viewerId, fi.folder.visibility, friendIds);
+  });
+
+  const friendWatchedActivity = watched
+    .filter((w) => {
+      const friend = friendMap.get(w.userId);
+      if (!friend) return false;
+      return canViewPrivacy(w.userId, viewerId, friend.watchedVisibility, friendIds);
+    })
+    .map((w): FriendActivityEntry => {
+      const friend = friendMap.get(w.userId)!;
+      return {
+        id: `watched-${w.userId}-${w.mediaId}`,
+        type: "watched",
+        friendId: w.userId,
+        friendName: friend.name ?? "Unknown",
+        friendAvatar: friend.image ?? undefined,
+        media: { ...w.media, coverUrl: w.media.coverUrl ?? undefined },
+        rating: w.rating,
+        notes: w.notes,
+        createdAt: w.watchedAt,
+      };
+    });
+
+  const friendFolderActivity = privacyCheckedFolderItems.map((fi): FriendActivityEntry => {
+    const friend = friendMap.get(fi.folder.userId)!;
+    return {
+      id: `folder-${fi.folderId}-${fi.mediaId}`,
+      type: "folder",
+      friendId: fi.folder.userId,
+      friendName: friend.name ?? "Unknown",
+      friendAvatar: friend.image ?? undefined,
+      media: { ...fi.media, coverUrl: fi.media.coverUrl ?? undefined },
+      folderName: fi.folder.name,
+      folderSlug: fi.folder.slug,
+      createdAt: fi.createdAt,
+    };
+  });
+
+  const merged = [...friendWatchedActivity, ...friendFolderActivity]
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(0, limit);
+
+  return merged;
+}
+
+export async function getFriendProfilesWithStatus(viewerId: string) {
+  const [friendIds, profiles] = await Promise.all([
+    getFriendIds(viewerId),
+    prisma.user.findMany({
+      where: { id: { not: viewerId } },
+      select: { id: true, name: true, image: true, email: true },
+      take: 50,
+    }),
+  ]);
+
+  const friendSet = new Set(friendIds);
+  const suggestions = await getFriendSuggestions(viewerId, 8);
+
+  return {
+    friends: profiles
+      .filter((p) => friendSet.has(p.id))
+      .map((p) => ({
+        id: p.id,
+        name: p.name ?? "Unknown",
+        handle: p.name ?? "",
+        avatarUrl: p.image ?? undefined,
+      })),
+    suggestions,
+  };
+}

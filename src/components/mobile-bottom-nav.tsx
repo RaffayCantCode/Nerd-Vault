@@ -34,12 +34,21 @@ function DockIconProfile() {
   );
 }
 
-function DockIconSupport() {
+function DockIconActivity() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M4.75 12a7.25 7.25 0 0 1 14.5 0v3.8a2.45 2.45 0 0 1-2.45 2.45h-1.2a1.2 1.2 0 0 1-1.2-1.2v-3.3a1.2 1.2 0 0 1 1.2-1.2h2.35" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" />
-      <path d="M4.75 12v3.8A2.45 2.45 0 0 0 7.2 18.25h1.2a1.2 1.2 0 0 0 1.2-1.2v-3.3a1.2 1.2 0 0 0-1.2-1.2H6.05" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" />
-      <circle cx="12" cy="18.7" r="0.95" fill="currentColor" />
+      <path d="M4 12h4l3 8 4-16 3 8h4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function DockIconFriends() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="9" cy="8" r="3.25" stroke="currentColor" strokeWidth="1.7" />
+      <circle cx="17" cy="10" r="2.25" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M3 19.5c0-3.5 2.5-6 6-6s6 2.5 6 6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M15 18c0-2.5 2-4 4-4s4 1.5 4 4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
     </svg>
   );
 }
@@ -52,7 +61,7 @@ function DockIconFolders() {
   );
 }
 
-const APP_ROUTE_PREFIXES = ["/home", "/browse", "/support", "/media", "/profile", "/books", "/vault"];
+const APP_ROUTE_PREFIXES = ["/home", "/browse", "/support", "/media", "/profile", "/books", "/vault", "/activity", "/friends"];
 
 function FoldersDockButton({ foldersOpen, pathname }: { foldersOpen: boolean; pathname: string }) {
   const signInHref = guestSignInHref(pathname);
@@ -93,8 +102,10 @@ export function MobileBottomNav() {
   const isDetailRoute = pathname.startsWith("/media/");
   const isHomeRoute = pathname === "/home";
   const isBrowseRoute = pathname.startsWith("/browse");
+  const isBooksRoute = pathname.startsWith("/books");
+  const isActivityRoute = pathname.startsWith("/activity");
+  const isFriendsRoute = pathname.startsWith("/friends");
   const isProfileContext = pathname.startsWith("/profile") || (pathname === "/home" && searchParams.get("tab") === "media");
-  const isSupportRoute = pathname.startsWith("/support");
   const visible = shouldShowMobileDock(pathname);
 
   useEffect(() => {
@@ -146,6 +157,15 @@ export function MobileBottomNav() {
             Related
           </button>
         </div>
+      ) : isBooksRoute ? (
+        <div className="nv-mobile-section-dock glass" aria-label="Book reader navigation">
+          <button type="button" className="nv-mobile-section-chip" onClick={() => jumpToSection("book-reader")}>
+            Reader
+          </button>
+          <button type="button" className="nv-mobile-section-chip" onClick={() => jumpToSection("book-details")}>
+            Details
+          </button>
+        </div>
       ) : null}
 
       <nav className="nv-mobile-dock glass" aria-label="Primary mobile navigation">
@@ -157,14 +177,18 @@ export function MobileBottomNav() {
           <DockIconBrowse />
           <span>Browse</span>
         </Link>
+        <Link href="/activity" className={`nv-mobile-dock-link ${isActivityRoute ? "is-active" : ""}`} aria-label="Activity">
+          <DockIconActivity />
+          <span>Activity</span>
+        </Link>
+        <Link href="/friends" className={`nv-mobile-dock-link ${isFriendsRoute ? "is-active" : ""}`} aria-label="Friends">
+          <DockIconFriends />
+          <span>Friends</span>
+        </Link>
         <FoldersDockButton foldersOpen={foldersOpen} pathname={pathname} />
         <Link href="/home?tab=media" className={`nv-mobile-dock-link ${isProfileContext ? "is-active" : ""}`} aria-label="Profile">
           <DockIconProfile />
           <span>Profile</span>
-        </Link>
-        <Link href="/support" className={`nv-mobile-dock-link ${isSupportRoute ? "is-active" : ""}`} aria-label="Support">
-          <DockIconSupport />
-          <span>Help</span>
         </Link>
       </nav>
     </div>,
