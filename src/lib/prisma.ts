@@ -9,13 +9,7 @@ const globalForPrisma = globalThis as unknown as {
 
 function getPool() {
   if (!globalForPrisma.pool) {
-    const connectionString = process.env.DATABASE_URL;
-    if (!connectionString) {
-      throw new Error(
-        "DATABASE_URL is not configured. Copy .env.example to .env.local in the project root, add your Supabase URL, then restart npm run dev.",
-      );
-    }
-
+    const connectionString = process.env.DATABASE_URL ?? "";
     const requiresSsl =
       /sslmode=require/i.test(connectionString) ||
       /neon\.tech|supabase\.co|render\.com|railway\.app/i.test(connectionString);
