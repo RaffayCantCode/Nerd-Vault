@@ -11,6 +11,19 @@ import { getAuthSecret, getGoogleClientId, getGoogleClientSecret } from "@/lib/a
 import { signIn } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+// Next.js throws a special NEXT_REDIRECT error internally when `redirect()` is called
+// (including inside next-auth's `signIn()`). We must re-throw these so the redirect
+// actually happens. Catching them and treating them as failures causes false "sign-in failed" errors.
+function isNextRedirect(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "digest" in error &&
+    typeof (error as { digest?: string }).digest === "string" &&
+    (error as { digest: string }).digest.startsWith("NEXT_REDIRECT")
+  );
+}
+
 function sanitizeRedirectTo(value: FormDataEntryValue | null | undefined) {
   if (typeof value !== "string") {
     return "/";
@@ -51,6 +64,12 @@ export async function signInWithGoogle(formData?: FormData) {
   try {
     await signIn("google", { redirectTo });
   } catch (error) {
+    // Re-throw Next.js redirect exceptions — these are how successful redirects work internally.
+    // Swallowing them causes the redirect to never happen and shows a false error to the user.
+    if (isNextRedirect(error)) {
+      throw error;
+    }
+
     if (error instanceof AuthError) {
       const code = error.type ?? "google-sign-in-failed";
       redirect(`/sign-in?mode=login&error=${encodeURIComponent(code)}&redirectTo=${encodeURIComponent(redirectTo)}`);
@@ -134,12 +153,20 @@ export async function signInWithCredentials(formData: FormData) {
       redirectTo,
     });
   } catch (error) {
+    // Re-throw Next.js redirect exceptions — these are how successful redirects work internally.
+    // Swallowing them causes the redirect to never happen and shows a false error to the user.
+    if (isNextRedirect(error)) {
+      throw error;
+    }
+
     if (error instanceof AuthError) {
       redirect(
         `/sign-in?mode=login&error=${encodeURIComponent("Incorrect email or password.")}&redirectTo=${encodeURIComponent(redirectTo)}`,
       );
     }
 
-    redirect(`/sign-in?mode=login&error=${encodeURIComponent("sign-in-failed")}&redirectTo=${encodeURIComponent(redirectTo)}`);
+    // Unknown error — do NOT show a generic "sign-in-failed" since that is confusing.
+    // Re-throw so Next.js handles it properly (it may be another redirect or framework error).
+    throw error;
   }
 }

@@ -256,6 +256,8 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
   const [payload, setPayload] = useState<BrowseApiPayload>(initialPayload);
   const [isLoading, setIsLoading] = useState(!canHydrateFromBootstrap);
   const [error, setError] = useState<string | null>(null);
+  // pageKey increments each time a new page of results loads in — used to trigger the stagger animation
+  const [pageKey, setPageKey] = useState(0);
   const [heroIndex, setHeroIndex] = useState(0);
   const [isHeroInView, setIsHeroInView] = useState(true);
   const [isDocumentVisible, setIsDocumentVisible] = useState(true);
@@ -419,6 +421,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
           setPayload(normalized);
           lastStablePayloadRef.current = normalized;
           lastStablePageRef.current = requestPage;
+          setPageKey((k) => k + 1); // Trigger stagger animation for new cards
           setError(null);
         } else if (nextPayload.totalResults === 0) {
           const normalized = normalizeBrowsePayload(nextPayload, requestPage, pageSize, surfacingKeys);
@@ -961,7 +964,9 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
 
         <div
           ref={catalogGridRef}
-          className={`catalog-grid browse-results-grid ${isLoading ? "catalog-grid-loading is-page-transitioning" : ""}`}
+          key={pageKey}
+          data-page-key={pageKey}
+          className={`catalog-grid browse-results-grid ${isLoading ? "catalog-grid-loading is-page-transitioning" : "catalog-grid-page-entered"}`}
         >
           {isLoading && !payload.items.length
             ? Array.from({ length: 12 }).map((_, index) => (

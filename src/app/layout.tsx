@@ -1,4 +1,4 @@
-﻿import type { Metadata, Viewport } from "next";
+import type { Metadata, Viewport } from "next";
 import { Poppins } from "next/font/google";
 import { ClientRoot } from "./client-root";
 import { auth } from "@/lib/auth";
@@ -117,6 +117,16 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
+      {/* Preconnect to image CDNs to reduce first-image latency.
+          AniList (s4.anilist.co) in particular benefits from early connection establishment. */}
+      <head>
+        <link rel="preconnect" href="https://s4.anilist.co" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://s4.anilist.co" />
+        <link rel="preconnect" href="https://image.tmdb.org" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://image.tmdb.org" />
+        <link rel="preconnect" href="https://images.igdb.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://images.igdb.com" />
+      </head>
       <ClientRoot fontVariable={brandFont.variable}>
         <AuthCookieReset />
         {session?.user && !hasSeenOnboarding && <OnboardingTour hasSeenOnboarding={hasSeenOnboarding} />}

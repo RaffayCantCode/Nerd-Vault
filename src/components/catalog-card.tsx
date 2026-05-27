@@ -205,6 +205,8 @@ export const CatalogCard = memo(function CatalogCard({
       title={`Open ${item.title}`}
       id={browseCardId}
       data-browse-card-id={browseCardId}
+      data-media-type={item.type}
+      data-media-source={item.source}
       className={`catalog-card ${showUserRatingBelow && item.userRating ? "has-user-rating" : ""} ${isNavigating ? "is-navigating" : ""} ${isVisible ? "is-visible" : ""} ${isImageLoaded ? "has-media-loaded" : "is-media-pending"}`}
       prefetch={true}
       onClick={handleNavigate}
@@ -225,7 +227,7 @@ export const CatalogCard = memo(function CatalogCard({
             displayIntent="thumb"
             upgradeIntent="cover"
             loading={priority ? "eager" : "lazy"}
-            fetchPriority={priority ? "high" : "low"}
+            fetchPriority={priority ? "high" : "auto"}
             decoding="async"
             onLoadStateChange={setIsImageLoaded}
           />

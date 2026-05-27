@@ -17120,15 +17120,59 @@ body > .nv-mobile-dock-wrap {
   margin-top: 16px;
 }
 
+/* === Browse pagination animations ===
+   When a new page of media loads, cards animate in with a staggered fade+slide.
+   This gives users a satisfying "new content loaded" feeling. */
+@keyframes browseCardReveal {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .browse-workspace-root .catalog-grid.is-page-transitioning {
-  opacity: 0.72;
-  transform: translateY(4px);
-  transition: opacity 180ms ease, transform 180ms ease;
+  opacity: 0.55;
+  transform: translateY(6px) scale(0.992);
+  transition: opacity 160ms ease, transform 160ms ease;
   pointer-events: none;
+  filter: blur(0.5px);
 }
 
 .browse-workspace-root .catalog-grid:not(.is-page-transitioning) {
-  transition: opacity 220ms ease, transform 220ms ease;
+  transition: opacity 240ms ease, transform 240ms ease, filter 240ms ease;
+}
+
+/* Stagger animation: each catalog-card in a page-entered grid animates in */
+.browse-workspace-root .catalog-grid.catalog-grid-page-entered > .catalog-card {
+  animation: browseCardReveal 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Stagger delays for first 20 cards */
+.browse-workspace-root .catalog-grid.catalog-grid-page-entered > .catalog-card:nth-child(1)  { animation-delay:   0ms; }
+.browse-workspace-root .catalog-grid.catalog-grid-page-entered > .catalog-card:nth-child(2)  { animation-delay:  30ms; }
+.browse-workspace-root .catalog-grid.catalog-grid-page-entered > .catalog-card:nth-child(3)  { animation-delay:  55ms; }
+.browse-workspace-root .catalog-grid.catalog-grid-page-entered > .catalog-card:nth-child(4)  { animation-delay:  75ms; }
+.browse-workspace-root .catalog-grid.catalog-grid-page-entered > .catalog-card:nth-child(5)  { animation-delay:  90ms; }
+.browse-workspace-root .catalog-grid.catalog-grid-page-entered > .catalog-card:nth-child(6)  { animation-delay: 105ms; }
+.browse-workspace-root .catalog-grid.catalog-grid-page-entered > .catalog-card:nth-child(7)  { animation-delay: 118ms; }
+.browse-workspace-root .catalog-grid.catalog-grid-page-entered > .catalog-card:nth-child(8)  { animation-delay: 130ms; }
+.browse-workspace-root .catalog-grid.catalog-grid-page-entered > .catalog-card:nth-child(9)  { animation-delay: 140ms; }
+.browse-workspace-root .catalog-grid.catalog-grid-page-entered > .catalog-card:nth-child(10) { animation-delay: 148ms; }
+.browse-workspace-root .catalog-grid.catalog-grid-page-entered > .catalog-card:nth-child(11) { animation-delay: 155ms; }
+.browse-workspace-root .catalog-grid.catalog-grid-page-entered > .catalog-card:nth-child(12) { animation-delay: 161ms; }
+.browse-workspace-root .catalog-grid.catalog-grid-page-entered > .catalog-card:nth-child(n+13) { animation-delay: 165ms; }
+
+/* Disable animations for users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .browse-workspace-root .catalog-grid.catalog-grid-page-entered > .catalog-card {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }
 
 @media (max-width: 900px) {

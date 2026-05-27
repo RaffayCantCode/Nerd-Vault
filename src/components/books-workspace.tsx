@@ -102,6 +102,9 @@ export function BooksWorkspace({
 
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
+    // 15s client-side timeout — prevents infinite loading when gutendex.com is slow/down.
+    const timeoutId = window.setTimeout(() => controller.abort(new DOMException("Books request timed out", "TimeoutError")), 15_000);
     const canUseInitial =
       initialPayload.items.length > 0 &&
       page === initialPayload.page &&
@@ -111,6 +114,8 @@ export function BooksWorkspace({
     if (canUseInitial) {
       setPayload(initialPayload);
       setLoading(false);
+      clearTimeout(timeoutId);
+      controller.abort();
       return () => {
         active = false;
       };
@@ -132,9 +137,11 @@ export function BooksWorkspace({
           return;
         }
 
+        // Use no-store to avoid stale/broken cached responses that cause infinite loading.
+        // Use a shared inflight promise to avoid duplicate concurrent requests.
         const request =
           booksInflightCache.get(requestKey) ??
-          fetch(`/api/books?${requestKey}`, { cache: "force-cache" })
+          fetch(`/api/books?${requestKey}`, { cache: "no-store", signal: controller.signal })
             .then(async (response) => {
               const nextPayload = (await response.json()) as BookListPayload & { ok?: boolean; message?: string };
               if (!response.ok || nextPayload.ok === false) {
@@ -160,10 +167,19 @@ export function BooksWorkspace({
           setPage(nextPayload.page || 1);
         }
       } catch (loadError) {
-        if (active) {
-          setError(loadError instanceof Error ? loadError.message : "Could not load books");
+        if (!active) return;
+
+        // Ignore AbortError — happens when the component unmounts or navigates away.
+        if (loadError instanceof DOMException && (loadError.name === "AbortError" || loadError.name === "TimeoutError")) {
+          if (active) {
+            setError("Books took too long to load. Check your connection and try again.");
+          }
+          return;
         }
+
+        setError(loadError instanceof Error ? loadError.message : "Could not load books. Please try again.");
       } finally {
+        clearTimeout(timeoutId);
         if (active) {
           setLoading(false);
         }
@@ -174,6 +190,8 @@ export function BooksWorkspace({
 
     return () => {
       active = false;
+      clearTimeout(timeoutId);
+      controller.abort();
     };
   }, [activeGenre, currentRequestKey, initialGenre, initialPayload, initialQuery, page, submittedQuery]);
 
@@ -182,6 +200,7 @@ export function BooksWorkspace({
       return;
     }
 
+    const controller = new AbortController();
     const nextSearch = new URLSearchParams({ page: String(page + 1) });
     if (submittedQuery.trim()) {
       nextSearch.set("query", submittedQuery.trim());
@@ -195,7 +214,7 @@ export function BooksWorkspace({
       return;
     }
 
-    const request = fetch(`/api/books?${nextRequestKey}`, { cache: "force-cache" })
+    const request = fetch(`/api/books?${nextRequestKey}`, { cache: "no-store", signal: controller.signal })
       .then(async (response) => {
         const nextPayload = (await response.json()) as BookListPayload & { ok?: boolean; message?: string };
         if (!response.ok || nextPayload.ok === false) {
@@ -210,6 +229,8 @@ export function BooksWorkspace({
       });
 
     booksInflightCache.set(nextRequestKey, request as Promise<BookListPayload & { ok?: boolean; message?: string }>);
+
+    return () => controller.abort();
   }, [activeGenre, loading, page, payload.totalPages, submittedQuery]);
 
   function submitSearch(event: FormEvent) {

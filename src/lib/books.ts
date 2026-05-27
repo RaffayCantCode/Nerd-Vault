@@ -6,7 +6,7 @@ const GUTENDEX_SOURCE_PAGE_SIZE = 32;
 const BOOK_LIST_PAGE_SIZE = GUTENDEX_SOURCE_PAGE_SIZE;
 const BOOK_LIST_CACHE_MS = 1000 * 60 * 20;
 const BOOK_READER_CACHE_MS = 1000 * 60 * 60 * 24;
-const FETCH_TIMEOUT_MS = 12_000;
+const FETCH_TIMEOUT_MS = 20_000; // Increased from 12s — gutendex.com can be slow
 
 type GutendexAuthor = {
   name?: string;
@@ -234,13 +234,18 @@ async function fetchGutendexWithRetry(url: URL, attempts = 3) {
       return await fetchGutendex(url);
     } catch (error) {
       lastError = error;
+      // Don’t retry on AbortError — these are intentional cancellations.
+      if (error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError")) {
+        break;
+      }
       if (attempt < attempts) {
-        await new Promise((resolve) => setTimeout(resolve, attempt * 250));
+        // Exponential backoff: 400ms, 800ms
+        await new Promise((resolve) => setTimeout(resolve, attempt * 400));
       }
     }
   }
 
-  throw lastError instanceof Error ? lastError : new Error("Books request failed");
+  throw lastError instanceof Error ? lastError : new Error("Books request failed after retries");
 }
 
 async function fetchGutendexPage(page: number, searchTerms = ""): Promise<GutendexResponse> {

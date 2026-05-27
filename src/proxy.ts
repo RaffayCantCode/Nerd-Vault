@@ -22,7 +22,7 @@ import { NextResponse } from "next/server";
 const CHUNKED_SESSION_TOKEN_RE =
   /^(?:__Secure-|__Host-)?(?:authjs|next-auth)\.session-token\.\d+$/;
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname, hostname } = request.nextUrl;
 
   // Never touch cookies during the OAuth handshake.

@@ -539,8 +539,10 @@ function mapAnime(
         ...((item.tags ?? []).filter((tag) => (tag.rank ?? 0) >= 70).slice(0, 6).map((tag) => tag.name ?? "")),
       ].filter(Boolean)),
     ),
-    coverUrl: item.coverImage?.large || item.coverImage?.medium || item.coverImage?.extraLarge || fallbackImage,
-    backdropUrl: item.bannerImage || item.coverImage?.large || item.coverImage?.medium || fallbackImage,
+    // Use extraLarge as primary cover — the media-image optimizer will downscale for thumb/cover intents.
+    // This ensures the highest quality source is always available for upgrade transitions.
+    coverUrl: item.coverImage?.extraLarge || item.coverImage?.large || item.coverImage?.medium || fallbackImage,
+    backdropUrl: item.bannerImage || item.coverImage?.extraLarge || item.coverImage?.large || fallbackImage,
     screenshots: dedupeImages([
       item.bannerImage,
       ...(item.streamingEpisodes ?? []).map((ep) => ep.thumbnail).filter(Boolean),

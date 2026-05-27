@@ -123,10 +123,13 @@ export function ResilientMediaImage({
       return;
     }
     if (timeoutRef.current) return;
+    // 4s fallback — ensures skeleton placeholder clears even for very slow CDN responses.
+    // AniList CDN (s4.anilist.co) can be slow; we show the image as "loaded" anyway so
+    // the skeleton doesn’t remain for a full 10 seconds.
     timeoutRef.current = setTimeout(() => {
       setLoaded(true);
       onLoadStateChange?.(true);
-    }, 10_000);
+    }, 4_000);
     return () => {
       if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
     };
