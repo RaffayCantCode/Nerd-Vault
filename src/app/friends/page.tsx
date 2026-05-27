@@ -2,28 +2,32 @@ import { auth } from "@/lib/auth";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopBar } from "@/components/app-topbar";
 import { FriendsPage } from "@/components/friends-page";
-import { guestSignInHref } from "@/lib/guest";
-import { redirect } from "next/navigation";
+import { GuestVaultShell } from "@/components/guest-shell";
 
 export const dynamic = "force-dynamic";
 
 export default async function FriendsRoute() {
   const session = await auth();
-  if (!session?.user?.id) {
-    redirect(guestSignInHref());
-  }
-
-  const viewerName = session.user.name || "Guest vault";
-  const viewerId = session.user.id;
-  const viewerAvatar = session.user.image || undefined;
+  const viewerName = session?.user?.name || "Guest vault";
+  const viewerId = session?.user?.id || "guest-vault";
+  const viewerAvatar = session?.user?.image || undefined;
 
   return (
     <div className="page-shell friends-page-shell">
       <div className="app-shell-layout friends-layout">
-        <AppSidebar active="friends" />
+        <AppSidebar active="friends" redirectTo="/friends" />
         <main className="workspace friends-workspace">
-          <AppTopBar viewerId={viewerId} viewerName={viewerName} viewerAvatar={viewerAvatar} />
-          <FriendsPage />
+          <AppTopBar viewerId={viewerId} viewerName={viewerName} viewerAvatar={viewerAvatar} redirectTo="/friends" />
+          {!session?.user?.id ? (
+            <GuestVaultShell
+              redirectTo="/friends"
+              eyebrow="Friends"
+              title="Social network unlocks after sign-in."
+              message="Search for other users, send friend requests, accept recommendations, and build your circle."
+            />
+          ) : (
+            <FriendsPage />
+          )}
         </main>
       </div>
     </div>

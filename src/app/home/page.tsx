@@ -21,15 +21,26 @@ export default async function HomeHubPage({
   const viewerId = session?.user?.id || "guest-vault";
   const viewerAvatar = session?.user?.image || undefined;
 
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const asQuery = new URLSearchParams();
+  if (resolvedSearchParams) {
+    Object.entries(resolvedSearchParams).forEach(([key, val]) => {
+      if (typeof val === "string") {
+        asQuery.set(key, val);
+      }
+    });
+  }
+  const currentRedirectPath = `/home${asQuery.toString() ? `?${asQuery.toString()}` : ""}`;
+
   if (!session?.user?.id) {
     return (
       <div className="page-shell home-page">
         <div className="app-shell-layout home-layout">
-          <AppSidebar active="vault" />
+          <AppSidebar active="vault" redirectTo={currentRedirectPath} />
           <main className="workspace home-workspace">
           <HomeScrollReset />
-            <AppTopBar viewerId={viewerId} viewerName={viewerName} viewerAvatar={viewerAvatar} />
-            <GuestVaultShell redirectTo="/home" />
+            <AppTopBar viewerId={viewerId} viewerName={viewerName} viewerAvatar={viewerAvatar} redirectTo={currentRedirectPath} />
+            <GuestVaultShell redirectTo={currentRedirectPath} />
           </main>
         </div>
       </div>
@@ -43,7 +54,6 @@ export default async function HomeHubPage({
     getLibraryStateForUser(session.user.id).catch(() => ({ watched: [], wishlist: [], folders: [] }))
   ]);
 
-  const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const requestedUser = typeof resolvedSearchParams?.user === "string" ? resolvedSearchParams.user : undefined;
   const initialTab = resolvedSearchParams?.tab === "media" ? "your-media" : "for-you";
   const profilePayload = await getVaultProfilePayload(session.user.id, requestedUser ?? session.user.id).catch(() => undefined);

@@ -63,8 +63,8 @@ function DockIconFolders() {
 
 const APP_ROUTE_PREFIXES = ["/home", "/browse", "/support", "/media", "/profile", "/books", "/vault", "/activity", "/friends"];
 
-function FoldersDockButton({ foldersOpen, pathname }: { foldersOpen: boolean; pathname: string }) {
-  const signInHref = guestSignInHref(pathname);
+function FoldersDockButton({ foldersOpen, fullPath }: { foldersOpen: boolean; fullPath: string }) {
+  const signInHref = guestSignInHref(fullPath);
 
   return (
     <button
@@ -185,7 +185,7 @@ export function MobileBottomNav() {
           <DockIconFriends />
           <span>Friends</span>
         </Link>
-        <FoldersDockButton foldersOpen={foldersOpen} pathname={pathname} />
+        <FoldersDockButton foldersOpen={foldersOpen} fullPath={pathname + (searchParams.toString() ? `?${searchParams.toString()}` : "")} />
         <Link href="/home?tab=media" className={`nv-mobile-dock-link ${isProfileContext ? "is-active" : ""}`} aria-label="Profile">
           <DockIconProfile />
           <span>Profile</span>

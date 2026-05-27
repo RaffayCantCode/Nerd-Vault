@@ -4,15 +4,23 @@ import Link from "next/link";
 import { ReactNode } from "react";
 import { guestSignInHref } from "@/lib/guest";
 
-export function GuestVaultShell({ redirectTo = "/home" }: { redirectTo?: string }) {
+export function GuestVaultShell({
+  redirectTo = "/home",
+  title = "Your vault unlocks after sign-in.",
+  message = "Browse freely as a guest, then sign in to save watched titles, wishlists, folders, and your personalized feed.",
+  eyebrow = "Vault",
+}: {
+  redirectTo?: string;
+  title?: string;
+  message?: string;
+  eyebrow?: string;
+}) {
   return (
     <section className="guest-vault-shell glass">
       <div className="guest-vault-copy">
-        <p className="eyebrow">Vault</p>
-        <h1 className="headline">Your vault unlocks after sign-in.</h1>
-        <p className="copy">
-          Browse freely as a guest, then sign in to save watched titles, wishlists, folders, and your personalized feed.
-        </p>
+        <p className="eyebrow">{eyebrow}</p>
+        <h1 className="headline">{title}</h1>
+        <p className="copy">{message}</p>
       </div>
       <div className="button-row guest-vault-actions">
         <Link href={guestSignInHref(redirectTo)} className="button button-primary">

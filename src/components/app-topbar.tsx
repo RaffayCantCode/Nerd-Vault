@@ -1,7 +1,8 @@
-﻿"use client";
+"use client";
 
 import { memo, useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { signOutUser } from "@/app/sign-in/sign-out-action";
 import { MobileInstallButton } from "@/components/mobile-install-button";
 import {
@@ -25,6 +26,7 @@ type AppTopBarProps = {
   viewerAvatar?: string;
   initialProfile?: SocialProfile | null;
   initialFriends?: SocialProfile[];
+  redirectTo?: string;
 }
 
 export const AppTopBar = memo(function AppTopBar({
@@ -33,8 +35,12 @@ export const AppTopBar = memo(function AppTopBar({
   viewerAvatar,
   initialProfile = null,
   initialFriends = [],
+  redirectTo,
 }: AppTopBarProps) {
   const isGuest = isGuestViewer(viewerId);
+  const pathname = usePathname();
+
+  const currentPath = redirectTo || pathname;
   const [query, setQuery] = useState("");
   const [guestPromptOpen, setGuestPromptOpen] = useState(false);
   const [guestPromptCopy, setGuestPromptCopy] = useState({ title: "Sign in required", message: "Sign in to use this feature." });
@@ -322,7 +328,7 @@ export const AppTopBar = memo(function AppTopBar({
                   </Link>
                   {isGuest ? (
                     <>
-                      <Link href={guestSignInHref("/home")} className="button button-primary" style={{ width: "100%" }} onClick={() => setProfileMenuOpen(false)}>
+                      <Link href={guestSignInHref(currentPath)} className="button button-primary" style={{ width: "100%" }} onClick={() => setProfileMenuOpen(false)}>
                         Sign in
                       </Link>
                       <Link href="/browse" className="button button-secondary" style={{ width: "100%" }} onClick={() => setProfileMenuOpen(false)}>
@@ -371,7 +377,7 @@ export const AppTopBar = memo(function AppTopBar({
         isOpen={guestPromptOpen}
         title={guestPromptCopy.title}
         message={guestPromptCopy.message}
-        redirectTo="/home"
+        redirectTo={currentPath}
         onClose={() => setGuestPromptOpen(false)}
       />
     </section>

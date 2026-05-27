@@ -100,9 +100,10 @@ function IconLeave() {
 type AppSidebarProps = {
   active: "vault" | "browse" | "books" | "activity" | "friends";
   initialFolders?: StoredFolder[];
+  redirectTo?: string;
 };
 
-export async function AppSidebar({ active, initialFolders = [] }: AppSidebarProps) {
+export async function AppSidebar({ active, initialFolders = [], redirectTo = "/home" }: AppSidebarProps) {
   const session = await auth().catch((error) => {
     console.error("Auth session failed to load in app sidebar:", error);
     return null;
@@ -175,7 +176,7 @@ export async function AppSidebar({ active, initialFolders = [] }: AppSidebarProp
             <SidebarFolders initialFolders={initialFolders} />
           ) : (
             <Link
-              href="/sign-in?redirectTo=/home"
+              href={`/sign-in?redirectTo=${encodeURIComponent(redirectTo)}`}
               className="sidebar-nav-button"
               aria-label="Sign in to save"
               title="Sign in to save"
