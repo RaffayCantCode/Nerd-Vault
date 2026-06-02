@@ -113,7 +113,19 @@ export function buildMediaImageSrcSet(rawUrl?: string | null, intent: MediaImage
     return undefined;
   }
 
-  return `${thumb} 200w, ${sized} 400w`;
+  const thumbWidth = 180;
+  const sizedWidth =
+    intent === "thumb"
+      ? 180
+      : intent === "cover"
+        ? 360
+        : intent === "backdrop"
+          ? 780
+          : intent === "gallery"
+            ? 1280
+            : 1920;
+
+  return `${thumb} ${thumbWidth}w, ${sized} ${sizedWidth}w`;
 }
 
 export function chooseConnectionAwareIntent(

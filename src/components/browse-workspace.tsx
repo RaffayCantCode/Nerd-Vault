@@ -44,6 +44,10 @@ const GENRES_BY_MEDIA: Record<MediaType | "all", string[]> = {
 };
 const browseClientCache = new Map<string, CachedBrowsePayload>();
 
+export function clearBrowseClientCache() {
+  browseClientCache.clear();
+}
+
 function normalizePage(value: number) {
   return Number.isFinite(value) && value > 0 ? Math.floor(value) : 1;
 }
@@ -225,6 +229,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
   const canHydrateFromBootstrap =
     !initialQuery.trim() &&
     initialGenre === "all" &&
+    (!initialFilter || initialFilter === "all") &&
     (!initialSort || initialSort === "discovery") &&
     normalizePage(initialPage) === 1;
 
@@ -237,9 +242,12 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
   const [sort, setSortState] = useState<SortMode>(
     initialSort === "newest" || initialSort === "rating" || initialSort === "title" ? initialSort : "discovery",
   );
-  function setFilter(next: MediaType | "all") { setFilterState(next); setActivePage(1); }
-  function setGenre(next: string) { setGenreState(next); setActivePage(1); }
-  function setSort(next: SortMode) { setSortState(next); setActivePage(1); }
+
+  const hasInteractedRef = useRef(false);
+
+  function setFilter(next: MediaType | "all") { setFilterState(next); setActivePage(1); hasInteractedRef.current = true; }
+  function setGenre(next: string) { setGenreState(next); setActivePage(1); hasInteractedRef.current = true; }
+  function setSort(next: SortMode) { setSortState(next); setActivePage(1); hasInteractedRef.current = true; }
   const [query, setQuery] = useState(initialQuery);
   const deferredQuery = useDeferredValue(query);
   const [activePage, setActivePage] = useState(normalizePage(initialPage));
@@ -356,6 +364,16 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
       const requestPage = hasSearch ? 1 : requestedPage;
       const requestType = hasSearch ? "all" : filter;
       const requestSort: SortMode = hasSearch ? "discovery" : sort;
+
+      // If the SSR bootstrap grid is already displayed (page 1, no filters, no
+      // search, discovery sort) and the user hasn't changed anything yet, skip
+      // the fetch entirely — this prevents the grid from refreshing 2-3 seconds
+      // after the page loads.
+      if (canHydrateFromBootstrap && !hasInteractedRef.current) {
+        setIsLoading(false);
+        return;
+      }
+
       const hasBootstrapGrid =
         requestPage === 1 &&
         !hasSearch &&
@@ -656,6 +674,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
       return;
     }
 
+    hasInteractedRef.current = true;
     pendingResultsFocusRef.current = source;
     setActivePage(nextPage);
   }
@@ -823,7 +842,8 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
                   item={featured}
                   className="hero-art-image"
                   displayIntent="cover"
-                  upgradeIntent="cover"
+                  upgradeIntent="backdrop"
+                  sizes="(max-width: 640px) 100vw, 440px"
                   loading="eager"
                   fetchPriority="high"
                   decoding="async"
@@ -924,13 +944,13 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
                 type="search"
                 placeholder="Type to filter titles..."
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => { setQuery(event.target.value); hasInteractedRef.current = true; }}
               />
               <button type="submit" className="button button-primary browse-search-submit">
                 Search
               </button>
               {query.trim() ? (
-                <button type="button" className="button button-secondary browse-search-clear" onClick={() => { setQuery(""); setActivePage(1); }}>
+                <button type="button" className="button button-secondary browse-search-clear" onClick={() => { setQuery(""); setActivePage(1); hasInteractedRef.current = true; }}>
                   Clear
                 </button>
               ) : null}

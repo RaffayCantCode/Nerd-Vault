@@ -145,6 +145,7 @@ export function DetailTrailerPlayer({ title, trailerUrl, sourceUrl }: DetailTrai
 
   const [quality, setQuality] = useState<TrailerQuality>("highres");
   const [muted, setMuted] = useState(true);
+  const [volume, setVolume] = useState(50);
   const [hasError, setHasError] = useState(false);
 
   const parsedTrailer = useMemo(() => parseTrailer(trailerUrl), [trailerUrl]);
@@ -208,8 +209,12 @@ export function DetailTrailerPlayer({ title, trailerUrl, sourceUrl }: DetailTrai
     }
 
     const timer = window.setTimeout(() => {
-      postYoutubeCommand(iframe, muted ? "mute" : "unMute", []);
-      postYoutubeCommand(iframe, "setPlaybackQuality", [resolveYoutubePlaybackQuality(quality)]);
+      if (muted) {
+        postYoutubeCommand(iframe, "mute", []);
+      } else {
+        postYoutubeCommand(iframe, "unMute", []);
+        postYoutubeCommand(iframe, "setVolume", [volume]);
+      }
       postYoutubeCommand(iframe, "playVideo", []);
     }, 220);
 
@@ -221,16 +226,13 @@ export function DetailTrailerPlayer({ title, trailerUrl, sourceUrl }: DetailTrai
     const iframe = iframeRef.current;
     if (!iframe) return;
 
-    postYoutubeCommand(iframe, "setPlaybackQuality", [resolveYoutubePlaybackQuality(quality)]);
-  }, [quality, provider]);
-
-  useEffect(() => {
-    if (provider !== "youtube") return;
-    const iframe = iframeRef.current;
-    if (!iframe) return;
-
-    postYoutubeCommand(iframe, muted ? "mute" : "unMute", []);
-  }, [muted, provider]);
+    if (muted) {
+      postYoutubeCommand(iframe, "mute", []);
+    } else {
+      postYoutubeCommand(iframe, "unMute", []);
+      postYoutubeCommand(iframe, "setVolume", [volume]);
+    }
+  }, [muted, volume, provider]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !sectionRef.current) {
@@ -290,8 +292,12 @@ export function DetailTrailerPlayer({ title, trailerUrl, sourceUrl }: DetailTrai
           onLoad={() => {
             if (provider !== "youtube") return;
             const iframe = iframeRef.current;
-            postYoutubeCommand(iframe, muted ? "mute" : "unMute", []);
-            postYoutubeCommand(iframe, "setPlaybackQuality", [resolveYoutubePlaybackQuality(quality)]);
+            if (muted) {
+              postYoutubeCommand(iframe, "mute", []);
+            } else {
+              postYoutubeCommand(iframe, "unMute", []);
+              postYoutubeCommand(iframe, "setVolume", [volume]);
+            }
           }}
           onError={() => setHasError(true)}
         />
@@ -299,26 +305,6 @@ export function DetailTrailerPlayer({ title, trailerUrl, sourceUrl }: DetailTrai
 
       <div className="detail-trailer-footer">
         <div className="detail-trailer-controls-left">
-          {supportsQualitySelection ? (
-            <div className="detail-trailer-quality-row">
-              <span className="quality-label">Quality</span>
-              <div className="detail-trailer-quality-pills" role="group" aria-label="Trailer quality">
-                {QUALITY_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className={`quality-pill ${quality === option.value ? "is-active" : ""}`}
-                    onClick={() => {
-                      setQuality(option.value);
-                    }}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
           <button
             type="button"
             className={`mute-toggle ${muted ? "is-muted" : "is-unmuted"}`}
@@ -339,6 +325,26 @@ export function DetailTrailerPlayer({ title, trailerUrl, sourceUrl }: DetailTrai
               </svg>
             )}
           </button>
+
+          <div className="detail-trailer-volume-container">
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={muted ? 0 : volume}
+              onChange={(e) => {
+                const newVol = Number(e.target.value);
+                setVolume(newVol);
+                if (newVol > 0 && muted) {
+                  setMuted(false);
+                } else if (newVol === 0 && !muted) {
+                  setMuted(true);
+                }
+              }}
+              className="detail-trailer-volume-slider"
+              aria-label="Volume"
+            />
+          </div>
         </div>
 
         <div className="detail-trailer-actions">

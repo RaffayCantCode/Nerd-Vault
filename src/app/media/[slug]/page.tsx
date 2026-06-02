@@ -11,6 +11,7 @@ import { ExpandableRelatedSection } from "@/components/expandable-related-sectio
 import { MediaActions } from "@/components/media-actions";
 import { ResilientMediaImage } from "@/components/resilient-media-image";
 import { SafeImg } from "@/components/safe-img";
+import { SeasonEpisodePanel } from "@/components/season-episode-panel";
 import { VaultClientPrimer } from "@/components/vault-client-primer";
 import { auth } from "@/lib/auth";
 import { getLibraryStateForUser, getVaultProfilePayload, getViewerShellData } from "@/lib/vault-server";
@@ -3040,9 +3041,7 @@ export default async function MediaDetailPage({
             <section className="feature-block">
               <p className="eyebrow">Missing</p>
               <h1 className="headline">That media page does not exist yet.</h1>
-              <BrowseResetLink className="button button-primary" title="Back to browse">
-                Back to browse
-              </BrowseResetLink>
+              <DetailBackButton className="button-primary" />
             </section>
           </main>
         </div>
@@ -3327,6 +3326,35 @@ export default async function MediaDetailPage({
               </div>
             </div>
           </section>
+
+          {/* Seasons & Episodes panel — shown for TV shows and anime */}
+          {(media.type === "show" || media.type === "anime") &&
+          (media.source === "tmdb" || media.source === "anilist") ? (
+            <section id="detail-episodes" className="section-stack" style={{ paddingTop: 0 }}>
+              <SeasonEpisodePanel
+                source={media.source as "tmdb" | "anilist"}
+                sourceId={media.sourceId}
+                malId={media.details.collectionId ?? undefined}
+                seasonCount={
+                  media.source === "tmdb"
+                    ? (media.details.seasonCount ??
+                       (media.details.releaseInfo
+                         ? parseInt(media.details.releaseInfo, 10) || 1
+                         : 1))
+                    : 1
+                }
+                mediaTitle={media.title}
+                streamingEpisodes={
+                  media.source === "anilist"
+                    ? (media.screenshots ?? []).map((thumb, index) => ({
+                        thumbnail: thumb,
+                        title: null,
+                      }))
+                    : undefined
+                }
+              />
+            </section>
+          ) : null}
 
           {finalGallery.length ? (
             <section id="detail-visuals" className="section-stack detail-gallery-section" style={{ paddingTop: 0 }}>

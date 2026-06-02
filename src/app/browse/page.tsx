@@ -9,8 +9,15 @@ const INITIAL_BROWSE_TOTAL_PAGES = 120;
 
 export const dynamic = "force-dynamic";
 
-export default async function BrowsePage() {
-  const discoverySeed = getBrowseDiscoverySeed();
+export default async function BrowsePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ seed?: string }>;
+}) {
+  const resolvedParams = await searchParams;
+  const seedParam = resolvedParams?.seed;
+  const discoverySeed = seedParam ? Number(seedParam) : getBrowseDiscoverySeed();
+
   const [bootstrapCatalog, session] = await Promise.all([
     getBrowseBootstrapCatalog(discoverySeed),
     auth(),
@@ -35,6 +42,7 @@ export default async function BrowsePage() {
             profile={shellData ? { ...shellData, viewedProfile: shellData.viewerProfile, watched: [], wishlist: [], canSeeWatched: true, canSeeWishlist: true, viewingOwnProfile: true } : null}
           />
           <BrowseWorkspace
+            key={discoverySeed}
             catalog={bootstrapCatalog.catalog}
             surfacingCatalog={bootstrapCatalog.surfacing}
             discoverySeed={discoverySeed}

@@ -7,6 +7,8 @@ const ALLOWED_HOSTS = new Set([
   "image.tmdb.org",
   "s4.anilist.co",
   "anilist.co",
+  "media.kitsu.app",
+  "media.kitsu.io",
 ]);
 
 function isAllowedRemote(url: URL) {

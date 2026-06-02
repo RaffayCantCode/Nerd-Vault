@@ -16,6 +16,7 @@ type ResilientMediaImageProps = {
   item: Pick<MediaItem, "type" | "coverUrl" | "backdropUrl" | "title">;
   className?: string;
   alt?: string;
+  sizes?: string;
   loading?: "eager" | "lazy";
   decoding?: "sync" | "async" | "auto";
   fetchPriority?: "high" | "low" | "auto";
@@ -47,6 +48,7 @@ export function ResilientMediaImage({
   item,
   className,
   alt,
+  sizes,
   loading = "lazy",
   decoding = "async",
   fetchPriority = "auto",
@@ -149,7 +151,7 @@ export function ResilientMediaImage({
       className={combinedClass}
       src={src}
       srcSet={srcSet}
-      sizes={srcSet ? "(max-width: 720px) 42vw, 220px" : undefined}
+      sizes={sizes || (srcSet ? "(max-width: 720px) 42vw, 220px" : undefined)}
       alt={alt ?? item.title}
       loading={loading}
       decoding={decoding}

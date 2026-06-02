@@ -24,10 +24,12 @@ export function DetailBackButton({ className }: { className?: string }) {
     router.prefetch(targetHref);
   }, [router, targetHref]);
 
+  const baseButtonClass = className?.includes("button-primary") ? "button" : "button button-secondary";
+
   return (
     <button
       type="button"
-      className={`button button-secondary detail-back-button ${className ?? ""}`.trim()}
+      className={`${baseButtonClass} detail-back-button ${className ?? ""}`.trim()}
       onClick={() => {
         if (typeof window !== "undefined") {
           const referrer = document.referrer || "";
