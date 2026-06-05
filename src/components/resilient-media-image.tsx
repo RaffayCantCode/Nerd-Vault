@@ -62,6 +62,7 @@ export function ResilientMediaImage({
   const imgRef = useRef<HTMLImageElement>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const connectionRef = useRef<{ saveData?: boolean; effectiveType?: string } | null>(null);
+  const sourceKeyRef = useRef("");
 
   if (typeof navigator !== "undefined" && connectionRef.current === null) {
     const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
@@ -92,11 +93,18 @@ export function ResilientMediaImage({
   const srcSet = buildMediaImageSrcSet(rawPrimaryCover || rawSecondaryBackdrop, resolvedUpgradeIntent);
 
   useEffect(() => {
+    const newKey = `${item.coverUrl ?? ""}|${item.backdropUrl ?? ""}`;
+    if (newKey !== sourceKeyRef.current) {
+      sourceKeyRef.current = newKey;
+      setRetryProxy(false);
+    }
+  }, [item.coverUrl, item.backdropUrl]);
+
+  useEffect(() => {
     const nextPreview = shouldProgress ? previewSrc : upgradeSrc;
     setLoaded(false);
     setIsUpgraded(!shouldProgress);
     onLoadStateChange?.(false);
-    setRetryProxy(false);
     setSrc(nextPreview);
 
     if (shouldProgress) warmImageUrl(upgradeSrc);
@@ -125,13 +133,10 @@ export function ResilientMediaImage({
       return;
     }
     if (timeoutRef.current) return;
-    // 4s fallback — ensures skeleton placeholder clears even for very slow CDN responses.
-    // AniList CDN (s4.anilist.co) can be slow; we show the image as "loaded" anyway so
-    // the skeleton doesn’t remain for a full 10 seconds.
     timeoutRef.current = setTimeout(() => {
       setLoaded(true);
       onLoadStateChange?.(true);
-    }, 4_000);
+    }, 2_500);
     return () => {
       if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
     };
@@ -156,6 +161,8 @@ export function ResilientMediaImage({
       loading={loading}
       decoding={decoding}
       fetchPriority={fetchPriority}
+      crossOrigin="anonymous"
+      referrerPolicy="no-referrer"
       draggable={false}
       onLoad={() => { setLoaded(true); onLoadStateChange?.(true); }}
       onError={() => {

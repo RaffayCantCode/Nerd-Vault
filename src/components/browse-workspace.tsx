@@ -677,6 +677,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
     hasInteractedRef.current = true;
     pendingResultsFocusRef.current = source;
     setActivePage(nextPage);
+    scrollToBrowseMediaList("smooth");
   }
 
   useEffect(() => {

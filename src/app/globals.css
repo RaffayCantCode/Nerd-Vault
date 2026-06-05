@@ -795,7 +795,7 @@ html {
 .landing-page .landing-footer-copy {
   margin: 0.2rem 0 0;
   color: rgba(226, 232, 240, 0.7);
-  max-width: 46ch;
+  max-width: 100%;
 }
 
 .landing-page .landing-footer-copy-block {
@@ -10467,6 +10467,16 @@ html {
   }
 }
 
+/* Centered loading wrapper — ensures NVLoader is centered in any container */
+.loading-centered {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  width: 100%;
+}
+
 /* Skeleton loading animations */
 .skeleton {
   background: linear-gradient(90deg, 
@@ -17140,7 +17150,6 @@ body > .nv-mobile-dock-wrap {
   transform: translateY(6px) scale(0.992);
   transition: opacity 160ms ease, transform 160ms ease;
   pointer-events: none;
-  filter: blur(0.5px);
 }
 
 .browse-workspace-root .catalog-grid:not(.is-page-transitioning) {

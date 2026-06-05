@@ -2062,10 +2062,7 @@ body {
   contain: layout paint style;
 }
 
-.catalog-card,
-.catalog-card img,
-.workspace,
-.section-stack {
+.workspace {
   backface-visibility: hidden;
   transform: translateZ(0);
 }

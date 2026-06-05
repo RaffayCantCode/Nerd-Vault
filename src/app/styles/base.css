@@ -50,8 +50,6 @@ html {
 
 .catalog-card {
   will-change: transform, opacity;
-  transform: translateZ(0);
-  backface-visibility: hidden;
 }
 
 .catalog-card,
@@ -792,7 +790,7 @@ html {
 .landing-page .landing-footer-copy {
   margin: 0.2rem 0 0;
   color: rgba(226, 232, 240, 0.7);
-  max-width: 46ch;
+  max-width: 100%;
 }
 
 .landing-page .landing-footer-copy-block {
