@@ -23,10 +23,14 @@ import {
 } from "@/lib/vault-client";
 import { SocialProfile, StoredFolder } from "@/lib/vault-types";
 
-function normalizeReviewDraft(rating: number, review: string) {
+function normalizeReviewDraft(rating: number, title: string, review: string) {
+  const cleanTitle = title.trim();
+  const cleanReview = review.trim();
+  const combinedReview = cleanTitle && cleanReview ? `${cleanTitle}\n\n${cleanReview}` : cleanReview || cleanTitle;
+
   return {
     rating: rating > 0 ? rating : null,
-    review: review.trim() ? review.trim() : null,
+    review: combinedReview || null,
   };
 }
 
@@ -57,6 +61,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
   const [isSavingReview, setIsSavingReview] = useState(false);
   const [isSendingRecommendation, setIsSendingRecommendation] = useState(false);
   const [reviewRating, setReviewRating] = useState(0);
+  const [reviewTitle, setReviewTitle] = useState("");
   const [reviewText, setReviewText] = useState("");
 
   const primaryLabel = item.type === "game" ? "Played" : "Watched";
@@ -68,6 +73,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
       setIsWatched(false);
       setIsWishlisted(false);
       setReviewRating(0);
+      setReviewTitle("");
       setReviewText("");
       return;
     }
@@ -79,7 +85,10 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
           const watchedEntry = library.watched.find((entry) => entry.source === item.source && entry.sourceId === item.sourceId);
           setIsWatched(Boolean(watchedEntry));
           setReviewRating(watchedEntry?.userRating ?? 0);
-          setReviewText(watchedEntry?.userReview ?? "");
+          const savedReview = watchedEntry?.userReview ?? "";
+          const reviewParts = savedReview.split(/\n{2,}/);
+          setReviewTitle(reviewParts.length > 1 && reviewParts[0].length <= 90 ? reviewParts[0] : "");
+          setReviewText(reviewParts.length > 1 && reviewParts[0].length <= 90 ? reviewParts.slice(1).join("\n\n") : savedReview);
           setIsWishlisted(library.wishlist.some((entry) => entry.source === item.source && entry.sourceId === item.sourceId));
         })
         .catch(() => {
@@ -87,6 +96,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
           setIsWatched(false);
           setIsWishlisted(false);
           setReviewRating(0);
+          setReviewTitle("");
           setReviewText("");
         });
 
@@ -115,7 +125,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
   const friendSelectionLabel = selectedFriendIds.length ? `${selectedFriendIds.length} selected` : "Choose friends";
 
   function closeReviewPanel() {
-    if (!isWatched && reviewRating === 0 && !reviewText.trim() && !isSavingReview) {
+    if (!isWatched && reviewRating === 0 && !reviewTitle.trim() && !reviewText.trim() && !isSavingReview) {
       void saveReview("skip");
       return;
     }
@@ -131,7 +141,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
     const payload =
       mode === "skip" || mode === "clear"
         ? { rating: null, review: null }
-        : normalizeReviewDraft(reviewRating, reviewText);
+        : normalizeReviewDraft(reviewRating, reviewTitle, reviewText);
 
     setIsSavingReview(true);
 
@@ -139,7 +149,8 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
       await addMediaToWatched(item, payload);
       setIsWatched(true);
       setReviewRating(payload.rating ?? 0);
-      setReviewText(payload.review ?? "");
+      setReviewTitle(mode === "clear" || mode === "skip" ? "" : reviewTitle.trim());
+      setReviewText(mode === "clear" || mode === "skip" ? "" : reviewText.trim());
       setReviewOpen(false);
 
       if (mode === "skip") {
@@ -169,6 +180,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
       setIsWatched(false);
       setReviewOpen(false);
       setReviewRating(0);
+      setReviewTitle("");
       setReviewText("");
       showFeedback("info", `${item.title} removed from ${primaryLabel.toLowerCase()}`);
     } catch {
@@ -391,9 +403,9 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
             </button>
           </div>
 
-          {isWatched && (reviewRating || reviewText.trim()) ? (
+          {isWatched && (reviewRating || reviewTitle.trim() || reviewText.trim()) ? (
             <p className="copy" style={{ marginTop: 14 }}>
-              {reviewRating ? `${renderStars(reviewRating)} saved.` : "Review saved."} {reviewText.trim() ? reviewText.trim().slice(0, 120) : ""}
+              {reviewRating ? `${renderStars(reviewRating)} saved.` : "Review saved."} {(reviewTitle || reviewText).trim().slice(0, 120)}
             </p>
           ) : null}
         </div>
@@ -442,7 +454,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
             <div className="sidebar-folder-modal-header">
               <div>
                 <strong>{isWatched ? "Edit review" : `Mark as ${primaryLabel}`}</strong>
-                <p className="copy">Ratings are optional signal. Notes are optional depth.</p>
+                <p className="copy">Ratings are optional signal. Reviews help the community decide what is worth their time.</p>
               </div>
               <button type="button" className="topbar-panel-close" onClick={closeReviewPanel}>
                 Close
@@ -483,6 +495,14 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
             </div>
 
             <textarea
+              className="sidebar-folder-input"
+              placeholder="Optional review title"
+              value={reviewTitle}
+              onChange={(event) => setReviewTitle(event.target.value)}
+              maxLength={90}
+            />
+
+            <textarea
               className="sidebar-folder-input sidebar-folder-textarea"
               placeholder="Optional review. What landed for you?"
               value={reviewText}
@@ -499,7 +519,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
                   Skip review
                 </button>
               ) : null}
-              {isWatched && (reviewRating || reviewText.trim()) ? (
+              {isWatched && (reviewRating || reviewTitle.trim() || reviewText.trim()) ? (
                 <button className="button button-secondary" type="button" onClick={() => void saveReview("clear")} disabled={isSavingReview}>
                   Clear review
                 </button>

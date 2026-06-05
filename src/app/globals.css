@@ -17802,3 +17802,965 @@ body > .nv-mobile-dock-wrap {
 
 
 
+/* Profile identity and community reviews */
+.featured-favorites-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.featured-favorite-card {
+  min-height: 240px;
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.featured-favorite-card img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.featured-favorite-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 25%, rgba(5, 8, 13, 0.92));
+}
+
+.featured-favorite-card > div {
+  position: relative;
+  z-index: 1;
+  padding: 16px;
+  display: grid;
+  gap: 4px;
+}
+
+.featured-favorite-card span,
+.featured-favorite-card small,
+.community-review-meta span,
+.community-review-rating {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.featured-favorite-card strong {
+  font-size: 1.05rem;
+}
+
+.featured-favorite-empty {
+  align-items: center;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(105, 197, 172, 0.16), transparent 34%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.025));
+}
+
+.featured-favorite-empty::after {
+  display: none;
+}
+
+.community-reviews-shell {
+  padding: 24px;
+  border-radius: 8px;
+}
+
+.community-reviews-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.community-review-list {
+  display: grid;
+  gap: 12px;
+}
+
+.community-review-card {
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.community-review-meta {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.community-review-card h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.community-review-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.icon-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+}
+
+.icon-chip.is-active {
+  color: var(--detail-accent, var(--gold));
+  border-color: var(--detail-edge, rgba(255, 255, 255, 0.22));
+}
+
+@media (max-width: 900px) {
+  .featured-favorites-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .community-reviews-head {
+    flex-direction: column;
+  }
+
+  .community-review-meta {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .featured-favorites-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==============================================
+   NerdVault Brand Fit Pass - 2026
+   Responsive polish for desktop, laptop, tablet, and mobile.
+   ============================================== */
+
+:root {
+  --nv-mint: #69C5AC;
+  --nv-cyan: #1EBDC2;
+  --nv-ink: #05070c;
+  --nv-ink-2: #080d16;
+  --nv-panel: rgba(9, 17, 27, 0.74);
+  --nv-panel-strong: rgba(8, 14, 22, 0.9);
+  --nv-line: rgba(105, 197, 172, 0.18);
+  --nv-line-bright: rgba(30, 189, 194, 0.34);
+  --nv-glow: 0 0 38px rgba(30, 189, 194, 0.18);
+  --nv-card-shadow: 0 18px 50px rgba(0, 0, 0, 0.34);
+  --radius-xl: 22px;
+  --radius-lg: 16px;
+  --radius-md: 10px;
+}
+
+* {
+  min-width: 0;
+}
+
+body:not(.landing-page) {
+  font-family: var(--font-sans), system-ui, sans-serif;
+  background:
+    radial-gradient(circle at 12% 8%, rgba(105, 197, 172, 0.16), transparent 30vw),
+    radial-gradient(circle at 88% 18%, rgba(30, 189, 194, 0.15), transparent 34vw),
+    linear-gradient(135deg, #05070c 0%, #07111b 48%, #05070c 100%);
+}
+
+.workspace {
+  width: min(100%, 1560px);
+  padding-inline: clamp(14px, 2.2vw, 34px);
+}
+
+.workspace,
+.detail-layout,
+.browse-workspace-root {
+  overflow-x: clip;
+}
+
+.glass,
+.workspace-hero,
+.browse-toolbar,
+.bottom-pager,
+.info-panel,
+.media-action-surface,
+.sidebar-folder-modal,
+.profile-folder-toolbar,
+.folder-row,
+.folder-showcase-card,
+.community-reviews-shell {
+  border: 1px solid var(--nv-line) !important;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.025)),
+    var(--nv-panel) !important;
+  box-shadow: var(--nv-card-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(22px) saturate(1.1);
+}
+
+.workspace-hero,
+.detail-hero,
+.browse-toolbar {
+  border-radius: clamp(14px, 2vw, 22px) !important;
+}
+
+.workspace-hero::before,
+.detail-hero::before,
+.browse-toolbar::before,
+.community-reviews-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    linear-gradient(90deg, rgba(105, 197, 172, 0.32), rgba(30, 189, 194, 0.12), transparent 70%),
+    radial-gradient(circle at 12% 0%, rgba(105, 197, 172, 0.16), transparent 28%);
+  opacity: 0.65;
+  mask: linear-gradient(#000, transparent 42%);
+}
+
+.workspace-hero,
+.detail-hero,
+.browse-toolbar,
+.community-reviews-shell {
+  position: relative;
+  isolation: isolate;
+}
+
+.workspace-hero-grid,
+.detail-info-grid,
+.browse-toolbar-grid,
+.section-header,
+.library-controls,
+.profile-library-controls,
+.media-actions .button-row,
+.folder-action-row,
+.sidebar-folder-actions,
+.button-row {
+  gap: clamp(10px, 1.5vw, 22px);
+}
+
+.workspace-hero-grid,
+.browse-toolbar-grid {
+  grid-template-columns: minmax(0, 1.15fr) minmax(260px, 0.85fr);
+  align-items: center;
+}
+
+.display,
+.headline,
+.catalog-title,
+.folder-showcase-card strong,
+.featured-favorite-card strong {
+  letter-spacing: 0;
+  text-wrap: balance;
+}
+
+.display {
+  font-size: clamp(2rem, 4.8vw, 4.9rem) !important;
+  line-height: 0.98 !important;
+  max-width: 12ch;
+}
+
+.headline {
+  font-size: clamp(1.35rem, 2.35vw, 2.35rem) !important;
+  line-height: 1.08 !important;
+}
+
+.copy,
+.catalog-genres,
+.folder-showcase-summary,
+.browse-status-copy,
+.workspace-hero-copy {
+  overflow-wrap: anywhere;
+}
+
+.button,
+.chip,
+.picker-chip,
+.icon-chip,
+.nav-link-button {
+  min-height: 42px;
+  border-radius: 999px !important;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.15;
+}
+
+.button-primary,
+.chip.is-active,
+.picker-chip.is-active {
+  color: #041013 !important;
+  background:
+    linear-gradient(135deg, var(--nv-mint), var(--nv-cyan)) !important;
+  border-color: rgba(105, 197, 172, 0.65) !important;
+  box-shadow: 0 14px 32px rgba(30, 189, 194, 0.24);
+}
+
+.button-secondary,
+.chip,
+.picker-chip,
+.icon-chip {
+  background: rgba(255, 255, 255, 0.055) !important;
+  border-color: rgba(255, 255, 255, 0.11) !important;
+}
+
+.button:hover:not(:disabled),
+.chip:hover:not(:disabled),
+.picker-chip:hover:not(:disabled),
+.catalog-card:hover {
+  border-color: var(--nv-line-bright) !important;
+}
+
+.catalog-grid,
+.profile-media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(clamp(145px, 14vw, 210px), 1fr)) !important;
+  gap: clamp(12px, 1.5vw, 22px) !important;
+  align-items: start;
+}
+
+.profile-media-grid {
+  grid-template-columns: repeat(auto-fit, minmax(clamp(150px, 13vw, 205px), 1fr)) !important;
+}
+
+.catalog-card {
+  border-radius: 14px !important;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(105, 197, 172, 0.08), rgba(255, 255, 255, 0.025)),
+    rgba(8, 13, 21, 0.82) !important;
+  border: 1px solid rgba(105, 197, 172, 0.13) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+}
+
+.catalog-card-media {
+  aspect-ratio: 2 / 3;
+  background:
+    linear-gradient(135deg, rgba(105, 197, 172, 0.12), rgba(30, 189, 194, 0.07)),
+    #08101a;
+}
+
+.catalog-card img,
+.catalog-card-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.catalog-copy {
+  padding: clamp(10px, 1.2vw, 14px) !important;
+  display: grid;
+  gap: 7px;
+}
+
+.catalog-title {
+  font-size: clamp(0.92rem, 1.2vw, 1.04rem) !important;
+  line-height: 1.15;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.catalog-genres,
+.catalog-review-preview {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.meta-row,
+.profile-hero-meta-row,
+.hero-meta-strip,
+.folder-hero-meta-strip,
+.chip-row,
+.picker-grid,
+.toolbar-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pill,
+.detail-pill,
+.hero-stat,
+.toolbar-stat,
+.catalog-user-rating-row {
+  border-color: rgba(105, 197, 172, 0.16) !important;
+  background: rgba(105, 197, 172, 0.07) !important;
+}
+
+.browse-toolbar {
+  padding: clamp(14px, 2vw, 24px) !important;
+}
+
+.browse-live-search-row,
+.search-cluster,
+.library-controls,
+.profile-library-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.browse-search-input,
+.search-input,
+.sidebar-folder-input,
+.media-select {
+  min-height: 44px;
+  border-radius: 14px !important;
+  border-color: rgba(105, 197, 172, 0.18) !important;
+  background: rgba(4, 9, 15, 0.74) !important;
+}
+
+.browse-search-input:focus,
+.search-input:focus,
+.sidebar-folder-input:focus {
+  border-color: var(--nv-cyan) !important;
+  box-shadow: 0 0 0 3px rgba(30, 189, 194, 0.16);
+}
+
+.featured-favorites-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+  gap: clamp(12px, 1.5vw, 20px);
+}
+
+.featured-favorite-card {
+  min-height: clamp(210px, 24vw, 330px);
+  border-radius: 14px;
+  border: 1px solid rgba(105, 197, 172, 0.18);
+  box-shadow: var(--nv-card-shadow);
+}
+
+.featured-favorite-card::after {
+  background:
+    linear-gradient(180deg, transparent 18%, rgba(5, 8, 13, 0.5) 52%, rgba(4, 8, 12, 0.96)),
+    linear-gradient(135deg, rgba(105, 197, 172, 0.15), rgba(30, 189, 194, 0.05));
+}
+
+.featured-favorite-card > div {
+  width: 100%;
+  padding: clamp(14px, 1.6vw, 20px);
+}
+
+.featured-favorite-card span {
+  color: var(--nv-mint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+.featured-favorite-card strong {
+  font-size: clamp(1rem, 1.5vw, 1.3rem);
+  line-height: 1.1;
+}
+
+.community-reviews-shell {
+  padding: clamp(16px, 2vw, 28px);
+}
+
+.community-review-card {
+  border-color: rgba(105, 197, 172, 0.16);
+  background:
+    linear-gradient(135deg, rgba(105, 197, 172, 0.07), rgba(30, 189, 194, 0.035)),
+    rgba(255, 255, 255, 0.03);
+}
+
+.community-review-meta {
+  grid-template-columns: auto minmax(0, 1fr) max-content;
+}
+
+.community-review-rating,
+.catalog-user-rating-stars {
+  color: var(--nv-mint) !important;
+}
+
+.folder-showcase-grid,
+.profile-friends-list,
+.folder-list {
+  gap: clamp(10px, 1.5vw, 18px);
+}
+
+.folder-showcase-card {
+  border-radius: 14px !important;
+}
+
+.section-header {
+  align-items: flex-end;
+}
+
+@media (max-width: 1180px) {
+  .workspace-hero-grid,
+  .browse-toolbar-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .display {
+    max-width: 16ch;
+  }
+
+  .toolbar-stats,
+  .library-controls,
+  .profile-library-controls {
+    width: 100%;
+  }
+}
+
+@media (max-width: 900px) {
+  .workspace {
+    padding-inline: clamp(12px, 3.5vw, 22px);
+  }
+
+  .workspace-hero,
+  .detail-hero,
+  .browse-toolbar,
+  .community-reviews-shell {
+    border-radius: 16px !important;
+  }
+
+  .section-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .button-row,
+  .browse-live-search-row,
+  .library-controls,
+  .profile-library-controls,
+  .sidebar-folder-actions {
+    align-items: stretch;
+  }
+
+  .button-row .button,
+  .browse-live-search-row .button,
+  .library-controls .button,
+  .profile-library-controls .button,
+  .browse-search-input,
+  .library-search-input,
+  .search-input {
+    flex: 1 1 180px;
+  }
+
+  .catalog-grid,
+  .profile-media-grid {
+    grid-template-columns: repeat(auto-fit, minmax(138px, 1fr)) !important;
+  }
+
+  .community-review-meta {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .community-review-rating {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .workspace {
+    padding-inline: 12px;
+  }
+
+  .workspace-hero,
+  .browse-toolbar,
+  .info-panel,
+  .media-action-surface,
+  .community-reviews-shell {
+    padding: 14px !important;
+  }
+
+  .display {
+    font-size: clamp(1.95rem, 12vw, 3rem) !important;
+    max-width: 100%;
+  }
+
+  .headline {
+    font-size: clamp(1.25rem, 7vw, 1.65rem) !important;
+  }
+
+  .catalog-grid,
+  .profile-media-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .catalog-copy {
+    padding: 10px !important;
+  }
+
+  .catalog-title {
+    font-size: 0.9rem !important;
+  }
+
+  .meta-row .pill {
+    font-size: 0.72rem;
+    padding: 4px 7px;
+  }
+
+  .featured-favorite-card {
+    min-height: 190px;
+  }
+
+  .profile-hero-topbar,
+  .profile-identity,
+  .folder-hero-title-group,
+  .community-reviews-head {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .catalog-grid,
+  .profile-media-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .button,
+  .chip,
+  .picker-chip {
+    width: 100%;
+  }
+}
+
+/* ==============================================
+   NerdVault Full-Site Coverage Pass
+   Keeps every page family on the same responsive brand system.
+   ============================================== */
+
+.page-shell,
+.app-shell-layout,
+.auth-screen,
+.admin-shell,
+.support-page,
+.activity-page,
+.friends-page,
+.vault-workspace,
+.books-shell,
+.books-page,
+.books-workspace {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+.auth-screen-card,
+.auth-screen-panel,
+.auth-card,
+.landing-auth-panel,
+.admin-card,
+.admin-panel,
+.support-card,
+.support-panel,
+.activity-card,
+.activity-feed-card,
+.friend-card,
+.friends-card,
+.book-card,
+.books-card,
+.book-detail-shell,
+.book-reader-shell,
+.book-reader-panel,
+.wishlist-card,
+.home-hero-panel,
+.home-upcoming-card,
+.franchise-card,
+.topbar-panel,
+.inbox-panel,
+.sidebar-profile-card {
+  border: 1px solid var(--nv-line) !important;
+  border-radius: 16px !important;
+  background:
+    linear-gradient(145deg, rgba(105, 197, 172, 0.08), rgba(30, 189, 194, 0.035)),
+    rgba(8, 14, 22, 0.82) !important;
+  box-shadow: var(--nv-card-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+.auth-screen-card,
+.admin-grid,
+.support-grid,
+.activity-grid,
+.friends-grid,
+.books-grid,
+.book-grid,
+.home-upcoming-grid,
+.feature-grid,
+.surfacing-grid,
+.franchise-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)) !important;
+  gap: clamp(12px, 1.6vw, 22px) !important;
+}
+
+.auth-screen-card {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.72fr) !important;
+  align-items: stretch;
+}
+
+.auth-screen,
+.auth-screen-card,
+.auth-screen-copy,
+.auth-screen-panel,
+.auth-form,
+.auth-field,
+.admin-card,
+.support-card,
+.activity-card,
+.friend-card,
+.book-card,
+.books-card {
+  min-width: 0;
+}
+
+.auth-field input,
+.auth-field textarea,
+.auth-field select,
+.admin-card input,
+.admin-card textarea,
+.admin-card select,
+.support-card input,
+.support-card textarea,
+.support-card select,
+.book-reader input,
+.book-reader textarea,
+.book-reader select,
+input,
+textarea,
+select {
+  max-width: 100%;
+}
+
+.auth-field input,
+.auth-submit-button,
+.auth-google-button,
+.auth-mode-chip,
+.admin-card input,
+.admin-card textarea,
+.admin-card select,
+.support-card input,
+.support-card textarea,
+.support-card select,
+.book-search-input,
+.book-reader input,
+.book-reader textarea {
+  border-radius: 14px !important;
+  border-color: rgba(105, 197, 172, 0.18) !important;
+}
+
+.auth-submit-button,
+.auth-google-button,
+.auth-mode-chip {
+  min-height: 44px;
+}
+
+.auth-submit-button,
+.auth-mode-chip.is-active {
+  color: #041013 !important;
+  background: linear-gradient(135deg, var(--nv-mint), var(--nv-cyan)) !important;
+  box-shadow: 0 14px 32px rgba(30, 189, 194, 0.22);
+}
+
+.auth-screen-copy .display,
+.auth-screen-copy .headline,
+.support-page .headline,
+.activity-page .headline,
+.friends-page .headline,
+.books-page .headline,
+.vault-workspace .headline {
+  max-width: min(100%, 15ch);
+}
+
+.admin-card h1,
+.admin-card h2,
+.admin-card h3,
+.support-card h1,
+.support-card h2,
+.support-card h3,
+.activity-card h1,
+.activity-card h2,
+.activity-card h3,
+.friend-card h1,
+.friend-card h2,
+.friend-card h3,
+.book-card h1,
+.book-card h2,
+.book-card h3,
+.books-card h1,
+.books-card h2,
+.books-card h3 {
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+.admin-card p,
+.support-card p,
+.activity-card p,
+.friend-card p,
+.book-card p,
+.books-card p,
+.topbar-panel p,
+.inbox-panel p,
+.home-upcoming-card p,
+.franchise-card p {
+  overflow-wrap: anywhere;
+}
+
+.home-upcoming-card {
+  grid-template-columns: clamp(82px, 18vw, 118px) minmax(0, 1fr) !important;
+}
+
+.home-upcoming-card img,
+.book-card img,
+.books-card img,
+.wishlist-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.franchise-card {
+  min-height: 100%;
+}
+
+.franchise-card-title,
+.book-card h3,
+.books-card h3,
+.friend-card strong,
+.activity-card strong,
+.home-upcoming-card strong {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.topbar-panel,
+.inbox-panel {
+  max-width: min(92vw, 440px);
+}
+
+table,
+.admin-table,
+.support-table {
+  width: 100%;
+  max-width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table-wrapper,
+.table-scroll,
+.support-table-wrapper {
+  overflow-x: auto;
+  border-radius: 14px;
+  border: 1px solid var(--nv-line);
+}
+
+@media (max-width: 1180px) {
+  .app-shell-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .auth-screen-card {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .auth-screen,
+  .support-page,
+  .activity-page,
+  .friends-page,
+  .books-page,
+  .vault-workspace {
+    padding-inline: 12px;
+  }
+
+  .auth-screen-card,
+  .auth-screen-panel,
+  .admin-card,
+  .support-card,
+  .activity-card,
+  .friend-card,
+  .book-card,
+  .books-card,
+  .book-detail-shell,
+  .book-reader-shell,
+  .home-hero-panel,
+  .home-upcoming-card,
+  .franchise-card {
+    padding: clamp(12px, 3.5vw, 18px) !important;
+  }
+
+  .home-upcoming-card {
+    grid-template-columns: 92px minmax(0, 1fr) !important;
+  }
+
+  .auth-mode-row,
+  .auth-form,
+  .admin-actions,
+  .support-actions,
+  .friends-actions,
+  .books-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+
+  .auth-mode-row > *,
+  .admin-actions > *,
+  .support-actions > *,
+  .friends-actions > *,
+  .books-actions > * {
+    flex: 1 1 160px;
+  }
+}
+
+@media (max-width: 560px) {
+  .auth-screen-card,
+  .admin-grid,
+  .support-grid,
+  .activity-grid,
+  .friends-grid,
+  .books-grid,
+  .book-grid,
+  .home-upcoming-grid,
+  .feature-grid,
+  .surfacing-grid,
+  .franchise-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .home-upcoming-card {
+    grid-template-columns: 78px minmax(0, 1fr) !important;
+  }
+
+  .auth-submit-button,
+  .auth-google-button,
+  .auth-mode-chip,
+  .admin-actions .button,
+  .support-actions .button,
+  .friends-actions .button,
+  .books-actions .button {
+    width: 100%;
+  }
+
+  .topbar-panel,
+  .inbox-panel,
+  .sidebar-folder-modal {
+    width: calc(100vw - 24px) !important;
+    max-width: calc(100vw - 24px) !important;
+  }
+}

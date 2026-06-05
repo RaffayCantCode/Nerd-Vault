@@ -6,7 +6,7 @@ const GUTENDEX_SOURCE_PAGE_SIZE = 32;
 const BOOK_LIST_PAGE_SIZE = GUTENDEX_SOURCE_PAGE_SIZE;
 const BOOK_LIST_CACHE_MS = 1000 * 60 * 20;
 const BOOK_READER_CACHE_MS = 1000 * 60 * 60 * 24;
-const FETCH_TIMEOUT_MS = 20_000; // Increased from 12s — gutendex.com can be slow
+const FETCH_TIMEOUT_MS = 6_000;
 
 type GutendexAuthor = {
   name?: string;
@@ -204,7 +204,7 @@ async function fetchGutendex(url: URL) {
   const cacheKey = url.toString();
   const cached = gutendexResponseCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) {
-    return JSON.parse(JSON.stringify(cached.payload)); // Return a copy to avoid side effects
+    return structuredClone(cached.payload);
   }
 
   const response = await fetchWithTimeout(cacheKey, {
@@ -223,7 +223,7 @@ async function fetchGutendex(url: URL) {
     expiresAt: Date.now() + BOOK_LIST_CACHE_MS,
     payload,
   });
-  return JSON.parse(JSON.stringify(payload));
+  return structuredClone(payload);
 }
 
 async function fetchGutendexWithRetry(url: URL, attempts = 3) {
@@ -358,13 +358,19 @@ export async function fetchBooksPage({
   const request = (async () => {
     const normalizedGenre = normalizeForSearch(genre);
     const needThemedFiltering = Boolean(normalizedGenre && normalizedGenre !== "all");
-    const scannedPages = needThemedFiltering ? 5 : 1;
+    const scannedPages = needThemedFiltering ? 3 : 1;
     const collected: BookSummary[] = [];
     const seen = new Set<number>();
     let sourceCount = 0;
 
-    for (let offset = 0; offset < scannedPages; offset += 1) {
-      const payload = await fetchGutendexPage(safePage + offset, searchTerms);
+    const pagePromises = Array.from({ length: scannedPages }, (_, offset) =>
+      fetchGutendexPage(safePage + offset, searchTerms)
+    );
+    const pageResults = await Promise.allSettled(pagePromises);
+
+    for (const result of pageResults) {
+      if (result.status === "rejected") continue;
+      const payload = result.value;
       sourceCount = payload.count || sourceCount;
       const mappedItems = payload.results.map((book): BookSummary => mapBook(book));
 

@@ -17,6 +17,26 @@ export type LibraryState = {
   folders: StoredFolder[];
 };
 
+export type CommunityReview = {
+  id: string;
+  userId: string;
+  username: string;
+  userHandle: string;
+  userAvatarUrl?: string;
+  rating: number | null;
+  title?: string;
+  text?: string;
+  datePosted: number;
+  likeCount: number;
+  dislikeCount: number;
+};
+
+export type CommunityRatingSummary = {
+  average: number | null;
+  count: number;
+  reviews: CommunityReview[];
+};
+
 export type SocialNotification = {
   id: string;
   type: "friend-request" | "friend-accepted" | "recommendation" | "info";

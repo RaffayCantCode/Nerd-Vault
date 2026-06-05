@@ -3,6 +3,7 @@ import Link from "next/link";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopBar } from "@/components/app-topbar";
 import { BrowseResetLink } from "@/components/browse-reset-link";
+import { CommunityReviews } from "@/components/community-reviews";
 import { DetailBackButton } from "@/components/detail-back-button";
 import { DetailGallery } from "@/components/detail-gallery";
 import { DetailTrailerPlayer } from "@/components/detail-trailer-player";
@@ -14,7 +15,7 @@ import { SafeImg } from "@/components/safe-img";
 import { SeasonEpisodePanel } from "@/components/season-episode-panel";
 import { VaultClientPrimer } from "@/components/vault-client-primer";
 import { auth } from "@/lib/auth";
-import { getLibraryStateForUser, getVaultProfilePayload, getViewerShellData } from "@/lib/vault-server";
+import { getCommunityRatingSummary, getLibraryStateForUser, getVaultProfilePayload, getViewerShellData } from "@/lib/vault-server";
 import { canonicalGenreLabels, sharedCanonicalGenreCount } from "@/lib/catalog-utils";
 import { dedupeGalleryImageUrls, canonicalGalleryImageKey } from "@/lib/gallery-image-key";
 import { optimizeMediaImageUrl } from "@/lib/media-image";
@@ -3089,6 +3090,7 @@ export default async function MediaDetailPage({
   const friendsActivity = viewerId !== "guest-vault" && shellData?.friends?.length
     ? await buildFriendsActivity(viewerId, shellData.friends, media)
     : [];
+  const communityReviews = await getCommunityRatingSummary(media.source, media.sourceId, 3);
   const seriesContext = buildSeriesContext(media, franchiseSection);
   const runtimeLabel =
     media.type === "game"
@@ -3424,6 +3426,15 @@ export default async function MediaDetailPage({
               )}
             </div>
           </section>
+
+          <CommunityReviews
+            mediaTitle={media.title}
+            mediaSlug={media.slug}
+            source={media.source}
+            sourceId={media.sourceId}
+            type={media.type}
+            summary={communityReviews}
+          />
 
           {/* Legacy detail block removed during cleanup.
           <section className="section-stack" style={{ paddingTop: 0 }}>

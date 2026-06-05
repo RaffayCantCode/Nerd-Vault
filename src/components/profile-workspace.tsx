@@ -11,7 +11,7 @@ import { deleteLibraryFolder, fetchProfilePayload, primeProfilePayload, removeFr
 import { PrivacyLevel, SocialProfile, StoredFolder, VaultProfilePayload } from "@/lib/vault-types";
 
 type LibrarySortMode = "recent" | "title" | "rating";
-type MediaFilterMode = "all" | "movie" | "show" | "anime" | "game";
+type MediaFilterMode = "all" | "movie" | "show" | "anime" | "game" | "book";
 const PROFILE_FOLDER_PAGE_SIZE = 8;
 
 function readGridColumnCount(element: HTMLElement | null) {
@@ -43,7 +43,7 @@ function sortMediaItems(items: MediaItem[], mode: LibrarySortMode) {
 function filterMediaItems(items: MediaItem[], mode: MediaFilterMode, search: string) {
   const normalizedSearch = search.trim().toLowerCase();
   return items.filter((item) => {
-    if (mode !== "all" && item.type !== mode) {
+    if (mode !== "all" && (mode === "book" || item.type !== mode)) {
       return false;
     }
 
@@ -85,7 +85,20 @@ function mediaFilterOptions() {
     { value: "show", label: "Shows" },
     { value: "anime", label: "Anime" },
     { value: "game", label: "Games" },
+    { value: "book", label: "Books" },
   ] as Array<{ value: MediaFilterMode; label: string }>;
+}
+
+function favoriteSlots(items: MediaItem[]) {
+  const ranked = sortMediaItems(items.filter((item) => item.userRating || item.rating), "rating");
+  const pick = (type: MediaFilterMode) => ranked.find((item) => item.type === type);
+
+  return [
+    { key: "movie", label: "Favorite Movie", item: pick("movie") },
+    { key: "show", label: "Favorite TV Show", item: pick("show") },
+    { key: "anime", label: "Favorite Anime", item: ranked.find((item) => item.type === "anime" || item.type === "anime_movie") },
+    { key: "game", label: "Favorite Game", item: pick("game") },
+  ];
 }
 
 function sortOptions() {
@@ -367,6 +380,7 @@ export function ProfileWorkspace({
       { label: "Network", value: friends.length },
     ];
   }, [folders.length, friends.length, watched]);
+  const featuredFavorites = useMemo(() => favoriteSlots(watched), [watched]);
 
   if (isDemo) {
     return (
@@ -671,6 +685,41 @@ export function ProfileWorkspace({
         </div>
       </section>
 
+      <section id="profile-favorites" className="section-stack" style={{ paddingTop: 0 }}>
+        <div className="section-header">
+          <div>
+            <p className="eyebrow">Featured Favorites</p>
+            <h2 className="headline">{viewingOwnProfile ? "Your taste card" : `${viewedProfile.name}'s taste card`}</h2>
+          </div>
+        </div>
+        <div className="featured-favorites-grid">
+          {featuredFavorites.map((slot) => (
+            slot.item ? (
+              <Link
+                key={slot.key}
+                href={{ pathname: `/media/${slot.item.slug}`, query: { source: slot.item.source, sourceId: slot.item.sourceId, type: slot.item.type } }}
+                className="featured-favorite-card glass"
+              >
+                <img src={slot.item.coverUrl} alt={slot.item.title} />
+                <div>
+                  <span>{slot.label}</span>
+                  <strong>{slot.item.title}</strong>
+                  <small>{slot.item.year || "Unknown year"} · {slot.item.userRating ? `${slot.item.userRating}/5 from you` : `${slot.item.rating.toFixed(1)} source score`}</small>
+                </div>
+              </Link>
+            ) : (
+              <div key={slot.key} className="featured-favorite-card featured-favorite-empty glass">
+                <div>
+                  <span>{slot.label}</span>
+                  <strong>{viewingOwnProfile ? "Choose by rating titles" : "Not shared yet"}</strong>
+                  <small>{viewingOwnProfile ? "Log and rate something to fill this slot." : "This favorite slot is waiting."}</small>
+                </div>
+              </div>
+            )
+          ))}
+        </div>
+      </section>
+
       <section id="profile-friends" className="section-stack" style={{ paddingTop: 0 }}>
         <div className="section-header">
           <div>
@@ -718,7 +767,7 @@ export function ProfileWorkspace({
         <div className="section-header">
           <div>
             <p className="eyebrow">Watched / Played</p>
-            <h2 className="headline">{viewingOwnProfile ? "Recently logged" : "Visible watched"}</h2>
+            <h2 className="headline">{viewingOwnProfile ? "Your Media Library" : "Visible media library"}</h2>
           </div>
           <div className="library-controls profile-library-controls">
             <div className="library-control-block">

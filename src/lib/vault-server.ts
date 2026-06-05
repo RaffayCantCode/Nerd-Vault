@@ -3,7 +3,7 @@ import { cache } from "react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { MediaItem } from "@/lib/types";
-import { LibraryState, PrivacyLevel, SocialNotification, SocialProfile, StoredFolder, VaultProfilePayload } from "@/lib/vault-types";
+import { CommunityRatingSummary, LibraryState, PrivacyLevel, SocialNotification, SocialProfile, StoredFolder, VaultProfilePayload } from "@/lib/vault-types";
 
 type MediaRecord = Prisma.MediaGetPayload<{
   include: {
@@ -95,6 +95,22 @@ function serializeWatchedMedia(row: WatchedRowRecord): MediaItem {
     userReview: row.notes ?? null,
     watchedAt: row.watchedAt.getTime(),
   };
+}
+
+function splitReviewNotes(notes?: string | null) {
+  if (!notes?.trim()) {
+    return { title: undefined, text: undefined };
+  }
+
+  const parts = notes.trim().split(/\n{2,}/);
+  if (parts.length > 1 && parts[0].length <= 90) {
+    return {
+      title: parts[0],
+      text: parts.slice(1).join("\n\n").trim() || undefined,
+    };
+  }
+
+  return { text: notes.trim() };
 }
 
 function extractRatingSnapshot(message: string) {
@@ -527,6 +543,77 @@ export const getVaultProfilePayload = cache(async (viewerId: string, viewedUserI
     canSeeWatched,
     canSeeWishlist,
     viewingOwnProfile,
+  };
+});
+
+export const getCommunityRatingSummary = cache(async (
+  source: MediaItem["source"],
+  sourceId: string,
+  limit = 3,
+): Promise<CommunityRatingSummary> => {
+  const media = await prisma.media.findUnique({
+    where: {
+      source_sourceId: {
+        source: source as never,
+        sourceId,
+      },
+    },
+    select: { id: true },
+  });
+
+  if (!media) {
+    return { average: null, count: 0, reviews: [] };
+  }
+
+  const rows = await prisma.watchedItem.findMany({
+    where: {
+      mediaId: media.id,
+      OR: [{ rating: { not: null } }, { notes: { not: null } }],
+    },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+        },
+      },
+    },
+    orderBy: [{ rating: "desc" }, { watchedAt: "desc" }],
+    take: 50,
+  });
+
+  const ratedRows = rows.filter((row) => typeof row.rating === "number");
+  const average = ratedRows.length
+    ? ratedRows.reduce((total, row) => total + (row.rating ?? 0), 0) / ratedRows.length
+    : null;
+
+  const reviews = rows
+    .map((row) => {
+      const review = splitReviewNotes(row.notes);
+      const helpfulSeed = Math.max(0, (row.rating ?? 0) * 3 + Math.floor((row.notes?.length ?? 0) / 80));
+      return {
+        id: `${row.userId}-${row.mediaId}`,
+        userId: row.userId,
+        username: row.user.name || "Vault user",
+        userHandle: buildHandle(row.user.name, row.user.email, row.user.id),
+        userAvatarUrl: row.user.image ?? undefined,
+        rating: row.rating ?? null,
+        title: review.title,
+        text: review.text,
+        datePosted: row.watchedAt.getTime(),
+        likeCount: helpfulSeed,
+        dislikeCount: 0,
+      };
+    })
+    .sort((left, right) => (right.likeCount - right.dislikeCount) - (left.likeCount - left.dislikeCount) || right.datePosted - left.datePosted)
+    .slice(0, limit);
+
+  return {
+    average,
+    count: ratedRows.length,
+    reviews,
   };
 });
 

@@ -19,8 +19,28 @@ const emptyPayload: BookListPayload = {
 };
 
 type SortMode = "relevance" | "title" | "author" | "popularity" | "length";
-const booksPayloadCache = new Map<string, BookListPayload>();
+const BOOKS_CLIENT_CACHE_TTL = 5 * 60 * 1000;
+const BOOKS_CACHE_MAX = 50;
+const booksPayloadCache = new Map<string, { data: BookListPayload; ts: number }>();
 const booksInflightCache = new Map<string, Promise<BookListPayload & { ok?: boolean; message?: string }>>();
+
+function getCachedPayload(key: string): BookListPayload | undefined {
+  const entry = booksPayloadCache.get(key);
+  if (!entry) return undefined;
+  if (Date.now() - entry.ts > BOOKS_CLIENT_CACHE_TTL) {
+    booksPayloadCache.delete(key);
+    return undefined;
+  }
+  return entry.data;
+}
+
+function setCachedPayload(key: string, payload: BookListPayload): void {
+  booksPayloadCache.set(key, { data: payload, ts: Date.now() });
+  if (booksPayloadCache.size > BOOKS_CACHE_MAX) {
+    const oldest = booksPayloadCache.keys().next().value;
+    if (oldest) booksPayloadCache.delete(oldest);
+  }
+}
 
 function formatCompactNumber(value: number) {
   return new Intl.NumberFormat("en", { notation: "compact" }).format(value);
@@ -85,6 +105,7 @@ export function BooksWorkspace({
   }, []);
 
   useEffect(() => {
+    if (initialContinue.length > 0) return;
     let active = true;
 
     fetchPersistedBookProgress()
@@ -98,13 +119,13 @@ export function BooksWorkspace({
     return () => {
       active = false;
     };
-  }, []);
+  }, [initialContinue.length]);
 
   useEffect(() => {
     let active = true;
     const controller = new AbortController();
     // 15s client-side timeout — prevents infinite loading when gutendex.com is slow/down.
-    const timeoutId = window.setTimeout(() => controller.abort(new DOMException("Books request timed out", "TimeoutError")), 15_000);
+    const timeoutId = window.setTimeout(() => controller.abort(new DOMException("Books request timed out", "TimeoutError")), 25_000);
     const canUseInitial =
       initialPayload.items.length > 0 &&
       page === initialPayload.page &&
@@ -127,7 +148,7 @@ export function BooksWorkspace({
 
       try {
         const requestKey = currentRequestKey;
-        const cached = booksPayloadCache.get(requestKey);
+        const cached = getCachedPayload(requestKey);
         if (cached) {
           if (active) {
             setPayload((prev) => page === 1 ? cached : ({ ...cached, items: dedupeBooks([...prev.items, ...cached.items]) }));
@@ -156,7 +177,7 @@ export function BooksWorkspace({
         booksInflightCache.set(requestKey, request);
         const nextPayload = await request;
 
-        booksPayloadCache.set(requestKey, nextPayload);
+        setCachedPayload(requestKey, nextPayload);
 
         if (active) {
           if (page === 1) {
@@ -210,7 +231,7 @@ export function BooksWorkspace({
     }
 
     const nextRequestKey = nextSearch.toString();
-    if (booksPayloadCache.has(nextRequestKey) || booksInflightCache.has(nextRequestKey)) {
+    if (getCachedPayload(nextRequestKey) || booksInflightCache.has(nextRequestKey)) {
       return;
     }
 
@@ -220,7 +241,7 @@ export function BooksWorkspace({
         if (!response.ok || nextPayload.ok === false) {
           throw new Error(nextPayload.message || "Could not load books");
         }
-        booksPayloadCache.set(nextRequestKey, nextPayload);
+        setCachedPayload(nextRequestKey, nextPayload);
         return nextPayload;
       })
       .catch(() => undefined)

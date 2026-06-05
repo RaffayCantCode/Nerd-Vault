@@ -297,7 +297,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
   const featured = featuredDeck[heroIndex] ?? featuredDeck[0];
   const isSearchActive = Boolean(deferredQuery.trim());
   const currentHref = buildBrowseHref(
-    isSearchActive ? "all" : filter,
+    filter,
     isSearchActive ? 1 : activePage,
     isSearchActive ? "all" : genre,
     deferredQuery,
@@ -362,7 +362,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
       const requestedPage = activePage;
       const hasSearch = Boolean(deferredQuery.trim());
       const requestPage = hasSearch ? 1 : requestedPage;
-      const requestType = hasSearch ? "all" : filter;
+      const requestType = filter;
       const requestSort: SortMode = hasSearch ? "discovery" : sort;
 
       // If the SSR bootstrap grid is already displayed (page 1, no filters, no
@@ -944,7 +944,17 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
                 type="search"
                 placeholder="Type to filter titles..."
                 value={query}
-                onChange={(event) => { setQuery(event.target.value); hasInteractedRef.current = true; }}
+                onChange={(event) => {
+                  const nextQuery = event.target.value;
+                  if (nextQuery.trim() && !query.trim()) {
+                    setFilterState("all");
+                    setGenreState("all");
+                    setSortState("discovery");
+                    setActivePage(1);
+                  }
+                  setQuery(nextQuery);
+                  hasInteractedRef.current = true;
+                }}
               />
               <button type="submit" className="button button-primary browse-search-submit">
                 Search
