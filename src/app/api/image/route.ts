@@ -7,6 +7,7 @@ const ALLOWED_HOSTS = new Set([
   "image.tmdb.org",
   "s4.anilist.co",
   "anilist.co",
+  "anili.st",
   "media.kitsu.app",
   "media.kitsu.io",
 ]);

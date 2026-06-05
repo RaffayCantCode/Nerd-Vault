@@ -9589,6 +9589,8 @@ html {
   font-family: var(--font-display), sans-serif;
   color: white;
   letter-spacing: -0.02em;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .landing-hero-accent {
@@ -17350,23 +17352,23 @@ body > .nv-mobile-dock-wrap {
 }
 
 @keyframes nvGlyphPulseN {
-  0%, 100% { opacity: 0.72; filter: brightness(0.88); }
-  50%       { opacity: 1;    filter: brightness(1.18); }
+  0%, 100% { opacity: 0.5; transform: scale(0.97); }
+  50%      { opacity: 1;   transform: scale(1.03); }
 }
 
 @keyframes nvGlyphPulseV {
-  0%, 100% { opacity: 0.78; transform: scale(0.97); filter: brightness(0.9);  }
-  50%       { opacity: 1;    transform: scale(1.04); filter: brightness(1.22); }
+  0%, 100% { opacity: 0.45; transform: scale(0.96); }
+  50%      { opacity: 1;    transform: scale(1.04); }
 }
 
 .nv-loader-path-n {
-  animation: nvGlyphPulseN 1.2s ease-in-out infinite;
+  animation: nvGlyphPulseN 1.6s ease-in-out infinite;
   transform-origin: 50% 50%;
   transform-box: fill-box;
 }
 
 .nv-loader-path-v {
-  animation: nvGlyphPulseV 1.5s ease-in-out infinite;
+  animation: nvGlyphPulseV 2s ease-in-out infinite;
   transform-origin: 50% 50%;
   transform-box: fill-box;
 }

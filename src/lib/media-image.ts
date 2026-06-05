@@ -71,7 +71,7 @@ function optimizeDirectImageUrl(rawUrl: string, intent: MediaImageIntent) {
       return optimizeIgdbImage(url, intent);
     }
 
-    if (url.hostname.includes("anilist.co")) {
+    if (url.hostname.includes("anilist.co") || url.hostname.includes("anili.st")) {
       return optimizeAnilistImage(url, intent);
     }
 
