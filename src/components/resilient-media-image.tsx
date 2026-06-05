@@ -62,7 +62,6 @@ export function ResilientMediaImage({
   const imgRef = useRef<HTMLImageElement>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const connectionRef = useRef<{ saveData?: boolean; effectiveType?: string } | null>(null);
-  const sourceKeyRef = useRef("");
 
   if (typeof navigator !== "undefined" && connectionRef.current === null) {
     const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
@@ -91,11 +90,12 @@ export function ResilientMediaImage({
 
   const [src, setSrc] = useState(shouldProgress ? previewSrc : upgradeSrc);
   const srcSet = buildMediaImageSrcSet(rawPrimaryCover || rawSecondaryBackdrop, resolvedUpgradeIntent);
+  const prevUrlsRef = useRef(`${item.coverUrl ?? ""}|${item.backdropUrl ?? ""}`);
 
   useEffect(() => {
-    const newKey = `${item.coverUrl ?? ""}|${item.backdropUrl ?? ""}`;
-    if (newKey !== sourceKeyRef.current) {
-      sourceKeyRef.current = newKey;
+    const currentUrls = `${item.coverUrl ?? ""}|${item.backdropUrl ?? ""}`;
+    if (currentUrls !== prevUrlsRef.current) {
+      prevUrlsRef.current = currentUrls;
       setRetryProxy(false);
     }
   }, [item.coverUrl, item.backdropUrl]);
@@ -161,8 +161,6 @@ export function ResilientMediaImage({
       loading={loading}
       decoding={decoding}
       fetchPriority={fetchPriority}
-      crossOrigin="anonymous"
-      referrerPolicy="no-referrer"
       draggable={false}
       onLoad={() => { setLoaded(true); onLoadStateChange?.(true); }}
       onError={() => {

@@ -461,10 +461,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
 
         if (!hasBootstrapGrid) {
           setPayload(lastStablePayloadRef.current);
-          if (activePage !== lastStablePageRef.current) {
-            setActivePage(lastStablePageRef.current);
-          }
-          setError(loadError instanceof Error ? loadError.message : "That page could not be loaded. Showing your last loaded page.");
+          setError(loadError instanceof Error ? loadError.message : "That page could not be loaded.");
         }
       } finally {
         if (active) {
