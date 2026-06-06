@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { browseIgdbGames } from "@/lib/sources/igdb";
+import { browseRawgGames } from "@/lib/sources/rawg";
 import { browseAniListAnime } from "@/lib/sources/anilist";
 import { browseMixedCatalog } from "@/lib/mixed-catalog";
 import { browseTmdbCatalog } from "@/lib/sources/tmdb";
@@ -75,14 +75,26 @@ export async function GET(request: NextRequest) {
       }
 
       if (type === "game") {
-        return browseIgdbGames({
-          page: targetPage,
-          query,
-          genre,
-          sort,
-          seed,
-          pageSize,
-        });
+        try {
+          const { browseIgdbGames } = await import("@/lib/sources/igdb");
+          return await browseIgdbGames({
+            page: targetPage,
+            query,
+            genre,
+            sort,
+            seed,
+            pageSize,
+          });
+        } catch {
+          return browseRawgGames({
+            page: targetPage,
+            query,
+            genre,
+            sort,
+            seed,
+            pageSize,
+          });
+        }
       }
 
       if (type === "all") {

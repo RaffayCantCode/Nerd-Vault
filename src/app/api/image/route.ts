@@ -5,6 +5,7 @@ const ALLOWED_HOSTS = new Set([
   "cdn.myanimelist.net",
   "images.igdb.com",
   "image.tmdb.org",
+  "media.rawg.io",
   "s4.anilist.co",
   "anilist.co",
   "anili.st",

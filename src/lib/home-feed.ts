@@ -1,4 +1,4 @@
-import { browseIgdbGames, getIgdbFranchiseEntries } from "@/lib/sources/igdb";
+import { browseRawgGames, getRawgGameSeries } from "@/lib/sources/rawg";
 import { browseAniListAnime, getAniListAnimeFranchise, getAniListAnimeDetails, getAniListAnimeDetailsByMalId, getAniListAnimeFranchiseByMalId } from "@/lib/sources/anilist";
 import { browseTmdbCatalog, getTmdbFranchiseEntries, getTmdbMediaDetails } from "@/lib/sources/tmdb";
 import { MediaItem, MediaType } from "@/lib/types";
@@ -269,8 +269,8 @@ async function gatherRelatedCandidates(type: MediaType, seeds: SignalSeed[]) {
   if (type === "game") {
     const results = await Promise.all(
       focusSeeds.flatMap((seed) => [
-        seed.item.source === "igdb"
-          ? getIgdbFranchiseEntries(Number(seed.item.sourceId)).catch(() => [] as MediaItem[])
+        seed.item.source === "igdb" || seed.item.source === "rawg"
+          ? getRawgGameSeries(Number(seed.item.sourceId)).catch(() => [] as MediaItem[])
           : Promise.resolve([] as MediaItem[]),
       ]),
     );
@@ -340,14 +340,14 @@ async function gatherCandidates(type: MediaType, genres: string[], signals: stri
   const results = await Promise.all([
     ...genres.map((genre, index) =>
       withTimeout(
-        browseIgdbGames({ page: 1, genre, sort: index === 0 ? "rating" : "discovery", seed: 91 + index }),
+        browseRawgGames({ page: 1, genre, sort: index === 0 ? "rating" : "discovery", seed: 91 + index }),
         emptyBrowseResult(),
         8000,
       ),
     ),
     ...signals.map((query, index) =>
       withTimeout(
-        browseIgdbGames({ page: 1, query, sort: "rating", seed: 111 + index }),
+        browseRawgGames({ page: 1, query, sort: "rating", seed: 111 + index }),
         emptyBrowseResult(),
         8000,
       ),

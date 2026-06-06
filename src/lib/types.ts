@@ -9,7 +9,7 @@ export type MediaPerson = {
 export type MediaItem = {
   id: string;
   slug: string;
-  source: "local" | "tmdb" | "jikan" | "anilist" | "igdb";
+  source: "local" | "tmdb" | "jikan" | "anilist" | "igdb" | "rawg";
   sourceId: string;
   title: string;
   originalTitle?: string;

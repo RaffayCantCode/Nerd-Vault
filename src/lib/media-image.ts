@@ -79,6 +79,10 @@ function optimizeDirectImageUrl(rawUrl: string, intent: MediaImageIntent) {
       return optimizeUnsplashImage(url, intent);
     }
 
+    if (url.hostname.includes("media.rawg.io")) {
+      return url.toString();
+    }
+
     return url.toString();
   } catch {
     return rawUrl;

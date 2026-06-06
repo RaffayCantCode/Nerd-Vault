@@ -23,7 +23,7 @@ export async function DELETE(
   try {
     const sessionUser = await requireSessionUser();
     const { folderId } = await params;
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = new URL(request.url, "http://localhost");
     await removeItemFromFolder(
       sessionUser.id,
       folderId,

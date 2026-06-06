@@ -10,7 +10,15 @@ const globalForPrisma = globalThis as unknown as {
 function getPool() {
   if (!globalForPrisma.pool) {
     const raw = process.env.DATABASE_URL ?? "";
-    const url = new URL(raw);
+    if (!raw) {
+      throw new Error("DATABASE_URL is required but was not provided. Check your .env.local file.");
+    }
+    let url: URL;
+    try {
+      url = new URL(raw);
+    } catch {
+      throw new Error("DATABASE_URL is invalid. Check your .env.local file.");
+    }
     const hadSsl = url.searchParams.has("sslmode");
     url.searchParams.delete("sslmode");
 
@@ -30,8 +38,15 @@ function createPrismaClient() {
   return new PrismaClient({ adapter, log: ["warn", "error"] });
 }
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient();
-
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
+function getPrismaClient() {
+  if (!globalForPrisma.prisma) {
+    globalForPrisma.prisma = createPrismaClient();
+  }
+  return globalForPrisma.prisma;
 }
+
+export const prisma = new Proxy({} as PrismaClient, {
+  get(_, prop) {
+    return getPrismaClient()[prop as keyof PrismaClient];
+  },
+});

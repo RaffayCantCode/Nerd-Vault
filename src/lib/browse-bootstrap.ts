@@ -1,4 +1,4 @@
-import { browseIgdbGames } from "@/lib/sources/igdb";
+import { browseRawgGames } from "@/lib/sources/rawg";
 import { browseAniListAnime } from "@/lib/sources/anilist";
 import { browseTmdbCatalog } from "@/lib/sources/tmdb";
 import { isFamilyFriendlyMediaItem } from "@/lib/media-safety";
@@ -171,17 +171,17 @@ async function getBootstrapSource(source: BootstrapSource, seed: number) {
 
   const gameAttempts = await Promise.all([
     withTimeout(
-      browseIgdbGames({ page: 1, query: "", genre: "", sort: "discovery", seed }).catch(() => fallback),
+      browseRawgGames({ page: 1, query: "", genre: "", sort: "discovery", seed }).catch(() => fallback),
       fallback,
       3400,
     ),
     withTimeout(
-      browseIgdbGames({ page: 1, query: "", genre: "", sort: "rating", seed: seed + 17 }).catch(() => fallback),
+      browseRawgGames({ page: 1, query: "", genre: "", sort: "rating", seed: seed + 17 }).catch(() => fallback),
       fallback,
       4200,
     ),
     withTimeout(
-      browseIgdbGames({ page: 2, query: "", genre: "", sort: "discovery", seed: seed + 23 }).catch(() => fallback),
+      browseRawgGames({ page: 2, query: "", genre: "", sort: "discovery", seed: seed + 23 }).catch(() => fallback),
       fallback,
       4200,
     ),

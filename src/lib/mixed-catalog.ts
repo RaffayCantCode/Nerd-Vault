@@ -1,4 +1,4 @@
-import { browseIgdbGames } from "@/lib/sources/igdb";
+import { browseRawgGames } from "@/lib/sources/rawg";
 import { browseAniListAnime } from "@/lib/sources/anilist";
 import { browseTmdbCatalog } from "@/lib/sources/tmdb";
 import {
@@ -177,14 +177,26 @@ async function fetchSourcePage(
     });
   }
 
-  return browseIgdbGames({
-    page,
-    query,
-    genre: apiGenre,
-    sort,
-    seed,
-    pageSize: SOURCE_PAGE_SIZES[source],
-  });
+  try {
+    const { browseIgdbGames } = await import("@/lib/sources/igdb");
+    return await browseIgdbGames({
+      page,
+      query,
+      genre: apiGenre,
+      sort,
+      seed,
+      pageSize: SOURCE_PAGE_SIZES[source],
+    });
+  } catch {
+    return browseRawgGames({
+      page,
+      query,
+      genre: apiGenre,
+      sort,
+      seed,
+      pageSize: SOURCE_PAGE_SIZES[source],
+    });
+  }
 }
 
 async function fetchSourceCatalogUpTo(
