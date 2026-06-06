@@ -103,8 +103,11 @@ function sortMediaItems(
 }
 
 function planInterleavedPage(pageSize: number, page: number) {
-  const globalStart = (page - 1) * pageSize;
-  const globalEnd = page * pageSize;
+  const sourceIndex = (page - 1) % SOURCE_ORDER.length;
+  const source = SOURCE_ORDER[sourceIndex];
+  const blockIndex = Math.floor((page - 1) / SOURCE_ORDER.length);
+  const nativeStart = blockIndex * pageSize;
+  const nativeEnd = nativeStart + pageSize;
   const slots: InterleavedSlot[] = [];
   const maxNativeBySource: Record<MixedSource, number> = {
     movie: 0,
@@ -113,15 +116,18 @@ function planInterleavedPage(pageSize: number, page: number) {
     game: 0,
   };
 
-  for (let globalIndex = globalStart; globalIndex < globalEnd; globalIndex += 1) {
-    const sourceIndex = globalIndex % SOURCE_ORDER.length;
-    const source = SOURCE_ORDER[sourceIndex];
-    const nativeIndex = Math.floor(globalIndex / SOURCE_ORDER.length);
-    slots.push({ source, nativeIndex, globalIndex });
+  for (let nativeIndex = nativeStart; nativeIndex < nativeEnd; nativeIndex += 1) {
+    slots.push({ source, nativeIndex, globalIndex: nativeIndex });
     maxNativeBySource[source] = Math.max(maxNativeBySource[source], nativeIndex);
   }
 
-  return { slots, maxNativeBySource, globalStart, globalEnd };
+  return {
+    slots,
+    maxNativeBySource,
+    globalStart: nativeStart,
+    globalEnd: nativeEnd,
+    primarySource: source,
+  };
 }
 
 function estimateInterleavedCapacity(counts: Record<MixedSource, number>) {
@@ -287,10 +293,8 @@ function fillInterleavedSlots(
 ) {
   const usedOnPage = new Set<string>();
 
-  function takeAtGlobalIndex(globalIndex: number) {
-    const source = SOURCE_ORDER[globalIndex % SOURCE_ORDER.length];
-    const nativeIndex = Math.floor(globalIndex / SOURCE_ORDER.length);
-    const candidate = catalogBySource[source][nativeIndex];
+  function takeAtSlot(slot: InterleavedSlot) {
+    const candidate = catalogBySource[slot.source][slot.nativeIndex];
     if (!candidate) {
       return null;
     }
@@ -304,7 +308,7 @@ function fillInterleavedSlots(
     return candidate;
   }
 
-  const pageSlots: Array<MediaItem | null> = slots.map((slot) => takeAtGlobalIndex(slot.globalIndex));
+  const pageSlots: Array<MediaItem | null> = slots.map((slot) => takeAtSlot(slot));
 
   let cursor = globalEnd;
   const maxCursor = globalEnd + pageSize * SOURCE_ORDER.length * 4;
@@ -314,9 +318,19 @@ function fillInterleavedSlots(
       continue;
     }
 
+    const source = slots[slotIndex].source;
     while (cursor < maxCursor && !pageSlots[slotIndex]) {
-      pageSlots[slotIndex] = takeAtGlobalIndex(cursor);
+      const candidate = catalogBySource[source][cursor];
       cursor += 1;
+      if (!candidate) {
+        continue;
+      }
+      const key = mediaKey(candidate);
+      if (usedOnPage.has(key)) {
+        continue;
+      }
+      usedOnPage.add(key);
+      pageSlots[slotIndex] = candidate;
     }
   }
 

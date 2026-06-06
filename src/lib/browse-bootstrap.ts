@@ -75,18 +75,7 @@ function pickFirstUnique(items: MediaItem[], count: number) {
 }
 
 function interleaveBootstrapBuckets(...buckets: MediaItem[][]) {
-  const working = buckets.map((bucket) => [...bucket]);
-  const mixed: MediaItem[] = [];
-
-  while (working.some((bucket) => bucket.length)) {
-    for (const bucket of working) {
-      if (bucket.length) {
-        mixed.push(bucket.shift() as MediaItem);
-      }
-    }
-  }
-
-  return mixed;
+  return buckets.flat();
 }
 
 function readBootstrapSourceCache(source: BootstrapSource) {
