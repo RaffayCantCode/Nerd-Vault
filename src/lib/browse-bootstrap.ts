@@ -1,4 +1,5 @@
 import { browseRawgGames } from "@/lib/sources/rawg";
+import { browseIgdbGames } from "@/lib/sources/igdb";
 import { browseAniListAnime } from "@/lib/sources/anilist";
 import { browseTmdbCatalog } from "@/lib/sources/tmdb";
 import { isFamilyFriendlyMediaItem } from "@/lib/media-safety";
@@ -75,7 +76,16 @@ function pickFirstUnique(items: MediaItem[], count: number) {
 }
 
 function interleaveBootstrapBuckets(...buckets: MediaItem[][]) {
-  return buckets.flat();
+  const result: MediaItem[] = [];
+  const maxLen = Math.max(...buckets.map((b) => b.length));
+  for (let i = 0; i < maxLen; i++) {
+    for (const bucket of buckets) {
+      if (i < bucket.length) {
+        result.push(bucket[i]);
+      }
+    }
+  }
+  return result;
 }
 
 function readBootstrapSourceCache(source: BootstrapSource) {
@@ -160,19 +170,37 @@ async function getBootstrapSource(source: BootstrapSource, seed: number) {
 
   const gameAttempts = await Promise.all([
     withTimeout(
-      browseRawgGames({ page: 1, query: "", genre: "", sort: "discovery", seed }).catch(() => fallback),
+      (async () => {
+        try {
+          return await browseIgdbGames({ page: 1, query: "", genre: "", sort: "discovery", seed });
+        } catch {
+          return browseRawgGames({ page: 1, query: "", genre: "", sort: "discovery", seed });
+        }
+      })().catch(() => fallback),
       fallback,
-      3400,
+      4000,
     ),
     withTimeout(
-      browseRawgGames({ page: 1, query: "", genre: "", sort: "rating", seed: seed + 17 }).catch(() => fallback),
+      (async () => {
+        try {
+          return await browseIgdbGames({ page: 1, query: "", genre: "", sort: "rating", seed: seed + 17 });
+        } catch {
+          return browseRawgGames({ page: 1, query: "", genre: "", sort: "rating", seed: seed + 17 });
+        }
+      })().catch(() => fallback),
       fallback,
-      4200,
+      4500,
     ),
     withTimeout(
-      browseRawgGames({ page: 2, query: "", genre: "", sort: "discovery", seed: seed + 23 }).catch(() => fallback),
+      (async () => {
+        try {
+          return await browseIgdbGames({ page: 2, query: "", genre: "", sort: "discovery", seed: seed + 23 });
+        } catch {
+          return browseRawgGames({ page: 2, query: "", genre: "", sort: "discovery", seed: seed + 23 });
+        }
+      })().catch(() => fallback),
       fallback,
-      4200,
+      4500,
     ),
   ]);
   const gameItems = dedupeItems(gameAttempts.flatMap((payload) => payload.items));
@@ -198,10 +226,10 @@ export async function getBrowseBootstrapCatalog(seed: number): Promise<Bootstrap
 
   const catalog = dedupeItems(
     interleaveBootstrapBuckets(
-      pickFirstUnique(movies, 24),
-      pickFirstUnique(shows, 24),
-      pickFirstUnique(anime, 24),
-      pickFirstUnique(games, 24),
+      pickFirstUnique(movies, 12),
+      pickFirstUnique(shows, 12),
+      pickFirstUnique(anime, 12),
+      pickFirstUnique(games, 12),
     ),
   ).slice(0, 48);
 

@@ -5,6 +5,7 @@ import { rankCandidatesForQuery } from "@/lib/search-utils";
 import { MediaItem } from "@/lib/types";
 import { matchesFranchise } from "@/lib/franchise-utils";
 import { itemMatchesGenre } from "@/lib/catalog-utils";
+import { browseRawgGames } from "@/lib/sources/rawg";
 
 // Declare process.env for TypeScript
 declare const process: {
@@ -337,6 +338,14 @@ export async function browseIgdbGames(params: {
   pageSize?: number;
 }): Promise<BrowsePayload> {
   if (!process.env?.TWITCH_APP_ACCESS_TOKEN && !process.env?.IGDB_CLIENT_ID) {
+    try {
+      const rawgResult = await browseRawgGames(params);
+      if (rawgResult.items.length > 0) {
+        return rawgResult;
+      }
+    } catch (e) {
+      console.warn("IGDB keys missing; RAWG fallback failed:", e);
+    }
     return browseFallbackGames(params);
   }
 
@@ -472,7 +481,16 @@ export async function browseIgdbGames(params: {
     totalResults: countPayload.count || items.length,
     items,
   };
-  } catch {
+  } catch (error) {
+    console.error("IGDB search/browse failed, trying RAWG fallback:", error);
+    try {
+      const rawgResult = await browseRawgGames(params);
+      if (rawgResult.items.length > 0) {
+        return rawgResult;
+      }
+    } catch (rawgError) {
+      console.error("RAWG fallback also failed:", rawgError);
+    }
     return browseFallbackGames(params);
   }
 }

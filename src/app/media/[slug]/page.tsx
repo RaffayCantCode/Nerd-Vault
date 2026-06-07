@@ -21,6 +21,8 @@ import { dedupeGalleryImageUrls, canonicalGalleryImageKey } from "@/lib/gallery-
 import { optimizeMediaImageUrl } from "@/lib/media-image";
 import { decodeHtmlEntities } from "@/lib/text-utils";
 import { getMediaBySlug, mockCatalog } from "@/lib/mock-catalog";
+import { fallbackGameCatalog } from "@/lib/game-fallback-catalog";
+import { getRawgGameDetails, browseRawgGames } from "@/lib/sources/rawg";
 import {
   browseIgdbGames,
   getIgdbFranchiseEntries,
@@ -1799,23 +1801,52 @@ async function findRemoteMediaBySlug(slug: string, preferredSource?: string, pre
     }
   }
 
-  if (preferredType === "game" && (!preferredSource || preferredSource === "igdb")) {
-    const quickGames = await withTimeout(
-      browseIgdbGames({ page: 1, query: slugWords || slug, sort: "rating", seed: 3 }).catch(() => emptyBrowseResult()),
-      emptyBrowseResult(),
-      2800,
-    );
-    const gameHit =
-      (preferredSourceId
-        ? quickGames.items.find((item) => matchesIdentityCandidate(item, preferredSource, preferredSourceId, preferredType))
-        : undefined) ?? quickGames.items.find((item) => matchesSlugCandidate(item, slug));
-    if (gameHit?.source === "igdb") {
-      try {
-        const media = await getIgdbGameDetails(Number(gameHit.sourceId));
+  if (preferredSource === "rawg" && preferredSourceId && preferredType === "game") {
+    try {
+      const media = await getRawgGameDetails(Number(preferredSourceId));
+      return { media, animeFranchise: undefined };
+    } catch {
+      /* continue with search */
+    }
+  }
+
+  // For all game types (including local/rawg source), try IGDB first then fall back to RAWG
+  if (preferredType === "game" && (preferredSource === "local" || preferredSource === "rawg" || preferredSource === "igdb" || !preferredSource)) {
+    // Try IGDB first
+    try {
+      const igdbResult = await withTimeout(
+        browseIgdbGames({ page: 1, query: slugWords || slug, sort: "rating", seed: 3 }).catch(() => emptyBrowseResult()),
+        emptyBrowseResult(),
+        3000,
+      );
+      const igdbHit =
+        (preferredSourceId && preferredSource === "igdb"
+          ? igdbResult.items.find((item) => matchesIdentityCandidate(item, preferredSource, preferredSourceId, preferredType))
+          : undefined) ?? igdbResult.items.find((item) => matchesSlugCandidate(item, slug));
+      if (igdbHit?.source === "igdb") {
+        const media = await getIgdbGameDetails(Number(igdbHit.sourceId));
         return { media, animeFranchise: undefined };
-      } catch {
-        /* fall through */
       }
+    } catch {
+      /* fall through to RAWG */
+    }
+    // RAWG fallback
+    try {
+      const rawgResult = await withTimeout(
+        browseRawgGames({ query: slugWords || slug, pageSize: 10, sort: "rating" }).catch(() => emptyBrowseResult()),
+        emptyBrowseResult(),
+        3000,
+      );
+      const rawgHit = rawgResult.items.find((item) =>
+        item.slug === slug ||
+        item.title.toLowerCase().replace(/[^a-z0-9]+/g, "-") === slug
+      );
+      if (rawgHit) {
+        const media = await getRawgGameDetails(Number(rawgHit.sourceId));
+        return { media, animeFranchise: undefined };
+      }
+    } catch {
+      /* fall through */
     }
   }
 
@@ -2992,7 +3023,52 @@ export default async function MediaDetailPage({
   }
 
   if (!media && source === "local" && sourceId) {
-    media = mockCatalog.find((item) => item.sourceId === sourceId);
+    media = mockCatalog.find((item) => item.sourceId === sourceId)
+      ?? fallbackGameCatalog.find((item) => item.sourceId === sourceId);
+  }
+
+  // If it was a local/igdb/rawg game, try to upgrade to a real IGDB/RAWG item by slug if the direct fetch failed
+  if (!media && type === "game" && (source === "local" || source === "rawg" || source === "igdb")) {
+    const slugQuery = slug.replace(/-/g, " ");
+    // Try IGDB first
+    try {
+      const igdbResult = await browseIgdbGames({ query: slugQuery, pageSize: 5, sort: "rating", seed: 1 });
+      const igdbMatch = igdbResult.items.find(
+        (item) =>
+          item.slug === slug ||
+          item.title.toLowerCase().replace(/[^a-z0-9]+/g, "-") === slug,
+      );
+      if (igdbMatch) {
+        media = await getIgdbGameDetails(Number(igdbMatch.sourceId));
+      }
+    } catch {
+      /* fall through to RAWG */
+    }
+    // Fallback to RAWG if IGDB didn't work
+    if (!media) {
+      try {
+        const rawgResult = await browseRawgGames({ query: slugQuery, pageSize: 5, sort: "rating" });
+        const rawgMatch = rawgResult.items.find(
+          (item) =>
+            item.slug === slug ||
+            item.title.toLowerCase().replace(/[^a-z0-9]+/g, "-") === slug ||
+            (sourceId && source === "rawg" && item.sourceId === sourceId),
+        );
+        if (rawgMatch) {
+          media = await getRawgGameDetails(Number(rawgMatch.sourceId));
+        }
+      } catch {
+        /* fall through */
+      }
+    }
+  }
+
+  if (!media && source === "rawg" && sourceId) {
+    try {
+      media = await getRawgGameDetails(Number(sourceId));
+    } catch {
+      media = undefined;
+    }
   }
 
   if (!media) {

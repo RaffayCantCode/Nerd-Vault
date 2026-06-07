@@ -103,11 +103,8 @@ function sortMediaItems(
 }
 
 function planInterleavedPage(pageSize: number, page: number) {
-  const sourceIndex = (page - 1) % SOURCE_ORDER.length;
-  const source = SOURCE_ORDER[sourceIndex];
-  const blockIndex = Math.floor((page - 1) / SOURCE_ORDER.length);
-  const nativeStart = blockIndex * pageSize;
-  const nativeEnd = nativeStart + pageSize;
+  const globalStart = (page - 1) * pageSize;
+  const globalEnd = globalStart + pageSize;
   const slots: InterleavedSlot[] = [];
   const maxNativeBySource: Record<MixedSource, number> = {
     movie: 0,
@@ -116,17 +113,20 @@ function planInterleavedPage(pageSize: number, page: number) {
     game: 0,
   };
 
-  for (let nativeIndex = nativeStart; nativeIndex < nativeEnd; nativeIndex += 1) {
-    slots.push({ source, nativeIndex, globalIndex: nativeIndex });
+  for (let globalIndex = globalStart; globalIndex < globalEnd; globalIndex += 1) {
+    const sourceIndex = globalIndex % SOURCE_ORDER.length;
+    const source = SOURCE_ORDER[sourceIndex];
+    const nativeIndex = Math.floor(globalIndex / SOURCE_ORDER.length);
+
+    slots.push({ source, nativeIndex, globalIndex });
     maxNativeBySource[source] = Math.max(maxNativeBySource[source], nativeIndex);
   }
 
   return {
     slots,
     maxNativeBySource,
-    globalStart: nativeStart,
-    globalEnd: nativeEnd,
-    primarySource: source,
+    globalStart,
+    globalEnd,
   };
 }
 
@@ -310,8 +310,13 @@ function fillInterleavedSlots(
 
   const pageSlots: Array<MediaItem | null> = slots.map((slot) => takeAtSlot(slot));
 
-  let cursor = globalEnd;
-  const maxCursor = globalEnd + pageSize * SOURCE_ORDER.length * 4;
+  const startCursor = Math.floor(globalEnd / SOURCE_ORDER.length);
+  const cursors: Record<MixedSource, number> = {
+    movie: startCursor,
+    show: startCursor,
+    anime: startCursor,
+    game: startCursor,
+  };
 
   for (let slotIndex = 0; slotIndex < pageSlots.length; slotIndex += 1) {
     if (pageSlots[slotIndex]) {
@@ -319,9 +324,10 @@ function fillInterleavedSlots(
     }
 
     const source = slots[slotIndex].source;
-    while (cursor < maxCursor && !pageSlots[slotIndex]) {
-      const candidate = catalogBySource[source][cursor];
-      cursor += 1;
+    const maxCursor = cursors[source] + pageSize * 4;
+    while (cursors[source] < maxCursor && !pageSlots[slotIndex]) {
+      const candidate = catalogBySource[source][cursors[source]];
+      cursors[source] += 1;
       if (!candidate) {
         continue;
       }

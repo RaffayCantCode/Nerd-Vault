@@ -1444,6 +1444,9 @@ html {
   -webkit-text-fill-color: transparent;
   background-clip: text;
   display: block;
+  white-space: nowrap !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
 }
 
 .landing-hero-subtitle {
