@@ -6,12 +6,13 @@ import { ChangeEvent, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import { CatalogCard } from "@/components/catalog-card";
 import { ImageAdjusterModal } from "@/components/image-adjuster-modal";
 import { NVLoader } from "@/components/nv-loader";
+import { TasteCardSearchModal } from "@/components/taste-card-search-modal";
 import { MediaItem } from "@/lib/types";
-import { deleteLibraryFolder, fetchProfilePayload, primeProfilePayload, removeFriend, saveFolder, saveProfileSettings, subscribeVaultChanges } from "@/lib/vault-client";
+import { deleteLibraryFolder, fetchProfilePayload, loadPinnedFavorites, PinnedFavorites, primeProfilePayload, removeFriend, saveFolder, savePinnedFavorites, saveProfileSettings, subscribeVaultChanges } from "@/lib/vault-client";
 import { PrivacyLevel, SocialProfile, StoredFolder, VaultProfilePayload } from "@/lib/vault-types";
 
 type LibrarySortMode = "recent" | "title" | "rating";
-type MediaFilterMode = "all" | "movie" | "show" | "anime" | "game" | "book";
+type MediaFilterMode = "all" | "movie" | "show" | "anime" | "game";
 const PROFILE_FOLDER_PAGE_SIZE = 8;
 
 function readGridColumnCount(element: HTMLElement | null) {
@@ -43,7 +44,7 @@ function sortMediaItems(items: MediaItem[], mode: LibrarySortMode) {
 function filterMediaItems(items: MediaItem[], mode: MediaFilterMode, search: string) {
   const normalizedSearch = search.trim().toLowerCase();
   return items.filter((item) => {
-    if (mode !== "all" && (mode === "book" || item.type !== mode)) {
+    if (mode !== "all" && item.type !== mode) {
       return false;
     }
 
@@ -85,20 +86,31 @@ function mediaFilterOptions() {
     { value: "show", label: "Shows" },
     { value: "anime", label: "Anime" },
     { value: "game", label: "Games" },
-    { value: "book", label: "Books" },
   ] as Array<{ value: MediaFilterMode; label: string }>;
 }
 
-function favoriteSlots(items: MediaItem[]) {
-  const ranked = sortMediaItems(items.filter((item) => item.userRating || item.rating), "rating");
-  const pick = (type: MediaFilterMode) => ranked.find((item) => item.type === type);
+type TasteSlotKey = "movie" | "show" | "anime" | "game";
 
-  return [
-    { key: "movie", label: "Favorite Movie", item: pick("movie") },
-    { key: "show", label: "Favorite TV Show", item: pick("show") },
-    { key: "anime", label: "Favorite Anime", item: ranked.find((item) => item.type === "anime" || item.type === "anime_movie") },
-    { key: "game", label: "Favorite Game", item: pick("game") },
-  ];
+const TASTE_SLOT_LABELS: Record<TasteSlotKey, string> = {
+  movie: "Favorite Movie",
+  show: "Favorite TV Show",
+  anime: "Favorite Anime",
+  game: "Favorite Game",
+};
+
+function favoriteSlots(items: MediaItem[], pinned: PinnedFavorites) {
+  const ranked = sortMediaItems(items.filter((item) => item.userRating || item.rating), "rating");
+  const autoPick = (type: TasteSlotKey) =>
+    type === "anime"
+      ? ranked.find((item) => item.type === "anime" || item.type === "anime_movie")
+      : ranked.find((item) => item.type === type);
+
+  return (["movie", "show", "anime", "game"] as TasteSlotKey[]).map((key) => ({
+    key,
+    label: TASTE_SLOT_LABELS[key],
+    item: pinned[key] ?? autoPick(key),
+    isPinned: Boolean(pinned[key]),
+  }));
 }
 
 function sortOptions() {
@@ -179,10 +191,16 @@ export function ProfileWorkspace({
   const [wishlistPageSize, setWishlistPageSize] = useState(9);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isFolderOpening, setIsFolderOpening] = useState(false);
+  const [pinnedFavorites, setPinnedFavorites] = useState<PinnedFavorites>({ movie: null, show: null, anime: null, game: null });
+  const [editingTasteSlot, setEditingTasteSlot] = useState<TasteSlotKey | null>(null);
   const profileAvatarActionsRef = useRef<HTMLDivElement | null>(null);
   const watchedGridRef = useRef<HTMLDivElement | null>(null);
   const wishlistGridRef = useRef<HTMLDivElement | null>(null);
   const previousFolderIdRef = useRef<string | null>(selectedFolderId);
+
+  useEffect(() => {
+    setPinnedFavorites(loadPinnedFavorites(viewerId));
+  }, [viewerId]);
 
   useEffect(() => {
     if (initialPayload) {
@@ -380,7 +398,20 @@ export function ProfileWorkspace({
       { label: "Network", value: friends.length },
     ];
   }, [folders.length, friends.length, watched]);
-  const featuredFavorites = useMemo(() => favoriteSlots(watched), [watched]);
+  const featuredFavorites = useMemo(() => favoriteSlots(watched, pinnedFavorites), [watched, pinnedFavorites]);
+
+  function handlePinFavorite(slot: TasteSlotKey, item: MediaItem) {
+    const next = { ...pinnedFavorites, [slot]: item };
+    setPinnedFavorites(next);
+    savePinnedFavorites(viewerId, next);
+    setEditingTasteSlot(null);
+  }
+
+  function handleUnpinFavorite(slot: TasteSlotKey) {
+    const next = { ...pinnedFavorites, [slot]: null };
+    setPinnedFavorites(next);
+    savePinnedFavorites(viewerId, next);
+  }
 
   if (isDemo) {
     return (
@@ -609,6 +640,50 @@ export function ProfileWorkspace({
     );
   }
 
+  if (loading) {
+    return (
+      <main className="workspace">
+        <div className="profile-loading-shell">
+          <div className="profile-loading-hero">
+            <div className="profile-loading-identity">
+              <div className="skeleton" style={{ width: 72, height: 72, borderRadius: 16 }} />
+              <div style={{ display: "grid", gap: 8, flex: 1 }}>
+                <div className="skeleton" style={{ width: 100, height: 14, borderRadius: 6 }} />
+                <div className="skeleton" style={{ width: 180, height: 28, borderRadius: 8 }} />
+                <div className="skeleton" style={{ width: 240, height: 14, borderRadius: 6 }} />
+              </div>
+            </div>
+            <div className="skeleton" style={{ width: "100%", height: 48, borderRadius: 12 }} />
+          </div>
+
+          <div style={{ display: "grid", gap: 12 }}>
+            <div style={{ display: "flex", gap: 8 }}>
+              <div className="skeleton" style={{ width: 100, height: 16, borderRadius: 6 }} />
+              <div className="skeleton" style={{ width: 140, height: 26, borderRadius: 8 }} />
+            </div>
+            <div className="featured-favorites-grid">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="skeleton" style={{ aspectRatio: "3/2", borderRadius: 12 }} />
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gap: 12 }}>
+            <div style={{ display: "flex", gap: 8 }}>
+              <div className="skeleton" style={{ width: 80, height: 16, borderRadius: 6 }} />
+              <div className="skeleton" style={{ width: 160, height: 26, borderRadius: 8 }} />
+            </div>
+            <div className="profile-loading-grid">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <div key={i} className="skeleton" style={{ aspectRatio: "2/3", borderRadius: 10 }} />
+              ))}
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="workspace">
       <section className="workspace-hero glass folder-hero profile-stage">
@@ -695,29 +770,67 @@ export function ProfileWorkspace({
         <div className="featured-favorites-grid">
           {featuredFavorites.map((slot) => (
             slot.item ? (
-              <Link
+              <div
                 key={slot.key}
-                href={{ pathname: `/media/${slot.item.slug}`, query: { source: slot.item.source, sourceId: slot.item.sourceId, type: slot.item.type } }}
                 className="featured-favorite-card glass"
+                onClick={() => {
+                  if (!viewingOwnProfile) return;
+                  setEditingTasteSlot(slot.key as TasteSlotKey);
+                }}
               >
                 <img src={slot.item.coverUrl} alt={slot.item.title} />
+                {viewingOwnProfile ? (
+                  <>
+                    <button
+                      type="button"
+                      className="taste-edit-btn"
+                      title="Change favorite"
+                      onClick={(e) => { e.stopPropagation(); setEditingTasteSlot(slot.key as TasteSlotKey); }}
+                      aria-label={`Edit ${slot.label}`}
+                    >
+                      ✎
+                    </button>
+                    {slot.isPinned ? (
+                      <button
+                        type="button"
+                        className="taste-remove-btn"
+                        title="Remove pinned favorite"
+                        onClick={(e) => { e.stopPropagation(); handleUnpinFavorite(slot.key as TasteSlotKey); }}
+                        aria-label={`Remove ${slot.label}`}
+                      >
+                        ✕
+                      </button>
+                    ) : null}
+                  </>
+                ) : null}
                 <div>
                   <span>{slot.label}</span>
                   <strong>{slot.item.title}</strong>
-                  <small>{slot.item.year || "Unknown year"} · {slot.item.userRating ? `${slot.item.userRating}/5 from you` : `${slot.item.rating.toFixed(1)} source score`}</small>
+                  <small>{slot.item.year || "Unknown year"} · {slot.item.userRating ? `${slot.item.userRating}/5 from you` : `${slot.item.rating.toFixed(1)} score`}</small>
                 </div>
-              </Link>
+              </div>
             ) : (
-              <div key={slot.key} className="featured-favorite-card featured-favorite-empty glass">
-                <div>
+              <div
+                key={slot.key}
+                className="featured-favorite-card featured-favorite-empty glass"
+                onClick={() => viewingOwnProfile && setEditingTasteSlot(slot.key as TasteSlotKey)}
+              >
+                <div className="taste-empty-inner">
+                  <div className="taste-empty-icon">+</div>
                   <span>{slot.label}</span>
-                  <strong>{viewingOwnProfile ? "Choose by rating titles" : "Not shared yet"}</strong>
-                  <small>{viewingOwnProfile ? "Log and rate something to fill this slot." : "This favorite slot is waiting."}</small>
+                  <strong>{viewingOwnProfile ? "Add a favorite" : "Not set yet"}</strong>
                 </div>
               </div>
             )
           ))}
         </div>
+        {editingTasteSlot ? (
+          <TasteCardSearchModal
+            slot={editingTasteSlot}
+            onSelect={(item) => handlePinFavorite(editingTasteSlot, item)}
+            onClose={() => setEditingTasteSlot(null)}
+          />
+        ) : null}
       </section>
 
       <section id="profile-friends" className="section-stack" style={{ paddingTop: 0 }}>

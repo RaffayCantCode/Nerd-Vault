@@ -18776,3 +18776,872 @@ table,
     max-width: calc(100vw - 24px) !important;
   }
 }
+
+/* ==============================================
+   [NV-VAULT-REWORK-2026]
+   Vault page redesign — compact layout, unified cards,
+   taste card polish, loading states, folder compactness.
+   ============================================== */
+
+/* --- Vault Shell: Compact tabs & profile bar --- */
+.vault-unified-shell {
+  gap: 10px;
+}
+
+.vault-profile-bar {
+  padding: 12px 14px;
+  border-radius: 18px;
+}
+
+.vault-profile-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+}
+
+.vault-profile-copy .eyebrow {
+  font-size: 0.72rem;
+}
+
+.vault-profile-copy .headline {
+  font-size: 1.15rem;
+  line-height: 1.15;
+}
+
+.vault-profile-copy .copy {
+  font-size: 0.82rem;
+}
+
+.vault-tab-row {
+  margin: 8px auto;
+  padding: 5px 8px;
+  border-radius: 16px;
+  gap: 6px;
+}
+
+.vault-tab {
+  min-height: 36px;
+  padding: 0 18px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  border-radius: 12px;
+}
+
+.vault-shortcuts-container {
+  margin-bottom: 14px;
+}
+
+.vault-shortcuts-container .profile-section-nav-link {
+  font-size: 0.82rem;
+  padding: 6px 12px;
+}
+
+/* --- Unified profile media grid sizing --- */
+.profile-media-grid {
+  grid-template-columns: repeat(auto-fill, minmax(clamp(105px, 9.5vw, 142px), 1fr)) !important;
+  gap: clamp(8px, 0.7vw, 12px) !important;
+}
+
+.profile-media-grid .catalog-card {
+  min-height: 0 !important;
+}
+
+.profile-media-grid .catalog-card-media {
+  aspect-ratio: 2 / 3;
+}
+
+.profile-media-grid .catalog-copy {
+  padding: 32px 8px 8px !important;
+  gap: 4px !important;
+}
+
+.profile-media-grid .catalog-title {
+  font-size: clamp(0.78rem, 2.2vw, 0.88rem) !important;
+  line-height: 1.2 !important;
+}
+
+.profile-media-grid .meta-row .pill {
+  font-size: 0.68rem;
+  padding: 3px 6px;
+}
+
+.profile-media-grid .catalog-genres {
+  font-size: 0.72rem;
+}
+
+/* --- Taste card redesign --- */
+.featured-favorites-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: clamp(8px, 1vw, 14px) !important;
+}
+
+.featured-favorite-card {
+  min-height: clamp(150px, 14vw, 200px) !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(105, 197, 172, 0.14) !important;
+  cursor: pointer;
+  position: relative;
+}
+
+.featured-favorite-card:hover {
+  border-color: rgba(105, 197, 172, 0.4) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(105, 197, 172, 0.15) inset !important;
+}
+
+.featured-favorite-card::after {
+  background:
+    linear-gradient(180deg, transparent 15%, rgba(5, 8, 13, 0.55) 50%, rgba(4, 8, 12, 0.97)) !important;
+}
+
+.featured-favorite-card > div {
+  width: 100%;
+  padding: clamp(10px, 1.2vw, 16px) !important;
+  gap: 3px !important;
+}
+
+.featured-favorite-card span {
+  font-size: 0.7rem !important;
+  letter-spacing: 0.1em !important;
+}
+
+.featured-favorite-card strong {
+  font-size: clamp(0.85rem, 1.2vw, 1.05rem) !important;
+  line-height: 1.15 !important;
+}
+
+.featured-favorite-card small {
+  font-size: 0.72rem !important;
+}
+
+/* Hover edit button */
+.taste-edit-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(5, 8, 13, 0.72);
+  backdrop-filter: blur(12px);
+  color: rgba(240, 246, 255, 0.9);
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transition: opacity 180ms ease, transform 160ms ease;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.featured-favorite-card:hover .taste-edit-btn {
+  opacity: 1;
+}
+
+.taste-edit-btn:hover {
+  background: rgba(105, 197, 172, 0.3);
+  border-color: rgba(105, 197, 172, 0.5);
+  transform: scale(1.08);
+}
+
+/* Taste card remove button */
+.taste-remove-btn {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 3;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 80, 80, 0.25);
+  background: rgba(5, 8, 13, 0.72);
+  backdrop-filter: blur(12px);
+  color: rgba(255, 130, 130, 0.9);
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transition: opacity 180ms ease, transform 160ms ease;
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.featured-favorite-card:hover .taste-remove-btn {
+  opacity: 1;
+}
+
+.taste-remove-btn:hover {
+  background: rgba(255, 60, 60, 0.25);
+  border-color: rgba(255, 80, 80, 0.5);
+  transform: scale(1.1);
+}
+
+/* Empty taste slot */
+.featured-favorite-empty {
+  border: 1.5px dashed rgba(105, 197, 172, 0.28) !important;
+  background:
+    radial-gradient(circle at 30% 40%, rgba(105, 197, 172, 0.08), transparent 50%),
+    rgba(255, 255, 255, 0.02) !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer;
+  transition: border-color 180ms ease, background 180ms ease;
+}
+
+.featured-favorite-empty:hover {
+  border-color: rgba(105, 197, 172, 0.55) !important;
+  background:
+    radial-gradient(circle at 30% 40%, rgba(105, 197, 172, 0.14), transparent 50%),
+    rgba(255, 255, 255, 0.04) !important;
+}
+
+.featured-favorite-empty::after {
+  display: none !important;
+}
+
+.taste-empty-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  padding: 16px;
+}
+
+.taste-empty-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px dashed rgba(105, 197, 172, 0.35);
+  display: grid;
+  place-items: center;
+  color: var(--nv-mint);
+  font-size: 1.1rem;
+  font-weight: 300;
+}
+
+.taste-empty-inner span {
+  color: var(--nv-mint) !important;
+  font-size: 0.72rem !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.1em !important;
+  font-weight: 700 !important;
+}
+
+.taste-empty-inner strong {
+  color: rgba(240, 246, 255, 0.55) !important;
+  font-size: 0.82rem !important;
+  font-weight: 500 !important;
+}
+
+/* --- Taste card search modal --- */
+.taste-search-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(3, 6, 12, 0.78);
+  backdrop-filter: blur(8px);
+  display: grid;
+  place-items: center;
+  animation: taste-overlay-in 200ms ease forwards;
+}
+
+@keyframes taste-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.taste-search-modal {
+  width: min(520px, calc(100vw - 32px));
+  max-height: min(600px, calc(100vh - 80px));
+  border-radius: 20px;
+  border: 1px solid rgba(105, 197, 172, 0.18);
+  background:
+    linear-gradient(180deg, rgba(14, 20, 32, 0.98), rgba(8, 12, 20, 0.99));
+  box-shadow:
+    0 32px 64px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: taste-modal-in 260ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes taste-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.taste-search-header {
+  padding: 18px 18px 0;
+  display: grid;
+  gap: 12px;
+}
+
+.taste-search-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.taste-search-header-top h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: rgba(240, 246, 255, 0.95);
+  margin: 0;
+}
+
+.taste-search-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(240, 246, 255, 0.7);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.taste-search-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.taste-search-input {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 12px;
+  border: 1px solid rgba(105, 197, 172, 0.18);
+  background: rgba(4, 9, 15, 0.74);
+  color: rgba(240, 246, 255, 0.95);
+  padding: 0 14px;
+  font-size: 0.92rem;
+  outline: none;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.taste-search-input:focus {
+  border-color: var(--nv-cyan);
+  box-shadow: 0 0 0 3px rgba(30, 189, 194, 0.16);
+}
+
+.taste-search-input::placeholder {
+  color: rgba(240, 246, 255, 0.35);
+}
+
+.taste-search-results {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: grid;
+  gap: 6px;
+  min-height: 200px;
+  align-content: start;
+}
+
+.taste-search-results::-webkit-scrollbar {
+  width: 4px;
+}
+
+.taste-search-results::-webkit-scrollbar-thumb {
+  background: rgba(105, 197, 172, 0.2);
+  border-radius: 4px;
+}
+
+.taste-result-card {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease;
+  text-align: left;
+  color: inherit;
+  width: 100%;
+}
+
+.taste-result-card:hover {
+  background: rgba(105, 197, 172, 0.08);
+  border-color: rgba(105, 197, 172, 0.18);
+}
+
+.taste-result-poster {
+  width: 48px;
+  height: 68px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.04);
+  flex-shrink: 0;
+}
+
+.taste-result-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.taste-result-info {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.taste-result-title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: rgba(240, 246, 255, 0.95);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.taste-result-meta {
+  font-size: 0.78rem;
+  color: rgba(240, 246, 255, 0.45);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.taste-result-meta span {
+  font-size: 0.78rem !important;
+  color: rgba(240, 246, 255, 0.45) !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  font-weight: 400 !important;
+}
+
+.taste-search-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 40px 20px;
+  text-align: center;
+  color: rgba(240, 246, 255, 0.4);
+}
+
+.taste-search-empty p {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.taste-search-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+/* --- Folder showcase compact --- */
+.folder-showcase-grid {
+  grid-template-columns: repeat(auto-fill, minmax(clamp(200px, 20vw, 280px), 1fr)) !important;
+  gap: clamp(8px, 1vw, 14px) !important;
+}
+
+.folder-showcase-art,
+.folder-showcase-art-compact {
+  height: clamp(72px, 8vw, 100px) !important;
+  min-height: 0 !important;
+}
+
+.folder-showcase-card {
+  min-height: 0 !important;
+  border-radius: 12px !important;
+}
+
+.folder-showcase-copy {
+  padding: clamp(10px, 1.2vw, 14px) !important;
+  gap: 6px !important;
+}
+
+.folder-showcase-title-row strong {
+  font-size: 0.92rem;
+}
+
+.folder-showcase-summary {
+  font-size: 0.8rem !important;
+  -webkit-line-clamp: 2;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* --- Profile stage compactness --- */
+.profile-stage {
+  padding: clamp(16px, 2vw, 28px) !important;
+}
+
+.profile-stage-stats {
+  padding: clamp(12px, 1.5vw, 18px) !important;
+}
+
+.profile-stage-stat {
+  min-height: 52px !important;
+  padding: 8px 10px !important;
+}
+
+.profile-stage-stat strong {
+  font-size: clamp(1.2rem, 2.2vw, 1.6rem);
+}
+
+.profile-stage-stat span {
+  font-size: 0.74rem;
+}
+
+.profile-display {
+  font-size: clamp(1.5rem, 3vw, 2.2rem) !important;
+}
+
+.profile-hero-description {
+  padding: clamp(10px, 1.2vw, 16px) !important;
+  border-radius: 12px !important;
+}
+
+.profile-hero-meta-row .detail-pill {
+  font-size: 0.74rem;
+  padding: 4px 8px;
+}
+
+/* --- Section headers tighter --- */
+.section-stack {
+  gap: clamp(12px, 1.5vw, 20px);
+}
+
+.section-header .eyebrow {
+  font-size: 0.72rem;
+}
+
+.section-header .headline {
+  font-size: clamp(1.1rem, 2.2vw, 1.4rem) !important;
+}
+
+/* --- Library controls compact --- */
+.profile-library-controls {
+  padding: clamp(10px, 1.2vw, 16px) !important;
+  border-radius: 14px !important;
+  gap: 10px;
+}
+
+.library-control-block .eyebrow {
+  font-size: 0.68rem;
+}
+
+.picker-chip {
+  font-size: 0.78rem !important;
+  padding: 5px 12px !important;
+  min-height: 30px !important;
+  border-radius: 10px !important;
+}
+
+.library-search-input {
+  min-height: 38px !important;
+  font-size: 0.85rem !important;
+}
+
+/* --- Pager compact --- */
+.bottom-pager.profile-section-pager {
+  padding: clamp(10px, 1.2vw, 16px) !important;
+  border-radius: 14px !important;
+}
+
+.pager-copy .eyebrow {
+  font-size: 0.68rem;
+}
+
+.pager-copy .copy {
+  font-size: 0.82rem;
+}
+
+/* --- Loading state centering --- */
+.nv-loader {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 14px !important;
+  min-height: 0 !important;
+  width: 100% !important;
+}
+
+.folder-opening-shell {
+  min-height: 280px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.folder-opening-loader {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  padding: 40px 0 !important;
+}
+
+/* --- Profile workspace loading skeleton --- */
+.profile-loading-shell {
+  display: grid;
+  gap: 14px;
+  padding: 0;
+}
+
+.profile-loading-hero {
+  border-radius: 18px;
+  padding: clamp(20px, 2.5vw, 32px);
+  background:
+    linear-gradient(135deg, rgba(14, 20, 32, 0.96), rgba(8, 12, 20, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  display: grid;
+  gap: 16px;
+}
+
+.profile-loading-identity {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.profile-loading-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(clamp(105px, 9.5vw, 142px), 1fr));
+  gap: clamp(8px, 0.7vw, 12px);
+}
+
+/* Skeleton shimmer used in loading states */
+.skeleton {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 25%, rgba(255, 255, 255, 0.08) 50%, rgba(255, 255, 255, 0.04) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease infinite;
+  border-radius: 8px;
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* --- Folder hero compact --- */
+.folder-hero {
+  padding: clamp(16px, 2vw, 28px) !important;
+}
+
+.folder-hero-display {
+  font-size: clamp(1.3rem, 2.5vw, 1.8rem) !important;
+}
+
+.folder-hero-cover-card {
+  width: clamp(72px, 8vw, 96px) !important;
+  min-width: clamp(72px, 8vw, 96px) !important;
+  height: clamp(72px, 8vw, 96px) !important;
+  border-radius: 12px !important;
+}
+
+.folder-hero-description {
+  padding: clamp(10px, 1.2vw, 14px) !important;
+  border-radius: 12px !important;
+}
+
+/* --- Profile folder toolbar compact --- */
+.profile-folder-toolbar {
+  padding: clamp(10px, 1.2vw, 16px) !important;
+  border-radius: 14px !important;
+  gap: 8px;
+}
+
+/* --- Responsive adjustments for vault rework --- */
+@media (max-width: 900px) {
+  .featured-favorites-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .taste-search-modal {
+    width: calc(100vw - 24px);
+    max-height: calc(100vh - 48px);
+  }
+
+  .profile-media-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)) !important;
+  }
+
+  .folder-showcase-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .featured-favorites-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .featured-favorite-card {
+    min-height: 140px !important;
+  }
+
+  .taste-edit-btn,
+  .taste-remove-btn {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 380px) {
+  .profile-media-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+/* ==============================================
+   [NV-VAULT-REWORK-2026-POLISH]
+   Top bar profile button & Landing page buttons
+   ============================================== */
+
+/* --- Top Bar Profile / Guest Button Polish --- */
+.topbar-user-button {
+  min-height: 42px !important;
+  height: 42px !important;
+  min-width: 190px !important;
+  max-width: 240px !important;
+  padding: 4px 14px 4px 5px !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.07) !important;
+  border-radius: 999px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  cursor: pointer !important;
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.02) inset !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.topbar-user-button:hover {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border-color: rgba(105, 197, 172, 0.35) !important; /* Mint glow border */
+  transform: translateY(-1.5px) !important;
+  box-shadow: 
+    0 6px 18px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(105, 197, 172, 0.1) inset,
+    0 0 8px rgba(105, 197, 172, 0.05) !important;
+}
+
+.topbar-user-button:active {
+  transform: translateY(0) scale(0.98) !important;
+}
+
+.topbar-user-button .topbar-user-avatar {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
+  border-radius: 50% !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3) !important;
+  filter: saturate(1.05) contrast(1.02) !important;
+}
+
+.topbar-user-button .topbar-user-avatar-fallback {
+  background: linear-gradient(135deg, var(--nv-mint, #69C5AC), #f1e5c4) !important;
+  color: #05080d !important;
+  font-weight: 800 !important;
+  font-size: 0.88rem !important;
+  display: grid !important;
+  place-items: center !important;
+  line-height: 1 !important;
+}
+
+.topbar-user-button .topbar-user-copy {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 1px !important;
+  margin-right: auto !important;
+  min-width: 0 !important;
+  text-align: left !important;
+}
+
+.topbar-user-button .topbar-user-copy strong {
+  font-size: 0.82rem !important;
+  font-weight: 600 !important;
+  color: rgba(240, 246, 255, 0.95) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: 110px !important;
+  line-height: 1.25 !important;
+}
+
+.topbar-user-button .topbar-user-copy span {
+  font-size: 0.68rem !important;
+  font-weight: 500 !important;
+  color: rgba(240, 246, 255, 0.45) !important;
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
+}
+
+@media (max-width: 900px) {
+  .topbar-user-button {
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    border-radius: 16px !important;
+    padding: 0.72rem 0.8rem !important;
+  }
+}
+
+/* --- Landing CTA Buttons Polish --- */
+.cta-button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 14px 28px !important;
+  border-radius: 12px !important;
+  text-decoration: none !important;
+  font-weight: 600 !important;
+  font-size: 15px !important;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+  cursor: pointer !important;
+  border: none !important;
+  outline: none !important;
+  white-space: nowrap !important;
+  position: relative !important;
+  z-index: 5 !important;
+}
+
+.cta-button:hover {
+  transform: translateY(-2px) scale(1.02) !important;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2) !important;
+}
+
+.cta-button:active {
+  transform: translateY(0) scale(0.98) !important;
+}
+
+.cta-primary:hover {
+  background: linear-gradient(135deg, #7be5c7, #26d2d8) !important;
+}
+
+.cta-secondary:hover {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+}

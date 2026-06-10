@@ -150,13 +150,15 @@ export function ResilientMediaImage({
     isUpgraded ? "img-upgraded" : "img-preview",
   ].filter(Boolean).join(" ");
 
+  const resolvedSrcSet = (src === fallback || (secondaryBackdrop && src === secondaryBackdrop)) ? undefined : srcSet;
+
   return (
     <img
       ref={imgRef}
       className={combinedClass}
       src={src}
-      srcSet={srcSet}
-      sizes={sizes || (srcSet ? "(max-width: 720px) 42vw, 220px" : undefined)}
+      srcSet={resolvedSrcSet}
+      sizes={sizes || (resolvedSrcSet ? "(max-width: 720px) 42vw, 220px" : undefined)}
       alt={alt ?? item.title}
       loading={loading}
       decoding={decoding}

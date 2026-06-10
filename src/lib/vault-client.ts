@@ -373,3 +373,35 @@ export async function fetchFriendsData() {
     suggestions: payload.suggestions as Array<{ id: string; name: string; handle: string; avatarUrl?: string; mutualCount: number }>,
   };
 }
+
+export type PinnedFavorites = Record<"movie" | "show" | "anime" | "game", MediaItem | null>;
+
+const PINNED_FAVORITES_KEY_PREFIX = "nv-pinned-favorites-";
+
+export function loadPinnedFavorites(viewerId: string): PinnedFavorites {
+  const empty: PinnedFavorites = { movie: null, show: null, anime: null, game: null };
+  if (typeof window === "undefined") return empty;
+
+  try {
+    const raw = window.localStorage.getItem(`${PINNED_FAVORITES_KEY_PREFIX}${viewerId}`);
+    if (!raw) return empty;
+    const parsed = JSON.parse(raw) as Partial<PinnedFavorites>;
+    return {
+      movie: parsed.movie ?? null,
+      show: parsed.show ?? null,
+      anime: parsed.anime ?? null,
+      game: parsed.game ?? null,
+    };
+  } catch {
+    return empty;
+  }
+}
+
+export function savePinnedFavorites(viewerId: string, pins: PinnedFavorites) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(`${PINNED_FAVORITES_KEY_PREFIX}${viewerId}`, JSON.stringify(pins));
+  } catch {
+    // Silently fail if localStorage is full
+  }
+}
