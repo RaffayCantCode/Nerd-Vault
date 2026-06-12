@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { OnboardingTour } from "@/components/onboarding-tour";
 import { AuthCookieReset } from "@/components/auth-cookie-reset";
 import "./globals.css";
+import "./landing-rehaul.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://nerdvault.site"),

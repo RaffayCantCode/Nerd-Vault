@@ -1,423 +1,545 @@
-﻿import Image from "next/image";
+import Image from "next/image";
 import Link from "next/link";
-import { signOutUser } from "@/app/sign-in/sign-out-action";
-import { BrowseResetLink } from "@/components/browse-reset-link";
-import { SiteHeader } from "@/components/site-header";
+import { 
+  Film, 
+  Tv, 
+  Gamepad2, 
+  BookOpen, 
+  Search, 
+  Sparkles, 
+  Star, 
+  Play, 
+  Users, 
+  FolderHeart, 
+  ArrowRight, 
+  LogIn, 
+  Laptop,
+  Info
+} from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { SiteHeader } from "@/components/site-header";
+import { BrowseResetLink } from "@/components/browse-reset-link";
+import { getBrowseDiscoverySeed, getBrowseBootstrapCatalog } from "@/lib/browse-bootstrap";
+import { fetchBooksPage } from "@/lib/books";
+import { isFamilyFriendlyMediaItem } from "@/lib/media-safety";
+import { MediaItem } from "@/lib/types";
+import { BookSummary } from "@/lib/book-types";
+
+export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const session = await auth();
-  const isSignedIn = Boolean(session?.user?.id);
+  const seed = getBrowseDiscoverySeed();
   
-  let settings = null;
-  try {
-    settings = await prisma.siteSettings.findUnique({
-      where: { id: "global" },
-    });
-  } catch (e) {
-    console.error("Site settings could not be loaded, using defaults:", e);
+  // Concurrently fetch bootstrap catalog (movies, shows, anime, games) and Gutenberg books
+  const [bootstrapResult, booksResult, session] = await Promise.all([
+    getBrowseBootstrapCatalog(seed).catch((e) => {
+      console.error("Failed to fetch bootstrap catalog:", e);
+      return { catalog: [] as MediaItem[], surfacing: [] as MediaItem[] };
+    }),
+    fetchBooksPage({ page: 1, query: "" }).catch((e) => {
+      console.error("Failed to fetch books:", e);
+      return { items: [] as BookSummary[] };
+    }),
+    auth().catch(() => null),
+  ]);
+
+  const isSignedIn = Boolean(session?.user?.id);
+  const userName = session?.user?.name || "";
+  
+  // Exclude non-family-friendly titles from the home page
+  const catalog = (bootstrapResult.catalog || []).filter(isFamilyFriendlyMediaItem);
+  
+  // Categorize media items
+  const movies = catalog.filter((item) => item.type === "movie");
+  const shows = catalog.filter((item) => item.type === "show");
+  const anime = catalog.filter((item) => item.type === "anime");
+  const games = catalog.filter((item) => item.type === "game");
+  const books = booksResult.items || [];
+
+  // 1. SELECT AN IMPRESSIVE TRENDING SPOTLIGHT HERO ITEM
+  // Prioritize modern/recent media (last 6 years) to show trending content rather than retro classics
+  const currentYear = new Date().getFullYear();
+  const trendingYearThreshold = currentYear - 6; // 2020
+
+  let spotlightCandidates = catalog.filter(
+    (item) => item.backdropUrl && item.overview && item.rating > 0 && item.year >= trendingYearThreshold
+  );
+
+  // Fall back to any visual items if no recent ones are available
+  if (spotlightCandidates.length === 0) {
+    spotlightCandidates = catalog.filter(
+      (item) => item.backdropUrl && item.overview && item.rating > 0
+    );
   }
+  
+  const spotlightItem: MediaItem | null = spotlightCandidates.length > 0
+    ? spotlightCandidates[Math.floor(Math.random() * spotlightCandidates.length)]
+    : catalog.length > 0 ? catalog[Math.floor(Math.random() * catalog.length)] : null;
+
+  const spotlightBackdrop = spotlightItem?.backdropUrl || spotlightItem?.coverUrl || "/brand/hero-bg.jpg";
+  const spotlightRating = spotlightItem?.rating ? spotlightItem.rating.toFixed(1) : null;
+  const spotlightGenres = spotlightItem?.genres?.slice(0, 3) || [];
+  const spotlightTypeLabel = spotlightItem?.type === "show" ? "TV Show" : spotlightItem?.type;
+
+  // Helper to extract a clean, short suggestion title
+  const cleanSuggestion = (title: string) => {
+    if (!title) return "";
+    return title.split(/[;:]/)[0].trim().slice(0, 30);
+  };
+
+  const suggestedMovie = movies.length > 0 ? cleanSuggestion(movies[Math.floor(Math.random() * movies.length)].title) : "Dune";
+  const suggestedShow = shows.length > 0 ? cleanSuggestion(shows[Math.floor(Math.random() * shows.length)].title) : "Breaking Bad";
+  const suggestedAnime = anime.length > 0 ? cleanSuggestion(anime[Math.floor(Math.random() * anime.length)].title) : "Spirited Away";
+  const suggestedGame = games.length > 0 ? cleanSuggestion(games[Math.floor(Math.random() * games.length)].title) : "Elden Ring";
+  const suggestedBook = books.length > 0 ? cleanSuggestion(books[Math.floor(Math.random() * books.length)].title) : "Frankenstein";
 
   return (
-    <div className="page-shell landing-page">
+    <div className="landing-rehaul">
+      {/* Site Header */}
       <SiteHeader />
 
-      <main className="landing-main">
-        {/* Hero Section with Premium Design */}
-        <section className="landing-hero">
-          <div className="landing-hero-background">
-            <div className="landing-hero-gradient" />
-            <div className="landing-hero-pattern" />
+      <main>
+        {/* 1. SPOTLIGHT HERO SECTION */}
+        <section className="landing-rehaul-hero">
+          <div className="landing-rehaul-hero-backdrop">
+            <img 
+              src={spotlightBackdrop} 
+              alt="Hero Backdrop" 
+              className="landing-rehaul-hero-img" 
+            />
+            <div className="landing-rehaul-hero-gradient" />
           </div>
-          
-          <div className="landing-hero-content">
-            <div className="landing-hero-text">
-              <div className="landing-hero-badge">
-                <Image src="/brand/logo-mark-clean.svg" alt="NerdVault logo" width={48} height={48} className="landing-badge-text" />
-                <span className="landing-badge-label">NerdVault</span>
-              </div>
-              
-              <h1 className="landing-hero-title">
-                {settings?.heroTitle || "Your Universe of"}
-                {!settings?.heroTitle && <span className="landing-hero-accent">Entertainment</span>}
-              </h1>
-              
-              <p className="landing-hero-subtitle">
-                {settings?.heroSubtitle || "The ultimate platform for tracking, discovering, and sharing everything you love. Movies, TV shows, anime, and games - all in one beautifully crafted vault."}
-              </p>
-              
-              <div className="landing-hero-stats">
-                <div className="landing-stat">
-                  <span className="landing-stat-number">3</span>
-                  <span className="landing-stat-label">Media Sources</span>
-                </div>
-                <div className="landing-stat">
-                  <span className="landing-stat-number">4</span>
-                  <span className="landing-stat-label">Content Types</span>
-                </div>
-                <div className="landing-stat">
-                  <span className="landing-stat-number">1</span>
-                  <span className="landing-stat-label">Unified Experience</span>
-                </div>
-              </div>
-              
-              <div className="landing-hero-actions">
-                {isSignedIn ? (
-                  <div className="landing-actions-authenticated">
-                    <Link href="/home" className="landing-cta landing-cta-primary">
-                      Open Your Vault
-                    </Link>
-                    <BrowseResetLink className="landing-cta landing-cta-secondary">
-                      Discover
-                    </BrowseResetLink>
-                    <Link href="/books" className="landing-cta landing-cta-secondary">
-                      Read Stories
-                    </Link>
-                  </div>
-                ) : (
-                  <div className="landing-actions-guest">
-                    <Link href="/sign-in" className="landing-cta landing-cta-primary">
-                      Start Your Collection
-                    </Link>
-                    <BrowseResetLink className="landing-cta landing-cta-secondary">
-                      Browse Free
-                    </BrowseResetLink>
-                    <Link href="/books" className="landing-cta landing-cta-secondary">
-                      Read Stories
-                    </Link>
-                  </div>
-                )}
-              </div>
 
-              <form action="/browse" method="GET" className="landing-quick-search glass">
+          <div className="landing-rehaul-hero-content">
+            <div className="hero-disclaimer-tip">
+              <Info size={16} className="disclaimer-icon" />
+              <span>
+                <strong>NerdVault is a catalog diary & logging site</strong> — a place to track and review what you watch or play. We do not offer streaming or video play services.
+              </span>
+            </div>
+
+            {spotlightItem ? (
+              <>
+                <div className="spotlight-badge">
+                  Spotlight {spotlightTypeLabel}
+                </div>
+                
+                <h1 className="landing-rehaul-hero-title">
+                  {spotlightItem.title}
+                </h1>
+
+                <div className="landing-rehaul-hero-meta">
+                  {spotlightRating && (
+                    <span className="meta-rating">
+                      <Star size={16} fill="currentColor" /> {spotlightRating}
+                    </span>
+                  )}
+                  {spotlightItem.year && (
+                    <span className="meta-year">{spotlightItem.year}</span>
+                  )}
+                  {spotlightGenres.length > 0 && (
+                    <div className="meta-genres">
+                      {spotlightGenres.map((genre, idx) => (
+                        <span key={genre} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                          {idx > 0 && <span className="genre-dot" />}
+                          {genre}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <p className="landing-rehaul-hero-desc">
+                  {spotlightItem.overview}
+                </p>
+
+                <div className="landing-rehaul-hero-actions">
+                  <Link 
+                    href={`/media/${spotlightItem.slug}`} 
+                    className="rehaul-btn rehaul-btn-primary"
+                  >
+                    <Play size={18} fill="currentColor" /> View Details
+                  </Link>
+                  {spotlightItem.details?.trailerUrl && (
+                    <Link 
+                      href={`/media/${spotlightItem.slug}?autoplay=true`}
+                      className="rehaul-btn rehaul-btn-secondary"
+                    >
+                      Watch Trailer
+                    </Link>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <h1 className="landing-rehaul-hero-title">
+                  Your Universe of <span>Entertainment</span>
+                </h1>
+                <p className="landing-rehaul-hero-desc" style={{ color: '#8a94ad' }}>
+                  The ultimate hub for tracking, discovering, and logging everything you love. Movies, TV shows, anime, games, and books - all in one unified, beautifully designed vault.
+                </p>
+              </>
+            )}
+
+            {/* Quick Search Box */}
+            <div className="landing-rehaul-search-box">
+              <form action="/browse" method="GET" className="rehaul-search-form">
                 <input type="hidden" name="focus" value="results" />
-                <input
-                  type="search"
-                  name="query"
-                  placeholder="Search movies, anime, games, shows..."
-                  aria-label="Quick search"
+                <input 
+                  type="search" 
+                  name="query" 
+                  className="rehaul-search-input"
+                  placeholder="Search movies, anime, games, shows..." 
                   required
                 />
-                <button type="submit" className="landing-cta landing-cta-primary">
-                  Search Now
+                <button type="submit" className="rehaul-search-btn">
+                  <Search size={18} /> Search
                 </button>
               </form>
-
-              <div className="landing-quick-actions">
-                <Link href="/browse?focus=results&mediaType=movie" className="landing-quick-chip">Movies</Link>
-                <Link href="/browse?focus=results&mediaType=show" className="landing-quick-chip">Shows</Link>
-                <Link href="/browse?focus=results&mediaType=anime" className="landing-quick-chip">Anime</Link>
-                <Link href="/browse?focus=results&mediaType=game" className="landing-quick-chip">Games</Link>
-                <Link href="/home?tab=media" className="landing-quick-chip">Your Media</Link>
-              </div>
-            </div>
-            
-            <div className="landing-hero-visual">
-              <div className="landing-vault-icon">
-                <div className="vault-ring vault-ring-outer" />
-                <div className="vault-ring vault-ring-middle" />
-                <div className="vault-ring vault-ring-inner" />
-                <div className="vault-core">
-                  <Image src="/brand/logo-mark-clean.svg" alt="NerdVault logo" width={92} height={92} className="vault-text" />
-                </div>
-              </div>
-              <div className="landing-particles">
-                <div className="particle particle-1" />
-                <div className="particle particle-2" />
-                <div className="particle particle-3" />
-                <div className="particle particle-4" />
+              
+              <div className="rehaul-search-suggestions">
+                <span>Try:</span>
+                <Link href={`/browse?focus=results&query=${encodeURIComponent(suggestedMovie)}`} className="suggestion-link">{suggestedMovie}</Link>
+                <Link href={`/browse?focus=results&query=${encodeURIComponent(suggestedGame)}`} className="suggestion-link">{suggestedGame}</Link>
+                <Link href={`/browse?focus=results&query=${encodeURIComponent(suggestedAnime)}`} className="suggestion-link">{suggestedAnime}</Link>
+                <Link href={`/books?query=${encodeURIComponent(suggestedBook)}`} className="suggestion-link">{suggestedBook}</Link>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Features Section */}
-        <section className="landing-features">
-          <div className="landing-features-container">
-            <div className="landing-features-header">
-              <h2 className="landing-features-title">Everything You Need in One Place</h2>
-              <p className="landing-features-subtitle">
-                Powerful features designed for entertainment enthusiasts who demand the best
-              </p>
+        {/* 2. DYNAMIC QUICK SHORTCUTS GRID */}
+        <section className="landing-rehaul-shortcuts">
+          <div className="shortcuts-grid">
+            <Link href="/browse?focus=results&mediaType=movie" className="shortcut-card movie-card">
+              <div className="shortcut-icon-shell">
+                <Film size={20} />
+              </div>
+              <div className="shortcut-text">
+                <h4 className="shortcut-title">Movies</h4>
+                <span className="shortcut-desc">Log ratings & review films</span>
+              </div>
+            </Link>
+
+            <Link href="/browse?focus=results&mediaType=show" className="shortcut-card show-card">
+              <div className="shortcut-icon-shell">
+                <Tv size={20} />
+              </div>
+              <div className="shortcut-text">
+                <h4 className="shortcut-title">TV Shows</h4>
+                <span className="shortcut-desc">Track season progress & episodes</span>
+              </div>
+            </Link>
+
+            <Link href="/browse?focus=results&mediaType=anime" className="shortcut-card anime-card">
+              <div className="shortcut-icon-shell">
+                <Sparkles size={20} />
+              </div>
+              <div className="shortcut-text">
+                <h4 className="shortcut-title">Anime</h4>
+                <span className="shortcut-desc">Follow sub/dub airing seasons</span>
+              </div>
+            </Link>
+
+            <Link href="/browse?focus=results&mediaType=game" className="shortcut-card game-card">
+              <div className="shortcut-icon-shell">
+                <Gamepad2 size={20} />
+              </div>
+              <div className="shortcut-text">
+                <h4 className="shortcut-title">Video Games</h4>
+                <span className="shortcut-desc">Manage backlogs & systems</span>
+              </div>
+            </Link>
+
+            <Link href="/books" className="shortcut-card book-card">
+              <div className="shortcut-icon-shell">
+                <BookOpen size={20} />
+              </div>
+              <div className="shortcut-text">
+                <h4 className="shortcut-title">Books</h4>
+                <span className="shortcut-desc">Read classic literature free</span>
+              </div>
+            </Link>
+          </div>
+        </section>
+
+        {/* 3. DYNAMIC MEDIA TRACKS / HORIZONTAL SCROLL CAROUSELS */}
+        <section className="landing-rehaul-sections">
+          
+          {/* TRACK 1: TRENDING MOVIES */}
+          {movies.length > 0 && (
+            <div className="media-section">
+              <div className="media-section-header">
+                <div className="media-section-title-group">
+                  <h2 className="media-section-title">
+                    <Film size={22} className="text-accent" /> Trending Movies
+                  </h2>
+                  <p className="media-section-subtitle">
+                    Log and review what you watch. Add top movies to your custom folders.
+                  </p>
+                </div>
+                <Link href="/browse?mediaType=movie" className="media-section-view-all">
+                  Browse Movies <ArrowRight size={16} />
+                </Link>
+              </div>
+
+              <div className="media-rail-viewport">
+                <div className="media-rail-track">
+                  {movies.map((item) => (
+                    <MediaCard key={item.id} item={item} />
+                  ))}
+                </div>
+              </div>
             </div>
-            
-            <div className="landing-features-grid">
-              <div className="landing-feature-card">
-                <div className="feature-icon feature-icon-database">
-                  <div className="feature-icon-bg" />
-                  <span className="feature-icon-symbol">Database</span>
+          )}
+
+          {/* TRACK 2: POPULAR TV SHOWS */}
+          {shows.length > 0 && (
+            <div className="media-section">
+              <div className="media-section-header">
+                <div className="media-section-title-group">
+                  <h2 className="media-section-title">
+                    <Tv size={22} className="text-accent" /> Popular TV Shows
+                  </h2>
+                  <p className="media-section-subtitle">
+                    Track airing statuses, seasonal episode progress, and never lose your spot.
+                  </p>
                 </div>
-                <h3 className="feature-title">Rich Media Database</h3>
-                <p className="feature-description">
-                  Powered by TMDB, AniList, and IGDB for comprehensive coverage across movies, shows, anime, and games
-                </p>
-                <div className="feature-tech">
-                  <span className="tech-badge">TMDB</span>
-                  <span className="tech-badge">AniList</span>
-                  <span className="tech-badge">IGDB</span>
+                <Link href="/browse?mediaType=show" className="media-section-view-all">
+                  Browse Shows <ArrowRight size={16} />
+                </Link>
+              </div>
+
+              <div className="media-rail-viewport">
+                <div className="media-rail-track">
+                  {shows.map((item) => (
+                    <MediaCard key={item.id} item={item} />
+                  ))}
                 </div>
               </div>
-              
-              <div className="landing-feature-card">
-                <div className="feature-icon feature-icon-organization">
-                  <div className="feature-icon-bg" />
-                  <span className="feature-icon-symbol">Folders</span>
+            </div>
+          )}
+
+          {/* TRACK 3: TRENDING ANIME */}
+          {anime.length > 0 && (
+            <div className="media-section">
+              <div className="media-section-header">
+                <div className="media-section-title-group">
+                  <h2 className="media-section-title">
+                    <Sparkles size={22} className="text-accent" /> Top Anime
+                  </h2>
+                  <p className="media-section-subtitle">
+                    From classics to currently airing seasonal series, log your favorites.
+                  </p>
                 </div>
-                <h3 className="feature-title">Smart Organization</h3>
-                <p className="feature-description">
-                  Custom folders, watched lists, and wishlist management that adapts to your preferences
-                </p>
-                <div className="feature-tech">
-                  <span className="tech-badge">Custom</span>
-                  <span className="tech-badge">Smart</span>
-                  <span className="tech-badge">Flexible</span>
+                <Link href="/browse?mediaType=anime" className="media-section-view-all">
+                  Browse Anime <ArrowRight size={16} />
+                </Link>
+              </div>
+
+              <div className="media-rail-viewport">
+                <div className="media-rail-track">
+                  {anime.map((item) => (
+                    <MediaCard key={item.id} item={item} />
+                  ))}
                 </div>
               </div>
-              
-              <div className="landing-feature-card">
-                <div className="feature-icon feature-icon-social">
-                  <div className="feature-icon-bg" />
-                  <span className="feature-icon-symbol">Social</span>
+            </div>
+          )}
+
+          {/* TRACK 4: FEATURED VIDEO GAMES */}
+          {games.length > 0 && (
+            <div className="media-section">
+              <div className="media-section-header">
+                <div className="media-section-title-group">
+                  <h2 className="media-section-title">
+                    <Gamepad2 size={22} className="text-accent" /> Top Video Games
+                  </h2>
+                  <p className="media-section-subtitle">
+                    Manage your backlog, track played hours, and filter games across all devices.
+                  </p>
                 </div>
-                <h3 className="feature-title">Social Discovery</h3>
-                <p className="feature-description">
-                  Connect with friends, share recommendations, and explore collections from like-minded users
+                <Link href="/browse?mediaType=game" className="media-section-view-all">
+                  Browse Games <ArrowRight size={16} />
+                </Link>
+              </div>
+
+              <div className="media-rail-viewport">
+                <div className="media-rail-track">
+                  {games.map((item) => (
+                    <MediaCard key={item.id} item={item} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TRACK 5: LIT CLASSICS (BOOKS) */}
+          {books.length > 0 && (
+            <div className="media-section">
+              <div className="media-section-header">
+                <div className="media-section-title-group">
+                  <h2 className="media-section-title">
+                    <BookOpen size={22} className="text-accent" /> Classic Reading Room
+                  </h2>
+                  <p className="media-section-subtitle">
+                    Project Gutenberg classics: read in-app with progress saving, no distractions.
+                  </p>
+                </div>
+                <Link href="/books" className="media-section-view-all">
+                  Open Library <ArrowRight size={16} />
+                </Link>
+              </div>
+
+              <div className="media-rail-viewport">
+                <div className="media-rail-track">
+                  {books.map((book) => (
+                    <BookCard key={book.id} book={book} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* 4. THE UNIFIED EXPERIENCE CONCEPT SHOWCASE */}
+        <section className="landing-rehaul-showcase">
+          <div className="showcase-header">
+            <span className="showcase-eyebrow">All-In-One Vault</span>
+            <h2 className="showcase-title">Why Track on Five Niche Sites?</h2>
+            <p className="showcase-subtitle">
+              NerdVault merges the features of specialized tracking sites into one unified space, customized with high-end statistics and custom folders.
+            </p>
+          </div>
+
+          <div className="showcase-features-grid">
+            <div className="showcase-feature-card">
+              <div className="showcase-feature-icon-box">
+                <Film size={24} />
+              </div>
+              <div className="showcase-feature-info">
+                <h3 className="showcase-feature-title">Movies & TV (Letterboxd Style)</h3>
+                <p className="showcase-feature-desc">
+                  Rate what you watch, add reviews, and save titles. Access release dates, cast credits, and trailers immediately.
                 </p>
-                <div className="feature-tech">
-                  <span className="tech-badge">Friends</span>
-                  <span className="tech-badge">Share</span>
-                  <span className="tech-badge">Discover</span>
-                </div>
+              </div>
+              <div className="showcase-feature-footer">
+                <span className="showcase-badge">Ratings</span>
+                <span className="showcase-badge">Reviews</span>
+                <span className="showcase-badge">Watchlists</span>
+              </div>
+            </div>
+
+            <div className="showcase-feature-card">
+              <div className="showcase-feature-icon-box">
+                <Gamepad2 size={24} />
+              </div>
+              <div className="showcase-feature-info">
+                <h3 className="showcase-feature-title">Games (Backloggd Style)</h3>
+                <p className="showcase-feature-desc">
+                  Move games from backlog to wishlist or completed. Filter by platforms, studios, and log played stats.
+                </p>
+              </div>
+              <div className="showcase-feature-footer">
+                <span className="showcase-badge">Backlog</span>
+                <span className="showcase-badge">Play Status</span>
+                <span className="showcase-badge">Platforms</span>
+              </div>
+            </div>
+
+            <div className="showcase-feature-card">
+              <div className="showcase-feature-icon-box">
+                <FolderHeart size={24} />
+              </div>
+              <div className="showcase-feature-info">
+                <h3 className="showcase-feature-title">Smart Folders & Playlists</h3>
+                <p className="showcase-feature-desc">
+                  Organize cross-media items together. Make a folder for &quot;Sci-Fi Favorites&quot; with films, books, and games side-by-side.
+                </p>
+              </div>
+              <div className="showcase-feature-footer">
+                <span className="showcase-badge">Custom Folders</span>
+                <span className="showcase-badge">Cross-Media</span>
+                <span className="showcase-badge">Private Lists</span>
               </div>
             </div>
           </div>
         </section>
 
-        {/* TV Shows Section */}
-        <section className="landing-tv-shows">
-          <div className="landing-tv-shows-container">
-            <div className="tv-shows-header">
-              <h2 className="tv-shows-title">Your TV Show Hub</h2>
-              <p className="tv-shows-subtitle">
-                Track every episode, manage multiple series, and never lose your place in your favorite shows
-              </p>
-            </div>
-            
-            <div className="tv-shows-grid">
-              <div className="tv-show-card tv-shows-tracking">
-                <div className="tv-show-icon">
-                  <div className="tv-show-icon-bg" />
-                  <span className="tv-show-icon-symbol">Track</span>
-                </div>
-                <h3 className="tv-show-title">Episode Tracking</h3>
-                <p className="tv-show-description">
-                  Keep perfect track of where you are in every series with automatic progress tracking and season management
+        {/* 5. GUEST / MEMBER CTA CALL */}
+        <section className="landing-rehaul-cta">
+          <div className="cta-box-glow">
+            {isSignedIn ? (
+              <>
+                <h2 className="cta-box-title">Welcome Back, {userName}!</h2>
+                <p className="cta-box-subtitle">
+                  Ready to manage your archives? Pick up where you left off or search for new additions to log.
                 </p>
-                <div className="tv-show-features">
-                  <span className="tv-show-feature">Season Progress</span>
-                  <span className="tv-show-feature">Episode History</span>
-                  <span className="tv-show-feature">Watch Status</span>
+                <div className="cta-box-actions">
+                  <Link href="/home" className="rehaul-btn rehaul-btn-primary">
+                    Open Your Vault
+                  </Link>
+                  <BrowseResetLink className="rehaul-btn rehaul-btn-secondary">
+                    Browse Catalog
+                  </BrowseResetLink>
                 </div>
-              </div>
-              
-              <div className="tv-show-card tv-shows-discovery">
-                <div className="tv-show-icon">
-                  <div className="tv-show-icon-bg" />
-                  <span className="tv-show-icon-symbol">Discover</span>
-                </div>
-                <h3 className="tv-show-title">Smart Discovery</h3>
-                <p className="tv-show-description">
-                  Find your next binge with AI-powered recommendations based on your viewing history and preferences
+              </>
+            ) : (
+              <>
+                <h2 className="cta-box-title">Ready to build your vault?</h2>
+                <p className="cta-box-subtitle">
+                  Join NerdVault for free to organize your movies, shows, anime, games, and books. Connect with friends and review lists.
                 </p>
-                <div className="tv-show-features">
-                  <span className="tv-show-feature">Personalized</span>
-                  <span className="tv-show-feature">Trending Shows</span>
-                  <span className="tv-show-feature">Genre Matching</span>
+                <div className="cta-box-actions">
+                  <Link href="/sign-in" className="rehaul-btn rehaul-btn-primary">
+                    Start Your Collection
+                  </Link>
+                  <BrowseResetLink className="rehaul-btn rehaul-btn-secondary">
+                    Try Demo
+                  </BrowseResetLink>
                 </div>
-              </div>
-              
-              <div className="tv-show-card tv-shows-management">
-                <div className="tv-show-icon">
-                  <div className="tv-show-icon-bg" />
-                  <span className="tv-show-icon-symbol">Manage</span>
-                </div>
-                <h3 className="tv-show-title">Series Management</h3>
-                <p className="tv-show-description">
-                  Organize your shows with custom lists, watch queues, and smart folders for perfect content curation
-                </p>
-                <div className="tv-show-features">
-                  <span className="tv-show-feature">Custom Lists</span>
-                  <span className="tv-show-feature">Watch Queue</span>
-                  <span className="tv-show-feature">Smart Folders</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+              </>
+            )}
 
-        {/* Platform Section */}
-        <section className="landing-platforms">
-          <div className="landing-platforms-container">
-            <div className="platforms-header">
-              <h2 className="platforms-title">For Every Type of Fan</h2>
-              <p className="platforms-subtitle">
-                Tailored experiences for different entertainment preferences
-              </p>
-            </div>
-            
-            <div className="platforms-grid">
-              <div className="platform-card platform-movies">
-                <div className="platform-icon">films</div>
-                <h3 className="platform-title">Movie & TV Fans</h3>
-                <p className="platform-description">
-                  Track your watch history, create custom lists, and discover new shows with intelligent recommendations
-                </p>
-                <div className="platform-features">
-                  <span className="platform-feature">Watch Tracking</span>
-                  <span className="platform-feature">Smart Lists</span>
-                  <span className="platform-feature">AI Recommendations</span>
-                </div>
-              </div>
-              
-              <div className="platform-card platform-anime">
-                <div className="platform-icon">anime</div>
-                <h3 className="platform-title">Anime Enthusiasts</h3>
-                <p className="platform-description">
-                  Organize your anime collection, follow series progress, and connect with fellow anime fans
-                </p>
-                <div className="platform-features">
-                  <span className="platform-feature">Series Tracking</span>
-                  <span className="platform-feature">Episode Progress</span>
-                  <span className="platform-feature">Community</span>
-                </div>
-              </div>
-              
-              <div className="platform-card platform-games">
-                <div className="platform-icon">games</div>
-                <h3 className="platform-title">Gamers</h3>
-                <p className="platform-description">
-                  Log your gaming journey, manage your backlog, and discover new games across all platforms
-                </p>
-                <div className="platform-features">
-                  <span className="platform-feature">Game Library</span>
-                  <span className="platform-feature">Backlog Management</span>
-                  <span className="platform-feature">Cross-Platform</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* CTA Section */}
-        <section className="landing-final-cta">
-          <div className="landing-cta-container">
-            <div className="cta-content">
-              <h2 className="cta-title">Ready to Build Your Collection?</h2>
-              <p className="cta-subtitle">
-                Join thousands of entertainment enthusiasts who've already discovered the better way to track their media
-              </p>
-              
-              <div className="cta-actions">
-                {isSignedIn ? (
-                  <div className="cta-authenticated">
-                    <Link href="/home" className="cta-button cta-primary">
-                      Open Your Vault
-                    </Link>
-                    <Link href="/home?tab=media" className="cta-button cta-secondary">
-                      Open Media
-                    </Link>
-                  </div>
-                ) : (
-                  <div className="cta-guest">
-                    <Link href="/sign-in" className="cta-button cta-primary">
-                      Get Started Free
-                    </Link>
-                    <BrowseResetLink className="cta-button cta-secondary">
-                      Try Demo
-                    </BrowseResetLink>
-                  </div>
-                )}
-              </div>
-              <div className="landing-cta-note">
-                <span>Track what you finished.</span>
-                <span>Find the next thing faster.</span>
-                <span>Keep every universe in one vault.</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="landing-features">
-          <div className="landing-features-container">
-            <div className="landing-features-header">
-              <h2 className="landing-features-title">A Separate Reading Room</h2>
-              <p className="landing-features-subtitle">
-                Books live in their own quiet space with in-app reading, resume tracking, and a softer atmosphere.
-              </p>
-            </div>
-
-            <div className="landing-features-grid">
-              <div className="landing-feature-card">
-                <div className="feature-icon feature-icon-database">
-                  <div className="feature-icon-bg" />
-                  <span className="feature-icon-symbol">Stories</span>
-                </div>
-                <h3 className="feature-title">Project Gutenberg Library</h3>
-                <p className="feature-description">
-                  Explore a huge library of free classics, surfaced through a dedicated books interface rather than the main media browse.
-                </p>
-                <div className="feature-tech">
-                  <span className="tech-badge">75k+ ebooks</span>
-                  <span className="tech-badge">Separate UX</span>
-                  <span className="tech-badge">Reading-first</span>
-                </div>
-              </div>
-
-              <div className="landing-feature-card">
-                <div className="feature-icon feature-icon-organization">
-                  <div className="feature-icon-bg" />
-                  <span className="feature-icon-symbol">Resume</span>
-                </div>
-                <h3 className="feature-title">Continue Where You Stopped</h3>
-                <p className="feature-description">
-                  The reader saves your position automatically so reopening a title brings you back to the same place.
-                </p>
-                <div className="feature-tech">
-                  <span className="tech-badge">Auto-save</span>
-                  <span className="tech-badge">Smooth reader</span>
-                  <span className="tech-badge">Private tracking</span>
-                </div>
-              </div>
-
-              <div className="landing-feature-card">
-                <div className="feature-icon feature-icon-social">
-                  <div className="feature-icon-bg" />
-                  <span className="feature-icon-symbol">Calm</span>
-                </div>
-                <h3 className="feature-title">No Noise, Just Reading</h3>
-                <p className="feature-description">
-                  No ratings, no recommendations to friends, and no main-app crossover. Save titles quietly and read inside the site.
-                </p>
-                <div className="feature-tech">
-                  <span className="tech-badge">Wishlist only</span>
-                  <span className="tech-badge">No social layer</span>
-                  <span className="tech-badge">Focused space</span>
-                </div>
-              </div>
+            <div className="cta-bullets-note">
+              <span>No credit cards</span>
+              <span>Fully responsive</span>
+              <span>Connect with friends</span>
             </div>
           </div>
         </section>
 
         {/* Footer */}
-        <footer className="landing-footer">
-          <div className="landing-footer-container">
-            <div className="landing-footer-brand">
-              <Image src="/brand/logo-mark-clean.svg" alt="NerdVault logo" width={28} height={28} className="landing-footer-logo" />
-              <span className="landing-footer-name">NerdVault</span>
+        <footer className="landing-rehaul-footer">
+          <div className="footer-rehaul-container">
+            <div className="footer-rehaul-logo-row">
+              <Image 
+                src="/brand/logo-mark-clean.svg" 
+                alt="NerdVault logo" 
+                width={28} 
+                height={28} 
+              />
+              <span className="footer-rehaul-logo-text">NerdVault</span>
             </div>
-            <p className="landing-footer-copy">
-              Your universe of entertainment. Movies, TV shows, anime, and games - all in one vault.
+            
+            <p className="footer-rehaul-tagline">
+              Your universe of entertainment. Log what hit. Queue what calls next.
+            </p>
+
+            <div className="footer-rehaul-links">
+              <BrowseResetLink className="footer-rehaul-link">Browse</BrowseResetLink>
+              <Link href="/support" className="footer-rehaul-link">Support</Link>
+              <Link href="/books" className="footer-rehaul-link">Books Room</Link>
+              {isSignedIn ? (
+                <Link href="/home" className="footer-rehaul-link">Vault</Link>
+              ) : (
+                <Link href="/sign-in" className="footer-rehaul-link">Sign In</Link>
+              )}
+            </div>
+
+            <p className="footer-rehaul-copy">
+              &copy; {new Date().getFullYear()} NerdVault. Built with passion for enthusiasts.
             </p>
           </div>
         </footer>
@@ -426,3 +548,68 @@ export default async function HomePage() {
   );
 }
 
+// Sub-components to keep code clean and maintainable
+
+function MediaCard({ item }: { item: MediaItem }) {
+  const ratingVal = item.rating ? item.rating.toFixed(1) : null;
+  const yearVal = item.year || null;
+  const isShow = item.type === "show";
+  const displayType = isShow ? "TV" : item.type;
+
+  return (
+    <Link href={`/media/${item.slug}`} className="rehaul-media-card">
+      <div className="rehaul-media-poster-wrapper">
+        {ratingVal && (
+          <span className="card-floating-badge">
+            ★ {ratingVal}
+          </span>
+        )}
+        <span className="card-floating-badge badge-type">
+          {displayType}
+        </span>
+        <img 
+          src={item.coverUrl || "/fallback-poster.jpg"} 
+          alt={item.title} 
+          className="rehaul-media-poster"
+          loading="lazy"
+        />
+        <div className="rehaul-media-poster-overlay">
+          <span className="overlay-quick-view">View Details &rarr;</span>
+        </div>
+      </div>
+      <h3 className="rehaul-media-card-title">{item.title}</h3>
+      <div className="rehaul-media-card-meta">
+        {yearVal && <span className="rehaul-media-card-year">{yearVal}</span>}
+      </div>
+    </Link>
+  );
+}
+
+function BookCard({ book }: { book: BookSummary }) {
+  const authorName = book.authors[0] || "Unknown Author";
+
+  return (
+    <Link href={`/books/${book.id}`} className="rehaul-media-card book-card-item">
+      <div className="rehaul-media-poster-wrapper">
+        <span className="card-floating-badge badge-type">
+          Book
+        </span>
+        <img 
+          src={book.coverUrl || "/fallback-book-cover.jpg"} 
+          alt={book.title} 
+          className="rehaul-media-poster"
+          loading="lazy"
+        />
+        <div className="rehaul-media-poster-overlay">
+          <span className="overlay-quick-view">Read Book &rarr;</span>
+        </div>
+      </div>
+      <h3 className="rehaul-media-card-title">{book.title}</h3>
+      <div className="rehaul-media-card-meta">
+        <span className="rehaul-media-card-year" style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
+          {authorName}
+        </span>
+      </div>
+    </Link>
+  );
+}
