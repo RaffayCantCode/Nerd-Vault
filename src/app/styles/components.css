@@ -2041,7 +2041,7 @@ html {
   }
 
   .catalog-card {
-    min-height: 282px;
+    min-height: 0 !important;
   }
 }
 

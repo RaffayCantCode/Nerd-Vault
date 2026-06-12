@@ -2,10 +2,8 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { signOutUser } from "@/app/sign-in/sign-out-action";
 import { BrandLogo } from "@/components/brand-logo";
-import { SidebarFolders } from "@/components/sidebar-folders";
 import { BrowseResetLink } from "@/components/browse-reset-link";
 import { SidebarShell } from "@/components/sidebar-shell";
-import { StoredFolder } from "@/lib/vault-types";
 
 function IconHome() {
   return (
@@ -77,6 +75,14 @@ function IconPeople() {
   );
 }
 
+function IconList() {
+  return (
+    <svg className="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M4 6h16M4 10h16M4 14h10M4 18h7" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function IconDoor() {
   return (
     <svg className="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -99,11 +105,10 @@ function IconLeave() {
 
 type AppSidebarProps = {
   active: "vault" | "browse" | "books" | "activity" | "friends";
-  initialFolders?: StoredFolder[];
   redirectTo?: string;
 };
 
-export async function AppSidebar({ active, initialFolders = [], redirectTo = "/home" }: AppSidebarProps) {
+export async function AppSidebar({ active, redirectTo = "/home" }: AppSidebarProps) {
   const session = await auth().catch((error) => {
     console.error("Auth session failed to load in app sidebar:", error);
     return null;
@@ -167,14 +172,13 @@ export async function AppSidebar({ active, initialFolders = [], redirectTo = "/h
             <IconPeople />
             <span className="sidebar-nav-label">Friends</span>
           </Link>
+
         </nav>
 
         <div className="sidebar-rail-divider" />
 
-        <div className="sidebar-rail-stack" aria-label="Folders">
-          {shouldShowSignOut ? (
-            <SidebarFolders initialFolders={initialFolders} />
-          ) : (
+        <div className="sidebar-rail-stack" aria-label="Sign in">
+          {!shouldShowSignOut ? (
             <Link
               href={`/sign-in?redirectTo=${encodeURIComponent(redirectTo)}`}
               className="sidebar-nav-button"
@@ -185,7 +189,7 @@ export async function AppSidebar({ active, initialFolders = [], redirectTo = "/h
               <IconDoor />
               <span className="sidebar-nav-label">Sign in</span>
             </Link>
-          )}
+          ) : null}
         </div>
 
         {shouldShowSignOut ? (

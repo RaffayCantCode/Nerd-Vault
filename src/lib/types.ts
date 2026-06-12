@@ -50,3 +50,9 @@ export type MediaItem = {
     externalLinks?: Array<{ name: string; url: string }>;
   };
 };
+
+export type CuratedSection = {
+  id: string;
+  title: string;
+  items: MediaItem[];
+};

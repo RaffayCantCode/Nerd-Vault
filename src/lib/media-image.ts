@@ -37,8 +37,17 @@ function optimizeIgdbImage(url: URL, intent: MediaImageIntent) {
 
 function optimizeAnilistImage(url: URL, intent: MediaImageIntent) {
   const bucket = ANILIST_COVER_SIZES[intent];
-  if (/\/cover\/(extraLarge|large|medium)\//i.test(url.pathname)) {
-    url.pathname = url.pathname.replace(/\/cover\/(extraLarge|large|medium)\//i, `/cover/${bucket}/`);
+  const match = url.pathname.match(/\/cover\/(extraLarge|large|medium)\//i);
+  if (match) {
+    const originalBucket = match[1].toLowerCase();
+    const order = ["medium", "large", "extralarge"];
+    const originalIndex = order.indexOf(originalBucket);
+    const targetIndex = order.indexOf(bucket.toLowerCase());
+    
+    // Only downscale or keep the same size. Never upscale to avoid 404.
+    if (targetIndex <= originalIndex && originalIndex !== -1 && targetIndex !== -1) {
+      url.pathname = url.pathname.replace(/\/cover\/(extraLarge|large|medium)\//i, `/cover/${bucket}/`);
+    }
   }
   return url.toString();
 }

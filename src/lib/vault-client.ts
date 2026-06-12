@@ -1,7 +1,7 @@
 "use client";
 
 import { MediaItem } from "@/lib/types";
-import { LibraryState, PrivacyLevel, StoredFolder, VaultProfilePayload } from "@/lib/vault-types";
+import { LibraryState, PrivacyLevel, StoredList, VaultProfilePayload } from "@/lib/vault-types";
 
 const VAULT_EVENT = "nerdvault-data-change";
 const CACHE_TTL_MS = 60000;
@@ -115,10 +115,12 @@ export async function fetchLibraryState(): Promise<LibraryState> {
   return withCachedRequest("library", async () => {
     const response = await fetch("/api/library", { cache: "no-store" });
     const payload = await readJson<LibraryState & { ok: true }>(response);
+    const lists = payload.lists ?? payload.folders ?? [];
     return {
       watched: payload.watched,
       wishlist: payload.wishlist,
-      folders: payload.folders,
+      lists,
+      folders: lists,
     };
   });
 }
@@ -127,7 +129,9 @@ export async function fetchProfilePayload(userId?: string): Promise<VaultProfile
   const params = userId ? `?user=${encodeURIComponent(userId)}` : "";
   return withCachedRequest(`profile:${params || "self"}`, async () => {
     const response = await fetch(`/api/profile${params}`, { cache: "no-store" });
-    return readJson<VaultProfilePayload & { ok: true }>(response);
+    const payload = await readJson<VaultProfilePayload & { ok: true }>(response);
+    const lists = payload.lists ?? payload.folders ?? [];
+    return { ...payload, lists, folders: lists };
   });
 }
 
@@ -171,7 +175,8 @@ export async function addMediaToWatched(item: MediaItem, review?: { rating?: num
       ...current.watched.filter((entry) => !(entry.source === item.source && entry.sourceId === item.sourceId)),
     ],
     wishlist: current.wishlist.filter((entry) => !(entry.source === item.source && entry.sourceId === item.sourceId)),
-    folders: current.folders,
+    lists: current.lists,
+    folders: current.lists,
   }));
 }
 
@@ -209,88 +214,110 @@ export async function removeMediaFromWishlist(item: MediaItem) {
   }));
 }
 
-export async function createLibraryFolder(input: { name: string; description?: string; coverUrl?: string }) {
-  const payload = await mutate<{ ok: true; folder: Omit<StoredFolder, "items"> }>("/api/library/folders", {
+export async function createUserList(input: { name: string; description?: string; coverUrl?: string; visibility?: PrivacyLevel }) {
+  const payload = await mutate<{ ok: true; list?: Omit<StoredList, "items">; folder?: Omit<StoredList, "items"> }>("/api/library/lists", {
     method: "POST",
     body: JSON.stringify(input),
   }, { emitChange: false });
-  const folder = payload.folder;
+  const list = (payload.list ?? payload.folder) as Omit<StoredList, "items">;
   syncLibraryCache((current) => ({
     ...current,
-    folders: [
+    lists: [
       {
-        ...folder,
+        ...list,
         items: [],
       },
-      ...current.folders,
+      ...(current.lists ?? []),
+    ],
+    folders: [
+      {
+        ...list,
+        items: [],
+      },
+      ...(current.lists ?? []),
     ],
   }));
-  return folder;
+  return list;
 }
 
-export async function saveFolder(folderId: string, input: {
+/** @deprecated Use createUserList */
+export const createLibraryFolder = createUserList;
+
+export async function saveUserList(listId: string, input: {
   name?: string;
   description?: string;
   coverUrl?: string;
   visibility?: PrivacyLevel;
 }) {
-  await mutate(`/api/library/folders/${encodeURIComponent(folderId)}`, {
+  await mutate(`/api/library/lists/${encodeURIComponent(listId)}`, {
     method: "PATCH",
     body: JSON.stringify(input),
   });
 }
 
-export async function deleteLibraryFolder(folderId: string) {
-  await mutate(`/api/library/folders/${encodeURIComponent(folderId)}`, {
+/** @deprecated Use saveUserList */
+export const saveFolder = saveUserList;
+
+export async function deleteUserList(listId: string) {
+  await mutate(`/api/library/lists/${encodeURIComponent(listId)}`, {
     method: "DELETE",
   }, { emitChange: false });
-  syncLibraryCache((current) => ({
-    ...current,
-    folders: current.folders.filter((folder) => folder.id !== folderId),
-  }));
+  syncLibraryCache((current) => {
+    const next = (current.lists ?? []).filter((list) => list.id !== listId);
+    return { ...current, lists: next, folders: next };
+  });
 }
 
-export async function addMediaToFolder(folderId: string, item: MediaItem) {
-  await mutate(`/api/library/folders/${encodeURIComponent(folderId)}/items`, {
+/** @deprecated Use deleteUserList */
+export const deleteLibraryFolder = deleteUserList;
+
+export async function addMediaToList(listId: string, item: MediaItem) {
+  await mutate(`/api/library/lists/${encodeURIComponent(listId)}/items`, {
     method: "POST",
     body: JSON.stringify({ item }),
   }, { emitChange: false });
-  syncLibraryCache((current) => ({
-    ...current,
-    folders: current.folders.map((folder) =>
-      folder.id !== folderId
-        ? folder
+  syncLibraryCache((current) => {
+    const nextLists = (current.lists ?? []).map((list) =>
+      list.id !== listId
+        ? list
         : {
-            ...folder,
+            ...list,
             items: [
               item,
-              ...folder.items.filter((entry) => !(entry.source === item.source && entry.sourceId === item.sourceId)),
+              ...list.items.filter((entry) => !(entry.source === item.source && entry.sourceId === item.sourceId)),
             ],
           }
-    ),
-  }));
+    );
+    return { ...current, lists: nextLists, folders: nextLists };
+  });
 }
 
-export async function removeMediaFromFolder(folderId: string, item: MediaItem) {
+/** @deprecated Use addMediaToList */
+export const addMediaToFolder = addMediaToList;
+
+export async function removeMediaFromList(listId: string, item: MediaItem) {
   await mutate(
-    `/api/library/folders/${encodeURIComponent(folderId)}/items?source=${encodeURIComponent(item.source)}&sourceId=${encodeURIComponent(item.sourceId)}`,
+    `/api/library/lists/${encodeURIComponent(listId)}/items?source=${encodeURIComponent(item.source)}&sourceId=${encodeURIComponent(item.sourceId)}`,
     {
       method: "DELETE",
     },
     { emitChange: false },
   );
-  syncLibraryCache((current) => ({
-    ...current,
-    folders: current.folders.map((folder) =>
-      folder.id !== folderId
-        ? folder
+  syncLibraryCache((current) => {
+    const nextLists = (current.lists ?? []).map((list) =>
+      list.id !== listId
+        ? list
         : {
-            ...folder,
-            items: folder.items.filter((entry) => !(entry.source === item.source && entry.sourceId === item.sourceId)),
+            ...list,
+            items: list.items.filter((entry) => !(entry.source === item.source && entry.sourceId === item.sourceId)),
           }
-    ),
-  }));
+    );
+    return { ...current, lists: nextLists, folders: nextLists };
+  });
 }
+
+/** @deprecated Use removeMediaFromList */
+export const removeMediaFromFolder = removeMediaFromList;
 
 export async function requestFriend(targetId: string) {
   await mutate("/api/social/friends/request", {

@@ -735,7 +735,7 @@ body {
 
 .catalog-card {
   border-radius: 20px !important;
-  min-height: 228px !important;
+  min-height: 0 !important;
 }
 
 .catalog-copy {

@@ -1,4 +1,3 @@
-import { browseRawgGames } from "@/lib/sources/rawg";
 import { browseIgdbGames } from "@/lib/sources/igdb";
 import { browseAniListAnime } from "@/lib/sources/anilist";
 import { browseTmdbCatalog } from "@/lib/sources/tmdb";
@@ -170,35 +169,17 @@ async function getBootstrapSource(source: BootstrapSource, seed: number) {
 
   const gameAttempts = await Promise.all([
     withTimeout(
-      (async () => {
-        try {
-          return await browseIgdbGames({ page: 1, query: "", genre: "", sort: "discovery", seed });
-        } catch {
-          return browseRawgGames({ page: 1, query: "", genre: "", sort: "discovery", seed });
-        }
-      })().catch(() => fallback),
+      browseIgdbGames({ page: 1, query: "", genre: "", sort: "discovery", seed }).catch(() => fallback),
       fallback,
       4000,
     ),
     withTimeout(
-      (async () => {
-        try {
-          return await browseIgdbGames({ page: 1, query: "", genre: "", sort: "rating", seed: seed + 17 });
-        } catch {
-          return browseRawgGames({ page: 1, query: "", genre: "", sort: "rating", seed: seed + 17 });
-        }
-      })().catch(() => fallback),
+      browseIgdbGames({ page: 1, query: "", genre: "", sort: "rating", seed: seed + 17 }).catch(() => fallback),
       fallback,
       4500,
     ),
     withTimeout(
-      (async () => {
-        try {
-          return await browseIgdbGames({ page: 2, query: "", genre: "", sort: "discovery", seed: seed + 23 });
-        } catch {
-          return browseRawgGames({ page: 2, query: "", genre: "", sort: "discovery", seed: seed + 23 });
-        }
-      })().catch(() => fallback),
+      browseIgdbGames({ page: 2, query: "", genre: "", sort: "discovery", seed: seed + 23 }).catch(() => fallback),
       fallback,
       4500,
     ),

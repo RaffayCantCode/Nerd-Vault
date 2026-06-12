@@ -2,19 +2,26 @@ import { MediaItem } from "@/lib/types";
 
 export type PrivacyLevel = "public" | "friends" | "private";
 
-export type StoredFolder = {
+export type StoredList = {
   id: string;
   name: string;
+  slug: string;
   description?: string;
   coverUrl?: string;
   visibility: PrivacyLevel;
   items: MediaItem[];
+  itemCount?: number;
 };
+
+/** @deprecated Use StoredList instead */
+export type StoredFolder = StoredList;
 
 export type LibraryState = {
   watched: MediaItem[];
   wishlist: MediaItem[];
-  folders: StoredFolder[];
+  lists: StoredList[];
+  /** @deprecated Use lists */
+  folders?: StoredList[];
 };
 
 export type CommunityReview = {
@@ -68,7 +75,9 @@ export type VaultProfilePayload = {
   friends: SocialProfile[];
   watched: MediaItem[];
   wishlist: MediaItem[];
-  folders: StoredFolder[];
+  lists: StoredList[];
+  /** @deprecated Use lists */
+  folders?: StoredList[];
   canSeeWatched: boolean;
   canSeeWishlist: boolean;
   viewingOwnProfile: boolean;

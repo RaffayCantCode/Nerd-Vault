@@ -185,7 +185,6 @@ export function MobileBottomNav() {
           <DockIconFriends />
           <span>Friends</span>
         </Link>
-        <FoldersDockButton foldersOpen={foldersOpen} fullPath={pathname + (searchParams.toString() ? `?${searchParams.toString()}` : "")} />
         <Link href="/home?tab=media" className={`nv-mobile-dock-link ${isProfileContext ? "is-active" : ""}`} aria-label="Profile">
           <DockIconProfile />
           <span>Profile</span>

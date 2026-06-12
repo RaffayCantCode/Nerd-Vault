@@ -1,11 +1,10 @@
 import { writeBrowsePageCache, writeBrowsePageCacheV2 } from "@/lib/browse-cache";
-import { browseFallbackGames } from "@/lib/game-fallback-catalog";
+import { seededShuffle } from "@/lib/curated-utils";
 import { getMediaFallbackImage } from "@/lib/media-fallbacks";
 import { rankCandidatesForQuery } from "@/lib/search-utils";
-import { MediaItem } from "@/lib/types";
+import { MediaItem, CuratedSection } from "@/lib/types";
 import { matchesFranchise } from "@/lib/franchise-utils";
 import { itemMatchesGenre } from "@/lib/catalog-utils";
-import { browseRawgGames } from "@/lib/sources/rawg";
 
 // Declare process.env for TypeScript
 declare const process: {
@@ -337,16 +336,13 @@ export async function browseIgdbGames(params: {
   seed?: number;
   pageSize?: number;
 }): Promise<BrowsePayload> {
-  if (!process.env?.TWITCH_APP_ACCESS_TOKEN && !process.env?.IGDB_CLIENT_ID) {
-    try {
-      const rawgResult = await browseRawgGames(params);
-      if (rawgResult.items.length > 0) {
-        return rawgResult;
-      }
-    } catch (e) {
-      console.warn("IGDB keys missing; RAWG fallback failed:", e);
-    }
-    return browseFallbackGames(params);
+  const hasKeys = Boolean(
+    process.env?.TWITCH_APP_ACCESS_TOKEN ||
+    (process.env?.IGDB_CLIENT_ID && process.env?.IGDB_CLIENT_SECRET)
+  );
+
+  if (!hasKeys) {
+    throw new Error("Game data is unavailable because Twitch/IGDB API credentials are not configured in your environment.");
   }
 
   try {
@@ -482,16 +478,8 @@ export async function browseIgdbGames(params: {
     items,
   };
   } catch (error) {
-    console.error("IGDB search/browse failed, trying RAWG fallback:", error);
-    try {
-      const rawgResult = await browseRawgGames(params);
-      if (rawgResult.items.length > 0) {
-        return rawgResult;
-      }
-    } catch (rawgError) {
-      console.error("RAWG fallback also failed:", rawgError);
-    }
-    return browseFallbackGames(params);
+    console.error("IGDB search/browse failed:", error);
+    throw error;
   }
 }
 
@@ -660,3 +648,120 @@ export async function getIgdbRelatedGamesByFranchise(gameName: string, maxResult
 
   return filteredItems.slice(0, maxResults);
 }
+
+export async function getIgdbCuratedSections(seed: number): Promise<CuratedSection[]> {
+  const hasKeys = Boolean(
+    process.env?.TWITCH_APP_ACCESS_TOKEN ||
+    (process.env?.IGDB_CLIENT_ID && process.env?.IGDB_CLIENT_SECRET)
+  );
+
+  if (!hasKeys) {
+    throw new Error("Game curated sections are unavailable because Twitch/IGDB API credentials are not configured in your environment.");
+  }
+
+  const fields = [
+    "name",
+    "slug",
+    "summary",
+    "storyline",
+    "total_rating",
+    "total_rating_count",
+    "first_release_date",
+    "cover.image_id",
+    "screenshots.image_id",
+    "artworks.image_id",
+    "genres.name",
+    "platforms.name",
+    "involved_companies.company.name",
+    "involved_companies.developer",
+    "involved_companies.publisher",
+    "status",
+    "collection.id",
+    "collection.name",
+    "franchises.id",
+    "franchises.name",
+  ].join(",");
+
+  const whereBase = [
+    "version_parent = null",
+    "cover != null",
+    "first_release_date != null",
+    "total_rating != null",
+    "total_rating_count >= 15",
+  ].join(" & ");
+
+  const fetchSection = async (
+    querySuffix: string,
+    categorySeed: number
+  ): Promise<MediaItem[]> => {
+    try {
+      const query = `fields ${fields}; where ${whereBase} & ${querySuffix}`;
+      const games = await igdbFetch<IgdbGame[]>(query);
+      const mapped = games.map(mapGame).filter(isUsefulGame);
+      const unique = dedupeBySource(mapped);
+      return seededShuffle(unique, categorySeed).slice(0, 20);
+    } catch (err) {
+      console.error("Error fetching IGDB curated section:", err);
+      return [];
+    }
+  };
+
+  const sections = [
+    {
+      id: "goty",
+      title: "Game of the Year Contenders",
+      querySuffix: "first_release_date >= 1704067200 & total_rating_count >= 100 & total_rating >= 80; sort total_rating desc; limit 40;",
+      seedOffset: 41,
+    },
+    {
+      id: "trending",
+      title: "Trending Games",
+      querySuffix: "first_release_date >= 1704067200 & total_rating_count >= 30; sort hypes desc; limit 40;",
+      seedOffset: 42,
+    },
+    {
+      id: "top_rated",
+      title: "Top Rated Games",
+      querySuffix: "total_rating_count >= 150 & total_rating >= 83; sort total_rating desc; limit 40;",
+      seedOffset: 43,
+    },
+    {
+      id: "cozy",
+      title: "Cozy & Relaxing Vibes",
+      querySuffix: 'genres.name = ("Simulator", "Puzzle", "Platform", "Strategy") & total_rating_count >= 50 & total_rating >= 75; sort total_rating desc; limit 40;',
+      seedOffset: 44,
+    },
+    {
+      id: "indie",
+      title: "Indie Highlights",
+      querySuffix: 'genres.name ~ *"Indie"* & total_rating_count >= 60 & total_rating >= 75; sort total_rating desc; limit 40;',
+      seedOffset: 45,
+    },
+    {
+      id: "time_sink",
+      title: "Time Sink: 100+ Hour Epics",
+      querySuffix: 'genres.name = ("Role-playing (RPG)", "Adventure") & total_rating_count >= 80 & total_rating >= 80; sort total_rating desc; limit 40;',
+      seedOffset: 46,
+    },
+    {
+      id: "random_glitch",
+      title: "Random Glitch: Surprising Choices",
+      querySuffix: "total_rating_count >= 30 & total_rating >= 70; sort first_release_date desc; limit 80;",
+      seedOffset: 47,
+    },
+  ];
+
+  const results = await Promise.all(
+    sections.map(async (sec) => {
+      const items = await fetchSection(sec.querySuffix, seed + sec.seedOffset);
+      return {
+        id: sec.id,
+        title: sec.title,
+        items,
+      };
+    })
+  );
+
+  return results;
+}
+

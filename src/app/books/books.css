@@ -195,8 +195,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin: 18px 0 0;
-  padding: 16px 18px;
+  margin: 0 0 28px;
+  padding: 18px 22px;
   border-radius: 20px;
   border: 1px solid rgba(239, 195, 143, 0.22);
   background: linear-gradient(180deg, rgba(239, 195, 143, 0.08), rgba(255,255,255,0.02));
@@ -975,9 +975,9 @@
 .books-detail-hero {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(240px, 360px);
-  gap: 32px;
+  gap: clamp(24px, 4.5vw, 52px);
   align-items: center;
-  padding: 30px;
+  padding: clamp(24px, 4.5vw, 46px);
   border-radius: 34px;
   border: 1px solid var(--books-line);
   background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)), var(--books-panel);
@@ -985,14 +985,14 @@
 }
 
 .books-title-detail {
-  max-width: 10ch;
+  max-width: none;
 }
 
 .books-detail-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin: 18px 0;
+  margin: 16px 0 24px;
 }
 
 .books-detail-tags span {
@@ -1001,10 +1001,18 @@
   border: 1px solid var(--books-line);
 }
 
-.books-progress-note {
-  margin: 16px 0 0;
+.books-reader-summary {
+  margin-bottom: 28px;
+  font-size: 1.05rem;
+  line-height: 1.75;
   color: var(--books-muted);
 }
+
+.books-progress-note {
+  margin: 20px 0 0;
+  color: var(--books-muted);
+}
+
 
 .books-detail-grid {
   display: grid;

@@ -1,7 +1,8 @@
 import { rankCandidatesForQuery } from "@/lib/search-utils";
 import { extractFranchiseRoot, getAnimeSeriesContext, isAnimeMovie, isSameFranchise, matchesFranchise, normalizeAnimeBaseTitle } from "@/lib/franchise-utils";
 import { enrichAnimeImagesFromTmdb, TmdbAnimeImageEnrichment } from "@/lib/sources/tmdb";
-import { MediaItem } from "@/lib/types";
+import { MediaItem, CuratedSection } from "@/lib/types";
+import { seededShuffle } from "@/lib/curated-utils";
 
 const ANILIST_API_URL = "https://graphql.anilist.co";
 const ANILIST_CACHE_TTL_MS = 1000 * 60 * 30;
@@ -914,3 +915,156 @@ export async function getAniListAnimeFranchiseByMalId(idMal: number) {
   const item = await getAniListAnimeMedia({ idMal });
   return buildAnimeFranchiseFromItem(item);
 }
+
+const CURATED_ANIME_QUERY = `
+  query CuratedAnime(
+    $page: Int
+    $perPage: Int
+    $status: MediaStatus
+    $season: MediaSeason
+    $seasonYear: Int
+    $startDateLesser: FuzzyDateInt
+    $genreIn: [String]
+    $sort: [MediaSort!]
+  ) {
+    Page(page: $page, perPage: $perPage) {
+      media(
+        type: ANIME
+        isAdult: false
+        format_not_in: [MUSIC]
+        status: $status
+        season: $season
+        seasonYear: $seasonYear
+        startDate_lesser: $startDateLesser
+        genre_in: $genreIn
+        sort: $sort
+      ) {
+        id
+        idMal
+        title { romaji english native }
+        synonyms
+        description(asHtml: false)
+        averageScore
+        meanScore
+        seasonYear
+        episodes
+        duration
+        format
+        status
+        bannerImage
+        coverImage { extraLarge large medium }
+        genres
+        tags { name rank }
+        trailer { id site thumbnail }
+        studios {
+          edges {
+            isMain
+            node { name }
+          }
+        }
+        startDate { year month day }
+        siteUrl
+        streamingEpisodes { title thumbnail url site }
+        externalLinks { site url type }
+      }
+    }
+  }
+`;
+
+export async function getAniListCuratedSections(seed: number): Promise<CuratedSection[]> {
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1;
+
+  let currentSeason = "SPRING";
+  if (currentMonth >= 1 && currentMonth <= 3) currentSeason = "WINTER";
+  else if (currentMonth >= 4 && currentMonth <= 6) currentSeason = "SPRING";
+  else if (currentMonth >= 7 && currentMonth <= 9) currentSeason = "SUMMER";
+  else currentSeason = "FALL";
+
+  const fetchSection = async (
+    variables: Record<string, unknown>,
+    categorySeed: number
+  ): Promise<MediaItem[]> => {
+    try {
+      const p1 = await anilistFetch<AniListPageResponse>(CURATED_ANIME_QUERY, {
+        page: 1,
+        perPage: 40,
+        ...variables,
+      }).catch(() => null);
+
+      if (!p1?.Page?.media?.length) return [];
+
+      const mapped = p1.Page.media.map((entry) => mapAnime(entry));
+      const unique = dedupeBySource(mapped);
+      return seededShuffle(unique, categorySeed).slice(0, 20);
+    } catch (err) {
+      console.error("Error fetching AniList curated section:", err);
+      return [];
+    }
+  };
+
+  const sections = [
+    {
+      id: "airing",
+      title: "Currently Airing",
+      variables: { status: "RELEASING", sort: ["POPULARITY_DESC"] },
+      seedOffset: 21,
+    },
+    {
+      id: "top_rated",
+      title: "Top Rated Anime",
+      variables: { sort: ["SCORE_DESC"] },
+      seedOffset: 22,
+    },
+    {
+      id: "fan_favorites",
+      title: "Fan Favorites",
+      variables: { sort: ["FAVOURITES_DESC"] },
+      seedOffset: 23,
+    },
+    {
+      id: "action",
+      title: "Over-the-Top Action",
+      variables: { genreIn: ["Action"], sort: ["SCORE_DESC"] },
+      seedOffset: 24,
+    },
+    {
+      id: "feels",
+      title: "Feels Trip: Emotional Masterpieces",
+      variables: { genreIn: ["Drama"], sort: ["SCORE_DESC"] },
+      seedOffset: 25,
+    },
+    {
+      id: "cozy",
+      title: "Cozy Slice of Life",
+      variables: { genreIn: ["Slice of Life"], sort: ["SCORE_DESC"] },
+      seedOffset: 26,
+    },
+    {
+      id: "retro",
+      title: "Retro & Classic Anime (Pre-2010)",
+      variables: { startDateLesser: 20100101, sort: ["SCORE_DESC"] },
+      seedOffset: 27,
+    },
+    {
+      id: "random_chaos",
+      title: "Chaotic Selection: Random Picks",
+      variables: { sort: ["POPULARITY_DESC"], page: 3 },
+      seedOffset: 28,
+    },
+  ];
+
+  const results = await Promise.all(
+    sections.map(async (sec) => {
+      const items = await fetchSection(sec.variables, seed + sec.seedOffset);
+      return {
+        id: sec.id,
+        title: sec.title,
+        items,
+      };
+    })
+  );
+
+  return results;
+}
+

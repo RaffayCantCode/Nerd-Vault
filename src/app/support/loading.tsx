@@ -1,13 +1,22 @@
-import { NVLoader } from "@/components/nv-loader";
+import { RouteLoader } from "@/components/route-loader";
+import { BrandLogo } from "@/components/brand-logo";
 
 export default function SupportLoading() {
   return (
     <div className="page-shell">
-      <main className="workspace">
-        <section className="loading-centered">
-          <NVLoader compact label="Opening support..." />
-        </section>
-      </main>
+      <div className="app-shell-layout">
+        <div className="sidebar-shell nv-sidebar-shell">
+          <div className="sidebar sidebar-rail nv-sidebar-panel glass sidebar-skeleton" style={{ opacity: 0.35, pointerEvents: "none" }}>
+            <div className="brand brand-rail">
+              <BrandLogo className="brand-mark brand-mark-logo" />
+            </div>
+          </div>
+        </div>
+        <main className="workspace">
+          <RouteLoader label="Opening support..." />
+        </main>
+      </div>
     </div>
   );
 }
+

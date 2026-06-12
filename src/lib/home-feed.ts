@@ -1,4 +1,4 @@
-import { browseRawgGames, getRawgGameSeries } from "@/lib/sources/rawg";
+import { browseIgdbGames, getIgdbFranchiseEntries } from "@/lib/sources/igdb";
 import { browseAniListAnime, getAniListAnimeFranchise, getAniListAnimeDetails, getAniListAnimeDetailsByMalId, getAniListAnimeFranchiseByMalId } from "@/lib/sources/anilist";
 import { browseTmdbCatalog, getTmdbFranchiseEntries, getTmdbMediaDetails } from "@/lib/sources/tmdb";
 import { MediaItem, MediaType } from "@/lib/types";
@@ -20,7 +20,7 @@ export type HomeFeed = {
   watchedCounts: Record<MediaType, number>;
 };
 
-type SeedOrigin = "watched" | "wishlist" | "folder";
+type SeedOrigin = "watched" | "wishlist" | "list";
 
 type SignalSeed = {
   item: MediaItem;
@@ -146,7 +146,7 @@ function emptyBrowseResult() {
 }
 
 function buildSignalSeeds(library: LibraryState, type: MediaType) {
-  const folderItems = library.folders.flatMap((folder) => folder.items);
+  const listItems = library.lists.flatMap((list) => list.items);
   const dedupe = new Set<string>();
   const seeds: SignalSeed[] = [];
 
@@ -160,7 +160,7 @@ function buildSignalSeeds(library: LibraryState, type: MediaType) {
 
   library.watched.forEach((item) => pushSeed(item, "watched", 3));
   library.wishlist.forEach((item) => pushSeed(item, "wishlist", 2));
-  folderItems.forEach((item) => pushSeed(item, "folder", 1.5));
+  listItems.forEach((item) => pushSeed(item, "list", 1.5));
 
   return seeds;
 }
@@ -269,8 +269,8 @@ async function gatherRelatedCandidates(type: MediaType, seeds: SignalSeed[]) {
   if (type === "game") {
     const results = await Promise.all(
       focusSeeds.flatMap((seed) => [
-        seed.item.source === "igdb" || seed.item.source === "rawg"
-          ? getRawgGameSeries(Number(seed.item.sourceId)).catch(() => [] as MediaItem[])
+        seed.item.source === "igdb"
+          ? getIgdbFranchiseEntries(Number(seed.item.sourceId)).catch(() => [] as MediaItem[])
           : Promise.resolve([] as MediaItem[]),
       ]),
     );
@@ -340,14 +340,14 @@ async function gatherCandidates(type: MediaType, genres: string[], signals: stri
   const results = await Promise.all([
     ...genres.map((genre, index) =>
       withTimeout(
-        browseRawgGames({ page: 1, genre, sort: index === 0 ? "rating" : "discovery", seed: 91 + index }),
+        browseIgdbGames({ page: 1, genre, sort: index === 0 ? "rating" : "discovery", seed: 91 + index }).catch(() => emptyBrowseResult()),
         emptyBrowseResult(),
         8000,
       ),
     ),
     ...signals.map((query, index) =>
       withTimeout(
-        browseRawgGames({ page: 1, query, sort: "rating", seed: 111 + index }),
+        browseIgdbGames({ page: 1, query, sort: "rating", seed: 111 + index }).catch(() => emptyBrowseResult()),
         emptyBrowseResult(),
         8000,
       ),
@@ -504,7 +504,7 @@ async function buildUpcomingContinuations(library: LibraryState) {
     dedupeItems([
       ...library.watched,
       ...library.wishlist,
-      ...library.folders.flatMap((folder) => folder.items),
+      ...library.lists.flatMap((list) => list.items),
     ]).map((item) => `${item.source}-${item.sourceId}`),
   );
 
@@ -523,7 +523,7 @@ async function buildUpcomingContinuations(library: LibraryState) {
 }
 
 function buildGreeting(library: LibraryState) {
-  const total = library.watched.length + library.wishlist.length + library.folders.reduce((sum, folder) => sum + folder.items.length, 0);
+  const total = library.watched.length + library.wishlist.length + library.lists.reduce((sum, list) => sum + list.items.length, 0);
   const variants = [
     "Oh, so that's your taste. Here's more of what fits your vault.",
     "Your shelf is giving strong signals. Here's more of the stuff you actually seem to like.",
@@ -539,7 +539,7 @@ export async function buildHomeFeed(library: LibraryState): Promise<HomeFeed> {
   const libraryItems = dedupeItems([
     ...watchedItems,
     ...library.wishlist,
-    ...library.folders.flatMap((folder) => folder.items),
+    ...library.lists.flatMap((list) => list.items),
   ]);
   const ownedKeys = new Set(libraryItems.map((item) => `${item.source}-${item.sourceId}`));
   const watchedCounts: Record<MediaType, number> = {

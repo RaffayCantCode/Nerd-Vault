@@ -5,11 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ChangeEvent, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { CatalogCard } from "@/components/catalog-card";
 import { ImageAdjusterModal } from "@/components/image-adjuster-modal";
+import { ListsWorkspace } from "@/components/lists-workspace";
 import { NVLoader } from "@/components/nv-loader";
 import { TasteCardSearchModal } from "@/components/taste-card-search-modal";
 import { MediaItem } from "@/lib/types";
-import { deleteLibraryFolder, fetchProfilePayload, loadPinnedFavorites, PinnedFavorites, primeProfilePayload, removeFriend, saveFolder, savePinnedFavorites, saveProfileSettings, subscribeVaultChanges } from "@/lib/vault-client";
-import { PrivacyLevel, SocialProfile, StoredFolder, VaultProfilePayload } from "@/lib/vault-types";
+import { deleteUserList, fetchProfilePayload, loadPinnedFavorites, PinnedFavorites, primeProfilePayload, removeFriend, saveUserList, savePinnedFavorites, saveProfileSettings, subscribeVaultChanges } from "@/lib/vault-client";
+import { PrivacyLevel, SocialProfile, StoredList, VaultProfilePayload } from "@/lib/vault-types";
 
 type LibrarySortMode = "recent" | "title" | "rating";
 type MediaFilterMode = "all" | "movie" | "show" | "anime" | "game";
@@ -141,6 +142,7 @@ function emptyPayload(viewerId: string, viewerName: string, viewerAvatar?: strin
     friends: [],
     watched: [],
     wishlist: [],
+    lists: [],
     folders: [],
     canSeeWatched: true,
     canSeeWishlist: true,
@@ -163,40 +165,27 @@ export function ProfileWorkspace({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const selectedFolderId = searchParams.get("folder");
   const viewedUserId = searchParams.get("user") || viewerId;
   const [payload, setPayload] = useState<VaultProfilePayload>(initialPayload ?? emptyPayload(viewerId, userName, viewerAvatar));
   const [loading, setLoading] = useState(!initialPayload);
-  const [isEditingFolder, setIsEditingFolder] = useState(false);
   const [draftAvatar, setDraftAvatar] = useState(initialPayload?.viewerProfile.avatarUrl ?? "");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [draftFolderName, setDraftFolderName] = useState("");
-  const [draftFolderDescription, setDraftFolderDescription] = useState("");
-  const [draftFolderCover, setDraftFolderCover] = useState("");
-  const [folderCoverFile, setFolderCoverFile] = useState<File | null>(null);
-  const [draftFolderVisibility, setDraftFolderVisibility] = useState<PrivacyLevel>("public");
   const [profileMessage, setProfileMessage] = useState("");
   const [watchedSort, setWatchedSort] = useState<LibrarySortMode>("recent");
   const [wishlistSort, setWishlistSort] = useState<LibrarySortMode>("recent");
-  const [folderMediaFilter, setFolderMediaFilter] = useState<MediaFilterMode>("all");
   const [watchedMediaFilter, setWatchedMediaFilter] = useState<MediaFilterMode>("all");
   const [wishlistMediaFilter, setWishlistMediaFilter] = useState<MediaFilterMode>("all");
   const [watchedSearch, setWatchedSearch] = useState("");
   const [wishlistSearch, setWishlistSearch] = useState("");
-  const [folderSearch, setFolderSearch] = useState("");
   const [watchedPage, setWatchedPage] = useState(1);
   const [wishlistPage, setWishlistPage] = useState(1);
-  const [folderPage, setFolderPage] = useState(1);
   const [watchedPageSize, setWatchedPageSize] = useState(9);
   const [wishlistPageSize, setWishlistPageSize] = useState(9);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [isFolderOpening, setIsFolderOpening] = useState(false);
   const [pinnedFavorites, setPinnedFavorites] = useState<PinnedFavorites>({ movie: null, show: null, anime: null, game: null });
   const [editingTasteSlot, setEditingTasteSlot] = useState<TasteSlotKey | null>(null);
   const profileAvatarActionsRef = useRef<HTMLDivElement | null>(null);
   const watchedGridRef = useRef<HTMLDivElement | null>(null);
   const wishlistGridRef = useRef<HTMLDivElement | null>(null);
-  const previousFolderIdRef = useRef<string | null>(selectedFolderId);
 
   useEffect(() => {
     setPinnedFavorites(loadPinnedFavorites(viewerId));
@@ -231,22 +220,20 @@ export function ProfileWorkspace({
     return subscribeVaultChanges(sync);
   }, [initialPayload, isDemo, viewedUserId, viewerAvatar, viewerId, userName]);
 
-  const { viewerProfile, viewedProfile, friends, watched, wishlist, folders, canSeeWatched, canSeeWishlist, viewingOwnProfile } = payload;
-  const selectedFolder = folders.find((folder) => folder.id === selectedFolderId);
-
-  useEffect(() => {
-    if (!selectedFolder) return;
-    setDraftFolderName(selectedFolder.name);
-    setDraftFolderDescription(selectedFolder.description ?? "");
-    setDraftFolderCover(selectedFolder.coverUrl ?? "");
-    setDraftFolderVisibility(selectedFolder.visibility);
-  }, [selectedFolder]);
+  const { viewerProfile, viewedProfile, friends, watched, wishlist, canSeeWatched, canSeeWishlist, viewingOwnProfile } = payload;
+  const lists = payload.lists ?? payload.folders ?? [];
 
   useEffect(() => {
     if (!profileMessage) return;
     const timeout = window.setTimeout(() => setProfileMessage(""), 2200);
     return () => window.clearTimeout(timeout);
   }, [profileMessage]);
+
+  const headlineCopy = viewingOwnProfile
+    ? isDemo
+      ? "Guest mode is browse-first now. Sign in when you want lists, friends, inbox, and saved library data to stay attached to your real account."
+      : "Your profile, lists, and social activity now stay saved between visits."
+    : viewedProfile.bio || "A friend profile inside NerdVault.";
 
   useEffect(() => {
     setWatchedPage(1);
@@ -255,23 +242,6 @@ export function ProfileWorkspace({
   useEffect(() => {
     setWishlistPage(1);
   }, [viewedUserId, wishlistMediaFilter, wishlistSearch, wishlistSort]);
-
-  useEffect(() => {
-    setFolderPage(1);
-  }, [selectedFolderId, folderMediaFilter]);
-
-  useEffect(() => {
-    const previousFolderId = previousFolderIdRef.current;
-    previousFolderIdRef.current = selectedFolderId;
-
-    if (!selectedFolderId || !selectedFolder || selectedFolderId === previousFolderId) {
-      return;
-    }
-
-    setIsFolderOpening(true);
-    const timeout = window.setTimeout(() => setIsFolderOpening(false), 520);
-    return () => window.clearTimeout(timeout);
-  }, [selectedFolder, selectedFolderId]);
 
   useEffect(() => {
     function syncPagedGridSizes() {
@@ -297,33 +267,6 @@ export function ProfileWorkspace({
     setAvatarFile(file);
   }
 
-  function handleFolderCoverFileChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    setFolderCoverFile(file);
-  }
-
-  async function handleSaveFolder() {
-    if (!selectedFolder) return;
-    await saveFolder(selectedFolder.id, {
-      name: draftFolderName,
-      description: draftFolderDescription,
-      coverUrl: draftFolderCover,
-      visibility: draftFolderVisibility,
-    });
-    setIsEditingFolder(false);
-    setProfileMessage("Folder saved.");
-  }
-
-  async function handleDeleteFolder() {
-    if (!selectedFolder) return;
-    await deleteLibraryFolder(selectedFolder.id);
-    setShowDeleteConfirm(false);
-    setIsEditingFolder(false);
-    setProfileMessage("Folder deleted.");
-    router.replace(viewingOwnProfile ? "/profile" : `/profile?user=${viewedUserId}`, { scroll: false });
-  }
-
   async function handleApplyAvatar(dataUrl: string) {
     setDraftAvatar(dataUrl);
     await saveProfileSettings({
@@ -343,15 +286,8 @@ export function ProfileWorkspace({
     setProfileMessage("Profile image removed.");
   }
 
-  const headlineCopy = viewingOwnProfile
-    ? isDemo
-      ? "Guest mode is browse-first now. Sign in when you want profile images, folders, friends, inbox, and saved library data to stay attached to your real account."
-      : "Your profile, folders, and social activity now stay saved between visits."
-    : viewedProfile.bio || "A friend profile inside NerdVault.";
-
   const deferredWatchedSearch = useDeferredValue(watchedSearch);
   const deferredWishlistSearch = useDeferredValue(wishlistSearch);
-  const deferredFolderSearch = useDeferredValue(folderSearch);
 
   const sortedWatched = useMemo(
     () => sortMediaItems(filterMediaItems(watched, watchedMediaFilter, deferredWatchedSearch), watchedSort),
@@ -371,22 +307,6 @@ export function ProfileWorkspace({
     () => sortedWishlist.slice((wishlistPage - 1) * wishlistPageSize, wishlistPage * wishlistPageSize),
     [sortedWishlist, wishlistPage, wishlistPageSize],
   );
-  const visibleFolders = useMemo(
-    () =>
-      folders.filter((folder) =>
-        `${folder.name} ${folder.description ?? ""} ${folder.items.map((item) => item.title).join(" ")}`.toLowerCase().includes(deferredFolderSearch.trim().toLowerCase()),
-      ),
-    [deferredFolderSearch, folders],
-  );
-  const filteredFolderItems = useMemo(
-    () => (selectedFolder ? filterMediaItems(selectedFolder.items, folderMediaFilter, "") : []),
-    [folderMediaFilter, selectedFolder],
-  );
-  const folderTotalPages = Math.max(1, Math.ceil(filteredFolderItems.length / PROFILE_FOLDER_PAGE_SIZE));
-  const pagedFolderItems = useMemo(
-    () => filteredFolderItems.slice((folderPage - 1) * PROFILE_FOLDER_PAGE_SIZE, folderPage * PROFILE_FOLDER_PAGE_SIZE),
-    [filteredFolderItems, folderPage],
-  );
   const profileStats = useMemo(() => {
     const currentYear = new Date().getFullYear();
     const thisYearCount = watched.filter((item) => item.year === currentYear).length;
@@ -394,10 +314,10 @@ export function ProfileWorkspace({
     return [
       { label: "Logged", value: watched.length },
       { label: "This year", value: thisYearCount },
-      { label: "Lists", value: folders.length },
+      { label: "Lists", value: lists.length },
       { label: "Network", value: friends.length },
     ];
-  }, [folders.length, friends.length, watched]);
+  }, [lists.length, friends.length, watched]);
   const featuredFavorites = useMemo(() => favoriteSlots(watched, pinnedFavorites), [watched, pinnedFavorites]);
 
   function handlePinFavorite(slot: TasteSlotKey, item: MediaItem) {
@@ -422,7 +342,7 @@ export function ProfileWorkspace({
               <p className="eyebrow">Guest mode</p>
               <h1 className="display profile-display">Profile is available after sign in.</h1>
               <p className="copy">
-                You can keep browsing as a guest, but profile, folders, and social features need an account session.
+                You can keep browsing as a guest, but profile, lists, and social features need an account session.
               </p>
               <div className="button-row">
                 <Link href="/sign-in?redirectTo=/profile" className="button button-primary">Sign in</Link>
@@ -465,176 +385,16 @@ export function ProfileWorkspace({
     );
   }
 
-  if (selectedFolder) {
-    if (isFolderOpening) {
-      return (
-        <main className="workspace">
-          <section className="workspace-hero glass folder-hero folder-opening-shell">
-            <div className="folder-opening-loader">
-              <NVLoader label={`Opening ${selectedFolder.name}...`} />
-            </div>
-          </section>
-        </main>
-      );
-    }
-
+  // Folder detail via URL: redirect to dedicated list page instead
+  const selectedFolderFromQuery = searchParams.get("folder");
+  if (selectedFolderFromQuery) {
+    // Redirect legacy ?folder=id URLs to the new /lists/[id] page
     return (
-      <main className="workspace folder-page-reveal">
-        <section className="workspace-hero glass folder-hero">
-          <div className="folder-hero-media" style={getFolderBackdropStyle(selectedFolder.coverUrl)} />
-          <div className="workspace-hero-grid">
-            <div className="workspace-copy">
-              <div className="folder-hero-topbar">
-                <div className="folder-hero-title-group">
-                  <div className="folder-hero-cover-card" style={getFolderBackdropStyle(selectedFolder.coverUrl)} />
-                  <div className="folder-hero-copy">
-                    <p className="eyebrow">Folder view</p>
-                    <h1 className="display folder-hero-display">
-                      {selectedFolder.name}
-                    </h1>
-                    <div className="folder-hero-meta-strip">
-                      <span className="detail-pill">{selectedFolder.items.length} saved picks</span>
-                      <span className="detail-pill">{selectedFolder.visibility}</span>
-                    </div>
-                  </div>
-                  {viewingOwnProfile ? (
-                    <div className="folder-hero-actions">
-                      <button type="button" className="button button-secondary folder-edit-button" onClick={() => setIsEditingFolder((current) => !current)}>
-                        {isEditingFolder ? "Close edit" : "Edit folder"}
-                      </button>
-                      <button type="button" className="button button-secondary folder-delete-button" onClick={() => setShowDeleteConfirm(true)}>
-                        Delete folder
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className="folder-hero-description glass">
-                <p className="copy">
-                  {selectedFolder.description?.trim() ? selectedFolder.description : "No description added for this folder yet."}
-                </p>
-              </div>
-
-              {isEditingFolder ? (
-                <div className="folder-edit-panel glass">
-                  <input
-                    className="search-input folder-edit-input"
-                    type="text"
-                    placeholder="Folder name"
-                    value={draftFolderName}
-                    onChange={(event) => setDraftFolderName(event.target.value)}
-                  />
-                  <textarea
-                    className="search-input folder-edit-input folder-description-input"
-                    placeholder="Optional description so this folder is easier to remember later"
-                    value={draftFolderDescription}
-                    onChange={(event) => setDraftFolderDescription(event.target.value)}
-                    rows={3}
-                  />
-                  <label className="upload-field folder-upload-field">
-                    <span>Folder cover</span>
-                    <div className="folder-upload-control">
-                      <span className="button button-secondary folder-upload-button">Choose cover image</span>
-                      <span className="folder-upload-name">{draftFolderCover ? "Cover image selected" : "PNG, JPG, or WEBP"}</span>
-                    </div>
-                    <input type="file" accept="image/*" onChange={handleFolderCoverFileChange} />
-                  </label>
-                  <select
-                    className="media-select"
-                    value={draftFolderVisibility}
-                    onChange={(event) => setDraftFolderVisibility(event.target.value as PrivacyLevel)}
-                  >
-                    {privacyOptions().map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="button-row">
-                    <button type="button" className="button button-primary" onClick={() => void handleSaveFolder()}>
-                      Save changes
-                    </button>
-                    <button type="button" className="button button-secondary" onClick={() => void handleDeleteFolder()}>
-                      Delete folder
-                    </button>
-                    <button type="button" className="button button-secondary" onClick={() => setIsEditingFolder(false)}>
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="button-row" style={{ marginTop: 18 }}>
-                <Link href={viewingOwnProfile ? "/profile" : `/profile?user=${viewedUserId}`} className="button button-secondary">
-                  Back to profile
-                </Link>
-              </div>
-            </div>
+      <main className="workspace">
+        <section className="workspace-hero glass folder-hero folder-opening-shell">
+          <div className="folder-opening-loader">
+            <NVLoader label="Opening list…" />
           </div>
-        </section>
-
-        {showDeleteConfirm ? (
-          <div className="sidebar-modal-shell" onClick={() => setShowDeleteConfirm(false)}>
-            <div className="sidebar-folder-modal glass delete-confirm-modal" onClick={(event) => event.stopPropagation()}>
-              <div className="sidebar-folder-modal-header">
-                <div>
-                  <strong>Delete folder?</strong>
-                  <p className="copy">
-                    {selectedFolder.name} will be removed from your vault. This cannot be undone.
-                  </p>
-                </div>
-                <button type="button" className="topbar-panel-close" onClick={() => setShowDeleteConfirm(false)}>
-                  Close
-                </button>
-              </div>
-              <div className="button-row">
-                <button type="button" className="button button-secondary" onClick={() => setShowDeleteConfirm(false)}>
-                  Keep folder
-                </button>
-                <button type="button" className="button button-primary" onClick={() => void handleDeleteFolder()}>
-                  Delete folder
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        <section className="section-stack" style={{ paddingTop: 0 }}>
-          <div className="section-header">
-            <div>
-              <p className="eyebrow">Inside folder</p>
-              <h2 className="headline">Saved in {selectedFolder.name}</h2>
-            </div>
-            <div className="chip-row library-chip-row">
-              {mediaFilterOptions().map((option) => (
-                <button
-                  key={`folder-media-${option.value}`}
-                  type="button"
-                  className={`picker-chip ${folderMediaFilter === option.value ? "is-active" : ""}`}
-                  onClick={() => setFolderMediaFilter(option.value)}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {filteredFolderItems.length ? (
-            <>
-            <div className="catalog-grid profile-media-grid">
-              {pagedFolderItems.map((item, index) => (
-                <CatalogCard key={item.id} item={item} priority={index < 8} />
-              ))}
-            </div>
-            {renderMediaPager(folderPage, folderTotalPages, setFolderPage, "Folder")}
-            </>
-          ) : (
-            <div className="folder-empty glass">
-              <p className="headline">Nothing in this view yet.</p>
-              <p className="copy">Open a media page, choose this folder, and the saved titles will show up here.</p>
-            </div>
-          )}
         </section>
       </main>
     );
@@ -724,7 +484,7 @@ export function ProfileWorkspace({
                   <h1 className="display profile-display">{viewedProfile.name || userName}</h1>
                   <div className="profile-hero-meta-row">
                     <span className="detail-pill">{viewedProfile.handle}</span>
-                    <span className="detail-pill">{folders.length} folders</span>
+                    <span className="detail-pill">{lists.length} lists</span>
                     <span className="detail-pill">{watched.length} logged</span>
                     <span className="detail-pill">{wishlist.length} wishlisted</span>
                   </div>
@@ -732,7 +492,7 @@ export function ProfileWorkspace({
                     <div className="profile-stage-actions">
                       <a href="#profile-watched" className="button button-primary">Watched</a>
                       <a href="#profile-wishlist" className="button button-secondary">Wishlist</a>
-                      <a href="#profile-folders" className="button button-secondary">Folders</a>
+                      <a href="#profile-lists" className="button button-secondary">Lists</a>
                     </div>
                   ) : null}
                 </div>
@@ -1014,63 +774,18 @@ export function ProfileWorkspace({
         )}
       </section>
 
-      <section id="profile-folders" className="section-stack" style={{ paddingTop: 0 }}>
+      <section id="profile-lists" className="section-stack" style={{ paddingTop: 0 }}>
         <div className="section-header">
           <div>
-            <p className="eyebrow">Folders</p>
-            <h2 className="headline">{viewingOwnProfile ? "Mood shelves" : "Visible folders"}</h2>
+            <p className="eyebrow">Lists</p>
+            <h2 className="headline">{viewingOwnProfile ? "Your curated lists" : `${viewedProfile.name}'s lists`}</h2>
           </div>
         </div>
-        <div className="profile-folder-toolbar glass">
-          <div>
-            <p className="eyebrow">Find a shelf</p>
-            <p className="copy">Jump into a list faster without scanning every card.</p>
-          </div>
-          <input
-            className="search-input library-search-input"
-            type="search"
-            placeholder="Search folders..."
-            value={folderSearch}
-            onChange={(event) => setFolderSearch(event.target.value)}
-          />
-        </div>
-        <div className="folder-showcase-grid">
-          {visibleFolders.length ? (
-            visibleFolders.map((folder: StoredFolder) => (
-              <Link
-                key={folder.id}
-                href={viewingOwnProfile ? `/profile?folder=${folder.id}` : `/profile?user=${viewedUserId}&folder=${folder.id}`}
-                className="folder-showcase-card glass"
-                prefetch={false}
-              >
-                <div className="folder-showcase-art folder-showcase-art-compact" style={getFolderBackdropStyle(folder.coverUrl)} />
-                <div className="folder-showcase-copy">
-                  <div className="folder-showcase-meta">
-                    <span className="folder-showcase-kicker">{folder.visibility}</span>
-                    <span className="folder-showcase-count">{folder.items.length} titles</span>
-                  </div>
-                  <div className="folder-showcase-title-row">
-                    <strong>{folder.name}</strong>
-                  </div>
-                  <p className="copy folder-showcase-summary">
-                    {folder.description?.trim()
-                      ? folder.description
-                      : folder.items.length
-                        ? `Built around ${folder.items.slice(0, 3).map((item) => item.title).join(", ")}${folder.items.length > 3 ? ", and more." : "."}`
-                        : "A fresh shelf waiting for its first picks."}
-                  </p>
-                </div>
-              </Link>
-            ))
-          ) : (
-            <div className="folder-empty glass">
-              <p className="headline">{folders.length ? "No folders match this search." : "No visible folders."}</p>
-              <p className="copy">
-                {folders.length ? "Try another title or folder name." : "Create one, or switch its visibility, and it will show here."}
-              </p>
-            </div>
-          )}
-        </div>
+        <ListsWorkspace
+          lists={lists}
+          viewingOwnProfile={viewingOwnProfile}
+          viewedUserId={viewedUserId}
+        />
       </section>
 
       <ImageAdjusterModal
@@ -1078,13 +793,6 @@ export function ProfileWorkspace({
         title="Adjust profile image"
         onClose={() => setAvatarFile(null)}
         onApply={(dataUrl) => void handleApplyAvatar(dataUrl)}
-      />
-
-      <ImageAdjusterModal
-        file={folderCoverFile}
-        title="Adjust folder cover"
-        onClose={() => setFolderCoverFile(null)}
-        onApply={(dataUrl) => setDraftFolderCover(dataUrl)}
       />
     </main>
   );

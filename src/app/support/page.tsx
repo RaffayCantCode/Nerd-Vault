@@ -111,7 +111,7 @@ Actual:`}</pre>
   return (
     <div className="page-shell support-page-shell">
       <div className="app-shell-layout">
-        <AppSidebar active="vault" initialFolders={isSignedIn ? [] : undefined} />
+        <AppSidebar active="vault" />
         <main className="workspace support-workspace">
           <AppTopBar
             viewerId={viewerId}

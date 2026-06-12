@@ -12,7 +12,8 @@ import { clearBrowseReturnContext, readBrowseReturnContext } from "@/lib/detail-
 import { ResilientMediaImage } from "@/components/resilient-media-image";
 import { optimizeMediaImageUrl } from "@/lib/media-image";
 import { decodeHtmlEntities } from "@/lib/text-utils";
-import { MediaItem, MediaType } from "@/lib/types";
+import { MediaItem, MediaType, CuratedSection } from "@/lib/types";
+import "@/app/styles/browse.css";
 
 type SortMode = "discovery" | "newest" | "rating" | "title";
 
@@ -43,6 +44,9 @@ const GENRES_BY_MEDIA: Record<MediaType | "all", string[]> = {
   game: ["Action", "Adventure", "RPG", "Shooter", "Strategy", "Simulation", "Open World", "Platformer", "Puzzle", "Racing", "Sports", "Horror", "Fantasy"],
 };
 const browseClientCache = new Map<string, CachedBrowsePayload>();
+const curatedCache = new Map<string, CuratedSection[]>();
+
+
 
 export function clearBrowseClientCache() {
   browseClientCache.clear();
@@ -222,6 +226,8 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
   const initialFocus = searchParams.get("focus");
   const initialPage = Number(searchParams.get("page") || "1");
   const initialSeed = Number(searchParams.get("seed") || String(discoverySeed));
+  const [activeSeed, setActiveSeed] = useState(initialSeed);
+  const [curatedSections, setCuratedSections] = useState<CuratedSection[] | null>(null);
   const surfacingKeys = useMemo(() => new Set(surfacingCatalog.map((item) => getMediaKey(item))), [surfacingCatalog]);
   const initialCatalogItems = dedupeItems(catalog).filter(
     (item) => !surfacingKeys.has(getMediaKey(item)),
@@ -302,7 +308,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
     isSearchActive ? "all" : genre,
     deferredQuery,
     isSearchActive ? "discovery" : sort,
-    initialSeed,
+    activeSeed,
   );
   const showPager = !isSearchActive && payload.totalPages > 1;
 
@@ -335,6 +341,16 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
   }, [currentHref]);
 
   useEffect(() => {
+    const urlSeed = searchParams.get("seed");
+    if (urlSeed) {
+      const numSeed = Number(urlSeed);
+      if (Number.isFinite(numSeed) && numSeed !== activeSeed) {
+        setActiveSeed(numSeed);
+      }
+    }
+  }, [searchParams, activeSeed]);
+
+  useEffect(() => {
     if (!didInitRef.current) {
       didInitRef.current = true;
       return;
@@ -365,6 +381,55 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
       const requestType = filter;
       const requestSort: SortMode = hasSearch ? "discovery" : sort;
 
+      const isCuratedActive = filter !== "all" && !hasSearch && genre === "all" && requestSort === "discovery";
+
+      if (isCuratedActive) {
+        setIsLoading(true);
+        setError(null);
+        try {
+          const cacheKey = `curated:${filter}:${activeSeed}`;
+          const cachedSections = curatedCache.get(cacheKey);
+          if (cachedSections) {
+            if (!active) return;
+            setCuratedSections(cachedSections);
+            setPayload({
+              page: 1,
+              totalPages: 1,
+              totalResults: 0,
+              items: [],
+            });
+            setIsLoading(false);
+            return;
+          }
+
+          const response = await fetch(`/api/catalog/browse?type=${filter}&seed=${activeSeed}&curated=true`, {
+            signal: controller.signal,
+          });
+          const data = await response.json();
+          if (!active) return;
+          if (data.ok && data.sections) {
+            curatedCache.set(cacheKey, data.sections);
+            setCuratedSections(data.sections);
+            setPayload({
+              page: 1,
+              totalPages: 1,
+              totalResults: 0,
+              items: [],
+            });
+          } else {
+            throw new Error(data.message || "Failed to load curated feed");
+          }
+        } catch (loadError) {
+          if (!active || controller.signal.aborted) return;
+          setError(loadError instanceof Error ? loadError.message : "That page could not be loaded.");
+        } finally {
+          if (active) setIsLoading(false);
+        }
+        return;
+      }
+
+      setCuratedSections(null);
+
       // If the SSR bootstrap grid is already displayed (page 1, no filters, no
       // search, discovery sort) and the user hasn't changed anything yet, skip
       // the fetch entirely — this prevents the grid from refreshing 2-3 seconds
@@ -391,7 +456,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
           type: requestType,
           page: String(requestPage),
           sort: requestSort,
-          seed: String(initialSeed),
+          seed: String(activeSeed),
           pageSize: String(pageSize),
         });
 
@@ -476,7 +541,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
       active = false;
       controller.abort();
     };
-  }, [activePage, deferredQuery, filter, genre, initialSeed, pageSize, sort, surfacingKeys]);
+  }, [activePage, deferredQuery, filter, genre, activeSeed, pageSize, sort, surfacingKeys]);
 
   useEffect(() => {
     if (isLoading || hasRestoredScrollRef.current || typeof window === "undefined") {
@@ -620,7 +685,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
       type: filter,
       page: String(payload.page + 1),
       sort,
-      seed: String(initialSeed),
+      seed: String(activeSeed),
       pageSize: String(pageSize),
     });
 
@@ -631,7 +696,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
     void prefetchBrowsePayload(params, controller.signal).catch(() => undefined);
 
     return () => controller.abort();
-  }, [deferredQuery, filter, genre, initialSeed, isLoading, pageSize, payload.page, payload.totalPages, sort]);
+  }, [deferredQuery, filter, genre, activeSeed, isLoading, pageSize, payload.page, payload.totalPages, sort]);
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -965,15 +1030,40 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
             </div>
           </form>
 
-          <div className="section-header browse-status" style={{ alignItems: "center" }} ref={resultsRef}>
+          <div className="section-header browse-status" style={{ alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }} ref={resultsRef}>
             <p className="copy browse-status-copy">
               {error
                 ? error
                 : isLoading
-                  ? "Loading results..."
-                  : `Showing ${payload.items.length} titles on page ${activePage}${showPager ? ` of ${payload.totalPages}` : ""}.`}
+                  ? curatedSections
+                    ? "Loading curated discovery..."
+                    : "Loading results..."
+                  : curatedSections
+                    ? `Showing curated discovery for ${formatFilterLabel(filter)}.`
+                    : `Showing ${payload.items.length} titles on page ${activePage}${showPager ? ` of ${payload.totalPages}` : ""}.`}
             </p>
-            <div className={`refresh-pulse ${isLoading ? "is-active" : ""}`} />
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              {curatedSections && !isLoading && !error && (
+                <button
+                  type="button"
+                  className="button button-secondary button-shuffle"
+                  style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 16px", borderRadius: "12px" }}
+                  onClick={() => {
+                    const nextSeed = Math.floor(Math.random() * 1000000);
+                    setActiveSeed(nextSeed);
+                    const params = new URLSearchParams(window.location.search);
+                    params.set("seed", String(nextSeed));
+                    window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: "scaleX(-1)" }}>
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                  </svg>
+                  Shuffle Feed
+                </button>
+              )}
+              <div className={`refresh-pulse ${isLoading ? "is-active" : ""}`} />
+            </div>
           </div>
         </div>
 
@@ -990,22 +1080,37 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
           </div>
         ) : null}
 
-        <div
-          ref={catalogGridRef}
-          key={pageKey}
-          data-page-key={pageKey}
-          className={`catalog-grid browse-results-grid ${isLoading ? "catalog-grid-loading is-page-transitioning" : "catalog-grid-page-entered"}`}
-        >
-          {isLoading && !payload.items.length
-            ? Array.from({ length: 12 }).map((_, index) => (
-                <div key={`browse-skeleton-${index}`} className="catalog-card catalog-card-skeleton glass" aria-hidden="true" />
-              ))
-            : payload.items.map((item, index) => (
-                <CatalogCard key={item.id} item={item} priority={index < 4} />
-              ))}
-        </div>
+        {curatedSections ? (
+          <div className="curated-discovery-container">
+            {isLoading && !curatedSections.length
+              ? Array.from({ length: 3 }).map((_, index) => (
+                  <div key={`curated-section-skel-${index}`} className="curated-section">
+                    <div className="skeleton curated-section-title-skeleton" style={{ width: "240px", height: "32px", marginBottom: "16px", borderRadius: "8px" }} />
+                    <CuratedRowSkeleton />
+                  </div>
+                ))
+              : curatedSections.map((section) => (
+                  <CuratedRow key={section.id} title={section.title} items={section.items} />
+                ))}
+          </div>
+        ) : (
+          <div
+            ref={catalogGridRef}
+            key={pageKey}
+            data-page-key={pageKey}
+            className={`catalog-grid browse-results-grid ${isLoading ? "catalog-grid-loading is-page-transitioning" : "catalog-grid-page-entered"}`}
+          >
+            {isLoading && !payload.items.length
+              ? Array.from({ length: 12 }).map((_, index) => (
+                  <div key={`browse-skeleton-${index}`} className="catalog-card catalog-card-skeleton glass" aria-hidden="true" />
+                ))
+              : payload.items.map((item, index) => (
+                  <CatalogCard key={item.id} item={item} priority={index < 4} />
+                ))}
+          </div>
+        )}
 
-        {!isLoading && !error && !payload.items.length ? (
+        {!isLoading && !error && !curatedSections && !payload.items.length ? (
           <div className="folder-empty glass">
             <p className="headline">No titles matched this view.</p>
             <p className="copy">Try a different genre, sort, or search term.</p>
@@ -1017,3 +1122,98 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
     </div>
   );
 });
+
+function CuratedRow({ title, items }: { title: string; items: MediaItem[] }) {
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [showLeft, setShowLeft] = useState(false);
+  const [showRight, setShowRight] = useState(true);
+
+  const handleScroll = () => {
+    if (rowRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = rowRef.current;
+      setShowLeft(scrollLeft > 10);
+      setShowRight(scrollLeft < scrollWidth - clientWidth - 10);
+    }
+  };
+
+  useEffect(() => {
+    const el = rowRef.current;
+    if (el) {
+      el.addEventListener("scroll", handleScroll, { passive: true });
+      handleScroll();
+      const timer = setTimeout(handleScroll, 200);
+      return () => {
+        el.removeEventListener("scroll", handleScroll);
+        clearTimeout(timer);
+      };
+    }
+  }, [items]);
+
+  const scroll = (direction: "left" | "right") => {
+    if (rowRef.current) {
+      const { clientWidth } = rowRef.current;
+      const scrollAmount = direction === "left" ? -clientWidth * 0.75 : clientWidth * 0.75;
+      rowRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
+    }
+  };
+
+  if (!items || !items.length) {
+    return null;
+  }
+
+  return (
+    <div className="curated-section">
+      <div className="curated-section-header">
+        <h2 className="curated-section-title">{title}</h2>
+        <div className="curated-section-arrows">
+          <button
+            type="button"
+            className="curated-header-nav-button left"
+            onClick={() => scroll("left")}
+            aria-label="Scroll left"
+            disabled={!showLeft}
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="curated-header-nav-button right"
+            onClick={() => scroll("right")}
+            aria-label="Scroll right"
+            disabled={!showRight}
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div className="curated-row-container">
+        <div ref={rowRef} className="curated-row-scroller">
+          {items.map((item, index) => (
+            <CatalogCard key={item.id} item={item} priority={index < 4} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CuratedRowSkeleton() {
+  return (
+    <div className="curated-row-container">
+      <div className="curated-row-scroller">
+        {Array.from({ length: 8 }).map((_, index) => (
+          <div
+            key={`curated-skeleton-${index}`}
+            className="catalog-card catalog-card-skeleton glass"
+            style={{ flex: "0 0 200px", width: "200px", minWidth: "200px" }}
+            aria-hidden="true"
+          />
+        ))}
+      </div>
+    </div>
+  );
+}

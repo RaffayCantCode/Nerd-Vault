@@ -9,19 +9,19 @@ import { ResilientMediaImage } from "@/components/resilient-media-image";
 import { showFeedback } from "@/components/action-feedback";
 import { MediaItem } from "@/lib/types";
 import {
-  addMediaToFolder,
+  addMediaToList,
   addMediaToWatched,
   addMediaToWishlist,
-  createLibraryFolder,
+  createUserList,
   fetchLibraryState,
   fetchProfilePayload,
   recommendToFriend,
-  removeMediaFromFolder,
+  removeMediaFromList,
   removeMediaFromWatched,
   removeMediaFromWishlist,
   subscribeVaultChanges,
 } from "@/lib/vault-client";
-import { SocialProfile, StoredFolder } from "@/lib/vault-types";
+import { SocialProfile, StoredList } from "@/lib/vault-types";
 
 function normalizeReviewDraft(rating: number, title: string, review: string) {
   const cleanTitle = title.trim();
@@ -51,7 +51,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
   const [folderCoverFile, setFolderCoverFile] = useState<File | null>(null);
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [message, setMessage] = useState("");
-  const [folders, setFolders] = useState<StoredFolder[]>([]);
+  const [lists, setLists] = useState<StoredList[]>([]);
   const [friends, setFriends] = useState<SocialProfile[]>([]);
   const [selectedFriendIds, setSelectedFriendIds] = useState<string[]>([]);
   const [isTogglingWishlist, setIsTogglingWishlist] = useState(false);
@@ -68,7 +68,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
 
   useEffect(() => {
     if (isGuest) {
-      setFolders([]);
+      setLists([]);
       setFriends([]);
       setIsWatched(false);
       setIsWishlisted(false);
@@ -81,7 +81,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
     function sync() {
       fetchLibraryState()
         .then((library) => {
-          setFolders(library.folders);
+          setLists(library.lists ?? library.folders ?? []);
           const watchedEntry = library.watched.find((entry) => entry.source === item.source && entry.sourceId === item.sourceId);
           setIsWatched(Boolean(watchedEntry));
           setReviewRating(watchedEntry?.userRating ?? 0);
@@ -92,7 +92,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
           setIsWishlisted(library.wishlist.some((entry) => entry.source === item.source && entry.sourceId === item.sourceId));
         })
         .catch(() => {
-          setFolders([]);
+          setLists([]);
           setIsWatched(false);
           setIsWishlisted(false);
           setReviewRating(0);
@@ -118,10 +118,10 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
     return () => window.clearTimeout(timeout);
   }, [message]);
 
-  const folderOptions = useMemo(() => folders, [folders]);
-  const selectedFolder = folderOptions.find((folder) => folder.id === folderId);
-  const selectedFolderContainsItem =
-    selectedFolder?.items.some((entry) => entry.source === item.source && entry.sourceId === item.sourceId) ?? false;
+  const listOptions = useMemo(() => lists, [lists]);
+  const selectedList = listOptions.find((list) => list.id === folderId);
+  const selectedListContainsItem =
+    selectedList?.items.some((entry) => entry.source === item.source && entry.sourceId === item.sourceId) ?? false;
   const friendSelectionLabel = selectedFriendIds.length ? `${selectedFriendIds.length} selected` : "Choose friends";
 
   function closeReviewPanel() {
@@ -224,41 +224,41 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
       return;
     }
 
-    const nextContainsItem = !selectedFolderContainsItem;
-    const nextFolders = folders.map((folder) => {
-      if (folder.id !== folderId) {
-        return folder;
+    const nextContainsItem = !selectedListContainsItem;
+    const nextLists = lists.map((list) => {
+      if (list.id !== folderId) {
+        return list;
       }
 
-      const alreadySaved = folder.items.some((entry) => entry.source === item.source && entry.sourceId === item.sourceId);
+      const alreadySaved = list.items.some((entry) => entry.source === item.source && entry.sourceId === item.sourceId);
       if (nextContainsItem && !alreadySaved) {
-        return { ...folder, items: [...folder.items, item] };
+        return { ...list, items: [...list.items, item] };
       }
 
       if (!nextContainsItem && alreadySaved) {
         return {
-          ...folder,
-          items: folder.items.filter((entry) => !(entry.source === item.source && entry.sourceId === item.sourceId)),
+          ...list,
+          items: list.items.filter((entry) => !(entry.source === item.source && entry.sourceId === item.sourceId)),
         };
       }
 
-      return folder;
+      return list;
     });
 
     setIsUpdatingFolder(true);
-    setFolders(nextFolders);
+    setLists(nextLists);
 
     try {
       if (nextContainsItem) {
-        await addMediaToFolder(folderId, item);
-        showFeedback("success", `Added to ${selectedFolder?.name ?? "folder"}`);
+        await addMediaToList(folderId, item);
+        showFeedback("success", `Added to ${selectedList?.name ?? "list"}`);
       } else {
-        await removeMediaFromFolder(folderId, item);
-        showFeedback("info", `Removed from ${selectedFolder?.name ?? "folder"}`);
+        await removeMediaFromList(folderId, item);
+        showFeedback("info", `Removed from ${selectedList?.name ?? "list"}`);
       }
     } catch {
-      setFolders(folders);
-      showFeedback("info", `Could not update ${selectedFolder?.name ?? "folder"} yet. Try again.`);
+      setLists(lists);
+      showFeedback("info", `Could not update ${selectedList?.name ?? "list"} yet. Try again.`);
     } finally {
       setIsUpdatingFolder(false);
     }
@@ -266,7 +266,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
 
   async function handleCreateFolder() {
     const nextName = folderName.trim();
-    await createLibraryFolder({
+    await createUserList({
       name: nextName,
       description: folderDescription,
       coverUrl: folderCover,
@@ -411,33 +411,33 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
         </div>
 
         <div className="media-action-section">
-          <p className="eyebrow">Folders</p>
+          <p className="eyebrow">Lists</p>
           <div className="folder-action-panel">
             <div className="picker-grid">
-              {folderOptions.length ? (
-                folderOptions.map((folder) => {
-                  const containsItem = folder.items.some((entry) => entry.source === item.source && entry.sourceId === item.sourceId);
+              {listOptions.length ? (
+                listOptions.map((list) => {
+                  const containsItem = list.items.some((entry) => entry.source === item.source && entry.sourceId === item.sourceId);
                   return (
                     <button
-                      key={folder.id}
+                      key={list.id}
                       type="button"
-                      className={`picker-chip ${folderId === folder.id ? "is-active" : ""}`}
-                      onClick={() => setFolderId(folder.id)}
+                      className={`picker-chip ${folderId === list.id ? "is-active" : ""}`}
+                      onClick={() => setFolderId(list.id)}
                     >
-                      {folder.name} {containsItem ? "saved" : ""}
+                      {list.name} {containsItem ? "✓" : ""}
                     </button>
                   );
                 })
               ) : (
-                <p className="copy">No folders yet. Make your first one below.</p>
+                <p className="copy">No lists yet. Create your first one below.</p>
               )}
             </div>
             <div className="folder-action-row">
               <button className="button button-secondary" type="button" onClick={() => void handleFolderToggle()} disabled={!folderId || isUpdatingFolder}>
-                {isUpdatingFolder ? "Saving..." : selectedFolderContainsItem ? "Remove from folder" : "Add to folder"}
+                {isUpdatingFolder ? "Saving..." : selectedListContainsItem ? "Remove from list" : "Add to list"}
               </button>
               <button className="button button-secondary" type="button" onClick={() => setIsCreatingFolder(true)}>
-                New folder
+                New list
               </button>
             </div>
           </div>
@@ -575,7 +575,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
         <div className="sidebar-modal-shell" onClick={() => setIsCreatingFolder(false)}>
           <div className="sidebar-folder-modal glass" onClick={(event) => event.stopPropagation()}>
             <div className="sidebar-folder-modal-header">
-              <strong>Create folder</strong>
+              <strong>Create list</strong>
               <button type="button" className="topbar-panel-close" onClick={() => setIsCreatingFolder(false)}>
                 Close
               </button>
@@ -584,19 +584,19 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
             <input
               className="sidebar-folder-input"
               type="text"
-              placeholder="Folder name"
+              placeholder="List name"
               value={folderName}
               onChange={(event) => setFolderName(event.target.value)}
             />
             <textarea
               className="sidebar-folder-input sidebar-folder-textarea"
-              placeholder="Optional description so the folder has a memory hook"
+              placeholder="Optional description"
               value={folderDescription}
               onChange={(event) => setFolderDescription(event.target.value)}
               rows={3}
             />
             <label className="upload-field folder-upload-field">
-              <span>Upload folder cover</span>
+              <span>Upload list cover</span>
               <div className="folder-upload-control">
                 <span className="button button-secondary folder-upload-button">Choose cover image</span>
                 <span className="folder-upload-name">{folderCover ? "Cover image selected" : "PNG, JPG, or WEBP"}</span>
@@ -606,7 +606,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
 
             <div className="sidebar-folder-actions">
               <button className="button button-primary" type="button" onClick={() => void handleCreateFolder()} disabled={!folderName.trim()}>
-                Create folder
+                Create list
               </button>
               <button className="button button-secondary" type="button" onClick={() => setIsCreatingFolder(false)}>
                 Cancel

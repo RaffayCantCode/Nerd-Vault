@@ -1,8 +1,9 @@
-import { MediaItem } from "@/lib/types";
+import { MediaItem, CuratedSection } from "@/lib/types";
 import { rankCandidatesForQuery } from "@/lib/search-utils";
 import { matchesFranchise, isLikelyAnime } from "@/lib/franchise-utils";
 import { browseAniListAnime } from "@/lib/sources/anilist";
 import { getMediaFallbackImage } from "@/lib/media-fallbacks";
+import { seededShuffle } from "@/lib/curated-utils";
 
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500";
@@ -1031,3 +1032,176 @@ export async function enrichAnimeImagesFromTmdb(params: {
 
   return payload;
 }
+
+
+
+export async function getTmdbCuratedSections(type: "movie" | "show", seed: number): Promise<CuratedSection[]> {
+  const genres = await getGenreMap(type === "show" ? "tv" : type);
+  const isMovie = type === "movie";
+
+  const fetchSection = async (
+    path: string,
+    mapper: (item: TmdbListItem) => MediaItem,
+    filterFn: (item: MediaItem) => boolean,
+    categorySeed: number
+  ): Promise<MediaItem[]> => {
+    try {
+      const connector = path.includes("?") ? "&" : "?";
+      const [p1, p2] = await Promise.all([
+        tmdbFetch<TmdbPagedResponse>(`${path}${connector}page=1`).catch(() => null),
+        tmdbFetch<TmdbPagedResponse>(`${path}${connector}page=2`).catch(() => null),
+      ]);
+      const results = [...(p1?.results || []), ...(p2?.results || [])];
+      if (!results.length) return [];
+      const mapped = results.map(mapper).filter(filterFn);
+      const unique = dedupeMediaItems(mapped);
+      return seededShuffle(unique, categorySeed).slice(0, 20);
+    } catch (err) {
+      console.error(`Error fetching TMDB curated section for path ${path}:`, err);
+      return [];
+    }
+  };
+
+  const currentYear = new Date().getFullYear();
+
+  if (isMovie) {
+    const movieMapper = (item: TmdbListItem) => mapMovieOrShow(item, "movie", genres);
+    const movieFilter = isUsefulMovie;
+
+    const sections = [
+      {
+        id: "trending",
+        title: "Trending Now",
+        path: "/trending/movie/week?language=en-US",
+        seedOffset: 1,
+      },
+      {
+        id: "top_rated",
+        title: "Top Rated Movies",
+        path: "/movie/top_rated?language=en-US",
+        seedOffset: 2,
+      },
+      {
+        id: "best_year",
+        title: `Best Movies of ${currentYear}`,
+        path: `/discover/movie?language=en-US&sort_by=vote_average.desc&vote_count.gte=100&primary_release_year=${currentYear}&with_original_language=en`,
+        seedOffset: 3,
+      },
+      {
+        id: "nostalgia",
+        title: "Nostalgic Hits (80s, 90s, 00s)",
+        path: "/discover/movie?language=en-US&sort_by=popularity.desc&primary_release_date.gte=1980-01-01&primary_release_date.lte=2009-12-31&vote_count.gte=1000&with_original_language=en",
+        seedOffset: 4,
+      },
+      {
+        id: "hidden_gems",
+        title: "Hidden Gems",
+        path: "/discover/movie?language=en-US&sort_by=popularity.desc&vote_average.gte=7.5&vote_count.gte=150&vote_count.lte=2000&with_original_language=en",
+        seedOffset: 5,
+      },
+      {
+        id: "popcorn_time",
+        title: "Popcorn Time: Action & Adventure",
+        path: "/discover/movie?language=en-US&sort_by=popularity.desc&with_genres=28,12&with_original_language=en",
+        seedOffset: 6,
+      },
+      {
+        id: "critically_acclaimed",
+        title: "Critically Acclaimed",
+        path: "/discover/movie?language=en-US&sort_by=vote_average.desc&vote_count.gte=3000&with_original_language=en",
+        seedOffset: 7,
+      },
+      {
+        id: "random_reel",
+        title: "Random Reel: Surprise Picks",
+        path: "/discover/movie?language=en-US&sort_by=popularity.desc&page=3&with_original_language=en",
+        seedOffset: 8,
+      },
+    ];
+
+    const results = await Promise.all(
+      sections.map(async (sec) => {
+        let items = await fetchSection(sec.path, movieMapper, movieFilter, seed + sec.seedOffset);
+        if (sec.id === "best_year" && items.length < 8) {
+          const prevYear = currentYear - 1;
+          const prevItems = await fetchSection(
+            `/discover/movie?language=en-US&sort_by=vote_average.desc&vote_count.gte=150&primary_release_year=${prevYear}&with_original_language=en`,
+            movieMapper,
+            movieFilter,
+            seed + sec.seedOffset
+          );
+          items = dedupeMediaItems([...items, ...prevItems]).slice(0, 20);
+        }
+        return {
+          id: sec.id,
+          title: sec.title,
+          items,
+        };
+      })
+    );
+
+    return results;
+  } else {
+    const showMapper = (item: TmdbListItem) => mapMovieOrShow(item, "show", genres);
+    const showFilter = isUsefulShow;
+
+    const sections = [
+      {
+        id: "trending",
+        title: "Currently Trending",
+        path: "/trending/tv/week?language=en-US",
+        seedOffset: 11,
+      },
+      {
+        id: "top_rated",
+        title: "Top Rated Shows",
+        path: "/tv/top_rated?language=en-US",
+        seedOffset: 12,
+      },
+      {
+        id: "binge_mystery",
+        title: "Binge-Worthy Mystery & Sci-Fi",
+        path: "/discover/tv?language=en-US&sort_by=popularity.desc&with_genres=9648,10765&with_original_language=en",
+        seedOffset: 13,
+      },
+      {
+        id: "comedy_gold",
+        title: "Laugh Out Loud: Comedy Gold",
+        path: "/discover/tv?language=en-US&sort_by=popularity.desc&with_genres=35&with_original_language=en",
+        seedOffset: 14,
+      },
+      {
+        id: "tv_nostalgia",
+        title: "Nostalgic TV Throwback",
+        path: "/discover/tv?language=en-US&sort_by=popularity.desc&first_air_date.gte=1990-01-01&first_air_date.lte=2015-12-31&vote_count.gte=300&with_original_language=en",
+        seedOffset: 15,
+      },
+      {
+        id: "hidden_gems",
+        title: "Hidden Gems",
+        path: "/discover/tv?language=en-US&sort_by=popularity.desc&vote_average.gte=7.8&vote_count.gte=50&vote_count.lte=1000&with_original_language=en",
+        seedOffset: 16,
+      },
+      {
+        id: "random_channel",
+        title: "Chaotic Channel: Random TV",
+        path: "/discover/tv?language=en-US&sort_by=popularity.desc&page=3&with_original_language=en",
+        seedOffset: 17,
+      },
+    ];
+
+    const results = await Promise.all(
+      sections.map(async (sec) => {
+        const items = await fetchSection(sec.path, showMapper, showFilter, seed + sec.seedOffset);
+        return {
+          id: sec.id,
+          title: sec.title,
+          items,
+        };
+      })
+    );
+
+    return results;
+  }
+}
+

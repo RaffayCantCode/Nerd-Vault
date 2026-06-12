@@ -3,7 +3,7 @@ import { cache } from "react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { MediaItem } from "@/lib/types";
-import { CommunityRatingSummary, LibraryState, PrivacyLevel, SocialNotification, SocialProfile, StoredFolder, VaultProfilePayload } from "@/lib/vault-types";
+import { CommunityRatingSummary, LibraryState, PrivacyLevel, SocialNotification, SocialProfile, StoredList, VaultProfilePayload } from "@/lib/vault-types";
 
 type MediaRecord = Prisma.MediaGetPayload<{
   include: {
@@ -138,7 +138,7 @@ function serializeNotification(notification: NotificationRecord): SocialNotifica
   };
 }
 
-function serializeFolder(folder: Prisma.FolderGetPayload<{
+function serializeList(folder: Prisma.FolderGetPayload<{
   include: {
     items: {
       include: {
@@ -154,16 +154,21 @@ function serializeFolder(folder: Prisma.FolderGetPayload<{
       };
     };
   };
-}>): StoredFolder {
+}>): StoredList {
   return {
     id: folder.id,
     name: folder.name,
+    slug: folder.slug,
     description: folder.description ?? undefined,
     coverUrl: folder.coverUrl ?? undefined,
     visibility: toPrivacyLevel(folder.visibility),
     items: folder.items.map((entry) => serializeMedia(entry.media)),
+    itemCount: folder.items.length,
   };
 }
+
+/** @deprecated Use serializeList */
+const serializeFolder = serializeList;
 
 function serializeProfile(
   user: {
@@ -353,7 +358,7 @@ export async function persistMediaItem(item: MediaItem, txArg?: Prisma.Transacti
 }
 
 export const getLibraryStateForUser = cache(async (userId: string): Promise<LibraryState> => {
-  const [watchedRows, wishlistRows, folders] = await Promise.all([
+  const [watchedRows, wishlistRows, listRows] = await Promise.all([
     prisma.watchedItem.findMany({
       where: { userId },
       orderBy: { watchedAt: "desc" },
@@ -406,15 +411,17 @@ export const getLibraryStateForUser = cache(async (userId: string): Promise<Libr
     }),
   ]);
 
+  const lists = listRows.map(serializeList);
   return {
     watched: watchedRows.map(serializeWatchedMedia),
     wishlist: wishlistRows.map((row) => serializeMedia(row.media)),
-    folders: folders.map(serializeFolder),
+    lists,
+    folders: lists,
   };
 });
 
-export const getFoldersForUser = cache(async (userId: string): Promise<StoredFolder[]> => {
-  const folders = await prisma.folder.findMany({
+export const getListsForUser = cache(async (userId: string): Promise<StoredList[]> => {
+  const rows = await prisma.folder.findMany({
     where: { userId },
     orderBy: { updatedAt: "desc" },
     include: {
@@ -435,11 +442,56 @@ export const getFoldersForUser = cache(async (userId: string): Promise<StoredFol
     },
   });
 
-  return folders.map(serializeFolder);
+  return rows.map(serializeList);
 });
 
+/** @deprecated Use getListsForUser */
+export const getFoldersForUser = getListsForUser;
+
+export async function getListById(listId: string, viewerId: string): Promise<StoredList | null> {
+  const row = await prisma.folder.findUnique({
+    where: { id: listId },
+    include: {
+      items: {
+        orderBy: { createdAt: "desc" },
+        include: {
+          media: {
+            include: {
+              genres: {
+                include: {
+                  genre: true,
+                },
+              },
+            },
+          },
+        },
+      },
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+        },
+      },
+    },
+  });
+
+  if (!row) return null;
+
+  const ownerFriendIds = await getFriendIds(row.userId);
+  const canView =
+    row.visibility === "public" ||
+    row.userId === viewerId ||
+    (row.visibility === "friends" && ownerFriendIds.includes(viewerId));
+
+  if (!canView) return null;
+
+  return serializeList(row);
+}
+
 export const getViewerShellData = cache(async (userId: string) => {
-  const [viewer, friendIds, folders] = await Promise.all([
+  const [viewer, friendIds, lists] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
       include: {
@@ -461,7 +513,7 @@ export const getViewerShellData = cache(async (userId: string) => {
       },
     }),
     getFriendIds(userId),
-    getFoldersForUser(userId),
+    getListsForUser(userId),
   ]);
 
   const friends = friendIds.length
@@ -472,7 +524,8 @@ export const getViewerShellData = cache(async (userId: string) => {
     : [];
 
   return {
-    folders,
+    lists,
+    folders: lists,
     viewerProfile: serializeProfile(viewer, friendIds),
     friends: friends.map((friend) => serializeProfile(friend, [])),
   };
@@ -522,15 +575,21 @@ export const getVaultProfilePayload = cache(async (viewerId: string, viewedUserI
   const canSeeWatched = canViewPrivacy(viewedUserId, viewerId, viewedProfile.watchedVisibility, viewedFriendIds);
   const canSeeWishlist = canViewPrivacy(viewedUserId, viewerId, viewedProfile.wishlistVisibility, viewedFriendIds);
 
+  const visibleLists = viewingOwnProfile
+    ? (viewerLibrary.lists ?? [])
+    : (
+        viewedLibrary?.lists.filter((list) =>
+          canViewPrivacy(viewedUserId, viewerId, list.visibility, viewedFriendIds),
+        ) ?? []
+      );
+
   const visibleLibrary = viewingOwnProfile
     ? viewerLibrary
     : {
         watched: canSeeWatched && viewedLibrary ? viewedLibrary.watched : [],
         wishlist: canSeeWishlist && viewedLibrary ? viewedLibrary.wishlist : [],
-        folders:
-          viewedLibrary?.folders.filter((folder) =>
-            canViewPrivacy(viewedUserId, viewerId, folder.visibility, viewedFriendIds),
-          ) ?? [],
+        lists: visibleLists,
+        folders: visibleLists,
       };
 
   return {
@@ -539,7 +598,8 @@ export const getVaultProfilePayload = cache(async (viewerId: string, viewedUserI
     friends: friends.map((friend) => serializeProfile(friend, [])),
     watched: visibleLibrary.watched,
     wishlist: visibleLibrary.wishlist,
-    folders: visibleLibrary.folders,
+    lists: visibleLists,
+    folders: visibleLists,
     canSeeWatched,
     canSeeWishlist,
     viewingOwnProfile,
@@ -623,6 +683,7 @@ export async function updateProfile(userId: string, updates: {
   watchedVisibility?: PrivacyLevel;
   wishlistVisibility?: PrivacyLevel;
   foldersDefaultVisibility?: PrivacyLevel;
+  listsDefaultVisibility?: PrivacyLevel;
 }) {
   await prisma.user.update({
     where: { id: userId },
@@ -631,7 +692,7 @@ export async function updateProfile(userId: string, updates: {
       bio: updates.bio?.trim() || undefined,
       watchedVisibility: updates.watchedVisibility,
       wishlistVisibility: updates.wishlistVisibility,
-      foldersDefaultVisibility: updates.foldersDefaultVisibility,
+      foldersDefaultVisibility: updates.foldersDefaultVisibility ?? updates.listsDefaultVisibility,
     },
   });
 }
@@ -743,14 +804,14 @@ export async function removeFromWishlist(userId: string, source: string, sourceI
   });
 }
 
-export async function createFolder(userId: string, input: {
+export async function createList(userId: string, input: {
   name: string;
   description?: string;
   coverUrl?: string;
 }) {
   const trimmed = input.name.trim();
   if (!trimmed) {
-    throw new Error("Folder name is required");
+    throw new Error("List name is required");
   }
 
   const slugBase = slugify(trimmed);
@@ -780,23 +841,26 @@ export async function createFolder(userId: string, input: {
   });
 }
 
-export async function updateFolder(userId: string, folderId: string, updates: {
+/** @deprecated Use createList */
+export const createFolder = createList;
+
+export async function updateList(userId: string, listId: string, updates: {
   name?: string;
   description?: string;
   coverUrl?: string;
   visibility?: PrivacyLevel;
 }) {
-  const folder = await prisma.folder.findFirstOrThrow({
+  const list = await prisma.folder.findFirstOrThrow({
     where: {
-      id: folderId,
+      id: listId,
       userId,
     },
   });
 
   const nextName = updates.name?.trim();
-  let nextSlug = folder.slug;
+  let nextSlug = list.slug;
 
-  if (nextName && nextName !== folder.name) {
+  if (nextName && nextName !== list.name) {
     const slugBase = slugify(nextName);
     nextSlug = slugBase;
     let suffix = 1;
@@ -806,7 +870,7 @@ export async function updateFolder(userId: string, folderId: string, updates: {
         where: {
           userId,
           slug: nextSlug,
-          id: { not: folderId },
+          id: { not: listId },
         },
       })
     ) {
@@ -816,7 +880,7 @@ export async function updateFolder(userId: string, folderId: string, updates: {
   }
 
   await prisma.folder.update({
-    where: { id: folderId },
+    where: { id: listId },
     data: {
       name: nextName || undefined,
       slug: nextSlug,
@@ -827,20 +891,26 @@ export async function updateFolder(userId: string, folderId: string, updates: {
   });
 }
 
-export async function deleteFolder(userId: string, folderId: string) {
+/** @deprecated Use updateList */
+export const updateFolder = updateList;
+
+export async function deleteList(userId: string, listId: string) {
   await prisma.folder.deleteMany({
     where: {
-      id: folderId,
+      id: listId,
       userId,
     },
   });
 }
 
-export async function addItemToFolder(userId: string, folderId: string, item: MediaItem) {
+/** @deprecated Use deleteList */
+export const deleteFolder = deleteList;
+
+export async function addItemToList(userId: string, listId: string, item: MediaItem) {
   await prisma.$transaction(async (tx) => {
-    const folder = await tx.folder.findFirstOrThrow({
+    const list = await tx.folder.findFirstOrThrow({
       where: {
-        id: folderId,
+        id: listId,
         userId,
       },
     });
@@ -849,7 +919,7 @@ export async function addItemToFolder(userId: string, folderId: string, item: Me
     await tx.folderItem.upsert({
       where: {
         folderId_mediaId: {
-          folderId: folder.id,
+          folderId: list.id,
           mediaId: media.id,
         },
       },
@@ -857,18 +927,21 @@ export async function addItemToFolder(userId: string, folderId: string, item: Me
         createdAt: new Date(),
       },
       create: {
-        folderId: folder.id,
+        folderId: list.id,
         mediaId: media.id,
       },
     });
   });
 }
 
-export async function removeItemFromFolder(userId: string, folderId: string, source: string, sourceId: string) {
-  const [folder, media] = await Promise.all([
+/** @deprecated Use addItemToList */
+export const addItemToFolder = addItemToList;
+
+export async function removeItemFromList(userId: string, listId: string, source: string, sourceId: string) {
+  const [list, media] = await Promise.all([
     prisma.folder.findFirst({
       where: {
-        id: folderId,
+        id: listId,
         userId,
       },
     }),
@@ -882,15 +955,18 @@ export async function removeItemFromFolder(userId: string, folderId: string, sou
     }),
   ]);
 
-  if (!folder || !media) return;
+  if (!list || !media) return;
 
   await prisma.folderItem.deleteMany({
     where: {
-      folderId: folder.id,
+      folderId: list.id,
       mediaId: media.id,
     },
   });
 }
+
+/** @deprecated Use removeItemFromList */
+export const removeItemFromFolder = removeItemFromList;
 
 async function createNotification(data: {
   userId: string;

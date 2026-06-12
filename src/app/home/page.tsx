@@ -50,8 +50,8 @@ export default async function HomeHubPage({
   await ensureCurrentUserRecord().catch(() => undefined);
 
   const [shellData, library] = await Promise.all([
-    getViewerShellData(session.user.id).catch(() => ({ folders: [], viewerProfile: null, friends: [] })),
-    getLibraryStateForUser(session.user.id).catch(() => ({ watched: [], wishlist: [], folders: [] }))
+    getViewerShellData(session.user.id).catch(() => ({ folders: [], lists: [], viewerProfile: null, friends: [] })),
+    getLibraryStateForUser(session.user.id).catch(() => ({ watched: [], wishlist: [], lists: [], folders: [] }))
   ]);
 
   const requestedUser = typeof resolvedSearchParams?.user === "string" ? resolvedSearchParams.user : undefined;
@@ -63,7 +63,7 @@ export default async function HomeHubPage({
   return (
     <div className="page-shell home-page">
       <div className="app-shell-layout home-layout">
-        <AppSidebar active="vault" initialFolders={shellData.folders} />
+        <AppSidebar active="vault" />
         <main className="workspace home-workspace">
           <HomeScrollReset />
           <VaultClientPrimer

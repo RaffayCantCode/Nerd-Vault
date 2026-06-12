@@ -14,8 +14,8 @@ export async function GET(request: NextRequest) {
     // Parallelize database calls for better performance
     const [user, shellData, library] = await Promise.all([
       ensureCurrentUserRecord(),
-      getViewerShellData(session.user.id).catch(() => ({ folders: [], viewerProfile: null, friends: [] })),
-      getLibraryStateForUser(session.user.id).catch(() => ({ watched: [], wishlist: [], folders: [] }))
+      getViewerShellData(session.user.id).catch(() => ({ lists: [], folders: [], viewerProfile: null, friends: [] })),
+      getLibraryStateForUser(session.user.id).catch(() => ({ watched: [], wishlist: [], lists: [], folders: [] }))
     ]);
     
     const feed = await buildHomeFeed(library);

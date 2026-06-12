@@ -35,7 +35,7 @@ export default async function BrowsePage({
   return (
     <div className="page-shell browse-page">
       <div className="app-shell-layout browse-layout">
-        <AppSidebar active="browse" initialFolders={shellData?.folders ?? []} />
+        <AppSidebar active="browse" />
         <main className="workspace browse-workspace">
           <VaultClientPrimer
             library={library}

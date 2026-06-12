@@ -173,7 +173,8 @@ export function BookReader({
 
   useEffect(() => {
     if (!paperRef.current) return;
-    paperRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    paperRef.current.scrollIntoView({ behavior: "auto", block: "start" });
+    window.scrollTo({ top: 0, behavior: "auto" });
   }, [currentPage]);
 
   const pageTargetSize = useMemo(() => {
@@ -565,6 +566,30 @@ export function BookReader({
                 <strong>{currentPage}</strong>
               </div>
             </div>
+          </section>
+
+          <section className="books-reader-progress-rail books-reader-progress-rail-bottom" style={{ marginTop: "28px" }}>
+            <button type="button" className="books-card-button" disabled={currentPage <= 1} onClick={() => jumpToPage(currentPage - 1)}>
+              Previous
+            </button>
+            <div className="books-reader-progress-bar">
+              <input
+                type="range"
+                min={1}
+                max={totalPages}
+                step={1}
+                value={currentPage}
+                onChange={(event) => jumpToPage(Number(event.target.value))}
+                aria-label="Reader progress bottom"
+              />
+              <div className="books-reader-progress-meta">
+                <span>Page {currentPage}</span>
+                <span>{totalPages} pages</span>
+              </div>
+            </div>
+            <button type="button" className="books-card-button books-card-button-primary" disabled={currentPage >= totalPages} onClick={() => jumpToPage(currentPage + 1)}>
+              Next
+            </button>
           </section>
         </section>
       </main>

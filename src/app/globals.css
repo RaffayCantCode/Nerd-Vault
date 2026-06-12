@@ -5099,9 +5099,347 @@ body {
   min-width: 100%;
 }
 
+/* ── Lists System ──────────────────────────────────────────────────────────── */
+
+.lists-workspace {
+  display: grid;
+  gap: 20px;
+}
+
+.lists-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 22px;
+  border-radius: 20px;
+  flex-wrap: wrap;
+}
+
+.lists-toolbar-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.lists-toolbar-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.lists-create-btn {
+  white-space: nowrap;
+}
+
+.list-create-panel {
+  display: grid;
+  gap: 16px;
+  padding: 22px;
+  border-radius: 22px;
+}
+
+.list-create-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.list-edit-fields {
+  display: grid;
+  gap: 12px;
+}
+
+.list-edit-field-group {
+  display: grid;
+  gap: 6px;
+}
+
+.list-edit-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.list-edit-input {
+  width: 100%;
+  min-width: 0;
+}
+
+.list-edit-textarea {
+  resize: vertical;
+  min-height: 72px;
+}
+
+.list-edit-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.list-cover-upload {
+  display: grid;
+  gap: 6px;
+}
+
+/* Lists grid */
+.lists-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 18px;
+}
+
+.list-card {
+  overflow: hidden;
+  border-radius: 24px;
+  display: grid;
+  align-content: start;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.025)),
+    rgba(10, 14, 22, 0.72);
+  transition: transform 200ms ease, box-shadow 200ms ease;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22);
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+}
+
+.list-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 28px 64px rgba(0, 0, 0, 0.35);
+}
+
+.list-card-art {
+  width: 100%;
+  aspect-ratio: 16/9;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.list-card-mosaic {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 2px;
+}
+
+.list-card-mosaic-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.list-card-single-cover {
+  position: absolute;
+  inset: 0;
+}
+
+.list-card-single-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.list-card-mosaic-placeholder {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.list-card-body {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px 18px;
+}
+
+.list-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.list-card-visibility {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.list-visibility-public { color: var(--gold); }
+.list-visibility-friends { color: rgba(120, 190, 255, 1); }
+.list-visibility-private { color: rgba(255, 255, 255, 0.4); }
+
+.list-card-count {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.52);
+}
+
+.list-card-name {
+  font-size: 1.08rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+
+.list-card-desc {
+  font-size: 0.86rem;
+  color: rgba(255, 255, 255, 0.58);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* List hero */
+.list-hero {
+  position: relative;
+  overflow: hidden;
+  min-height: 360px;
+}
+
+.list-hero-backdrop {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  z-index: 0;
+  opacity: 0.55;
+  filter: blur(6px) saturate(1.25);
+}
+
+.list-hero-topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.list-hero-identity {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.list-hero-cover {
+  width: 88px;
+  height: 120px;
+  border-radius: 16px;
+  background-size: cover;
+  background-position: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.list-hero-copy {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.list-hero-title {
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+}
+
+.list-hero-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.list-visibility-pill {
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.list-hero-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.list-hero-description {
+  padding: 14px 18px;
+  border-radius: 16px;
+  margin-top: 12px;
+}
+
+.list-delete-button {
+  border-color: rgba(255, 80, 80, 0.3) !important;
+  color: rgba(255, 100, 100, 0.9) !important;
+}
+
+.list-delete-button:hover {
+  border-color: rgba(255, 80, 80, 0.6) !important;
+  background: rgba(255, 80, 80, 0.08) !important;
+}
+
+.list-edit-panel {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 20px;
+  margin-top: 12px;
+}
+
+.list-item-wrapper {
+  position: relative;
+}
+
+.list-item-remove-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(15, 17, 28, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.78rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 150ms ease, background 150ms ease;
+  z-index: 10;
+}
+
+.list-item-wrapper:hover .list-item-remove-btn {
+  opacity: 1;
+}
+
+.list-item-remove-btn:hover {
+  background: rgba(200, 50, 50, 0.55);
+  color: #fff;
+  border-color: rgba(200, 50, 50, 0.4);
+}
+
+.list-loading-shell {
+  display: flex;
+  justify-content: center;
+  padding: 48px 24px;
+}
+
 .topbar-search-unified {
   width: min(780px, 100%);
 }
+
 
 .app-topbar-actions {
   grid-template-columns: minmax(320px, 1fr) auto auto;
@@ -13865,34 +14203,50 @@ html {
   gap: 1rem;
 }
 
+.play-toggle,
 .mute-toggle {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--muted);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+.play-toggle:hover,
 .mute-toggle:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.12);
   color: var(--text);
-  border-color: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: scale(1.08);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
 }
 
+.play-toggle.is-playing,
+.mute-toggle.is-unmuted {
+  color: #05070c;
+  border-color: #69C5AC;
+  background: linear-gradient(135deg, #69C5AC, #1EBDC2);
+  box-shadow: 0 0 14px rgba(105, 197, 172, 0.4);
+}
+
+.play-toggle.is-playing:hover,
+.mute-toggle.is-unmuted:hover {
+  transform: scale(1.08);
+  box-shadow: 0 0 20px rgba(105, 197, 172, 0.6);
+}
+
+.play-toggle.is-paused,
 .mute-toggle.is-muted {
   color: var(--muted);
-}
-
-.mute-toggle.is-unmuted {
-  color: var(--gold);
-  border-color: rgba(105, 197, 172, 0.25);
-  background: rgba(105, 197, 172, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .quality-label {
@@ -16012,8 +16366,8 @@ body {
    ========================================================= */
 
 :root {
-  --shell-max: 1440px;
-  --content-max: 1240px;
+  --shell-max: min(2560px, 98vw);
+  --content-max: min(2400px, 100%);
 }
 
 .page-shell,
@@ -17028,13 +17382,14 @@ body {
    Single source of truth for desktop browse sizing and width behavior. */
 @media (min-width: 901px) {
   .app-shell-layout {
-    max-width: min(1860px, 98vw) !important;
+    width: 98% !important;
+    max-width: 2560px !important;
     padding-inline: clamp(10px, 0.9vw, 18px) !important;
   }
 
   .workspace.browse-workspace-root {
     width: 100% !important;
-    max-width: min(1760px, calc(100vw - 112px)) !important;
+    max-width: 100% !important;
     margin-inline: 0 0 !important;
     gap: 14px !important;
   }
@@ -17052,7 +17407,7 @@ body {
 
 @media (min-width: 1536px) {
   .workspace.browse-workspace-root {
-    max-width: min(1880px, calc(100vw - 118px)) !important;
+    max-width: 100% !important;
   }
 
   .browse-workspace-root .catalog-grid {

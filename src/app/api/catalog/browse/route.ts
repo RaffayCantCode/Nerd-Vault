@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { browseRawgGames } from "@/lib/sources/rawg";
-import { browseAniListAnime } from "@/lib/sources/anilist";
+import { browseAniListAnime, getAniListCuratedSections } from "@/lib/sources/anilist";
 import { browseMixedCatalog } from "@/lib/mixed-catalog";
-import { browseTmdbCatalog } from "@/lib/sources/tmdb";
+import { browseTmdbCatalog, getTmdbCuratedSections } from "@/lib/sources/tmdb";
+import { browseIgdbGames, getIgdbCuratedSections } from "@/lib/sources/igdb";
 import { MediaItem } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -60,6 +60,29 @@ export async function GET(request: NextRequest) {
       : "all";
 
   try {
+    const curatedParam = searchParams.get("curated");
+    const isCurated = curatedParam === "true";
+
+    if (isCurated && type !== "all") {
+      let sections: any[] = [];
+      if (type === "movie" || type === "show") {
+        sections = await getTmdbCuratedSections(type, seed);
+      } else if (type === "anime") {
+        sections = await getAniListCuratedSections(seed);
+      } else if (type === "game") {
+        sections = await getIgdbCuratedSections(seed);
+      }
+      return NextResponse.json(
+        { ok: true, sections },
+        {
+          headers: {
+            "Cache-Control": "private, no-store, max-age=0, must-revalidate",
+            Pragma: "no-cache",
+          },
+        }
+      );
+    }
+
     const requestedPage = Number.isFinite(pageParam) ? Math.max(1, Math.floor(pageParam)) : 1;
 
     const fetchByType = async (targetPage: number): Promise<BrowsePayload> => {
@@ -75,26 +98,15 @@ export async function GET(request: NextRequest) {
       }
 
       if (type === "game") {
-        try {
-          const { browseIgdbGames } = await import("@/lib/sources/igdb");
-          return await browseIgdbGames({
-            page: targetPage,
-            query,
-            genre,
-            sort,
-            seed,
-            pageSize,
-          });
-        } catch {
-          return browseRawgGames({
-            page: targetPage,
-            query,
-            genre,
-            sort,
-            seed,
-            pageSize,
-          });
-        }
+        const { browseIgdbGames } = await import("@/lib/sources/igdb");
+        return await browseIgdbGames({
+          page: targetPage,
+          query,
+          genre,
+          sort,
+          seed,
+          pageSize,
+        });
       }
 
       if (type === "all") {
