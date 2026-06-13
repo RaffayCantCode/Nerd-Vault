@@ -4114,7 +4114,7 @@ body {
 }
 
 .app-topbar.is-layered {
-  z-index: 80;
+  z-index: 300;
 }
 
 .app-topbar-meta {
