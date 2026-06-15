@@ -63,6 +63,20 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewTitle, setReviewTitle] = useState("");
   const [reviewText, setReviewText] = useState("");
+  const [isTogglingStatus, setIsTogglingStatus] = useState(false);
+  const watchStatusLabel = item.type === "game" ? "Playing" : "Watching";
+
+  const isWatchingActive = useMemo(() => {
+    return lists.find((l) => l.name.toLowerCase() === watchStatusLabel.toLowerCase())?.items.some((i) => i.source === item.source && i.sourceId === item.sourceId) ?? false;
+  }, [lists, item.source, item.sourceId, watchStatusLabel]);
+
+  const isOnHoldActive = useMemo(() => {
+    return lists.find((l) => l.name.toLowerCase() === "on hold")?.items.some((i) => i.source === item.source && i.sourceId === item.sourceId) ?? false;
+  }, [lists, item.source, item.sourceId]);
+
+  const isDroppedActive = useMemo(() => {
+    return lists.find((l) => l.name.toLowerCase() === "dropped")?.items.some((i) => i.source === item.source && i.sourceId === item.sourceId) ?? false;
+  }, [lists, item.source, item.sourceId]);
 
   const primaryLabel = item.type === "game" ? "Played" : "Watched";
 
@@ -153,6 +167,21 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
       setReviewText(mode === "clear" || mode === "skip" ? "" : reviewText.trim());
       setReviewOpen(false);
 
+      if (mode !== "clear") {
+        // Remove from status folders
+        const statusFolders = lists.filter((l) => ["watching", "playing", "on hold", "dropped"].includes(l.name.toLowerCase()));
+        for (const folder of statusFolders) {
+          if (folder.items.some((i) => i.source === item.source && i.sourceId === item.sourceId)) {
+            await removeMediaFromList(folder.id, item);
+          }
+        }
+        // Remove from wishlist
+        if (isWishlisted) {
+          await removeMediaFromWishlist(item);
+          setIsWishlisted(false);
+        }
+      }
+
       if (mode === "skip") {
         showFeedback("success", `${item.title} marked as ${primaryLabel.toLowerCase()}`);
       } else if (mode === "clear") {
@@ -208,6 +237,13 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
     try {
       if (nextValue) {
         await addMediaToWishlist(item);
+        // Remove from status folders
+        const statusFolders = lists.filter((l) => ["watching", "playing", "on hold", "dropped"].includes(l.name.toLowerCase()));
+        for (const folder of statusFolders) {
+          if (folder.items.some((i) => i.source === item.source && i.sourceId === item.sourceId)) {
+            await removeMediaFromList(folder.id, item);
+          }
+        }
       } else {
         await removeMediaFromWishlist(item);
       }
@@ -261,6 +297,75 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
       showFeedback("info", `Could not update ${selectedList?.name ?? "list"} yet. Try again.`);
     } finally {
       setIsUpdatingFolder(false);
+    }
+  }
+
+  async function getOrCreateStatusFolder(statusName: string): Promise<string> {
+    const existing = lists.find((l) => l.name.toLowerCase() === statusName.toLowerCase());
+    if (existing) {
+      return existing.id;
+    }
+    const result = await createUserList({ name: statusName, visibility: "public" });
+    if (result && result.id) {
+      return result.id;
+    }
+    throw new Error(`Failed to create list: ${statusName}`);
+  }
+
+  async function handleStatusToggle(statusName: string) {
+    if (isGuest) {
+      setShowGuestAuthModal(true);
+      return;
+    }
+    if (isTogglingStatus) {
+      return;
+    }
+
+    const currentFolder = lists.find((l) => l.name.toLowerCase() === statusName.toLowerCase());
+    const isAlreadyInStatus = currentFolder?.items.some((i) => i.source === item.source && i.sourceId === item.sourceId) ?? false;
+
+    setIsTogglingStatus(true);
+
+    try {
+      if (isAlreadyInStatus) {
+        if (currentFolder) {
+          await removeMediaFromList(currentFolder.id, item);
+          showFeedback("info", `${item.title} removed from ${statusName}`);
+        }
+      } else {
+        const targetFolderId = await getOrCreateStatusFolder(statusName);
+        await addMediaToList(targetFolderId, item);
+
+        // Remove from other status folders
+        const otherStatuses = ["watching", "playing", "on hold", "dropped"].filter((s) => s !== statusName.toLowerCase());
+        for (const otherStatus of otherStatuses) {
+          const otherFolder = lists.find((l) => l.name.toLowerCase() === otherStatus);
+          if (otherFolder && otherFolder.items.some((i) => i.source === item.source && i.sourceId === item.sourceId)) {
+            await removeMediaFromList(otherFolder.id, item);
+          }
+        }
+
+        // Remove from wishlist
+        if (isWishlisted) {
+          await removeMediaFromWishlist(item);
+          setIsWishlisted(false);
+        }
+
+        // Remove from watched
+        if (isWatched) {
+          await removeMediaFromWatched(item);
+          setIsWatched(false);
+          setReviewRating(0);
+          setReviewTitle("");
+          setReviewText("");
+        }
+
+        showFeedback("success", `${item.title} marked as ${statusName}`);
+      }
+    } catch {
+      showFeedback("info", `Could not update status to ${statusName} yet. Try again.`);
+    } finally {
+      setIsTogglingStatus(false);
     }
   }
 
@@ -331,6 +436,15 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
                   Mark as {primaryLabel}
                 </button>
                 <button className="button button-secondary" type="button" onClick={() => setShowGuestAuthModal(true)}>
+                  {item.type === "game" ? "Playing" : "Watching"}
+                </button>
+                <button className="button button-secondary" type="button" onClick={() => setShowGuestAuthModal(true)}>
+                  On Hold
+                </button>
+                <button className="button button-secondary" type="button" onClick={() => setShowGuestAuthModal(true)}>
+                  Dropped
+                </button>
+                <button className="button button-secondary" type="button" onClick={() => setShowGuestAuthModal(true)}>
                   Recommend
                 </button>
                 <button className="button button-secondary" type="button" onClick={() => setShowGuestAuthModal(true)}>
@@ -382,8 +496,32 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
           </div>
 
           <div className="button-row">
-            <button className={`button button-primary ${isWatched ? "button-success" : ""}`} type="button" onClick={() => setReviewOpen(true)}>
+            <button className={`button ${isWatched ? "button-success" : "button-secondary"}`} type="button" onClick={() => setReviewOpen(true)}>
               {isWatched ? "Edit review" : `Mark as ${primaryLabel}`}
+            </button>
+            <button
+              className={`button ${isWatchingActive ? "button-primary" : "button-secondary"}`}
+              type="button"
+              onClick={() => void handleStatusToggle(watchStatusLabel)}
+              disabled={isTogglingStatus}
+            >
+              {isTogglingStatus && isWatchingActive ? "Saving..." : watchStatusLabel}
+            </button>
+            <button
+              className={`button ${isOnHoldActive ? "button-accent" : "button-secondary"}`}
+              type="button"
+              onClick={() => void handleStatusToggle("On Hold")}
+              disabled={isTogglingStatus}
+            >
+              {isTogglingStatus && isOnHoldActive ? "Saving..." : "On Hold"}
+            </button>
+            <button
+              className={`button ${isDroppedActive ? "button-accent" : "button-secondary"}`}
+              type="button"
+              onClick={() => void handleStatusToggle("Dropped")}
+              disabled={isTogglingStatus}
+            >
+              {isTogglingStatus && isDroppedActive ? "Saving..." : "Dropped"}
             </button>
             <button className="button button-secondary" type="button" onClick={() => setRecommendOpen(true)}>
               Recommend
@@ -394,7 +532,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
               </button>
             ) : null}
             <button
-              className={`button button-secondary ${isWishlisted ? "button-accent" : ""}`}
+              className={`button ${isWishlisted ? "button-accent" : "button-secondary"}`}
               type="button"
               onClick={() => void handleWishlist()}
               disabled={isTogglingWishlist}
