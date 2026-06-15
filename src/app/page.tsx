@@ -1,401 +1,489 @@
 import Image from "next/image";
 import Link from "next/link";
-import { 
-  Film, 
-  Tv, 
-  Gamepad2, 
-  BookOpen, 
-  Search, 
-  Sparkles, 
-  Star, 
-  Play, 
-  Users, 
-  FolderHeart, 
-  ArrowRight, 
-  LogIn, 
-  Laptop,
-  Info
+import {
+  Film, Tv, Gamepad2, BookOpen, Search, Sparkles,
+  Star, Users, FolderHeart, ArrowRight, Bookmark, ChevronRight, Zap,
 } from "lucide-react";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { SiteHeader } from "@/components/site-header";
 import { BrowseResetLink } from "@/components/browse-reset-link";
 import { getBrowseDiscoverySeed, getBrowseBootstrapCatalog } from "@/lib/browse-bootstrap";
+import { browseAniListAnime } from "@/lib/sources/anilist";
 import { fetchBooksPage } from "@/lib/books";
 import { isFamilyFriendlyMediaItem } from "@/lib/media-safety";
 import { MediaItem } from "@/lib/types";
 import { BookSummary } from "@/lib/book-types";
+import { prisma } from "@/lib/prisma";
+import { optimizeMediaImageUrl } from "@/lib/media-image";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const seed = getBrowseDiscoverySeed();
-  
-  // Concurrently fetch bootstrap catalog (movies, shows, anime, games) and Gutenberg books
-  const [bootstrapResult, booksResult, session] = await Promise.all([
-    getBrowseBootstrapCatalog(seed).catch((e) => {
-      console.error("Failed to fetch bootstrap catalog:", e);
-      return { catalog: [] as MediaItem[], surfacing: [] as MediaItem[] };
-    }),
-    fetchBooksPage({ page: 1, query: "" }).catch((e) => {
-      console.error("Failed to fetch books:", e);
-      return { items: [] as BookSummary[] };
-    }),
+
+  const [bootstrapResult, booksResult, session, animeExtra] = await Promise.all([
+    getBrowseBootstrapCatalog(seed).catch(() => ({ catalog: [] as MediaItem[], surfacing: [] as MediaItem[] })),
+    fetchBooksPage({ page: 1, query: "" }).catch(() => ({ items: [] as BookSummary[] })),
     auth().catch(() => null),
+    // Supplemental anime — page 2 to increase variety
+    browseAniListAnime({ page: 2, query: "", genre: "", sort: "rating", seed: seed + 77 }).catch(() => ({
+      items: [] as MediaItem[], page: 2, totalPages: 1, totalResults: 0,
+    })),
   ]);
 
+  const realActivity = await prisma.watchedItem.findMany({
+    take: 18,
+    orderBy: { watchedAt: "desc" },
+    where: { user: { watchedVisibility: "public" } },
+    include: {
+      user: { select: { name: true, image: true } },
+      media: {
+        select: { slug: true, title: true, type: true, coverUrl: true, backdropUrl: true, rating: true, source: true, sourceId: true }
+      }
+    }
+  }).catch(() => []);
+
   const isSignedIn = Boolean(session?.user?.id);
-  const userName = session?.user?.name || "";
-  
-  // Exclude non-family-friendly titles from the home page
+  const userName   = session?.user?.name || "";
+
   const catalog = (bootstrapResult.catalog || []).filter(isFamilyFriendlyMediaItem);
-  
-  // Categorize media items
-  const movies = catalog.filter((item) => item.type === "movie");
-  const shows = catalog.filter((item) => item.type === "show");
-  const anime = catalog.filter((item) => item.type === "anime");
-  const games = catalog.filter((item) => item.type === "game");
-  const books = booksResult.items || [];
 
-  // 1. SELECT AN IMPRESSIVE TRENDING SPOTLIGHT HERO ITEM
-  // Prioritize modern/recent media (last 6 years) to show trending content rather than retro classics
+  /* ── Media type buckets ──────────────────────────────── */
+  const movies = catalog.filter((i) => i.type === "movie");
+  const shows  = catalog.filter((i) => i.type === "show");
+  const games  = catalog.filter((i) => i.type === "game");
+  const books  = booksResult.items || [];
+
+  // Anime: merge bootstrap + supplemental, dedup by sourceId
+  const animeBase  = catalog.filter((i) => i.type === "anime");
+  const animeSuppl = (animeExtra.items || [])
+    .filter(isFamilyFriendlyMediaItem)
+    .filter((i) => !animeBase.some((a) => a.sourceId === i.sourceId));
+  const anime = [...animeBase, ...animeSuppl].slice(0, 24);
+
+  /* ── Spotlight item ─────────────────────────────────── */
   const currentYear = new Date().getFullYear();
-  const trendingYearThreshold = currentYear - 6; // 2020
-
-  let spotlightCandidates = catalog.filter(
-    (item) => item.backdropUrl && item.overview && item.rating > 0 && item.year >= trendingYearThreshold
+  const spotPool = catalog.filter(
+    (i) => i.backdropUrl && i.overview && i.rating > 0 && i.year >= currentYear - 6
   );
+  const spotlightItem: MediaItem | null =
+    spotPool.length > 0 ? spotPool[Math.floor(Math.random() * spotPool.length)] : catalog[0] ?? null;
+  const spotlightBackdrop   = spotlightItem?.backdropUrl || spotlightItem?.coverUrl || null;
+  const spotlightRating     = spotlightItem?.rating ? spotlightItem.rating.toFixed(1) : null;
+  const spotlightTypeLabel  = spotlightItem?.type === "show" ? "TV Show" : spotlightItem?.type;
 
-  // Fall back to any visual items if no recent ones are available
-  if (spotlightCandidates.length === 0) {
-    spotlightCandidates = catalog.filter(
-      (item) => item.backdropUrl && item.overview && item.rating > 0
-    );
-  }
-  
-  const spotlightItem: MediaItem | null = spotlightCandidates.length > 0
-    ? spotlightCandidates[Math.floor(Math.random() * spotlightCandidates.length)]
-    : catalog.length > 0 ? catalog[Math.floor(Math.random() * catalog.length)] : null;
+  /* ── Hero poster strip — all types mixed ──────────────── */
+  const stripItems = catalog
+    .filter((i) => i.coverUrl)
+    .sort(() => Math.random() - 0.5)
+    .slice(0, 16);
 
-  const spotlightBackdrop = spotlightItem?.backdropUrl || spotlightItem?.coverUrl || "/brand/hero-bg.jpg";
-  const spotlightRating = spotlightItem?.rating ? spotlightItem.rating.toFixed(1) : null;
-  const spotlightGenres = spotlightItem?.genres?.slice(0, 3) || [];
-  const spotlightTypeLabel = spotlightItem?.type === "show" ? "TV Show" : spotlightItem?.type;
-
-  // Helper to extract a clean, short suggestion title
-  const cleanSuggestion = (title: string) => {
-    if (!title) return "";
-    return title.split(/[;:]/)[0].trim().slice(0, 30);
-  };
-
-  const suggestedMovie = movies.length > 0 ? cleanSuggestion(movies[Math.floor(Math.random() * movies.length)].title) : "Dune";
-  const suggestedShow = shows.length > 0 ? cleanSuggestion(shows[Math.floor(Math.random() * shows.length)].title) : "Breaking Bad";
-  const suggestedAnime = anime.length > 0 ? cleanSuggestion(anime[Math.floor(Math.random() * anime.length)].title) : "Spirited Away";
-  const suggestedGame = games.length > 0 ? cleanSuggestion(games[Math.floor(Math.random() * games.length)].title) : "Elden Ring";
-  const suggestedBook = books.length > 0 ? cleanSuggestion(books[Math.floor(Math.random() * books.length)].title) : "Frankenstein";
+  /* ── Search suggestions ──────────────────────────────── */
+  const clean = (t: string) => t.split(/[;:]/)[0].trim().slice(0, 26);
+  const sugMovie = movies.length ? clean(movies[Math.floor(Math.random() * movies.length)].title) : "Dune";
+  const sugAnime = anime.length  ? clean(anime[Math.floor(Math.random() * anime.length)].title)   : "Jujutsu Kaisen";
+  const sugGame  = games.length  ? clean(games[Math.floor(Math.random() * games.length)].title)   : "Elden Ring";
+  const sugBook  = books.length  ? clean(books[Math.floor(Math.random() * books.length)].title)   : "Frankenstein";
 
   return (
-    <div className="landing-rehaul">
-      {/* Site Header */}
+    <div className="nv-landing">
+      <style dangerouslySetInnerHTML={{ __html: `
+        /* Force motion overrides for all marquee rows on NerdVault landing page */
+        .nv-landing .nv-strip-track,
+        .nv-landing .nv-rail-track,
+        .nv-landing .nv-activity-track,
+        .nv-landing .nv-orb,
+        .nv-landing .nv-logging-pill,
+        .nv-landing .nv-logging-pill-dot,
+        .performance-mode .nv-landing .nv-strip-track,
+        .performance-mode .nv-landing .nv-rail-track,
+        .performance-mode .nv-landing .nv-activity-track,
+        .performance-mode .nv-landing .nv-orb,
+        .performance-mode .nv-landing .nv-logging-pill,
+        .performance-mode .nv-landing .nv-logging-pill-dot {
+          animation-name: var(--override-name) !important;
+          animation-duration: var(--override-duration) !important;
+          animation-iteration-count: var(--override-iterations, infinite) !important;
+          animation-timing-function: var(--override-timing, linear) !important;
+          animation-play-state: running !important;
+        }
+
+        .nv-landing .nv-logging-pill,
+        .performance-mode .nv-landing .nv-logging-pill {
+          animation-direction: alternate !important;
+        }
+
+        .nv-landing .nv-strip-track,
+        .performance-mode .nv-landing .nv-strip-track {
+          --override-name: stripScroll;
+          --override-duration: 32s;
+          display: flex !important;
+          width: max-content !important;
+        }
+        .nv-landing .nv-rail-track-movie,
+        .performance-mode .nv-landing .nv-rail-track-movie {
+          --override-name: railScroll;
+          --override-duration: 50s;
+          display: flex !important;
+          width: max-content !important;
+        }
+        .nv-landing .nv-rail-track-show,
+        .performance-mode .nv-landing .nv-rail-track-show {
+          --override-name: railScroll;
+          --override-duration: 42s;
+          display: flex !important;
+          width: max-content !important;
+        }
+        .nv-landing .nv-rail-track-anime,
+        .performance-mode .nv-landing .nv-rail-track-anime {
+          --override-name: railScroll;
+          --override-duration: 46s;
+          display: flex !important;
+          width: max-content !important;
+        }
+        .nv-landing .nv-rail-track-game,
+        .performance-mode .nv-landing .nv-rail-track-game {
+          --override-name: railScroll;
+          --override-duration: 38s;
+          display: flex !important;
+          width: max-content !important;
+        }
+        .nv-landing .nv-rail-track-book,
+        .performance-mode .nv-landing .nv-rail-track-book {
+          --override-name: railScroll;
+          --override-duration: 54s;
+          display: flex !important;
+          width: max-content !important;
+        }
+        .nv-landing .nv-activity-track,
+        .performance-mode .nv-landing .nv-activity-track {
+          --override-name: activityTicker;
+          --override-duration: 55s;
+          display: flex !important;
+          width: max-content !important;
+        }
+        .nv-landing .nv-orb,
+        .performance-mode .nv-landing .nv-orb {
+          --override-name: orbPulse;
+          --override-duration: 14s;
+          --override-timing: ease-in-out;
+        }
+        .nv-landing .nv-logging-pill,
+        .performance-mode .nv-landing .nv-logging-pill {
+          --override-name: pillBob;
+          --override-duration: 4s;
+          --override-timing: ease-in-out;
+        }
+        .nv-landing .nv-logging-pill-dot,
+        .performance-mode .nv-landing .nv-logging-pill-dot {
+          --override-name: dotBlink;
+          --override-duration: 2s;
+          --override-timing: ease-in-out;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .nv-landing .nv-strip-track,
+          .nv-landing .nv-rail-track,
+          .nv-landing .nv-activity-track,
+          .nv-landing .nv-orb,
+          .nv-landing .nv-logging-pill,
+          .nv-landing .nv-logging-pill-dot,
+          .performance-mode .nv-landing .nv-strip-track,
+          .performance-mode .nv-landing .nv-rail-track,
+          .performance-mode .nv-landing .nv-activity-track,
+          .performance-mode .nv-landing .nv-orb,
+          .performance-mode .nv-landing .nv-logging-pill,
+          .performance-mode .nv-landing .nv-logging-pill-dot {
+            animation-name: var(--override-name) !important;
+            animation-duration: var(--override-duration) !important;
+            animation-iteration-count: var(--override-iterations, infinite) !important;
+            animation-timing-function: var(--override-timing, linear) !important;
+            animation-play-state: running !important;
+          }
+        }
+
+        /* Prevent the hero section from capturing vertical scroll */
+        .nv-landing .nv-hero {
+          overflow: visible !important;
+        }
+      ` }} />
+
+      {/* Ambient orbs */}
+      <div className="nv-orb-canvas" aria-hidden>
+        <div className="nv-orb nv-orb-1" />
+        <div className="nv-orb nv-orb-2" />
+        <div className="nv-orb nv-orb-3" />
+      </div>
+
       <SiteHeader />
 
       <main>
-        {/* 1. SPOTLIGHT HERO SECTION */}
-        <section className="landing-rehaul-hero">
-          <div className="landing-rehaul-hero-backdrop">
-            <img 
-              src={spotlightBackdrop} 
-              alt="Hero Backdrop" 
-              className="landing-rehaul-hero-img" 
-            />
-            <div className="landing-rehaul-hero-gradient" />
+        {/* ══ §1 HERO ════════════════════════════════════════ */}
+        <section className="nv-hero" aria-label="Introduction to NerdVault">
+
+          {/* Very dark + blurred backdrop — purely atmospheric, not recognisable */}
+          <div className="nv-hero-backdrop">
+            {spotlightBackdrop && (
+              <img
+                src={spotlightBackdrop}
+                alt=""
+                className="nv-hero-backdrop-img"
+                aria-hidden
+              />
+            )}
+            <div className="nv-hero-backdrop-gradient" />
           </div>
 
-          <div className="landing-rehaul-hero-content">
-            <div className="hero-disclaimer-tip">
-              <Info size={16} className="disclaimer-icon" />
-              <span>
-                <strong>NerdVault is a catalog diary & logging site</strong> — a place to track and review what you watch or play. We do not offer streaming or video play services.
-              </span>
+          {/* Content — fills available height, centered */}
+          <div className="nv-hero-content">
+            <div className="nv-logging-pill">
+              <span className="nv-logging-pill-dot" />
+              A media logging &amp; tracking platform — not a streaming service
             </div>
 
-            {spotlightItem ? (
-              <>
-                <div className="spotlight-badge">
-                  Spotlight {spotlightTypeLabel}
-                </div>
-                
-                <h1 className="landing-rehaul-hero-title">
-                  {spotlightItem.title}
-                </h1>
+            <div className="nv-hero-eyebrow">
+              <span className="nv-hero-eyebrow-line" />
+              Track Everything You Love
+            </div>
 
-                <div className="landing-rehaul-hero-meta">
-                  {spotlightRating && (
-                    <span className="meta-rating">
-                      <Star size={16} fill="currentColor" /> {spotlightRating}
-                    </span>
-                  )}
-                  {spotlightItem.year && (
-                    <span className="meta-year">{spotlightItem.year}</span>
-                  )}
-                  {spotlightGenres.length > 0 && (
-                    <div className="meta-genres">
-                      {spotlightGenres.map((genre, idx) => (
-                        <span key={genre} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
-                          {idx > 0 && <span className="genre-dot" />}
-                          {genre}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
+            <h1 className="nv-hero-headline">
+              Your universe of<br />
+              <span className="grad-text">entertainment</span><br />
+              in one vault.
+            </h1>
 
-                <p className="landing-rehaul-hero-desc">
-                  {spotlightItem.overview}
-                </p>
+            <p className="nv-hero-sub">
+              Log movies, TV shows, anime, games &amp; books. Build custom folders, discover new media, and share what you love — all in one beautifully crafted space.
+            </p>
 
-                <div className="landing-rehaul-hero-actions">
-                  <Link 
-                    href={`/media/${spotlightItem.slug}`} 
-                    className="rehaul-btn rehaul-btn-primary"
-                  >
-                    <Play size={18} fill="currentColor" /> View Details
-                  </Link>
-                  {spotlightItem.details?.trailerUrl && (
-                    <Link 
-                      href={`/media/${spotlightItem.slug}?autoplay=true`}
-                      className="rehaul-btn rehaul-btn-secondary"
-                    >
-                      Watch Trailer
-                    </Link>
-                  )}
+            {/* Trending spotlight */}
+            {spotlightItem && (
+              <Link href={`/media/${spotlightItem.slug}?source=${spotlightItem.source}&sourceId=${spotlightItem.sourceId}&type=${spotlightItem.type}`} className="nv-spotlight-info">
+                <span className="nv-spotlight-now">⚡ Trending Now</span>
+                <p className="nv-spotlight-title">{spotlightItem.title}</p>
+                <div className="nv-spotlight-meta">
+                  {spotlightRating && <span className="nv-rating">★ {spotlightRating}</span>}
+                  {spotlightItem.year && <span>{spotlightItem.year}</span>}
+                  <span className="nv-type-badge">{spotlightTypeLabel}</span>
                 </div>
-              </>
-            ) : (
-              <>
-                <h1 className="landing-rehaul-hero-title">
-                  Your Universe of <span>Entertainment</span>
-                </h1>
-                <p className="landing-rehaul-hero-desc" style={{ color: '#8a94ad' }}>
-                  The ultimate hub for tracking, discovering, and logging everything you love. Movies, TV shows, anime, games, and books - all in one unified, beautifully designed vault.
-                </p>
-              </>
+              </Link>
             )}
 
-            {/* Quick Search Box */}
-            <div className="landing-rehaul-search-box">
-              <form action="/browse" method="GET" className="rehaul-search-form">
+            {/* CTA */}
+            <div className="nv-hero-cta">
+              {isSignedIn ? (
+                <>
+                  <Link href="/home" className="nv-btn nv-btn-primary">
+                    <Zap size={14} /> Open My Vault
+                  </Link>
+                  <BrowseResetLink className="nv-btn nv-btn-secondary">Browse Catalog</BrowseResetLink>
+                </>
+              ) : (
+                <>
+                  <Link href="/sign-in" className="nv-btn nv-btn-primary">
+                    <Zap size={14} /> Start for Free
+                  </Link>
+                  <BrowseResetLink className="nv-btn nv-btn-secondary">Explore First</BrowseResetLink>
+                </>
+              )}
+            </div>
+
+            {/* Search bar */}
+            <div className="nv-hero-search">
+              <form action="/browse" method="GET" className="nv-search-form">
                 <input type="hidden" name="focus" value="results" />
-                <input 
-                  type="search" 
-                  name="query" 
-                  className="rehaul-search-input"
-                  placeholder="Search movies, anime, games, shows..." 
+                <input
+                  type="search" name="query"
+                  className="nv-search-input"
+                  placeholder="Search movies, anime, games, books..."
                   required
                 />
-                <button type="submit" className="rehaul-search-btn">
-                  <Search size={18} /> Search
+                <button type="submit" className="nv-search-submit">
+                  <Search size={14} /> Search
                 </button>
               </form>
-              
-              <div className="rehaul-search-suggestions">
+              <div className="nv-search-chips">
                 <span>Try:</span>
-                <Link href={`/browse?focus=results&query=${encodeURIComponent(suggestedMovie)}`} className="suggestion-link">{suggestedMovie}</Link>
-                <Link href={`/browse?focus=results&query=${encodeURIComponent(suggestedGame)}`} className="suggestion-link">{suggestedGame}</Link>
-                <Link href={`/browse?focus=results&query=${encodeURIComponent(suggestedAnime)}`} className="suggestion-link">{suggestedAnime}</Link>
-                <Link href={`/books?query=${encodeURIComponent(suggestedBook)}`} className="suggestion-link">{suggestedBook}</Link>
+                <Link href={`/browse?focus=results&query=${encodeURIComponent(sugMovie)}`} className="nv-chip">{sugMovie}</Link>
+                <Link href={`/browse?focus=results&query=${encodeURIComponent(sugAnime)}`} className="nv-chip">{sugAnime}</Link>
+                <Link href={`/browse?focus=results&query=${encodeURIComponent(sugGame)}`}  className="nv-chip">{sugGame}</Link>
+                <Link href={`/books?query=${encodeURIComponent(sugBook)}`}                 className="nv-chip">{sugBook}</Link>
               </div>
             </div>
           </div>
+
+          {/* ── Auto-scrolling poster strip at bottom of hero ── */}
+          {stripItems.length > 0 && (
+            <div className="nv-hero-strip" aria-hidden>
+              {/* Items doubled so the CSS translateX(-50%) loops seamlessly */}
+              <div className="nv-strip-track">
+                {[...stripItems, ...stripItems].map((item, i) => (
+                  <Link
+                    key={`strip-${item.id}-${i}`}
+                    href={`/media/${item.slug}?source=${item.source}&sourceId=${item.sourceId}&type=${item.type}`}
+                    className="nv-strip-card"
+                    tabIndex={-1}
+                  >
+                    <img
+                      src={optimizeMediaImageUrl(item.coverUrl, "thumb")}
+                      alt={item.title}
+                      loading={i < 8 ? "eager" : "lazy"}
+                      {...(i < 8 ? { fetchPriority: "high" } : {})}
+                    />
+                    <span className="nv-strip-card-badge">
+                      {item.type === "show" ? "TV" : item.type}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
 
-        {/* 2. DYNAMIC QUICK SHORTCUTS GRID */}
-        <section className="landing-rehaul-shortcuts">
-          <div className="shortcuts-grid">
-            <Link href="/browse?focus=results&mediaType=movie" className="shortcut-card movie-card">
-              <div className="shortcut-icon-shell">
-                <Film size={20} />
-              </div>
-              <div className="shortcut-text">
-                <h4 className="shortcut-title">Movies</h4>
-                <span className="shortcut-desc">Log ratings & review films</span>
-              </div>
+        {/* ══ §2 MEDIA TYPE SHORTCUTS ════════════════════════ */}
+        <section className="nv-types" aria-label="Browse by media type">
+          <div className="nv-types-grid">
+            <Link href="/browse?focus=results&mediaType=movie" className="nv-type-card nv-type-movie">
+              <div className="nv-type-icon"><Film size={18} /></div>
+              <h3 className="nv-type-label">Movies</h3>
+              <p className="nv-type-hint">Rate, review &amp; log films</p>
+              <div className="nv-type-arrow"><ChevronRight size={14} /></div>
             </Link>
-
-            <Link href="/browse?focus=results&mediaType=show" className="shortcut-card show-card">
-              <div className="shortcut-icon-shell">
-                <Tv size={20} />
-              </div>
-              <div className="shortcut-text">
-                <h4 className="shortcut-title">TV Shows</h4>
-                <span className="shortcut-desc">Track season progress & episodes</span>
-              </div>
+            <Link href="/browse?focus=results&mediaType=show" className="nv-type-card nv-type-show">
+              <div className="nv-type-icon"><Tv size={18} /></div>
+              <h3 className="nv-type-label">TV Shows</h3>
+              <p className="nv-type-hint">Track seasons &amp; episodes</p>
+              <div className="nv-type-arrow"><ChevronRight size={14} /></div>
             </Link>
-
-            <Link href="/browse?focus=results&mediaType=anime" className="shortcut-card anime-card">
-              <div className="shortcut-icon-shell">
-                <Sparkles size={20} />
-              </div>
-              <div className="shortcut-text">
-                <h4 className="shortcut-title">Anime</h4>
-                <span className="shortcut-desc">Follow sub/dub airing seasons</span>
-              </div>
+            <Link href="/browse?focus=results&mediaType=anime" className="nv-type-card nv-type-anime">
+              <div className="nv-type-icon"><Sparkles size={18} /></div>
+              <h3 className="nv-type-label">Anime</h3>
+              <p className="nv-type-hint">Sub &amp; dub, seasonal &amp; classic</p>
+              <div className="nv-type-arrow"><ChevronRight size={14} /></div>
             </Link>
-
-            <Link href="/browse?focus=results&mediaType=game" className="shortcut-card game-card">
-              <div className="shortcut-icon-shell">
-                <Gamepad2 size={20} />
-              </div>
-              <div className="shortcut-text">
-                <h4 className="shortcut-title">Video Games</h4>
-                <span className="shortcut-desc">Manage backlogs & systems</span>
-              </div>
+            <Link href="/browse?focus=results&mediaType=game" className="nv-type-card nv-type-game">
+              <div className="nv-type-icon"><Gamepad2 size={18} /></div>
+              <h3 className="nv-type-label">Video Games</h3>
+              <p className="nv-type-hint">Manage your backlog</p>
+              <div className="nv-type-arrow"><ChevronRight size={14} /></div>
             </Link>
-
-            <Link href="/books" className="shortcut-card book-card">
-              <div className="shortcut-icon-shell">
-                <BookOpen size={20} />
-              </div>
-              <div className="shortcut-text">
-                <h4 className="shortcut-title">Books</h4>
-                <span className="shortcut-desc">Read classic literature free</span>
-              </div>
+            <Link href="/books" className="nv-type-card nv-type-book">
+              <div className="nv-type-icon"><BookOpen size={18} /></div>
+              <h3 className="nv-type-label">Books</h3>
+              <p className="nv-type-hint">Classic literature, free in-app</p>
+              <div className="nv-type-arrow"><ChevronRight size={14} /></div>
             </Link>
           </div>
         </section>
 
-        {/* 3. DYNAMIC MEDIA TRACKS / HORIZONTAL SCROLL CAROUSELS */}
-        <section className="landing-rehaul-sections">
-          
-          {/* TRACK 1: TRENDING MOVIES */}
+        {/* ══ §3 MEDIA RAILS — auto-scrolling tickers ════════ */}
+        <section className="nv-rails" aria-label="Trending media">
+
           {movies.length > 0 && (
-            <div className="media-section">
-              <div className="media-section-header">
-                <div className="media-section-title-group">
-                  <h2 className="media-section-title">
-                    <Film size={22} className="text-accent" /> Trending Movies
+            <div className="nv-rail">
+              <div className="nv-rail-header">
+                <div className="nv-rail-title-group">
+                  <h2 className="nv-rail-label">
+                    <span className="nv-rail-label-icon"><Film size={18} color="#fb7185" /></span>
+                    Trending Movies
                   </h2>
-                  <p className="media-section-subtitle">
-                    Log and review what you watch. Add top movies to your custom folders.
-                  </p>
+                  <p className="nv-rail-sub">Log, rate &amp; build your film archive</p>
                 </div>
-                <Link href="/browse?mediaType=movie" className="media-section-view-all">
-                  Browse Movies <ArrowRight size={16} />
-                </Link>
+                <Link href="/browse?mediaType=movie" className="nv-rail-more">All Movies <ArrowRight size={13} /></Link>
               </div>
-
-              <div className="media-rail-viewport">
-                <div className="media-rail-track">
-                  {movies.map((item) => (
-                    <MediaCard key={item.id} item={item} />
+              <div className="nv-rail-scroll">
+                {/* Duplicated items for seamless CSS animation loop */}
+                <div className="nv-rail-track nv-rail-track-movie">
+                  {[...movies, ...movies].map((item, i) => (
+                    <PosterCard key={`m-${item.id}-${i}`} item={item} />
                   ))}
                 </div>
               </div>
             </div>
           )}
 
-          {/* TRACK 2: POPULAR TV SHOWS */}
           {shows.length > 0 && (
-            <div className="media-section">
-              <div className="media-section-header">
-                <div className="media-section-title-group">
-                  <h2 className="media-section-title">
-                    <Tv size={22} className="text-accent" /> Popular TV Shows
+            <div className="nv-rail">
+              <div className="nv-rail-header">
+                <div className="nv-rail-title-group">
+                  <h2 className="nv-rail-label">
+                    <span className="nv-rail-label-icon"><Tv size={18} color="#fbbf24" /></span>
+                    Popular TV Shows
                   </h2>
-                  <p className="media-section-subtitle">
-                    Track airing statuses, seasonal episode progress, and never lose your spot.
-                  </p>
+                  <p className="nv-rail-sub">Track seasons, episodes &amp; airing status</p>
                 </div>
-                <Link href="/browse?mediaType=show" className="media-section-view-all">
-                  Browse Shows <ArrowRight size={16} />
-                </Link>
+                <Link href="/browse?mediaType=show" className="nv-rail-more">All Shows <ArrowRight size={13} /></Link>
               </div>
-
-              <div className="media-rail-viewport">
-                <div className="media-rail-track">
-                  {shows.map((item) => (
-                    <MediaCard key={item.id} item={item} />
+              <div className="nv-rail-scroll">
+                <div className="nv-rail-track nv-rail-track-show">
+                  {[...shows, ...shows].map((item, i) => (
+                    <PosterCard key={`s-${item.id}-${i}`} item={item} />
                   ))}
                 </div>
               </div>
             </div>
           )}
 
-          {/* TRACK 3: TRENDING ANIME */}
           {anime.length > 0 && (
-            <div className="media-section">
-              <div className="media-section-header">
-                <div className="media-section-title-group">
-                  <h2 className="media-section-title">
-                    <Sparkles size={22} className="text-accent" /> Top Anime
+            <div className="nv-rail">
+              <div className="nv-rail-header">
+                <div className="nv-rail-title-group">
+                  <h2 className="nv-rail-label">
+                    <span className="nv-rail-label-icon"><Sparkles size={18} color="#69C5AC" /></span>
+                    Top Anime
                   </h2>
-                  <p className="media-section-subtitle">
-                    From classics to currently airing seasonal series, log your favorites.
-                  </p>
+                  <p className="nv-rail-sub">Classics to currently airing seasonal series</p>
                 </div>
-                <Link href="/browse?mediaType=anime" className="media-section-view-all">
-                  Browse Anime <ArrowRight size={16} />
-                </Link>
+                <Link href="/browse?mediaType=anime" className="nv-rail-more">All Anime <ArrowRight size={13} /></Link>
               </div>
-
-              <div className="media-rail-viewport">
-                <div className="media-rail-track">
-                  {anime.map((item) => (
-                    <MediaCard key={item.id} item={item} />
+              <div className="nv-rail-scroll">
+                <div className="nv-rail-track nv-rail-track-anime">
+                  {[...anime, ...anime].map((item, i) => (
+                    <PosterCard key={`a-${item.id}-${i}`} item={item} />
                   ))}
                 </div>
               </div>
             </div>
           )}
 
-          {/* TRACK 4: FEATURED VIDEO GAMES */}
           {games.length > 0 && (
-            <div className="media-section">
-              <div className="media-section-header">
-                <div className="media-section-title-group">
-                  <h2 className="media-section-title">
-                    <Gamepad2 size={22} className="text-accent" /> Top Video Games
+            <div className="nv-rail">
+              <div className="nv-rail-header">
+                <div className="nv-rail-title-group">
+                  <h2 className="nv-rail-label">
+                    <span className="nv-rail-label-icon"><Gamepad2 size={18} color="#60a5fa" /></span>
+                    Top Video Games
                   </h2>
-                  <p className="media-section-subtitle">
-                    Manage your backlog, track played hours, and filter games across all devices.
-                  </p>
+                  <p className="nv-rail-sub">Manage your backlog &amp; platform library</p>
                 </div>
-                <Link href="/browse?mediaType=game" className="media-section-view-all">
-                  Browse Games <ArrowRight size={16} />
-                </Link>
+                <Link href="/browse?mediaType=game" className="nv-rail-more">All Games <ArrowRight size={13} /></Link>
               </div>
-
-              <div className="media-rail-viewport">
-                <div className="media-rail-track">
-                  {games.map((item) => (
-                    <MediaCard key={item.id} item={item} />
+              <div className="nv-rail-scroll">
+                <div className="nv-rail-track nv-rail-track-game">
+                  {[...games, ...games].map((item, i) => (
+                    <PosterCard key={`g-${item.id}-${i}`} item={item} />
                   ))}
                 </div>
               </div>
             </div>
           )}
 
-          {/* TRACK 5: LIT CLASSICS (BOOKS) */}
           {books.length > 0 && (
-            <div className="media-section">
-              <div className="media-section-header">
-                <div className="media-section-title-group">
-                  <h2 className="media-section-title">
-                    <BookOpen size={22} className="text-accent" /> Classic Reading Room
+            <div className="nv-rail">
+              <div className="nv-rail-header">
+                <div className="nv-rail-title-group">
+                  <h2 className="nv-rail-label">
+                    <span className="nv-rail-label-icon"><BookOpen size={18} color="#1EBDC2" /></span>
+                    Classic Reading Room
                   </h2>
-                  <p className="media-section-subtitle">
-                    Project Gutenberg classics: read in-app with progress saving, no distractions.
-                  </p>
+                  <p className="nv-rail-sub">Project Gutenberg — free classics, read in-app</p>
                 </div>
-                <Link href="/books" className="media-section-view-all">
-                  Open Library <ArrowRight size={16} />
-                </Link>
+                <Link href="/books" className="nv-rail-more">Open Library <ArrowRight size={13} /></Link>
               </div>
-
-              <div className="media-rail-viewport">
-                <div className="media-rail-track">
-                  {books.map((book) => (
-                    <BookCard key={book.id} book={book} />
+              <div className="nv-rail-scroll">
+                <div className="nv-rail-track nv-rail-track-book">
+                  {[...books, ...books].map((book, i) => (
+                    <BookPosterCard key={`b-${book.id}-${i}`} book={book} />
                   ))}
                 </div>
               </div>
@@ -403,143 +491,193 @@ export default async function HomePage() {
           )}
         </section>
 
-        {/* 4. THE UNIFIED EXPERIENCE CONCEPT SHOWCASE */}
-        <section className="landing-rehaul-showcase">
-          <div className="showcase-header">
-            <span className="showcase-eyebrow">All-In-One Vault</span>
-            <h2 className="showcase-title">Why Track on Five Niche Sites?</h2>
-            <p className="showcase-subtitle">
-              NerdVault merges the features of specialized tracking sites into one unified space, customized with high-end statistics and custom folders.
+        {/* ══ §4 COMMUNITY ACTIVITY TICKER ═══════════════════ */}
+        {realActivity.length > 0 && (
+          <section className="nv-activity" aria-label="Community activity">
+            <div className="nv-activity-header">
+              <div className="nv-rail-title-group">
+                <h2 className="nv-rail-label">
+                  <span className="nv-rail-label-icon"><Users size={18} color="#1EBDC2" /></span>
+                  Community Pulse
+                </h2>
+                <p className="nv-rail-sub">What NerdVault members are logging right now</p>
+              </div>
+              <Link href={isSignedIn ? "/activity" : "/sign-in"} className="nv-rail-more">
+                {isSignedIn ? "See Friend Activity" : "Join & Connect"} <ArrowRight size={13} />
+              </Link>
+            </div>
+
+            <div className="nv-activity-ticker">
+              <div className="nv-activity-track">
+                {[...realActivity, ...realActivity].map((entry, i) => {
+                  const name = entry.user.name || "Vault Member";
+                  const avatarInitial = name.charAt(0).toUpperCase();
+                  const avatarColor = ["#7c3aed", "#0891b2", "#b91c1c", "#15803d", "#b45309", "#6d28d9", "#be185d", "#0f766e", "#1d4ed8", "#4338ca", "#065f46"][(name.charCodeAt(0) || 0) % 11];
+                  const actionText = entry.rating ? `logged · ★ ${entry.rating.toFixed(1)}` : "logged";
+                  const imageUrl = optimizeMediaImageUrl(entry.media.backdropUrl || entry.media.coverUrl || "/fallback-poster.jpg", "cover");
+                  
+                  return (
+                    <Link key={`act-${entry.userId}-${entry.mediaId}-${i}`} href={`/media/${entry.media.slug}?source=${entry.media.source}&sourceId=${entry.media.sourceId}&type=${entry.media.type}`} className="nv-act-card">
+                      <div className="nv-act-cover">
+                        <img
+                          src={imageUrl}
+                          alt={entry.media.title}
+                          loading="lazy"
+                        />
+                      </div>
+                      <div className="nv-act-body">
+                        <div className="nv-act-user">
+                          <div className="nv-act-avatar" style={{ background: avatarColor, position: "relative", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            {entry.user.image ? (
+                              <img src={entry.user.image} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", top: 0, left: 0 }} />
+                            ) : (
+                              avatarInitial
+                            )}
+                          </div>
+                          <span className="nv-act-name">{name}</span>
+                        </div>
+                        <span className="nv-act-action">{actionText}</span>
+                        <p className="nv-act-title" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {entry.media.title}
+                        </p>
+                      </div>
+                    </Link>
+                  );
+                })}
+                {/* Join CTA at end */}
+                <Link href={isSignedIn ? "/activity" : "/sign-in"} className="nv-act-cta">
+                  <div className="nv-act-cta-icon"><Users size={18} /></div>
+                  <p className="nv-act-cta-title">
+                    {isSignedIn ? "View friend activity" : "Join to track with friends"}
+                  </p>
+                  <span className="nv-act-cta-sub">
+                    {isSignedIn
+                      ? "See your full activity feed"
+                      : "Connect, share what you're watching & build lists together"}
+                  </span>
+                </Link>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* ══ §5 BENTO FEATURE GRID ══════════════════════════ */}
+        <section className="nv-bento" aria-label="NerdVault features">
+          <div className="nv-bento-header">
+            <p className="nv-bento-eyebrow">Why NerdVault?</p>
+            <h2 className="nv-bento-title">Five platforms.<br />One beautiful vault.</h2>
+            <p className="nv-bento-sub">
+              Stop switching between Letterboxd, Backloggd, AniList, Goodreads, and Serializd. NerdVault is your single unified space for every form of entertainment.
             </p>
           </div>
 
-          <div className="showcase-features-grid">
-            <div className="showcase-feature-card">
-              <div className="showcase-feature-icon-box">
-                <Film size={24} />
-              </div>
-              <div className="showcase-feature-info">
-                <h3 className="showcase-feature-title">Movies & TV (Letterboxd Style)</h3>
-                <p className="showcase-feature-desc">
-                  Rate what you watch, add reviews, and save titles. Access release dates, cast credits, and trailers immediately.
-                </p>
-              </div>
-              <div className="showcase-feature-footer">
-                <span className="showcase-badge">Ratings</span>
-                <span className="showcase-badge">Reviews</span>
-                <span className="showcase-badge">Watchlists</span>
+          <div className="nv-bento-grid">
+            <div className="nv-bento-cell nv-bento-a">
+              <div className="nv-bento-cell-icon"><Star size={20} /></div>
+              <h3 className="nv-bento-cell-title">All Media Types</h3>
+              <p className="nv-bento-cell-desc">One platform replaces five niche trackers. Movies, shows, anime, games &amp; books — finally together.</p>
+              <div className="nv-site-comparison">
+                <div className="nv-comparison-row"><span className="nv-comparison-row-label">🎬 Letterboxd</span><span className="nv-comparison-row-val">Movies only</span></div>
+                <div className="nv-comparison-row"><span className="nv-comparison-row-label">🎮 Backloggd</span><span className="nv-comparison-row-val">Games only</span></div>
+                <div className="nv-comparison-row"><span className="nv-comparison-row-label">✨ AniList</span><span className="nv-comparison-row-val">Anime only</span></div>
+                <div className="nv-comparison-row"><span className="nv-comparison-row-label">📺 Serializd</span><span className="nv-comparison-row-val">TV only</span></div>
+                <div className="nv-comparison-row nv-vault-row"><span className="nv-comparison-row-label">⚡ NerdVault</span><span className="nv-comparison-row-val">Everything ✓</span></div>
               </div>
             </div>
 
-            <div className="showcase-feature-card">
-              <div className="showcase-feature-icon-box">
-                <Gamepad2 size={24} />
-              </div>
-              <div className="showcase-feature-info">
-                <h3 className="showcase-feature-title">Games (Backloggd Style)</h3>
-                <p className="showcase-feature-desc">
-                  Move games from backlog to wishlist or completed. Filter by platforms, studios, and log played stats.
-                </p>
-              </div>
-              <div className="showcase-feature-footer">
-                <span className="showcase-badge">Backlog</span>
-                <span className="showcase-badge">Play Status</span>
-                <span className="showcase-badge">Platforms</span>
+            <div className="nv-bento-cell nv-bento-b">
+              <div className="nv-bento-cell-icon" style={{ background: "rgba(30,189,194,0.1)", borderColor: "rgba(30,189,194,0.2)", color: "#1EBDC2" }}><FolderHeart size={20} /></div>
+              <h3 className="nv-bento-cell-title">Smart Folders</h3>
+              <p className="nv-bento-cell-desc">Cross-media playlists. Create "Sci-Fi Faves" with films, games &amp; anime side by side.</p>
+              <div className="nv-bento-tags"><span className="nv-bento-tag">Custom Lists</span><span className="nv-bento-tag">Cross-Media</span><span className="nv-bento-tag">Private</span></div>
+            </div>
+
+            <div className="nv-bento-cell nv-bento-c" style={{ justifyContent: "center" }}>
+              <div className="nv-stat-row">
+                <div className="nv-stat-number">5+</div>
+                <div className="nv-stat-label">Media categories in one vault</div>
               </div>
             </div>
 
-            <div className="showcase-feature-card">
-              <div className="showcase-feature-icon-box">
-                <FolderHeart size={24} />
-              </div>
-              <div className="showcase-feature-info">
-                <h3 className="showcase-feature-title">Smart Folders & Playlists</h3>
-                <p className="showcase-feature-desc">
-                  Organize cross-media items together. Make a folder for &quot;Sci-Fi Favorites&quot; with films, books, and games side-by-side.
-                </p>
-              </div>
-              <div className="showcase-feature-footer">
-                <span className="showcase-badge">Custom Folders</span>
-                <span className="showcase-badge">Cross-Media</span>
-                <span className="showcase-badge">Private Lists</span>
-              </div>
+            <div className="nv-bento-cell nv-bento-d">
+              <div className="nv-bento-cell-icon" style={{ background: "rgba(251,191,36,0.1)", borderColor: "rgba(251,191,36,0.2)", color: "#fbbf24" }}><Star size={20} /></div>
+              <h3 className="nv-bento-cell-title">Rate &amp; Review</h3>
+              <p className="nv-bento-cell-desc">Star ratings, rich reviews, and watch-status labels for every item in your vault.</p>
+              <div className="nv-bento-tags"><span className="nv-bento-tag">Star Ratings</span><span className="nv-bento-tag">Reviews</span></div>
+            </div>
+
+            <div className="nv-bento-cell nv-bento-e">
+              <div className="nv-bento-cell-icon" style={{ background: "rgba(251,113,133,0.1)", borderColor: "rgba(251,113,133,0.2)", color: "#fb7185" }}><Users size={20} /></div>
+              <h3 className="nv-bento-cell-title">Social Activity</h3>
+              <p className="nv-bento-cell-desc">Follow friends, see what they're watching &amp; share discoveries.</p>
+              <div className="nv-bento-tags"><span className="nv-bento-tag">Friends</span><span className="nv-bento-tag">Activity Feed</span></div>
+            </div>
+
+            <div className="nv-bento-cell nv-bento-f">
+              <div className="nv-bento-cell-icon"><Sparkles size={20} /></div>
+              <h3 className="nv-bento-cell-title">Smart Discovery</h3>
+              <p className="nv-bento-cell-desc">Browse trending, top-rated, and curated catalogs updated daily from TMDB, AniList, IGDB &amp; Gutenberg.</p>
+              <div className="nv-bento-tags"><span className="nv-bento-tag">TMDB</span><span className="nv-bento-tag">AniList</span><span className="nv-bento-tag">IGDB</span><span className="nv-bento-tag">Gutenberg</span></div>
+            </div>
+
+            <div className="nv-bento-cell nv-bento-g">
+              <div className="nv-bento-cell-icon" style={{ background: "rgba(99,179,237,0.1)", borderColor: "rgba(99,179,237,0.2)", color: "#60a5fa" }}><Bookmark size={20} /></div>
+              <h3 className="nv-bento-cell-title">Backlog &amp; Wishlist Management</h3>
+              <p className="nv-bento-cell-desc">Move items from wishlist → watching/playing → completed. Filter by platform, season, or status. Your entire media life, organized.</p>
+              <div className="nv-bento-tags"><span className="nv-bento-tag">Watching</span><span className="nv-bento-tag">Completed</span><span className="nv-bento-tag">Wishlist</span><span className="nv-bento-tag">Dropped</span><span className="nv-bento-tag">On Hold</span></div>
             </div>
           </div>
         </section>
 
-        {/* 5. GUEST / MEMBER CTA CALL */}
-        <section className="landing-rehaul-cta">
-          <div className="cta-box-glow">
-            {isSignedIn ? (
-              <>
-                <h2 className="cta-box-title">Welcome Back, {userName}!</h2>
-                <p className="cta-box-subtitle">
-                  Ready to manage your archives? Pick up where you left off or search for new additions to log.
-                </p>
-                <div className="cta-box-actions">
-                  <Link href="/home" className="rehaul-btn rehaul-btn-primary">
-                    Open Your Vault
-                  </Link>
-                  <BrowseResetLink className="rehaul-btn rehaul-btn-secondary">
-                    Browse Catalog
-                  </BrowseResetLink>
-                </div>
-              </>
-            ) : (
-              <>
-                <h2 className="cta-box-title">Ready to build your vault?</h2>
-                <p className="cta-box-subtitle">
-                  Join NerdVault for free to organize your movies, shows, anime, games, and books. Connect with friends and review lists.
-                </p>
-                <div className="cta-box-actions">
-                  <Link href="/sign-in" className="rehaul-btn rehaul-btn-primary">
-                    Start Your Collection
-                  </Link>
-                  <BrowseResetLink className="rehaul-btn rehaul-btn-secondary">
-                    Try Demo
-                  </BrowseResetLink>
-                </div>
-              </>
-            )}
-
-            <div className="cta-bullets-note">
-              <span>No credit cards</span>
-              <span>Fully responsive</span>
+        {/* ══ §6 FINAL CTA ═══════════════════════════════════ */}
+        <section className="nv-cta" aria-label="Get started">
+          <div className="nv-cta-inner">
+            <div className="nv-cta-glow-bg" />
+            <div className="nv-cta-label"><Zap size={11} /> Free to Join</div>
+            <h2 className="nv-cta-title">Build your vault<br /><span className="grad-text">starting today.</span></h2>
+            <p className="nv-cta-sub">
+              {isSignedIn
+                ? `Welcome back, ${userName}! Pick up where you left off or discover something new.`
+                : "Join NerdVault for free. Log every movie, show, anime, game & book you love in one beautifully designed space."}
+            </p>
+            <div className="nv-cta-actions">
+              {isSignedIn ? (
+                <>
+                  <Link href="/home" className="nv-btn nv-btn-primary">Open My Vault</Link>
+                  <BrowseResetLink className="nv-btn nv-btn-secondary">Browse Catalog</BrowseResetLink>
+                </>
+              ) : (
+                <>
+                  <Link href="/sign-in" className="nv-btn nv-btn-primary">Create Free Account</Link>
+                  <BrowseResetLink className="nv-btn nv-btn-secondary">Explore First</BrowseResetLink>
+                </>
+              )}
+            </div>
+            <div className="nv-cta-notes">
+              <span>No credit card needed</span>
+              <span>Works on any device</span>
               <span>Connect with friends</span>
             </div>
           </div>
         </section>
 
-        {/* Footer */}
-        <footer className="landing-rehaul-footer">
-          <div className="footer-rehaul-container">
-            <div className="footer-rehaul-logo-row">
-              <Image 
-                src="/brand/logo-mark-clean.svg" 
-                alt="NerdVault logo" 
-                width={28} 
-                height={28} 
-              />
-              <span className="footer-rehaul-logo-text">NerdVault</span>
+        {/* ══ FOOTER ═════════════════════════════════════════ */}
+        <footer className="nv-footer">
+          <div className="nv-footer-inner">
+            <div className="nv-footer-brand">
+              <Image src="/brand/logo-mark-clean.svg" alt="NerdVault logo" width={22} height={22} />
+              <span className="nv-footer-brand-name">NerdVault</span>
             </div>
-            
-            <p className="footer-rehaul-tagline">
-              Your universe of entertainment. Log what hit. Queue what calls next.
-            </p>
-
-            <div className="footer-rehaul-links">
-              <BrowseResetLink className="footer-rehaul-link">Browse</BrowseResetLink>
-              <Link href="/support" className="footer-rehaul-link">Support</Link>
-              <Link href="/books" className="footer-rehaul-link">Books Room</Link>
-              {isSignedIn ? (
-                <Link href="/home" className="footer-rehaul-link">Vault</Link>
-              ) : (
-                <Link href="/sign-in" className="footer-rehaul-link">Sign In</Link>
-              )}
-            </div>
-
-            <p className="footer-rehaul-copy">
-              &copy; {new Date().getFullYear()} NerdVault. Built with passion for enthusiasts.
+            <nav className="nv-footer-links">
+              <BrowseResetLink className="nv-footer-link">Browse</BrowseResetLink>
+              <Link href="/books"   className="nv-footer-link">Books</Link>
+              <Link href="/support" className="nv-footer-link">Support</Link>
+              {isSignedIn
+                ? <Link href="/home"    className="nv-footer-link">My Vault</Link>
+                : <Link href="/sign-in" className="nv-footer-link">Sign In</Link>}
+            </nav>
+            <p className="nv-footer-copy">
+              © {new Date().getFullYear()} NerdVault · Built for enthusiasts. Not a streaming platform.
             </p>
           </div>
         </footer>
@@ -548,68 +686,38 @@ export default async function HomePage() {
   );
 }
 
-// Sub-components to keep code clean and maintainable
+/* ══════════════════════════════════════════════════════════
+   Sub-components
+   ══════════════════════════════════════════════════════════ */
 
-function MediaCard({ item }: { item: MediaItem }) {
-  const ratingVal = item.rating ? item.rating.toFixed(1) : null;
-  const yearVal = item.year || null;
-  const isShow = item.type === "show";
-  const displayType = isShow ? "TV" : item.type;
-
+function PosterCard({ item }: { item: MediaItem }) {
+  const rating = item.rating ? item.rating.toFixed(1) : null;
+  const typeLabel = item.type === "show" ? "TV" : item.type;
   return (
-    <Link href={`/media/${item.slug}`} className="rehaul-media-card">
-      <div className="rehaul-media-poster-wrapper">
-        {ratingVal && (
-          <span className="card-floating-badge">
-            ★ {ratingVal}
-          </span>
-        )}
-        <span className="card-floating-badge badge-type">
-          {displayType}
-        </span>
-        <img 
-          src={item.coverUrl || "/fallback-poster.jpg"} 
-          alt={item.title} 
-          className="rehaul-media-poster"
-          loading="lazy"
-        />
-        <div className="rehaul-media-poster-overlay">
-          <span className="overlay-quick-view">View Details &rarr;</span>
-        </div>
+    <Link href={`/media/${item.slug}?source=${item.source}&sourceId=${item.sourceId}&type=${item.type}`} className="nv-poster-card">
+      <div className="nv-poster-frame">
+        {rating && <span className="nv-poster-rating">★ {rating}</span>}
+        <span className="nv-poster-type">{typeLabel}</span>
+        <img src={optimizeMediaImageUrl(item.coverUrl, "cover") || "/fallback-poster.jpg"} alt={item.title} loading="lazy" />
+        <div className="nv-poster-overlay"><span className="nv-poster-view">View Details →</span></div>
       </div>
-      <h3 className="rehaul-media-card-title">{item.title}</h3>
-      <div className="rehaul-media-card-meta">
-        {yearVal && <span className="rehaul-media-card-year">{yearVal}</span>}
-      </div>
+      <h3 className="nv-poster-title">{item.title}</h3>
+      {item.year && <span className="nv-poster-year">{item.year}</span>}
     </Link>
   );
 }
 
-function BookCard({ book }: { book: BookSummary }) {
-  const authorName = book.authors[0] || "Unknown Author";
-
+function BookPosterCard({ book }: { book: BookSummary }) {
+  const author = book.authors[0] || "Unknown Author";
   return (
-    <Link href={`/books/${book.id}`} className="rehaul-media-card book-card-item">
-      <div className="rehaul-media-poster-wrapper">
-        <span className="card-floating-badge badge-type">
-          Book
-        </span>
-        <img 
-          src={book.coverUrl || "/fallback-book-cover.jpg"} 
-          alt={book.title} 
-          className="rehaul-media-poster"
-          loading="lazy"
-        />
-        <div className="rehaul-media-poster-overlay">
-          <span className="overlay-quick-view">Read Book &rarr;</span>
-        </div>
+    <Link href={`/books/${book.id}`} className="nv-poster-card">
+      <div className="nv-poster-frame">
+        <span className="nv-poster-type">Book</span>
+        <img src={book.coverUrl || "/fallback-book-cover.jpg"} alt={book.title} loading="lazy" />
+        <div className="nv-poster-overlay"><span className="nv-poster-view">Read Now →</span></div>
       </div>
-      <h3 className="rehaul-media-card-title">{book.title}</h3>
-      <div className="rehaul-media-card-meta">
-        <span className="rehaul-media-card-year" style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
-          {authorName}
-        </span>
-      </div>
+      <h3 className="nv-poster-title">{book.title}</h3>
+      <span className="nv-poster-year" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block", maxWidth: "100%" }}>{author}</span>
     </Link>
   );
 }

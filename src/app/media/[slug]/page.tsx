@@ -1768,6 +1768,67 @@ function matchesSlugCandidate(item: MediaItem, slug: string) {
   });
 }
 
+function scoreSlugMatch(item: MediaItem, slug: string): number {
+  const targetSlug = normalizeSlugValue(slug);
+  const itemSlug = normalizeSlugValue(item.slug);
+  const titleSlug = normalizeSlugValue(item.title);
+  const originalTitleSlug = normalizeSlugValue(item.originalTitle ?? "");
+  const collectionSlug = normalizeSlugValue(item.details?.collectionTitle ?? "");
+
+  // 1. Exact match on slug or title slug
+  if (itemSlug === targetSlug || titleSlug === targetSlug) {
+    return 100;
+  }
+  // 2. Exact match on original title slug
+  if (originalTitleSlug === targetSlug) {
+    return 90;
+  }
+  // 3. Starts with match on slug or title slug
+  if (
+    itemSlug.startsWith(targetSlug + "-") ||
+    titleSlug.startsWith(targetSlug + "-") ||
+    targetSlug.startsWith(itemSlug + "-") ||
+    targetSlug.startsWith(titleSlug + "-")
+  ) {
+    return 80;
+  }
+  // 4. Contains match (word-level or substring)
+  if (
+    itemSlug.includes(targetSlug) ||
+    titleSlug.includes(targetSlug) ||
+    targetSlug.includes(itemSlug) ||
+    targetSlug.includes(titleSlug)
+  ) {
+    return 60;
+  }
+  // 5. Collection match
+  if (collectionSlug && (collectionSlug === targetSlug || collectionSlug.includes(targetSlug))) {
+    return 40;
+  }
+
+  return 0;
+}
+
+function findBestSlugCandidate(items: MediaItem[], slug: string): MediaItem | undefined {
+  let bestItem: MediaItem | undefined;
+  let bestScore = 0;
+
+  for (const item of items) {
+    const score = scoreSlugMatch(item, slug);
+    if (score > bestScore) {
+      bestScore = score;
+      bestItem = item;
+    } else if (score > 0 && score === bestScore) {
+      // Tie-breaker: prefer higher rating (vote average)
+      if (bestItem && (item.rating || 0) > (bestItem.rating || 0)) {
+        bestItem = item;
+      }
+    }
+  }
+
+  return bestItem;
+}
+
 function matchesIdentityCandidate(item: MediaItem, preferredSource?: string, preferredSourceId?: string, preferredType?: string) {
   if (preferredSource && item.source !== preferredSource) return false;
   if (preferredSourceId && item.sourceId !== preferredSourceId) return false;
@@ -1810,7 +1871,7 @@ async function findRemoteMediaBySlug(slug: string, preferredSource?: string, pre
       const igdbHit =
         (preferredSourceId && preferredSource === "igdb"
           ? igdbResult.items.find((item) => matchesIdentityCandidate(item, preferredSource, preferredSourceId, preferredType))
-          : undefined) ?? igdbResult.items.find((item) => matchesSlugCandidate(item, slug));
+          : undefined) ?? findBestSlugCandidate(igdbResult.items, slug);
       if (igdbHit?.source === "igdb") {
         const media = await getIgdbGameDetails(Number(igdbHit.sourceId));
         return { media, animeFranchise: undefined };
@@ -1829,7 +1890,7 @@ async function findRemoteMediaBySlug(slug: string, preferredSource?: string, pre
     const animeHit =
       (preferredSourceId
         ? quickAnime.items.find((item) => matchesIdentityCandidate(item, preferredSource, preferredSourceId, preferredType))
-        : undefined) ?? quickAnime.items.find((item) => matchesSlugCandidate(item, slug));
+        : undefined) ?? findBestSlugCandidate(quickAnime.items, slug);
     if (animeHit?.source === "anilist") {
       try {
         const id = Number(animeHit.sourceId);
@@ -1852,7 +1913,7 @@ async function findRemoteMediaBySlug(slug: string, preferredSource?: string, pre
     const tmdbHit =
       (preferredSourceId
         ? quickTmdb.items.find((item) => matchesIdentityCandidate(item, preferredSource, preferredSourceId, preferredType))
-        : undefined) ?? quickTmdb.items.find((item) => matchesSlugCandidate(item, slug));
+        : undefined) ?? findBestSlugCandidate(quickTmdb.items, slug);
     if (tmdbHit && (tmdbHit.type === "movie" || tmdbHit.type === "show")) {
       try {
         const media = await getTmdbMediaDetails(Number(tmdbHit.sourceId), getResolvedTmdbDetailType(tmdbHit.type));
@@ -1913,7 +1974,7 @@ async function findRemoteMediaBySlug(slug: string, preferredSource?: string, pre
         preferredSourceId
           ? matchPool.find((item) => matchesIdentityCandidate(item, preferredSource, preferredSourceId, preferredType))
           : undefined;
-      const slugMatch = matchPool.find((item) => matchesSlugCandidate(item, slug));
+      const slugMatch = findBestSlugCandidate(matchPool, slug);
       const match = exactIdentityMatch ?? slugMatch;
 
       if (!match) {
@@ -3017,7 +3078,7 @@ export default async function MediaDetailPage({
   if (!media) {
     try {
       const starterCatalog = await getTmdbStarterCatalog();
-      const starterMatch = starterCatalog.find((item) => matchesSlugCandidate(item, slug));
+      const starterMatch = findBestSlugCandidate(starterCatalog, slug);
       if (starterMatch && (starterMatch.type === "movie" || starterMatch.type === "show")) {
         media = await getTmdbMediaDetails(
           Number(starterMatch.sourceId),
