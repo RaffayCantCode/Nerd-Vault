@@ -3,6 +3,7 @@ import { seededShuffle } from "@/lib/curated-utils";
 import { getMediaFallbackImage } from "@/lib/media-fallbacks";
 import { rankCandidatesForQuery } from "@/lib/search-utils";
 import { MediaItem, CuratedSection } from "@/lib/types";
+import { withServerCache } from "@/lib/server-cache";
 import { matchesFranchise } from "@/lib/franchise-utils";
 import { itemMatchesGenre } from "@/lib/catalog-utils";
 
@@ -546,7 +547,8 @@ export async function getIgdbCollectionNeighbors(gameId: number): Promise<MediaI
   return games.map(mapGame).filter((item) => (item.year || 0) >= 1970);
 }
 
-export async function getIgdbFranchiseEntries(gameId: number): Promise<MediaItem[]> {
+export function getIgdbFranchiseEntries(gameId: number): Promise<MediaItem[]> {
+  return withServerCache(`igdb:franchise:${gameId}`, 60 * 60 * 1000, async () => {
   const rows = await igdbFetch<IgdbGame[]>(
     `fields ${IGDB_GAME_DETAIL_FIELDS}; where id = ${gameId}; limit 1;`,
   ).catch(() => []);
@@ -590,6 +592,7 @@ export async function getIgdbFranchiseEntries(gameId: number): Promise<MediaItem
     item.id === `igdb-game-${game.id}` ||
     matchesFranchise(item.title, undefined, undefined, franchiseTitles),
   );
+  }); // end withServerCache
 }
 
 /** Resolve IGDB similar_games ids into full cards (best-effort). */
@@ -649,7 +652,8 @@ export async function getIgdbRelatedGamesByFranchise(gameName: string, maxResult
   return filteredItems.slice(0, maxResults);
 }
 
-export async function getIgdbCuratedSections(seed: number): Promise<CuratedSection[]> {
+export function getIgdbCuratedSections(seed: number): Promise<CuratedSection[]> {
+  return withServerCache(`igdb:curated:${seed}`, 30 * 60 * 1000, async () => {
   const hasKeys = Boolean(
     process.env?.TWITCH_APP_ACCESS_TOKEN ||
     (process.env?.IGDB_CLIENT_ID && process.env?.IGDB_CLIENT_SECRET)
@@ -763,5 +767,6 @@ export async function getIgdbCuratedSections(seed: number): Promise<CuratedSecti
   );
 
   return results;
+  }); // end withServerCache
 }
 

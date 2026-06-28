@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { HomeWorkspace } from "@/components/home-workspace";
-import { ProfileWorkspace } from "@/components/profile-workspace";
+import dynamic from "next/dynamic";
+
+const ProfileWorkspace = dynamic(() => import("@/components/profile-workspace").then(m => m.ProfileWorkspace), { ssr: false });
 import { HomeFeed } from "@/lib/home-feed";
 import { VaultProfilePayload } from "@/lib/vault-types";
 

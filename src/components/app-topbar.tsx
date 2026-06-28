@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOutUser } from "@/app/sign-in/sign-out-action";
@@ -104,8 +104,8 @@ export const AppTopBar = memo(function AppTopBar({
 
   const topbarAvatar = viewerProfile?.avatarUrl || viewerAvatar;
   const topbarName = viewerProfile?.name || viewerName;
-  const inbox = viewerProfile?.inbox ?? [];
-  const unreadCount = inbox.filter((notification) => notification.status === "unread").length;
+  const inbox = useMemo(() => viewerProfile?.inbox ?? [], [viewerProfile?.inbox]);
+  const unreadCount = useMemo(() => inbox.filter((notification) => notification.status === "unread").length, [inbox]);
 
   function closeOverlays() {
     setInboxOpen(false);

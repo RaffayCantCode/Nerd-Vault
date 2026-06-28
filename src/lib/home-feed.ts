@@ -3,6 +3,7 @@ import { browseAniListAnime, getAniListAnimeFranchise, getAniListAnimeDetails, g
 import { browseTmdbCatalog, getTmdbFranchiseEntries, getTmdbMediaDetails } from "@/lib/sources/tmdb";
 import { MediaItem, MediaType } from "@/lib/types";
 import { LibraryState } from "@/lib/vault-types";
+import { withServerCache } from "@/lib/server-cache";
 
 export type HomeContinuation = {
   base: MediaItem;
@@ -165,7 +166,7 @@ function buildSignalSeeds(library: LibraryState, type: MediaType) {
   return seeds;
 }
 
-function scoreCandidate(seeds: SignalSeed[], candidate: MediaItem, ownedKeys: Set<string>) {
+function scoreCandidate(seeds: SignalSeed[], candidate: MediaItem, ownedKeys: Set<string>, seedTagsMap: Map<SignalSeed, string[]>) {
   const candidateKey = `${candidate.source}-${candidate.sourceId}`;
   if (ownedKeys.has(candidateKey)) return -999;
 
@@ -175,8 +176,9 @@ function scoreCandidate(seeds: SignalSeed[], candidate: MediaItem, ownedKeys: Se
   let strongestAffinity = 0;
 
   for (const seed of seeds) {
+    const seedTags = seedTagsMap.get(seed) ?? [];
     const sharedGenres = candidate.genres.filter((genre) => seed.item.genres.includes(genre)).length;
-    const sharedTasteTags = candidateTags.filter((tag) => buildTasteTags(seed.item).includes(tag)).length;
+    const sharedTasteTags = candidateTags.filter((tag) => seedTags.includes(tag)).length;
     let affinity = sharedGenres * 14;
     affinity += sharedTasteTags * 16;
 
@@ -368,10 +370,15 @@ async function buildRecommendationsForType(type: MediaType, library: LibraryStat
   ]);
 
   const candidates = dedupeItems([...relatedCandidates, ...discoveryCandidates]);
+
+  // Pre-compute taste tags for each seed once (avoids O(seeds×candidates) repeated computation)
+  const seedTagsMap = new Map<SignalSeed, string[]>();
+  seeds.forEach((s) => seedTagsMap.set(s, buildTasteTags(s.item)));
+
   return candidates
     .map((candidate) => ({
       candidate,
-      score: scoreCandidate(seeds, candidate, ownedKeys),
+      score: scoreCandidate(seeds, candidate, ownedKeys, seedTagsMap),
     }))
     .filter((entry) => entry.score > 0)
     .sort((a, b) => b.score - a.score)
@@ -534,7 +541,7 @@ function buildGreeting(library: LibraryState) {
   return variants[total % variants.length];
 }
 
-export async function buildHomeFeed(library: LibraryState): Promise<HomeFeed> {
+async function buildHomeFeedInner(library: LibraryState): Promise<HomeFeed> {
   const watchedItems = watchedItemsFromLibrary(library);
   const libraryItems = dedupeItems([
     ...watchedItems,
@@ -572,4 +579,18 @@ export async function buildHomeFeed(library: LibraryState): Promise<HomeFeed> {
       game: games,
     },
   };
+}
+
+export async function buildHomeFeed(library: LibraryState): Promise<HomeFeed> {
+  // Build a stable fingerprint from the user's library state.
+  // Same library = cached result returned instantly without hitting any external APIs.
+  const fingerprint = [
+    ...library.watched.map((i) => `w:${i.source}-${i.sourceId}`),
+    ...library.wishlist.map((i) => `wl:${i.source}-${i.sourceId}`),
+    ...library.lists.flatMap((l) => l.items.map((i) => `l:${i.source}-${i.sourceId}`)),
+  ]
+    .sort()
+    .join("|");
+
+  return withServerCache(`home-feed:${fingerprint}`, 5 * 60 * 1000, () => buildHomeFeedInner(library));
 }

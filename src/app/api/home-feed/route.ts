@@ -23,7 +23,11 @@ export async function GET(request: NextRequest) {
     // Turn "coming soon" continuations into inbox notifications (deduped server-side).
     await ensureUpcomingInboxNotifications(session.user.id, feed.upcoming).catch(() => undefined);
 
-    return NextResponse.json(feed);
+    return NextResponse.json(feed, {
+      headers: {
+        "Cache-Control": "private, max-age=180",
+      },
+    });
   } catch (error) {
     console.error("Error loading home feed:", error);
     return NextResponse.json(

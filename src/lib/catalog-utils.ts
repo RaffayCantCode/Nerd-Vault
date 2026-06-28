@@ -87,7 +87,18 @@ export function itemMatchesGenre(item: MediaItem, genre: string) {
   }
 
   const itemGenres = getItemSearchGenres(item);
-  return itemGenres.some((itemGenre) => matchesTerm(itemGenre, normalizedGenre));
+  return itemGenres.some((itemGenre) => {
+    // If the item genre or the normalized genre are the same, it's a match.
+    if (itemGenre === normalizedGenre) return true;
+    
+    // Check if they share any canonical group
+    const itemMatch = CANONICAL_GENRE_GROUPS.find((group) => matchingGroup(item, group));
+    if (itemMatch && normalizeGenreValue(itemMatch.label) === normalizedGenre) {
+      return true;
+    }
+    
+    return matchesTerm(itemGenre, normalizedGenre);
+  });
 }
 
 const BROWSE_GENRE_API_ALIASES: Record<string, { movie?: string; show?: string; anime?: string; game?: string }> = {

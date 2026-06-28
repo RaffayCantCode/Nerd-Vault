@@ -136,6 +136,7 @@ model WatchedItem {
   media      Media      @relation(fields: [mediaId], references: [id], onDelete: Cascade)
 
   @@id([userId, mediaId])
+  @@index([userId, watchedAt(sort: Desc)])
 }
 
 model WishlistItem {
@@ -147,6 +148,7 @@ model WishlistItem {
   media     Media    @relation(fields: [mediaId], references: [id], onDelete: Cascade)
 
   @@id([userId, mediaId])
+  @@index([userId, createdAt(sort: Desc)])
 }
 
 model Folder {
@@ -163,6 +165,7 @@ model Folder {
   items      FolderItem[]
 
   @@unique([userId, slug])
+  @@index([userId, updatedAt(sort: Desc)])
 }
 
 model FolderItem {
@@ -210,6 +213,8 @@ model Notification {
   user       User               @relation("NotificationReceiver", fields: [userId], references: [id], onDelete: Cascade)
   fromUser   User?              @relation("NotificationSender", fields: [fromUserId], references: [id], onDelete: SetNull)
   media      Media?             @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+  @@index([userId, status])
+  @@index([userId, createdAt(sort: Desc)])
 }
 
 model Account {

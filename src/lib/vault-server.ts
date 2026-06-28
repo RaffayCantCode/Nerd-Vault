@@ -217,32 +217,28 @@ const getFriendIds = cache(async (userId: string) => {
 async function upsertGenres(tx: Prisma.TransactionClient, mediaId: string, genres: string[]) {
   const uniqueGenres = Array.from(new Set(genres.map((genre) => genre.trim()).filter(Boolean)));
 
-  await tx.mediaGenre.deleteMany({
-    where: { mediaId },
+  await tx.mediaGenre.deleteMany({ where: { mediaId } });
+
+  if (!uniqueGenres.length) return;
+
+  // Upsert all genres in parallel instead of sequentially (N→1 round-trips)
+  const genreRecords = await Promise.all(
+    uniqueGenres.map((genreName) => {
+      const slug = slugify(genreName);
+      return tx.genre.upsert({
+        where: { slug },
+        update: { name: genreName },
+        create: { name: genreName, slug },
+        select: { id: true },
+      });
+    }),
+  );
+
+  // Batch insert all MediaGenre records in one query
+  await tx.mediaGenre.createMany({
+    data: genreRecords.map((genre) => ({ mediaId, genreId: genre.id })),
+    skipDuplicates: true,
   });
-
-  if (!uniqueGenres.length) {
-    return;
-  }
-
-  for (const genreName of uniqueGenres) {
-    const slug = slugify(genreName);
-    const genre = await tx.genre.upsert({
-      where: { slug },
-      update: { name: genreName },
-      create: {
-        name: genreName,
-        slug,
-      },
-    });
-
-    await tx.mediaGenre.create({
-      data: {
-        mediaId,
-        genreId: genre.id,
-      },
-    });
-  }
 }
 
 export async function requireSessionUser() {
@@ -362,6 +358,7 @@ export const getLibraryStateForUser = cache(async (userId: string): Promise<Libr
     prisma.watchedItem.findMany({
       where: { userId },
       orderBy: { watchedAt: "desc" },
+      take: 500,
       include: {
         media: {
           include: {
@@ -377,6 +374,7 @@ export const getLibraryStateForUser = cache(async (userId: string): Promise<Libr
     prisma.wishlistItem.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
+      take: 500,
       include: {
         media: {
           include: {
@@ -392,9 +390,11 @@ export const getLibraryStateForUser = cache(async (userId: string): Promise<Libr
     prisma.folder.findMany({
       where: { userId },
       orderBy: { updatedAt: "desc" },
+      take: 100,
       include: {
         items: {
           orderBy: { createdAt: "desc" },
+          take: 200,
           include: {
             media: {
               include: {
@@ -497,6 +497,7 @@ export const getViewerShellData = cache(async (userId: string) => {
       include: {
         notifications: {
           orderBy: { createdAt: "desc" },
+          take: 50,
           include: {
             fromUser: true,
             media: {

@@ -13,7 +13,6 @@ import { ResilientMediaImage } from "@/components/resilient-media-image";
 import { optimizeMediaImageUrl } from "@/lib/media-image";
 import { decodeHtmlEntities } from "@/lib/text-utils";
 import { MediaItem, MediaType, CuratedSection } from "@/lib/types";
-import "@/app/styles/browse.css";
 
 type SortMode = "discovery" | "newest" | "rating" | "title";
 

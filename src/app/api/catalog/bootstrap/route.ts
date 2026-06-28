@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getBrowseBootstrapCatalog, getBrowseDiscoverySeed } from "@/lib/browse-bootstrap";
 
-const BOOTSTRAP_CACHE_TTL_MS = 1000 * 60 * 10;
+const BOOTSTRAP_CACHE_TTL_MS = 1000 * 60 * 30; // 30 min in-process cache
 
 let bootstrapCache:
   | {
@@ -13,11 +13,14 @@ let bootstrapCache:
 export async function GET() {
   try {
     if (bootstrapCache && bootstrapCache.expiresAt > Date.now()) {
-      return NextResponse.json({
-        ok: true,
-        items: bootstrapCache.items.catalog,
-        surfacing: bootstrapCache.items.surfacing,
-      });
+      return NextResponse.json(
+        {
+          ok: true,
+          items: bootstrapCache.items.catalog,
+          surfacing: bootstrapCache.items.surfacing,
+        },
+        { headers: { "Cache-Control": "public, s-maxage=600, stale-while-revalidate=300" } },
+      );
     }
 
     const items = await getBrowseBootstrapCatalog(getBrowseDiscoverySeed());
@@ -26,11 +29,14 @@ export async function GET() {
       items,
     };
 
-    return NextResponse.json({
-      ok: true,
-      items: items.catalog,
-      surfacing: items.surfacing,
-    });
+    return NextResponse.json(
+      {
+        ok: true,
+        items: items.catalog,
+        surfacing: items.surfacing,
+      },
+      { headers: { "Cache-Control": "public, s-maxage=600, stale-while-revalidate=300" } },
+    );
   } catch (error) {
     return NextResponse.json(
       {

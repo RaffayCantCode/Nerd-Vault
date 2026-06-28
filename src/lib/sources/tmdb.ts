@@ -3,6 +3,7 @@ import { rankCandidatesForQuery } from "@/lib/search-utils";
 import { matchesFranchise, isLikelyAnime } from "@/lib/franchise-utils";
 import { browseAniListAnime } from "@/lib/sources/anilist";
 import { getMediaFallbackImage } from "@/lib/media-fallbacks";
+import { withServerCache } from "@/lib/server-cache";
 import { seededShuffle } from "@/lib/curated-utils";
 
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
@@ -384,7 +385,7 @@ function isUsefulMovie(item: MediaItem) {
     item.genres.some(g => g.toLowerCase().includes("animation"));
   
   return (
-    item.language === "en" || item.language === "ja" || item.language === "ko" &&
+    (item.language === "en" || item.language === "ja" || item.language === "ko") &&
     item.year >= 1970 &&
     item.rating >= 5 &&
     !item.genres.some((genre) => banned.has(genre)) &&
@@ -555,6 +556,7 @@ async function getTmdbMoviePageWithMode(
   genre?: string,
   sort: "discovery" | "newest" | "rating" | "title" = "discovery",
   seed = 1,
+  pageSize = 48,
 ): Promise<BrowsePayload> {
   const movieGenres = await getGenreMap("movie");
   if (query) {
@@ -594,7 +596,7 @@ async function getTmdbMoviePageWithMode(
   const payload = await tmdbFetch<TmdbPagedResponse>(path);
   let primaryItems = payload.results.map((item) => mapMovieOrShow(item, "movie", movieGenres)).filter(isUsefulMovie);
 
-  const targetCount = genreId ? 20 : 12;
+  const targetCount = pageSize;
   let nextRequestPage = requestPage + 1;
   while (primaryItems.length < targetCount && nextRequestPage <= payload.total_pages && nextRequestPage <= requestPage + 6) {
     const nextPath = path.replace(`page=${requestPage}`, `page=${nextRequestPage}`);
@@ -608,7 +610,7 @@ async function getTmdbMoviePageWithMode(
     if (!extraItems.length) {
       break;
     }
-    primaryItems = dedupeBySource([...primaryItems, ...extraItems]).slice(0, 20);
+    primaryItems = dedupeBySource([...primaryItems, ...extraItems]).slice(0, targetCount);
     nextRequestPage += 1;
   }
 
@@ -630,6 +632,7 @@ async function getTmdbShowPageWithMode(
   genre?: string,
   sort: "discovery" | "newest" | "rating" | "title" = "discovery",
   seed = 1,
+  pageSize = 48,
 ): Promise<BrowsePayload> {
   const tvGenres = await getGenreMap("tv");
   if (query) {
@@ -674,7 +677,7 @@ async function getTmdbShowPageWithMode(
   const payload = await tmdbFetch<TmdbPagedResponse>(path);
   let primaryItems = payload.results.map((item) => mapMovieOrShow(item, "show", tvGenres)).filter(isUsefulShow);
 
-  const targetCount = genreId ? 20 : 12;
+  const targetCount = pageSize;
   let nextRequestPage = requestPage + 1;
   while (primaryItems.length < targetCount && nextRequestPage <= payload.total_pages && nextRequestPage <= requestPage + 6) {
     const nextPath = path.replace(`page=${requestPage}`, `page=${nextRequestPage}`);
@@ -688,7 +691,7 @@ async function getTmdbShowPageWithMode(
     if (!extraItems.length) {
       break;
     }
-    primaryItems = dedupeBySource([...primaryItems, ...extraItems]).slice(0, 20);
+    primaryItems = dedupeBySource([...primaryItems, ...extraItems]).slice(0, targetCount);
     nextRequestPage += 1;
   }
 
@@ -719,13 +722,14 @@ export async function browseTmdbCatalog(params: TmdbBrowseParams) {
   const genre = params.genre?.trim();
   const sort = params.sort ?? "discovery";
   const seed = params.seed ?? 1;
+  const pageSize = params.pageSize ?? 48;
 
   if (params.type === "movie") {
-    return getTmdbMoviePageWithMode(page, query, genre, sort, seed);
+    return getTmdbMoviePageWithMode(page, query, genre, sort, seed, pageSize);
   }
 
   if (params.type === "show") {
-    return getTmdbShowPageWithMode(page, query, genre, sort, seed);
+    return getTmdbShowPageWithMode(page, query, genre, sort, seed, pageSize);
   }
 
   if (params.type === "anime_movie" || params.type === "anime") {
@@ -864,7 +868,8 @@ function hasStrongTmdbTitleAffinity(baseTitles: string[], candidate: MediaItem) 
   );
 }
 
-export async function getTmdbFranchiseEntries(id: number, type: "movie" | "tv"): Promise<MediaItem[]> {
+export function getTmdbFranchiseEntries(id: number, type: "movie" | "tv"): Promise<MediaItem[]> {
+  return withServerCache(`tmdb:franchise:${id}:${type}`, 60 * 60 * 1000, async () => {
   const mappedType = type === "movie" ? "movie" : "show";
   const genres = await getGenreMap(type === "movie" ? "movie" : "tv");
 
@@ -921,6 +926,7 @@ export async function getTmdbFranchiseEntries(id: number, type: "movie" | "tv"):
     if (yearGap !== 0) return yearGap;
     return right.rating - left.rating;
   });
+  }); // end withServerCache
 }
 
 /** Find related movies/shows by title matching when collection data is insufficient */
@@ -1035,7 +1041,8 @@ export async function enrichAnimeImagesFromTmdb(params: {
 
 
 
-export async function getTmdbCuratedSections(type: "movie" | "show", seed: number): Promise<CuratedSection[]> {
+export function getTmdbCuratedSections(type: "movie" | "show", seed: number): Promise<CuratedSection[]> {
+  return withServerCache(`tmdb:curated:${type}:${seed}`, 30 * 60 * 1000, async () => {
   const genres = await getGenreMap(type === "show" ? "tv" : type);
   const isMovie = type === "movie";
 
@@ -1203,5 +1210,6 @@ export async function getTmdbCuratedSections(type: "movie" | "show", seed: numbe
 
     return results;
   }
+  }); // end withServerCache
 }
 

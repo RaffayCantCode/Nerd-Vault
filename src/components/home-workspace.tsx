@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { CatalogCard } from "@/components/catalog-card";
 import { HomeFeed } from "@/lib/home-feed";
 import { writeDetailReturnTarget } from "@/lib/detail-return";
@@ -99,12 +99,12 @@ export function HomeWorkspace({
     return <HomeWorkspaceLoading />;
   }
 
-  function setSectionPage(sectionKey: string, nextPage: number) {
+  const setSectionPage = useCallback((sectionKey: string, nextPage: number) => {
     setSectionPages((current) => ({
       ...current,
       [sectionKey]: nextPage,
     }));
-  }
+  }, []);
 
   function renderShelfPager(sectionKey: string, totalItems: number) {
     const totalPages = Math.max(1, Math.ceil(totalItems / HOME_SECTION_PAGE_SIZE));

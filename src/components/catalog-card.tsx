@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NVLoader } from "@/components/nv-loader";
 import { ResilientMediaImage } from "@/components/resilient-media-image";
 import { writeBrowseReturnContext, writeDetailReturnTarget } from "@/lib/detail-return";
 import { optimizeMediaImageUrl } from "@/lib/media-image";
+import { observeCard } from "@/lib/shared-observer";
 import { MediaItem } from "@/lib/types";
 
 const BROWSE_LAST_URL_KEY = "nerdvault-browse-last-url";
@@ -59,7 +60,6 @@ export const CatalogCard = memo(function CatalogCard({
 }) {
   const router = useRouter();
   const cardRef = useRef<HTMLAnchorElement>(null);
-  const warmedRef = useRef(false);
   const [isNavigating, setIsNavigating] = useState(false);
   const [isVisible, setIsVisible] = useState(priority);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
@@ -81,28 +81,17 @@ export const CatalogCard = memo(function CatalogCard({
     [detailRouteType, item.slug, item.source, item.sourceId],
   );
 
-  function warmRoute() {
-    router.prefetch(routeHref);
-    if (warmedRef.current || typeof window === "undefined") {
-      return;
-    }
+  const warmRoute = useCallback(function warmRoute() {
+    if (warmedCardThumbs.has(item.coverUrl || "")) return;
+    if (item.coverUrl) warmedCardThumbs.add(item.coverUrl);
 
-    warmedRef.current = true;
-    
-    // Low priority preloading to avoid main thread lag
-    const thumbUrl = optimizeMediaImageUrl(item.coverUrl, "thumb") ?? item.coverUrl;
-    const cover = new Image();
-    cover.decoding = "async";
-    cover.src = thumbUrl;
+    const coverUrl = optimizeMediaImageUrl(item.coverUrl, "cover");
+    if (coverUrl) warmImage(coverUrl);
+    const backdropUrl = optimizeMediaImageUrl(item.backdropUrl, "cover");
+    if (backdropUrl) warmImage(backdropUrl);
+  }, [item.coverUrl, item.backdropUrl]);
 
-    if (priority) {
-      const fullCover = new Image();
-      fullCover.decoding = "async";
-      fullCover.src = optimizeMediaImageUrl(item.coverUrl, "cover") ?? item.coverUrl;
-    }
-  }
-
-  function handleNavigate(event: React.MouseEvent) {
+  const handleNavigate = useCallback(function handleNavigate(event: React.MouseEvent) {
     event.preventDefault();
     if (isNavigating) {
       return;
@@ -136,7 +125,7 @@ export const CatalogCard = memo(function CatalogCard({
 
     warmRoute();
     router.push(routeHref, { scroll: true });
-  }
+  }, [isNavigating, onBeforeNavigate, browseCardId, routeHref, router, warmRoute]);
 
   useEffect(() => {
     if (!priority) {
@@ -164,39 +153,25 @@ export const CatalogCard = memo(function CatalogCard({
   }, [priority, routeHref]);
 
   useEffect(() => {
-    if (isVisible) {
+    if (isVisible) return;
+    if (priority) {
+      setIsVisible(true);
       return;
     }
 
     const element = cardRef.current;
-    if (!element) {
-      return;
-    }
+    if (!element) return;
 
-    // Larger rootMargin for earlier preloading - images start loading before they enter viewport
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          const thumbUrl = optimizeMediaImageUrl(item.coverUrl, "thumb");
-          if (thumbUrl) {
-            warmImage(thumbUrl);
-          }
-          setIsVisible(true);
-          observer.disconnect();
+    return observeCard(element, (intersecting) => {
+      if (intersecting) {
+        const thumbUrl = optimizeMediaImageUrl(item.coverUrl, "thumb");
+        if (thumbUrl) {
+          warmImage(thumbUrl);
         }
-      },
-      { rootMargin: "420px 0px", threshold: 0.01 },
-    );
-
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [isVisible]);
-
-  useEffect(() => {
-    if (priority) {
-      setIsVisible(true);
-    }
-  }, [priority]);
+        setIsVisible(true);
+      }
+    });
+  }, [isVisible, priority, item.coverUrl]);
 
   return (
     <Link

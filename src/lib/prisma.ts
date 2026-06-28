@@ -24,9 +24,10 @@ function getPool() {
 
     globalForPrisma.pool = new Pool({
       connectionString: url.toString(),
-      max: process.env.NODE_ENV === "production" ? 1 : 8,
-      idleTimeoutMillis: 10_000,
+      max: process.env.NODE_ENV === "production" ? 3 : 8,
+      idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 15_000,
+      allowExitOnIdle: true,
       ssl: hadSsl ? { rejectUnauthorized: false } : undefined,
     });
   }

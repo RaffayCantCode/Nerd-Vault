@@ -49,15 +49,17 @@ export default async function HomeHubPage({
 
   await ensureCurrentUserRecord().catch(() => undefined);
 
-  const [shellData, library] = await Promise.all([
-    getViewerShellData(session.user.id).catch(() => ({ folders: [], lists: [], viewerProfile: null, friends: [] })),
-    getLibraryStateForUser(session.user.id).catch(() => ({ watched: [], wishlist: [], lists: [], folders: [] }))
-  ]);
-
   const requestedUser = typeof resolvedSearchParams?.user === "string" ? resolvedSearchParams.user : undefined;
   const initialTab = resolvedSearchParams?.tab === "media" ? "your-media" : "for-you";
-  const profilePayload = await getVaultProfilePayload(session.user.id, requestedUser ?? session.user.id).catch(() => undefined);
 
+  // Run all three data fetches in parallel — eliminates the sequential waterfall
+  const [shellData, library, profilePayload] = await Promise.all([
+    getViewerShellData(session.user.id).catch(() => ({ folders: [], lists: [], viewerProfile: null, friends: [] })),
+    getLibraryStateForUser(session.user.id).catch(() => ({ watched: [], wishlist: [], lists: [], folders: [] })),
+    getVaultProfilePayload(session.user.id, requestedUser ?? session.user.id).catch(() => undefined),
+  ]);
+
+  // Build feed after library resolves (needs library data), but cached so usually near-instant
   const feed = await buildHomeFeed(library).catch(() => ({ greeting: "Welcome back! Start building your collection.", sections: { movie: [], show: [], anime: [], anime_movie: [], game: [], all: [] }, upcoming: [], watchedCounts: { movie: 0, show: 0, anime: 0, anime_movie: 0, game: 0, all: 0 } }));
 
   return (

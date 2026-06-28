@@ -76,8 +76,7 @@ export async function GET(request: NextRequest) {
         { ok: true, sections },
         {
           headers: {
-            "Cache-Control": "private, no-store, max-age=0, must-revalidate",
-            Pragma: "no-cache",
+            "Cache-Control": "public, s-maxage=600, stale-while-revalidate=300",
           },
         }
       );
@@ -174,8 +173,9 @@ export async function GET(request: NextRequest) {
       },
       {
         headers: {
-          "Cache-Control": "private, no-store, max-age=0, must-revalidate",
-          Pragma: "no-cache",
+          "Cache-Control": query.trim()
+            ? "private, no-store, max-age=0, must-revalidate"
+            : "public, s-maxage=120, stale-while-revalidate=60",
         },
       },
     );

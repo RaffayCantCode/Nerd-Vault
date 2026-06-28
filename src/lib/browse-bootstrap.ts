@@ -124,19 +124,19 @@ async function getBootstrapSource(source: BootstrapSource, seed: number) {
   if (source === "movie" || source === "show") {
     const attempts = await Promise.all([
       withTimeout(
-        browseTmdbCatalog({ type: source, page: 1, query: "", genre: "", sort: "discovery", seed }).catch(() => fallback),
+        browseTmdbCatalog({ type: source, page: 1, query: "", genre: "", sort: "discovery", seed, pageSize: 16 }).catch(() => fallback),
         fallback,
-        2200,
+        8000,
       ),
       withTimeout(
-        browseTmdbCatalog({ type: source, page: 1, query: "", genre: "", sort: "rating", seed: seed + 11 }).catch(() => fallback),
+        browseTmdbCatalog({ type: source, page: 1, query: "", genre: "", sort: "rating", seed: seed + 11, pageSize: 16 }).catch(() => fallback),
         fallback,
-        2600,
+        8000,
       ),
       withTimeout(
-        browseTmdbCatalog({ type: source, page: 2, query: "", genre: "", sort: "discovery", seed: seed + 17 }).catch(() => fallback),
+        browseTmdbCatalog({ type: source, page: 2, query: "", genre: "", sort: "discovery", seed: seed + 17, pageSize: 16 }).catch(() => fallback),
         fallback,
-        2600,
+        8000,
       ),
     ]);
     const items = dedupeItems(attempts.flatMap((payload) => payload.items));
@@ -147,19 +147,19 @@ async function getBootstrapSource(source: BootstrapSource, seed: number) {
   if (source === "anime") {
     const attempts = await Promise.all([
       withTimeout(
-        browseAniListAnime({ page: 1, query: "", genre: "", sort: "discovery", seed }).catch(() => fallback),
+        browseAniListAnime({ page: 1, query: "", genre: "", sort: "discovery", seed, pageSize: 16 }).catch(() => fallback),
         fallback,
-        2600,
+        6000,
       ),
       withTimeout(
-        browseAniListAnime({ page: 1, query: "", genre: "", sort: "rating", seed: seed + 13 }).catch(() => fallback),
+        browseAniListAnime({ page: 1, query: "", genre: "", sort: "rating", seed: seed + 13, pageSize: 16 }).catch(() => fallback),
         fallback,
-        3200,
+        6000,
       ),
       withTimeout(
-        browseAniListAnime({ page: 2, query: "", genre: "", sort: "discovery", seed: seed + 19 }).catch(() => fallback),
+        browseAniListAnime({ page: 2, query: "", genre: "", sort: "discovery", seed: seed + 19, pageSize: 16 }).catch(() => fallback),
         fallback,
-        3200,
+        6000,
       ),
     ]);
     const items = dedupeItems(attempts.flatMap((payload) => payload.items));
@@ -169,17 +169,17 @@ async function getBootstrapSource(source: BootstrapSource, seed: number) {
 
   const gameAttempts = await Promise.all([
     withTimeout(
-      browseIgdbGames({ page: 1, query: "", genre: "", sort: "discovery", seed }).catch(() => fallback),
+      browseIgdbGames({ page: 1, query: "", genre: "", sort: "discovery", seed, pageSize: 16 }).catch(() => fallback),
       fallback,
       4000,
     ),
     withTimeout(
-      browseIgdbGames({ page: 1, query: "", genre: "", sort: "rating", seed: seed + 17 }).catch(() => fallback),
+      browseIgdbGames({ page: 1, query: "", genre: "", sort: "rating", seed: seed + 17, pageSize: 16 }).catch(() => fallback),
       fallback,
       4500,
     ),
     withTimeout(
-      browseIgdbGames({ page: 2, query: "", genre: "", sort: "discovery", seed: seed + 23 }).catch(() => fallback),
+      browseIgdbGames({ page: 2, query: "", genre: "", sort: "discovery", seed: seed + 23, pageSize: 16 }).catch(() => fallback),
       fallback,
       4500,
     ),

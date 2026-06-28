@@ -3,6 +3,7 @@ import { extractFranchiseRoot, getAnimeSeriesContext, isAnimeMovie, isSameFranch
 import { enrichAnimeImagesFromTmdb, TmdbAnimeImageEnrichment } from "@/lib/sources/tmdb";
 import { MediaItem, CuratedSection } from "@/lib/types";
 import { seededShuffle } from "@/lib/curated-utils";
+import { withServerCache } from "@/lib/server-cache";
 
 const ANILIST_API_URL = "https://graphql.anilist.co";
 const ANILIST_CACHE_TTL_MS = 1000 * 60 * 30;
@@ -906,14 +907,18 @@ async function buildAnimeFranchiseFromItem(item: AniListMedia) {
   };
 }
 
-export async function getAniListAnimeFranchise(id: number) {
-  const item = await getAniListAnimeMedia({ id });
-  return buildAnimeFranchiseFromItem(item);
+export function getAniListAnimeFranchise(id: number) {
+  return withServerCache(`anilist:franchise:${id}`, 60 * 60 * 1000, async () => {
+    const item = await getAniListAnimeMedia({ id });
+    return buildAnimeFranchiseFromItem(item);
+  });
 }
 
-export async function getAniListAnimeFranchiseByMalId(idMal: number) {
-  const item = await getAniListAnimeMedia({ idMal });
-  return buildAnimeFranchiseFromItem(item);
+export function getAniListAnimeFranchiseByMalId(idMal: number) {
+  return withServerCache(`anilist:franchise:mal:${idMal}`, 60 * 60 * 1000, async () => {
+    const item = await getAniListAnimeMedia({ idMal });
+    return buildAnimeFranchiseFromItem(item);
+  });
 }
 
 const CURATED_ANIME_QUERY = `
@@ -971,7 +976,8 @@ const CURATED_ANIME_QUERY = `
   }
 `;
 
-export async function getAniListCuratedSections(seed: number): Promise<CuratedSection[]> {
+export function getAniListCuratedSections(seed: number): Promise<CuratedSection[]> {
+  return withServerCache(`anilist:curated:${seed}`, 30 * 60 * 1000, async () => {
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 
@@ -1066,5 +1072,6 @@ export async function getAniListCuratedSections(seed: number): Promise<CuratedSe
   );
 
   return results;
+  }); // end withServerCache
 }
 

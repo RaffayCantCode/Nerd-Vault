@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { getMediaFallbackImage } from "@/lib/media-fallbacks";
 import {
   buildMediaImageSrcSet,
@@ -44,7 +44,13 @@ function warmImageUrl(url?: string) {
   image.src = url;
 }
 
-export function ResilientMediaImage({
+const getConnectionInfo = () => {
+  if (typeof navigator === "undefined") return undefined;
+  const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+  return connection ? { saveData: connection.saveData, effectiveType: connection.effectiveType } : undefined;
+};
+
+export const ResilientMediaImage = memo(function ResilientMediaImage({
   item,
   className,
   alt,
@@ -61,14 +67,7 @@ export function ResilientMediaImage({
   const [retryProxy, setRetryProxy] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const connectionRef = useRef<{ saveData?: boolean; effectiveType?: string } | null>(null);
-
-  if (typeof navigator !== "undefined" && connectionRef.current === null) {
-    const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
-    connectionRef.current = { saveData: connection?.saveData, effectiveType: connection?.effectiveType };
-  }
-
-  const connectionInfo = connectionRef.current ?? undefined;
+  const connectionInfo = getConnectionInfo();
   const resolvedDisplayIntent = chooseConnectionAwareIntent(displayIntent, connectionInfo);
   const resolvedUpgradeIntent = chooseConnectionAwareIntent(upgradeIntent, connectionInfo);
 
@@ -92,15 +91,14 @@ export function ResilientMediaImage({
   const srcSet = buildMediaImageSrcSet(rawPrimaryCover || rawSecondaryBackdrop, resolvedUpgradeIntent);
   const prevUrlsRef = useRef(`${item.coverUrl ?? ""}|${item.backdropUrl ?? ""}`);
 
+  // Combined orchestrator effect
   useEffect(() => {
     const currentUrls = `${item.coverUrl ?? ""}|${item.backdropUrl ?? ""}`;
     if (currentUrls !== prevUrlsRef.current) {
       prevUrlsRef.current = currentUrls;
       setRetryProxy(false);
     }
-  }, [item.coverUrl, item.backdropUrl]);
 
-  useEffect(() => {
     const nextPreview = shouldProgress ? previewSrc : upgradeSrc;
     setLoaded(false);
     setIsUpgraded(!shouldProgress);
@@ -112,40 +110,47 @@ export function ResilientMediaImage({
       warmImageUrl(upgradeSrc);
       warmImageUrl(previewSrc);
     }
-  }, [item.coverUrl, item.backdropUrl, onLoadStateChange, previewSrc, shouldProgress, upgradeSrc, loading, fetchPriority]);
 
-  useEffect(() => {
-    if (!shouldProgress || !upgradeSrc) return;
     let cancelled = false;
-    const fullImage = new Image();
-    fullImage.decoding = "async";
-    fullImage.onload = () => {
-      if (!cancelled) { setSrc(upgradeSrc); setIsUpgraded(true); }
-    };
-    fullImage.src = upgradeSrc;
-    return () => { cancelled = true; };
-  }, [shouldProgress, upgradeSrc]);
 
-  useEffect(() => {
+    // Fast track upgrade if needed
+    if (shouldProgress && upgradeSrc) {
+      const fullImage = new Image();
+      fullImage.decoding = "async";
+      fullImage.onload = () => {
+        if (!cancelled) {
+          setSrc(upgradeSrc);
+          setIsUpgraded(true);
+        }
+      };
+      fullImage.src = upgradeSrc;
+    }
+
+    // Safety timeout for 'loaded' state
     if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
       setLoaded(true);
       onLoadStateChange?.(true);
-      return;
+    } else {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
+        if (!cancelled) {
+          setLoaded(true);
+          onLoadStateChange?.(true);
+        }
+      }, 2500);
     }
-    if (timeoutRef.current) return;
-    timeoutRef.current = setTimeout(() => {
-      setLoaded(true);
-      onLoadStateChange?.(true);
-    }, 2_500);
+
     return () => {
-      if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
+      cancelled = true;
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, [onLoadStateChange, src]);
+  }, [item.coverUrl, item.backdropUrl, onLoadStateChange, previewSrc, shouldProgress, upgradeSrc, loading, fetchPriority]);
 
   const combinedClass = [
     className,
     "img-loaded-wrapper",
     loaded ? "img-loaded" : "img-loading",
+
     loading === "eager" ? "img-eager" : "img-lazy",
     isUpgraded ? "img-upgraded" : "img-preview",
   ].filter(Boolean).join(" ");
@@ -153,34 +158,36 @@ export function ResilientMediaImage({
   const resolvedSrcSet = (src === fallback || (secondaryBackdrop && src === secondaryBackdrop)) ? undefined : srcSet;
 
   return (
-    <img
-      ref={imgRef}
-      className={combinedClass}
-      src={src}
-      srcSet={resolvedSrcSet}
-      sizes={sizes || (resolvedSrcSet ? "(max-width: 720px) 42vw, 220px" : undefined)}
-      alt={alt ?? item.title}
-      loading={loading}
-      decoding={decoding}
-      fetchPriority={fetchPriority}
-      draggable={false}
-      onLoad={() => { setLoaded(true); onLoadStateChange?.(true); }}
-      onError={() => {
-        if (!retryProxy && (item.coverUrl || item.backdropUrl)) {
-          setRetryProxy(true);
-          return;
-        }
-        if (src !== secondaryBackdrop && secondaryBackdrop) {
-          setSrc(secondaryBackdrop);
-          return;
-        }
-        if (src !== fallback && fallback) {
-          setSrc(fallback);
-          return;
-        }
-        setLoaded(true);
-        onLoadStateChange?.(true);
-      }}
-    />
+    <picture>
+      <img
+        ref={imgRef}
+        className={combinedClass}
+        src={src}
+        srcSet={resolvedSrcSet}
+        sizes={sizes || (resolvedSrcSet ? "(max-width: 720px) 42vw, 220px" : undefined)}
+        alt={alt ?? item.title}
+        loading={loading}
+        decoding={decoding}
+        fetchPriority={fetchPriority}
+        draggable={false}
+        onLoad={() => { setLoaded(true); onLoadStateChange?.(true); }}
+        onError={() => {
+          if (!retryProxy && (item.coverUrl || item.backdropUrl)) {
+            setRetryProxy(true);
+            return;
+          }
+          if (src !== secondaryBackdrop && secondaryBackdrop) {
+            setSrc(secondaryBackdrop);
+            return;
+          }
+          if (src !== fallback && fallback) {
+            setSrc(fallback);
+            return;
+          }
+          setLoaded(true);
+          onLoadStateChange?.(true);
+        }}
+      />
+    </picture>
   );
-}
+});
