@@ -92,11 +92,10 @@ export const CatalogCard = memo(function CatalogCard({
   }, [item.coverUrl, item.backdropUrl]);
 
   const handleNavigate = useCallback(function handleNavigate(event: React.MouseEvent) {
-    event.preventDefault();
     if (isNavigating) {
       return;
     }
-
+    
     setIsNavigating(true);
     onBeforeNavigate?.();
 
@@ -124,7 +123,6 @@ export const CatalogCard = memo(function CatalogCard({
     }
 
     warmRoute();
-    router.push(routeHref, { scroll: true });
   }, [isNavigating, onBeforeNavigate, browseCardId, routeHref, router, warmRoute]);
 
   useEffect(() => {

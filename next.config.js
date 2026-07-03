@@ -36,10 +36,15 @@ const nextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'covers.openlibrary.org',
+        hostname: 'www.gutenberg.org',
+      },
+      {
+        protocol: 'https',
+        hostname: 'gutenberg.org',
       },
     ],
   },
+  reactCompiler: true,
   experimental: {
     optimizePackageImports: ['lucide-react'],
   },

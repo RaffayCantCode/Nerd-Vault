@@ -7419,7 +7419,7 @@ body {
   height: min(100%, 560px);
   max-height: calc(100% - 6px);
   aspect-ratio: 2 / 3;
-  object-fit: contain;
+  object-fit: cover;
   object-position: center;
   border-radius: 28px;
   box-shadow:
@@ -14183,11 +14183,12 @@ html {
   align-items: center;
   justify-content: space-between;
   gap: 1.5rem;
-  margin-top: 1rem;
-  padding-top: 1rem;
+  margin: 1.5rem auto 0 auto;
+  padding-top: 1.5rem;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   flex-wrap: wrap;
-  width: min(100%, 980px);
+  width: 100%;
+  max-width: 1200px;
 }
 
 .detail-trailer-controls-left {
@@ -14208,8 +14209,8 @@ html {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.05);
@@ -15301,30 +15302,23 @@ body {
 
 .detail-trailer-frame-shell {
   position: relative;
-  width: min(100%, 980px);
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
   aspect-ratio: 16 / 9;
   border-radius: 24px;
   overflow: hidden;
-  background:
-    radial-gradient(circle at top right, rgba(105, 197, 172, 0.14), transparent 30%),
-    rgba(4, 8, 14, 0.94);
+  background: #000; /* Pitch black so YouTube black bars blend perfectly */
   border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 40px 80px rgba(0, 0, 0, 0.6);
 }
 
 .detail-trailer-frame {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
+  width: 100% !important;
+  height: 100% !important;
   border: 0;
-  top: 50%;
-  left: 50%;
-  width: 1920px !important;
-  height: 1080px !important;
-  max-width: none !important;
-  max-height: none !important;
-  transform: translate(-50%, -50%) scale(var(--trailer-scale, 0.52));
-  transform-origin: center center;
 }
 
 .brand-logo-shell {
@@ -16894,6 +16888,7 @@ body {
       0 22px 46px rgba(0, 0, 0, 0.55),
       0 0 0 1px rgba(255, 255, 255, 0.08) inset !important;
     background: rgba(0, 0, 0, 0.18);
+    object-fit: cover !important;
   }
 
   .browse-surfacing-hero .hero-art::before,
@@ -18488,7 +18483,9 @@ body:not(.landing-page) {
 .chip:hover:not(:disabled),
 .picker-chip:hover:not(:disabled),
 .catalog-card:hover {
-  border-color: var(--nv-line-bright) !important;
+  border-color: rgba(105, 197, 172, 0.4) !important;
+  transform: translateY(-4px) scale(1.015) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(105, 197, 172, 0.15);
 }
 
 .catalog-grid,
@@ -18511,6 +18508,7 @@ body:not(.landing-page) {
     rgba(8, 13, 21, 0.82) !important;
   border: 1px solid rgba(105, 197, 172, 0.13) !important;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.35s ease, border-color 0.2s ease !important;
 }
 
 .catalog-card-media {
@@ -19999,4 +19997,13 @@ table,
 .cta-secondary:hover {
   background: rgba(255, 255, 255, 0.15) !important;
   border-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* --- Global Image Crispness --- */
+.nv-poster-frame img, 
+.hero-art-image, 
+.nv-strip-card img, 
+.nv-act-cover img, 
+img.img-loaded {
+  filter: contrast(1.1) saturate(1.15) brightness(1.02);
 }

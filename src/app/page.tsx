@@ -15,7 +15,8 @@ import { MediaItem } from "@/lib/types";
 import { BookSummary } from "@/lib/book-types";
 import { prisma } from "@/lib/prisma";
 import { optimizeMediaImageUrl } from "@/lib/media-image";
-
+import { ResilientMediaImage } from "@/components/resilient-media-image";
+import { HeroInteractiveShowcase } from "@/components/hero-interactive-showcase";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
@@ -84,6 +85,12 @@ export default async function HomePage() {
   const sugAnime = anime.length  ? clean(anime[Math.floor(Math.random() * anime.length)].title)   : "Jujutsu Kaisen";
   const sugGame  = games.length  ? clean(games[Math.floor(Math.random() * games.length)].title)   : "Elden Ring";
   const sugBook  = books.length  ? clean(books[Math.floor(Math.random() * books.length)].title)   : "Frankenstein";
+
+  const topMovie = movies[0];
+  const topShow  = shows[0];
+  const topAnime = anime[0];
+  const topGame  = games[0];
+  const heroShowcaseItems = [topMovie, topShow, topAnime, topGame].filter(Boolean);
 
   return (
     <div className="nv-landing">
@@ -219,78 +226,32 @@ export default async function HomePage() {
 
       <main>
         {/* ══ §1 HERO ════════════════════════════════════════ */}
-        <section className="nv-hero" aria-label="Introduction to NerdVault">
+        <section className="nv-hero nv-hero-split" aria-label="Introduction to NerdVault" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px 4%', gap: '60px', minHeight: '80vh', flexWrap: 'wrap' }}>
 
-          {/* Very dark + blurred backdrop — purely atmospheric, not recognisable */}
-          <div className="nv-hero-backdrop">
-            {spotlightBackdrop && (
-              <img
-                src={spotlightBackdrop}
-                alt=""
-                className="nv-hero-backdrop-img"
-                aria-hidden
-              />
-            )}
-            <div className="nv-hero-backdrop-gradient" />
-          </div>
-
-          {/* Content — fills available height, centered */}
-          <div className="nv-hero-content">
-            <div className="nv-logging-pill">
+          {/* Left Column: Text & CTAs */}
+          <div className="nv-hero-content" style={{ flex: '1 1 400px', maxWidth: '600px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <div className="nv-logging-pill" style={{ margin: '0 0 24px 0' }}>
               <span className="nv-logging-pill-dot" />
               A media logging &amp; tracking platform — not a streaming service
             </div>
 
-            <div className="nv-hero-eyebrow">
-              <span className="nv-hero-eyebrow-line" />
+            <div className="nv-hero-eyebrow" style={{ justifyContent: 'flex-start', marginBottom: '16px' }}>
               Track Everything You Love
+              <span className="nv-hero-eyebrow-line" style={{ width: '30px' }} />
             </div>
 
-            <h1 className="nv-hero-headline">
-              Your universe of<br />
+            <h1 className="nv-hero-headline" style={{ textAlign: 'left', fontSize: 'clamp(2.8rem, 6vw, 4.5rem)', lineHeight: '1.05', margin: '0 0 24px 0' }}>
+              Your ultimate<br />
               <span className="grad-text">entertainment</span><br />
-              in one vault.
+              platform.
             </h1>
 
-            <p className="nv-hero-sub">
+            <p className="nv-hero-sub" style={{ textAlign: 'left', margin: '0 0 32px 0', fontSize: '1.1rem', color: 'var(--text-sec)' }}>
               Log movies, TV shows, anime, games &amp; books. Build custom folders, discover new media, and share what you love — all in one beautifully crafted space.
             </p>
 
-            {/* Trending spotlight */}
-            {spotlightItem && (
-              <Link href={`/media/${spotlightItem.slug}?source=${spotlightItem.source}&sourceId=${spotlightItem.sourceId}&type=${spotlightItem.type}`} className="nv-spotlight-info">
-                <span className="nv-spotlight-now">⚡ Trending Now</span>
-                <p className="nv-spotlight-title">{spotlightItem.title}</p>
-                <div className="nv-spotlight-meta">
-                  {spotlightRating && <span className="nv-rating">★ {spotlightRating}</span>}
-                  {spotlightItem.year && <span>{spotlightItem.year}</span>}
-                  <span className="nv-type-badge">{spotlightTypeLabel}</span>
-                </div>
-              </Link>
-            )}
-
-            {/* CTA */}
-            <div className="nv-hero-cta">
-              {isSignedIn ? (
-                <>
-                  <Link href="/home" className="nv-btn nv-btn-primary">
-                    <Zap size={14} /> Open My Vault
-                  </Link>
-                  <BrowseResetLink className="nv-btn nv-btn-secondary">Browse Catalog</BrowseResetLink>
-                </>
-              ) : (
-                <>
-                  <Link href="/sign-in" className="nv-btn nv-btn-primary">
-                    <Zap size={14} /> Start for Free
-                  </Link>
-                  <BrowseResetLink className="nv-btn nv-btn-secondary">Explore First</BrowseResetLink>
-                </>
-              )}
-            </div>
-
-            {/* Search bar */}
-            <div className="nv-hero-search">
-              <form action="/browse" method="GET" className="nv-search-form">
+            <div className="nv-hero-search" style={{ margin: '0 0 32px 0', width: '100%' }}>
+              <form action="/browse" method="GET" className="nv-search-form" style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)' }}>
                 <input type="hidden" name="focus" value="results" />
                 <input
                   type="search" name="query"
@@ -302,7 +263,7 @@ export default async function HomePage() {
                   <Search size={14} /> Search
                 </button>
               </form>
-              <div className="nv-search-chips">
+              <div className="nv-search-chips" style={{ justifyContent: 'flex-start' }}>
                 <span>Try:</span>
                 <Link href={`/browse?focus=results&query=${encodeURIComponent(sugMovie)}`} className="nv-chip">{sugMovie}</Link>
                 <Link href={`/browse?focus=results&query=${encodeURIComponent(sugAnime)}`} className="nv-chip">{sugAnime}</Link>
@@ -310,34 +271,42 @@ export default async function HomePage() {
                 <Link href={`/books?query=${encodeURIComponent(sugBook)}`}                 className="nv-chip">{sugBook}</Link>
               </div>
             </div>
+
+            <div className="nv-hero-cta" style={{ justifyContent: 'flex-start' }}>
+              {isSignedIn ? (
+                <>
+                  <BrowseResetLink className="nv-btn nv-btn-primary">
+                    <Search size={14} /> Browse Catalog
+                  </BrowseResetLink>
+                  <Link href="/home" className="nv-btn nv-btn-secondary">
+                    <Zap size={14} /> Open My Vault
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <BrowseResetLink className="nv-btn nv-btn-primary">
+                    <Search size={14} /> Browse Catalog
+                  </BrowseResetLink>
+                  <Link href="/sign-in" className="nv-btn nv-btn-secondary">
+                    Sign In / Register
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
 
-          {/* ── Auto-scrolling poster strip at bottom of hero ── */}
-          {stripItems.length > 0 && (
-            <div className="nv-hero-strip" aria-hidden>
-              {/* Items doubled so the CSS translateX(-50%) loops seamlessly */}
-              <div className="nv-strip-track">
-                {[...stripItems, ...stripItems].map((item, i) => (
-                  <Link
-                    key={`strip-${item.id}-${i}`}
-                    href={`/media/${item.slug}?source=${item.source}&sourceId=${item.sourceId}&type=${item.type}`}
-                    className="nv-strip-card"
-                    tabIndex={-1}
-                  >
-                    <img
-                      src={optimizeMediaImageUrl(item.coverUrl, "thumb")}
-                      alt={item.title}
-                      loading={i < 8 ? "eager" : "lazy"}
-                      {...(i < 8 ? { fetchPriority: "high" } : {})}
-                    />
-                    <span className="nv-strip-card-badge">
-                      {item.type === "show" ? "TV" : item.type}
-                    </span>
-                  </Link>
-                ))}
-              </div>
+          {/* Right Column: 4 Simple Static Cards */}
+          <div className="nv-hero-art-wrapper" style={{ flex: '1 1 400px', display: 'flex', flexDirection: 'column', marginTop: '30px', maxWidth: '500px' }}>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px', color: 'var(--text-sec)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Trending Now
+            </h2>
+            <div className="nv-hero-art" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '20px' }}>
+              {heroShowcaseItems.map((item, i) => (
+                <PosterCard key={`hero-card-${item.id}-${i}`} item={item} isHero={true} />
+              ))}
             </div>
-          )}
+          </div>
+
         </section>
 
         {/* ══ §2 MEDIA TYPE SHORTCUTS ════════════════════════ */}
@@ -408,7 +377,7 @@ export default async function HomePage() {
                 <div className="nv-rail-title-group">
                   <h2 className="nv-rail-label">
                     <span className="nv-rail-label-icon"><Tv size={18} color="#fbbf24" /></span>
-                    Popular TV Shows
+                    Trending TV Shows
                   </h2>
                   <p className="nv-rail-sub">Track seasons, episodes &amp; airing status</p>
                 </div>
@@ -430,7 +399,7 @@ export default async function HomePage() {
                 <div className="nv-rail-title-group">
                   <h2 className="nv-rail-label">
                     <span className="nv-rail-label-icon"><Sparkles size={18} color="#69C5AC" /></span>
-                    Top Anime
+                    Trending Anime
                   </h2>
                   <p className="nv-rail-sub">Classics to currently airing seasonal series</p>
                 </div>
@@ -452,7 +421,7 @@ export default async function HomePage() {
                 <div className="nv-rail-title-group">
                   <h2 className="nv-rail-label">
                     <span className="nv-rail-label-icon"><Gamepad2 size={18} color="#60a5fa" /></span>
-                    Top Video Games
+                    Trending Video Games
                   </h2>
                   <p className="nv-rail-sub">Manage your backlog &amp; platform library</p>
                 </div>
@@ -690,15 +659,20 @@ export default async function HomePage() {
    Sub-components
    ══════════════════════════════════════════════════════════ */
 
-function PosterCard({ item }: { item: MediaItem }) {
+function PosterCard({ item, isHero = false }: { item: MediaItem; isHero?: boolean }) {
   const rating = item.rating ? item.rating.toFixed(1) : null;
   const typeLabel = item.type === "show" ? "TV" : item.type;
   return (
-    <Link href={`/media/${item.slug}?source=${item.source}&sourceId=${item.sourceId}&type=${item.type}`} className="nv-poster-card">
+    <Link href={`/media/${item.slug}?source=${item.source}&sourceId=${item.sourceId}&type=${item.type}`} className="nv-poster-card" prefetch={true}>
       <div className="nv-poster-frame">
         {rating && <span className="nv-poster-rating">★ {rating}</span>}
         <span className="nv-poster-type">{typeLabel}</span>
-        <img src={optimizeMediaImageUrl(item.coverUrl, "cover") || "/fallback-poster.jpg"} alt={item.title} loading="lazy" />
+        <img 
+          src={optimizeMediaImageUrl(item.coverUrl, "cover") || "/fallback-poster.jpg"} 
+          alt={item.title} 
+          loading={isHero ? "eager" : "lazy"} 
+          {...(isHero ? { fetchPriority: "high" } : {})}
+        />
         <div className="nv-poster-overlay"><span className="nv-poster-view">View Details →</span></div>
       </div>
       <h3 className="nv-poster-title">{item.title}</h3>
@@ -713,7 +687,17 @@ function BookPosterCard({ book }: { book: BookSummary }) {
     <Link href={`/books/${book.id}`} className="nv-poster-card">
       <div className="nv-poster-frame">
         <span className="nv-poster-type">Book</span>
-        <img src={book.coverUrl || "/fallback-book-cover.jpg"} alt={book.title} loading="lazy" />
+        <ResilientMediaImage
+          item={{
+            type: "book",
+            title: book.title,
+            coverUrl: book.coverUrl,
+            backdropUrl: undefined,
+          } as any}
+          displayIntent="thumb"
+          upgradeIntent="thumb"
+          loading="lazy"
+        />
         <div className="nv-poster-overlay"><span className="nv-poster-view">Read Now →</span></div>
       </div>
       <h3 className="nv-poster-title">{book.title}</h3>

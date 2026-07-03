@@ -24,7 +24,7 @@ function getObserver(): IntersectionObserver | null {
         }
       }
     },
-    { rootMargin: '420px 0px', threshold: 0.01 },
+    { rootMargin: '1800px 0px', threshold: 0.01 },
   );
 
   return sharedObserver;

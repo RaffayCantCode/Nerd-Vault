@@ -167,7 +167,7 @@ export const ResilientMediaImage = memo(function ResilientMediaImage({
         sizes={sizes || (resolvedSrcSet ? "(max-width: 720px) 42vw, 220px" : undefined)}
         alt={alt ?? item.title}
         loading={loading}
-        decoding={decoding}
+        decoding={loading === "eager" ? "sync" : decoding}
         fetchPriority={fetchPriority}
         draggable={false}
         onLoad={() => { setLoaded(true); onLoadStateChange?.(true); }}

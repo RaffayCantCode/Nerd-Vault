@@ -169,7 +169,7 @@ async function getBootstrapSource(source: BootstrapSource, seed: number) {
 
   const gameAttempts = await Promise.all([
     withTimeout(
-      browseIgdbGames({ page: 1, query: "", genre: "", sort: "discovery", seed, pageSize: 16 }).catch(() => fallback),
+      browseIgdbGames({ page: 1, query: "", genre: "", sort: "trending", seed, pageSize: 16 }).catch(() => fallback),
       fallback,
       4000,
     ),
@@ -179,7 +179,7 @@ async function getBootstrapSource(source: BootstrapSource, seed: number) {
       4500,
     ),
     withTimeout(
-      browseIgdbGames({ page: 2, query: "", genre: "", sort: "discovery", seed: seed + 23, pageSize: 16 }).catch(() => fallback),
+      browseIgdbGames({ page: 2, query: "", genre: "", sort: "trending", seed: seed + 23, pageSize: 16 }).catch(() => fallback),
       fallback,
       4500,
     ),
@@ -199,11 +199,11 @@ export async function getBrowseBootstrapCatalog(seed: number): Promise<Bootstrap
   ]);
 
   const surfacing = dedupeItems([
-    ...pickFirstUnique(movies, 1),
-    ...pickFirstUnique(shows, 1),
-    ...pickFirstUnique(games, 1),
-    ...pickFirstUnique(anime, 1),
-  ]).slice(0, 4);
+    ...pickFirstUnique(movies, 3),
+    ...pickFirstUnique(shows, 3),
+    ...pickFirstUnique(games, 3),
+    ...pickFirstUnique(anime, 3),
+  ]).slice(0, 12);
 
   const catalog = dedupeItems(
     interleaveBootstrapBuckets(

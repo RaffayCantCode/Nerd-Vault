@@ -333,7 +333,7 @@ export async function browseIgdbGames(params: {
   page?: number;
   query?: string;
   genre?: string;
-  sort?: "discovery" | "newest" | "rating" | "title";
+  sort?: "discovery" | "newest" | "rating" | "title" | "trending";
   seed?: number;
   pageSize?: number;
 }): Promise<BrowsePayload> {
@@ -434,9 +434,11 @@ export async function browseIgdbGames(params: {
   const sortClause =
     sort === "newest"
       ? "sort first_release_date desc;"
-      : sort === "discovery"
-        ? discoverySorts[discoverySeed % discoverySorts.length]
-        : "sort total_rating_count desc;";
+      : sort === "trending"
+        ? "sort hypes desc;"
+        : sort === "discovery"
+          ? discoverySorts[discoverySeed % discoverySorts.length]
+          : "sort total_rating_count desc;";
   const query = `fields ${fields}; where ${whereParts.join(" & ")}; ${sortClause} limit ${pageSize}; offset ${offset};`;
   const games = await igdbFetch<IgdbGame[]>(query);
   let items = games.map(mapGame).filter(isUsefulGame);

@@ -88,6 +88,14 @@ function optimizeDirectImageUrl(rawUrl: string, intent: MediaImageIntent) {
       return optimizeUnsplashImage(url, intent);
     }
 
+    if (url.hostname === "www.gutenberg.org" || url.hostname === "gutenberg.org") {
+      if (intent === "thumb" && url.pathname.includes(".cover.medium.jpg")) {
+        url.pathname = url.pathname.replace(".cover.medium.jpg", ".cover.small.jpg");
+        return url.toString();
+      }
+      return url.toString();
+    }
+
     if (url.hostname.includes("media.rawg.io")) {
       return url.toString();
     }
