@@ -6,7 +6,7 @@ import { readBrowseReturnContext, readDetailReturnTarget } from "@/lib/detail-re
 
 const BROWSE_LAST_URL_KEY = "nerdvault-browse-last-url";
 
-export function DetailBackButton({ className }: { className?: string }) {
+export function DetailBackButton({ className = "modern-btn-secondary" }: { className?: string }) {
   const router = useRouter();
   const fallbackBrowseUrl = typeof window !== "undefined" ? window.sessionStorage.getItem(BROWSE_LAST_URL_KEY) || "/browse" : "/browse";
   const browseReturnContext = useMemo(
@@ -24,12 +24,10 @@ export function DetailBackButton({ className }: { className?: string }) {
     router.prefetch(targetHref);
   }, [router, targetHref]);
 
-  const baseButtonClass = className?.includes("button-primary") ? "button" : "button button-secondary";
-
   return (
     <button
       type="button"
-      className={`${baseButtonClass} detail-back-button ${className ?? ""}`.trim()}
+      className={`detail-back-button ${className ?? ""}`.trim()}
       onClick={() => {
         if (typeof window !== "undefined") {
           const referrer = document.referrer || "";
@@ -43,7 +41,7 @@ export function DetailBackButton({ className }: { className?: string }) {
         router.push(targetHref, { scroll: false });
       }}
     >
-      {targetLabel}
+      <span className="modern-btn-label">{targetLabel}</span>
     </button>
   );
 }

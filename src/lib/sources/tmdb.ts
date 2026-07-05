@@ -583,7 +583,7 @@ async function getTmdbMoviePageWithMode(
   }
 
   const genreId = findGenreId(movieGenres, genre);
-  const sortBy = sort === "newest" ? "primary_release_date.desc" : sort === "discovery" ? getDiscoverySort(seed, 5) : "popularity.desc";
+  const sortBy = sort === "newest" ? "primary_release_date.desc" : sort === "discovery" ? getDiscoverySort(seed, 5) : sort === "title" ? "original_title.asc" : sort === "rating" ? "vote_average.desc" : "popularity.desc";
   const requestPage = sort === "discovery" ? Math.max(1, page + (seed % 50)) : page;
   // Lower floors deliberately — discovery should surface underrated gems, not just blockbusters
   const voteFloor =
@@ -665,7 +665,7 @@ async function getTmdbShowPageWithMode(
   }
 
   const genreId = findGenreId(tvGenres, genre);
-  const sortBy = sort === "newest" ? "first_air_date.desc" : sort === "discovery" ? getDiscoverySort(seed, 11) : "popularity.desc";
+  const sortBy = sort === "newest" ? "first_air_date.desc" : sort === "discovery" ? getDiscoverySort(seed, 11) : sort === "title" ? "original_name.asc" : sort === "rating" ? "vote_average.desc" : "popularity.desc";
   const requestPage = sort === "discovery" ? Math.max(1, page + (seed % 50)) : page;
   const voteFloor =
     sort === "discovery"

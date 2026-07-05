@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { FormEvent, memo, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AppTopBar } from "@/components/app-topbar";
 import { CatalogCard } from "@/components/catalog-card";
 import { FilterChipBar } from "@/components/filter-chip-bar";
@@ -12,7 +13,7 @@ import { clearBrowseReturnContext, readBrowseReturnContext } from "@/lib/detail-
 import { ResilientMediaImage } from "@/components/resilient-media-image";
 import { optimizeMediaImageUrl } from "@/lib/media-image";
 import { decodeHtmlEntities } from "@/lib/text-utils";
-import { MediaItem, MediaType, CuratedSection } from "@/lib/types";
+import { MediaItem, MediaType } from "@/lib/types";
 
 type SortMode = "discovery" | "newest" | "rating" | "title";
 
@@ -35,15 +36,14 @@ const BASE_PAGE_SIZE = 48;
 const XL_PAGE_SIZE = 60;
 const BROWSE_CLIENT_CACHE_TTL_MS = 1000 * 60 * 5;
 const GENRES_BY_MEDIA: Record<MediaType | "all", string[]> = {
-  all: ["Action", "Adventure", "Fantasy", "Drama", "Romance", "Sci-Fi", "Horror", "Mystery & Thriller", "Comedy", "Family", "Sports", "Documentary"],
-  movie: ["Action", "Adventure", "Drama", "Romance", "Sci-Fi", "Horror", "Mystery & Thriller", "Comedy", "Family", "Documentary"],
-  show: ["Action", "Adventure", "Drama", "Romance", "Sci-Fi", "Horror", "Mystery & Thriller", "Comedy", "Family", "Documentary"],
-  anime: ["Action", "Adventure", "Fantasy", "Romance", "Drama", "Comedy", "Sci-Fi", "Mystery & Thriller", "Horror", "Sports", "Shonen", "Seinen"],
-  anime_movie: ["Action", "Adventure", "Fantasy", "Romance", "Drama", "Comedy", "Sci-Fi", "Mystery & Thriller", "Horror", "Sports", "Shonen", "Seinen"],
-  game: ["Action", "Adventure", "RPG", "Shooter", "Strategy", "Simulation", "Open World", "Platformer", "Puzzle", "Racing", "Sports", "Horror", "Fantasy"],
+  all: ["Action", "Adventure", "Animation", "Comedy", "Crime", "Documentary", "Drama", "Family", "Fantasy", "Horror", "Mystery", "Romance", "Sci-Fi", "Thriller"],
+  movie: ["Action", "Adventure", "Animation", "Comedy", "Crime", "Documentary", "Drama", "Family", "Fantasy", "History", "Horror", "Music", "Mystery", "Romance", "Science Fiction", "TV Movie", "Thriller", "War", "Western"],
+  show: ["Action & Adventure", "Animation", "Comedy", "Crime", "Documentary", "Drama", "Family", "Kids", "Mystery", "News", "Reality", "Sci-Fi & Fantasy", "Soap", "Talk", "War & Politics", "Western"],
+  anime: ["Action", "Adventure", "Comedy", "Drama", "Fantasy", "Horror", "Mahou Shoujo", "Mecha", "Music", "Mystery", "Psychological", "Romance", "Sci-Fi", "Slice of Life", "Sports", "Supernatural", "Thriller"],
+  anime_movie: ["Action", "Adventure", "Comedy", "Drama", "Fantasy", "Horror", "Mahou Shoujo", "Mecha", "Music", "Mystery", "Psychological", "Romance", "Sci-Fi", "Slice of Life", "Sports", "Supernatural", "Thriller"],
+  game: ["Adventure", "Arcade", "Card & Board Game", "Fighting", "Hack and slash/Beat 'em up", "Indie", "MOBA", "Music", "Pinball", "Platform", "Point-and-click", "Puzzle", "Quiz/Trivia", "Racing", "Real Time Strategy (RTS)", "Role-playing (RPG)", "Shooter", "Simulator", "Sport", "Strategy", "Tactical", "Turn-based strategy (TBS)", "Visual Novel"],
 };
 const browseClientCache = new Map<string, CachedBrowsePayload>();
-const curatedCache = new Map<string, CuratedSection[]>();
 
 
 
@@ -226,7 +226,9 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
   const initialPage = Number(searchParams.get("page") || "1");
   const initialSeed = Number(searchParams.get("seed") || String(discoverySeed));
   const [activeSeed, setActiveSeed] = useState(initialSeed);
-  const [curatedSections, setCuratedSections] = useState<CuratedSection[] | null>(null);
+  const [activePage, setActivePage] = useState(
+    normalizePage(initialPage ?? 1),
+  );
   const surfacingKeys = useMemo(() => new Set(surfacingCatalog.map((item) => getMediaKey(item))), [surfacingCatalog]);
   const initialCatalogItems = dedupeItems(catalog).filter(
     (item) => !surfacingKeys.has(getMediaKey(item)),
@@ -255,7 +257,6 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
   function setSort(next: SortMode) { setSortState(next); setActivePage(1); hasInteractedRef.current = true; }
   const [query, setQuery] = useState(initialQuery);
   const deferredQuery = useDeferredValue(query);
-  const [activePage, setActivePage] = useState(normalizePage(initialPage));
   const [pageSize, setPageSize] = useState(() => {
     if (typeof window === "undefined") return BASE_PAGE_SIZE;
     return window.innerWidth >= 1700 ? XL_PAGE_SIZE : BASE_PAGE_SIZE;
@@ -269,6 +270,39 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
   const [payload, setPayload] = useState<BrowseApiPayload>(initialPayload);
   const [isLoading, setIsLoading] = useState(!canHydrateFromBootstrap);
   const [error, setError] = useState<string | null>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const workspaceRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleScroll = (e: Event) => {
+      let scrollPos = 0;
+      if (e.target && e.target !== document) {
+        scrollPos = (e.target as HTMLElement).scrollTop || 0;
+      } else {
+        scrollPos = window.scrollY || document.documentElement.scrollTop || 0;
+      }
+      
+      // Only show the button when the user has scrolled down by at least 1.5x the height of their screen
+      // This ensures they are "deep" into the scroll before it appears
+      if (scrollPos > window.innerHeight * 1.5) {
+        setShowScrollTop(true);
+      } else {
+        setShowScrollTop(false);
+      }
+    };
+
+    // Use capture phase to catch scroll events from ANY element on the page
+    window.addEventListener("scroll", handleScroll, { capture: true, passive: true });
+    handleScroll(new Event("scroll")); // initial check
+    
+    return () => window.removeEventListener("scroll", handleScroll, { capture: true });
+  }, [activePage]);
   // pageKey increments each time a new page of results loads in — used to trigger the stagger animation
   const [pageKey, setPageKey] = useState(0);
   const [heroIndex, setHeroIndex] = useState(0);
@@ -288,6 +322,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
   const hasFocusedResultsRef = useRef(false);
   const didInitRef = useRef(false);
   const heroTimerRef = useRef<number | null>(null);
+  const lastStableQueryKeyRef = useRef(`${initialFilter || "all"}-${initialGenre || "all"}-${initialSort || "discovery"}-${initialQuery.trim()}-${initialSeed}`);
 
   const featuredDeck = useMemo(() => {
     const guaranteedDeck = buildSurfacingDeck(surfacingCatalog, catalog);
@@ -380,54 +415,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
       const requestType = filter;
       const requestSort: SortMode = hasSearch ? "discovery" : sort;
 
-      const isCuratedActive = filter !== "all" && !hasSearch && genre === "all" && requestSort === "discovery";
 
-      if (isCuratedActive) {
-        setIsLoading(true);
-        setError(null);
-        try {
-          const cacheKey = `curated:${filter}:${activeSeed}`;
-          const cachedSections = curatedCache.get(cacheKey);
-          if (cachedSections) {
-            if (!active) return;
-            setCuratedSections(cachedSections);
-            setPayload({
-              page: 1,
-              totalPages: 1,
-              totalResults: 0,
-              items: [],
-            });
-            setIsLoading(false);
-            return;
-          }
-
-          const response = await fetch(`/api/catalog/browse?type=${filter}&seed=${activeSeed}&curated=true`, {
-            signal: controller.signal,
-          });
-          const data = await response.json();
-          if (!active) return;
-          if (data.ok && data.sections) {
-            curatedCache.set(cacheKey, data.sections);
-            setCuratedSections(data.sections);
-            setPayload({
-              page: 1,
-              totalPages: 1,
-              totalResults: 0,
-              items: [],
-            });
-          } else {
-            throw new Error(data.message || "Failed to load curated feed");
-          }
-        } catch (loadError) {
-          if (!active || controller.signal.aborted) return;
-          setError(loadError instanceof Error ? loadError.message : "That page could not be loaded.");
-        } finally {
-          if (active) setIsLoading(false);
-        }
-        return;
-      }
-
-      setCuratedSections(null);
 
       // If the SSR bootstrap grid is already displayed (page 1, no filters, no
       // search, discovery sort) and the user hasn't changed anything yet, skip
@@ -468,6 +456,9 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
         }
 
         const requestKey = params.toString();
+        const currentQueryKey = `${requestType}-${genre}-${requestSort}-${deferredQuery.trim()}-${activeSeed}`;
+        const isAppending = requestPage > 1 && lastStableQueryKeyRef.current === currentQueryKey;
+
         const cachedPayload = readBrowseClientCache(requestKey);
         if (
           cachedPayload &&
@@ -478,9 +469,15 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
           }
 
           const normalized = normalizeBrowsePayload(cachedPayload, requestPage, pageSize, surfacingKeys);
+          if (isAppending) {
+            normalized.items = dedupeItems([...lastStablePayloadRef.current.items, ...normalized.items]);
+          } else {
+            setPageKey((k) => k + 1);
+          }
           setPayload(normalized);
           lastStablePayloadRef.current = normalized;
           lastStablePageRef.current = requestPage;
+          lastStableQueryKeyRef.current = currentQueryKey;
           setIsLoading(false);
           return;
         }
@@ -500,16 +497,22 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
         if (nextPayload.items.length) {
           writeBrowseClientCache(requestKey, nextPayload);
           const normalized = normalizeBrowsePayload(nextPayload, requestPage, pageSize, surfacingKeys);
+          if (isAppending) {
+            normalized.items = dedupeItems([...lastStablePayloadRef.current.items, ...normalized.items]);
+          } else {
+            setPageKey((k) => k + 1); // Trigger stagger animation ONLY for new searches/filters
+          }
           setPayload(normalized);
           lastStablePayloadRef.current = normalized;
           lastStablePageRef.current = requestPage;
-          setPageKey((k) => k + 1); // Trigger stagger animation for new cards
+          lastStableQueryKeyRef.current = currentQueryKey;
           setError(null);
         } else if (nextPayload.totalResults === 0) {
           const normalized = normalizeBrowsePayload(nextPayload, requestPage, pageSize, surfacingKeys);
           setPayload(normalized);
           lastStablePayloadRef.current = normalized;
           lastStablePageRef.current = requestPage;
+          lastStableQueryKeyRef.current = currentQueryKey;
           setError(null);
         } else if (!hasBootstrapGrid) {
           setPayload(lastStablePayloadRef.current);
@@ -729,33 +732,31 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
     });
   }
 
-  function handlePageChange(targetPage: number, source: "top" | "bottom" = "top") {
-    const nextPage = clampPage(targetPage, payload.totalPages);
-    if (nextPage === activePage || isLoading) {
-      return;
-    }
-
-    hasInteractedRef.current = true;
-    pendingResultsFocusRef.current = source;
-    setActivePage(nextPage);
-    scrollToBrowseMediaList("smooth");
-  }
-
   useEffect(() => {
-    if (isLoading || !pendingResultsFocusRef.current) {
+    if (typeof window === "undefined" || !bottomPagerRef.current) {
       return;
     }
 
-    pendingResultsFocusRef.current = null;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry?.isIntersecting && !isLoading && activePage < payload.totalPages) {
+          hasInteractedRef.current = true;
+          setActivePage((prev) => clampPage(prev + 1, payload.totalPages));
+        }
+      },
+      {
+        rootMargin: "800px 0px",
+        threshold: 0,
+      }
+    );
 
-    const timer = window.setTimeout(() => {
-      window.requestAnimationFrame(() => {
-        scrollToBrowseMediaList("smooth");
-      });
-    }, 80);
+    observer.observe(bottomPagerRef.current);
 
-    return () => window.clearTimeout(timer);
-  }, [isLoading, activePage, payload.items.length]);
+    return () => {
+      observer.disconnect();
+    };
+  }, [isLoading, activePage, payload.totalPages]);
 
   function setHeroIndexWithReset(nextIndex: number) {
     if (!featuredDeck.length) {
@@ -765,57 +766,9 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
     setHeroIndex((nextIndex + featuredDeck.length) % featuredDeck.length);
   }
 
-  function renderPager(position: "top" | "bottom") {
-    if (!showPager) {
-      return null;
-    }
-
-    return (
-      <div
-        ref={position === "bottom" ? bottomPagerRef : undefined}
-        className={`bottom-pager bottom-pager-${position} glass`}
-      >
-        <div className="pager-copy">
-          <p className="eyebrow">Browse pages</p>
-          <p className="copy">
-            Page {activePage} of {payload.totalPages} with {pageSize} titles loaded each time.
-          </p>
-        </div>
-        <div className="pager-actions">
-          <button
-            type="button"
-            className="chip"
-            disabled={activePage <= 1 || isLoading}
-            onClick={(event) => {
-              event.stopPropagation();
-              handlePageChange(activePage - 1, position);
-            }}
-          >
-            Previous page
-          </button>
-          <div className="page-indicator">
-            <span className="page-indicator-current">{activePage}</span>
-            <span className="page-indicator-slash">/</span>
-            <span className="page-indicator-total">{payload.totalPages}</span>
-          </div>
-          <button
-            type="button"
-            className="chip is-active"
-            disabled={activePage >= payload.totalPages || isLoading}
-            onClick={(event) => {
-              event.stopPropagation();
-              handlePageChange(activePage + 1, position);
-            }}
-          >
-            Next page
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="workspace browse-workspace-root">
+    <>
+      <div className="workspace browse-workspace-root" ref={workspaceRef}>
       <AppTopBar
         viewerId={viewerId}
         viewerName={viewerName}
@@ -920,7 +873,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
         )}
       </section>
 
-      <section className="section-stack" style={{ paddingTop: 0 }}>
+      <section id="browse-controls" className="section-stack" style={{ paddingTop: 0 }}>
         <div className={`browse-toolbar ${isFilterOpen ? "is-open" : ""}`}>
           <div className="browse-toolbar-grid">
             <div className="browse-toolbar-copy">
@@ -994,7 +947,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
           </div>
         </div>
 
-        {renderPager("top")}
+
 
         <div ref={mediaListRef} className="browse-status-dock-container">
           <form className="browse-live-search browse-search-dock glass" onSubmit={handleSubmit}>
@@ -1034,41 +987,18 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
               {error
                 ? error
                 : isLoading
-                  ? curatedSections
-                    ? "Loading curated discovery..."
-                    : "Loading results..."
-                  : curatedSections
-                    ? `Showing curated discovery for ${formatFilterLabel(filter)}.`
-                    : `Showing ${payload.items.length} titles on page ${activePage}${showPager ? ` of ${payload.totalPages}` : ""}.`}
+                  ? "Loading results..."
+                  : `Showing ${payload.items.length} titles on page ${activePage}${showPager ? ` of ${payload.totalPages}` : ""}.`}
             </p>
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              {curatedSections && !isLoading && !error && (
-                <button
-                  type="button"
-                  className="button button-secondary button-shuffle"
-                  style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 16px", borderRadius: "12px" }}
-                  onClick={() => {
-                    const nextSeed = Math.floor(Math.random() * 1000000);
-                    setActiveSeed(nextSeed);
-                    const params = new URLSearchParams(window.location.search);
-                    params.set("seed", String(nextSeed));
-                    window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
-                  }}
-                >
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: "scaleX(-1)" }}>
-                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-                  </svg>
-                  Shuffle Feed
-                </button>
-              )}
               <div className={`refresh-pulse ${isLoading ? "is-active" : ""}`} />
             </div>
           </div>
         </div>
 
-        {isLoading ? (
+        {isLoading && payload.items.length === 0 ? (
           <div className="glass browse-loader-panel">
-            <NVLoader compact label="Refreshing the browse page..." />
+            <NVLoader compact label="Loading..." />
           </div>
         ) : null}
 
@@ -1079,140 +1009,62 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
           </div>
         ) : null}
 
-        {curatedSections ? (
-          <div className="curated-discovery-container">
-            {isLoading && !curatedSections.length
-              ? Array.from({ length: 3 }).map((_, index) => (
-                  <div key={`curated-section-skel-${index}`} className="curated-section">
-                    <div className="skeleton curated-section-title-skeleton" style={{ width: "240px", height: "32px", marginBottom: "16px", borderRadius: "8px" }} />
-                    <CuratedRowSkeleton />
-                  </div>
-                ))
-              : curatedSections.map((section) => (
-                  <CuratedRow key={section.id} title={section.title} items={section.items} />
-                ))}
-          </div>
-        ) : (
-          <div
-            ref={catalogGridRef}
-            key={pageKey}
-            data-page-key={pageKey}
-            className={`catalog-grid browse-results-grid ${isLoading ? "catalog-grid-loading is-page-transitioning" : "catalog-grid-page-entered"}`}
-          >
-            {isLoading && !payload.items.length
-              ? Array.from({ length: 12 }).map((_, index) => (
-                  <div key={`browse-skeleton-${index}`} className="catalog-card catalog-card-skeleton glass" aria-hidden="true" />
-                ))
-              : payload.items.map((item, index) => (
-                  <CatalogCard key={item.id} item={item} priority={index < 4} />
-                ))}
-          </div>
-        )}
+        <div
+          ref={catalogGridRef}
+          key={pageKey}
+          data-page-key={pageKey}
+          className={`catalog-grid browse-results-grid ${isLoading && payload.items.length === 0 ? "catalog-grid-loading is-page-transitioning" : "catalog-grid-page-entered"}`}
+        >
+          {isLoading && !payload.items.length
+            ? Array.from({ length: 12 }).map((_, index) => (
+                <div key={`browse-skeleton-${index}`} className="catalog-card catalog-card-skeleton glass" aria-hidden="true" />
+              ))
+            : payload.items.map((item, index) => (
+                <CatalogCard key={item.id} item={item} priority={index < 4} />
+              ))}
+        </div>
 
-        {!isLoading && !error && !curatedSections && !payload.items.length ? (
+        {!isLoading && !error && !payload.items.length ? (
           <div className="folder-empty glass">
             <p className="headline">No titles matched this view.</p>
             <p className="copy">Try a different genre, sort, or search term.</p>
           </div>
         ) : null}
 
-        {renderPager("bottom")}
+        <div
+          ref={bottomPagerRef}
+          className="bottom-infinite-scroll-trigger"
+          style={{ height: "100px", display: "flex", alignItems: "center", justifyContent: "center" }}
+        >
+          {isLoading && payload.items.length > 0 ? (
+            <NVLoader compact label="Loading more titles..." />
+          ) : activePage >= payload.totalPages && payload.items.length > 0 ? (
+            <p className="copy" style={{ opacity: 0.5 }}>You have reached the end of the catalog.</p>
+          ) : null}
+        </div>
       </section>
     </div>
-  );
+
+    {mounted ? createPortal(
+      <button
+        type="button"
+        className={`scroll-to-top-fab ${showScrollTop ? "is-visible" : ""}`}
+        onClick={() => {
+          const controls = document.getElementById("browse-controls");
+          if (controls) {
+            controls.scrollIntoView({ behavior: "smooth", block: "start" });
+          } else {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }
+        }}
+        aria-label="Scroll back to filters"
+      >
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="18 15 12 9 6 15" />
+        </svg>
+      </button>,
+      document.body
+    ) : null}
+  </>
+);
 });
-
-function CuratedRow({ title, items }: { title: string; items: MediaItem[] }) {
-  const rowRef = useRef<HTMLDivElement>(null);
-  const [showLeft, setShowLeft] = useState(false);
-  const [showRight, setShowRight] = useState(true);
-
-  const handleScroll = () => {
-    if (rowRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = rowRef.current;
-      setShowLeft(scrollLeft > 10);
-      setShowRight(scrollLeft < scrollWidth - clientWidth - 10);
-    }
-  };
-
-  useEffect(() => {
-    const el = rowRef.current;
-    if (el) {
-      el.addEventListener("scroll", handleScroll, { passive: true });
-      handleScroll();
-      const timer = setTimeout(handleScroll, 200);
-      return () => {
-        el.removeEventListener("scroll", handleScroll);
-        clearTimeout(timer);
-      };
-    }
-  }, [items]);
-
-  const scroll = (direction: "left" | "right") => {
-    if (rowRef.current) {
-      const { clientWidth } = rowRef.current;
-      const scrollAmount = direction === "left" ? -clientWidth * 0.75 : clientWidth * 0.75;
-      rowRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
-    }
-  };
-
-  if (!items || !items.length) {
-    return null;
-  }
-
-  return (
-    <div className="curated-section">
-      <div className="curated-section-header">
-        <h2 className="curated-section-title">{title}</h2>
-        <div className="curated-section-arrows">
-          <button
-            type="button"
-            className="curated-header-nav-button left"
-            onClick={() => scroll("left")}
-            aria-label="Scroll left"
-            disabled={!showLeft}
-          >
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="15 18 9 12 15 6"></polyline>
-            </svg>
-          </button>
-          <button
-            type="button"
-            className="curated-header-nav-button right"
-            onClick={() => scroll("right")}
-            aria-label="Scroll right"
-            disabled={!showRight}
-          >
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="9 18 15 12 9 6"></polyline>
-            </svg>
-          </button>
-        </div>
-      </div>
-      <div className="curated-row-container">
-        <div ref={rowRef} className="curated-row-scroller">
-          {items.map((item, index) => (
-            <CatalogCard key={item.id} item={item} priority={index < 4} />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CuratedRowSkeleton() {
-  return (
-    <div className="curated-row-container">
-      <div className="curated-row-scroller">
-        {Array.from({ length: 8 }).map((_, index) => (
-          <div
-            key={`curated-skeleton-${index}`}
-            className="catalog-card catalog-card-skeleton glass"
-            style={{ flex: "0 0 200px", width: "200px", minWidth: "200px" }}
-            aria-hidden="true"
-          />
-        ))}
-      </div>
-    </div>
-  );
-}

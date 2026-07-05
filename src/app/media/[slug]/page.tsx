@@ -1734,6 +1734,39 @@ async function buildFranchiseSectionUncached(media: MediaItem, animeFranchise?: 
     }
   }
 
+  // General Fallback
+  const fallbackSignals = buildFranchiseSignals(media);
+  const fallbackEntries = await getFranchiseFallback(media, fallbackSignals).catch(() => [] as MediaItem[]);
+  
+  const validFallbackEntries = fallbackEntries.filter((candidate) => candidate.type === media.type);
+  const combinedFallback = dedupeItems([media, ...validFallbackEntries]);
+  
+  if (combinedFallback.length >= 2) {
+      const ordered = [...combinedFallback].sort(compareFranchiseItems);
+      const strongConnections = ordered.filter(c => c.id === media.id || hasStrongFranchiseConnection(media, c, fallbackSignals));
+      
+      if (strongConnections.length >= 2) {
+          const title = media.details.collectionTitle ?? normalizeDisplayTitle(extractFranchiseRoot(strongConnections[0]?.title ?? media.title, media.type));
+          const activeIndex = Math.max(0, strongConnections.findIndex((candidate) => candidate.id === media.id));
+          const openableEntries = await markFranchiseEntriesOpenable(
+            strongConnections.map((entry) => ({
+              id: entry.id,
+              title: normalizeDisplayTitle(entry.title),
+              meta: [entry.year || "Year TBD", `${entry.rating.toFixed(1)} / 10`, entry.details.releaseInfo ?? "Franchise Entry"].filter(Boolean).join(" / "),
+              href: buildMediaHref(entry),
+              badge: buildFranchiseBadge(entry.title, parseInstallmentOrder(entry.title)),
+              isActive: entry.id === media.id,
+            })),
+          );
+
+          return {
+            title: normalizeDisplayTitle(title),
+            summary: buildFranchiseSummary(title, activeIndex, strongConnections.length),
+            entries: openableEntries,
+          };
+      }
+  }
+
   return null;
 }
 
@@ -2492,13 +2525,16 @@ function buildImmersionScenes(media: MediaItem, storyGallery: string[], deepDive
     .filter((scene) => Boolean(scene.image));
 }
 
-async function withTimeout<T>(work: Promise<T>, fallback: T, timeoutMs = 1200) {
+async function withTimeout<T>(work: Promise<T>, fallback: T, timeoutMs = 3500) {
+  const actualTimeout = Math.max(timeoutMs, 3500); // Enforce a generous minimum timeout to ensure 'More Like This' completes accurately
   let timer: NodeJS.Timeout | undefined;
   try {
     return await Promise.race([
       work,
       new Promise<T>((resolve) => {
-        timer = setTimeout(() => resolve(fallback), timeoutMs);
+        timer = setTimeout(() => {
+          resolve(fallback);
+        }, actualTimeout);
       }),
     ]);
   } finally {

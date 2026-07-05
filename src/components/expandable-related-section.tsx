@@ -151,29 +151,15 @@ export function ExpandableRelatedSection({
 
   return (
     <section className="section-stack expandable-related-section" style={{ paddingTop: 0 }}>
-      {showFranchiseSection ? (
+      {showFranchiseSection && franchiseSection ? (
         <div className="franchise-wrapper">
-          {franchiseSection ? (
-            <FranchiseRelatedSection
-              title={franchiseSection.title}
-              summary={franchiseSection.summary}
-              entries={franchiseSection.entries}
-              secondaryTitle={franchiseSection.secondaryTitle}
-              secondaryEntries={franchiseSection.secondaryEntries}
-            />
-          ) : (
-            <div className="section-header">
-              <div>
-                <p className="eyebrow">Franchise</p>
-                <h2 className="headline" style={{ opacity: 0.7 }}>
-                  Standalone title
-                </h2>
-                <p className="copy">
-                  This is a standalone title.
-                </p>
-              </div>
-            </div>
-          )}
+          <FranchiseRelatedSection
+            title={franchiseSection.title}
+            summary={franchiseSection.summary}
+            entries={franchiseSection.entries}
+            secondaryTitle={franchiseSection.secondaryTitle}
+            secondaryEntries={franchiseSection.secondaryEntries}
+          />
         </div>
       ) : null}
 
@@ -195,20 +181,20 @@ export function ExpandableRelatedSection({
         <RelatedMediaSection items={related} visibleCount={visibleCount} highlightedFromIndex={highlightedFromIndex} />
       </div>
 
-      <div className="related-actions-row">
-        <DetailBackButton className="action-button action-button-secondary" />
+      <div className="related-actions-row modern-cta-row">
+        <DetailBackButton className="modern-btn-secondary" />
 
-        <div className="related-expand-actions">
+        <div className="related-expand-actions modern-cta-group">
           {canCollapse ? (
-            <button type="button" onClick={handleCollapse} className="action-button action-button-secondary">
+            <button type="button" onClick={handleCollapse} className="modern-btn-secondary">
               Show Less
             </button>
           ) : null}
 
           {hasMore ? (
-            <button type="button" onClick={handleExpand} className="action-button action-button-gold">
-              View More
-              <span className="expandable-count">+{Math.min(cardsPerRow * additionalRowsPerExpand, related.length - visibleCount)}</span>
+            <button type="button" onClick={handleExpand} className="modern-btn-primary">
+              <span className="modern-btn-label">View More</span>
+              <span className="modern-btn-badge">+{Math.min(cardsPerRow * additionalRowsPerExpand, related.length - visibleCount)}</span>
             </button>
           ) : null}
         </div>
