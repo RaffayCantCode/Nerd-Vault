@@ -82,6 +82,8 @@ export const CatalogCard = memo(function CatalogCard({
   );
 
   const warmRoute = useCallback(function warmRoute() {
+    router.prefetch(routeHref);
+
     if (warmedCardThumbs.has(item.coverUrl || "")) return;
     if (item.coverUrl) warmedCardThumbs.add(item.coverUrl);
 
@@ -89,7 +91,7 @@ export const CatalogCard = memo(function CatalogCard({
     if (coverUrl) warmImage(coverUrl);
     const backdropUrl = optimizeMediaImageUrl(item.backdropUrl, "cover");
     if (backdropUrl) warmImage(backdropUrl);
-  }, [item.coverUrl, item.backdropUrl]);
+  }, [item.coverUrl, item.backdropUrl, routeHref, router]);
 
   const handleNavigate = useCallback(function handleNavigate(event: React.MouseEvent) {
     if (isNavigating) {
@@ -181,11 +183,10 @@ export const CatalogCard = memo(function CatalogCard({
       data-media-type={item.type}
       data-media-source={item.source}
       className={`catalog-card ${showUserRatingBelow && item.userRating ? "has-user-rating" : ""} ${isNavigating ? "is-navigating" : ""} ${isVisible ? "is-visible" : ""} ${isImageLoaded ? "has-media-loaded" : "is-media-pending"}`}
-      prefetch={true}
+      prefetch={false}
       onClick={handleNavigate}
       onMouseEnter={warmRoute}
       onFocus={warmRoute}
-
     >
       <div className="catalog-card-media">
         {/* Skeleton placeholder - visible until image loads */}

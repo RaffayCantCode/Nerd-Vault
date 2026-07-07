@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, cache } from "react";
 import Link from "next/link";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopBar } from "@/components/app-topbar";
@@ -749,7 +749,6 @@ function buildFranchiseSignals(media: MediaItem) {
       media.originalTitle ?? "",
       media.details.collectionTitle ?? "",
       media.details.studio ?? "",
-      media.overview,
     ].join(" "),
   );
 
@@ -810,7 +809,6 @@ function getCuratedUniverseRule(media: MediaItem) {
       media.title,
       media.originalTitle ?? "",
       media.details.collectionTitle ?? "",
-      media.overview,
       media.details.studio ?? "",
     ].join(" "),
   );
@@ -2989,8 +2987,116 @@ async function getRelatedMediaRailUncached(media: MediaItem) {
   return dedupeItems([...baseMerged, ...curatedPool]).slice(0, 24);
 }
 
-async function DeferredRelatedRail({ media, franchiseSection }: { media: MediaItem, franchiseSection: any }) {
-  const related = await getRelatedMediaRail(media).catch(() => [] as MediaItem[]);
+const getCachedFranchiseSection = cache(async (media: MediaItem, animeFranchise: any) => {
+  const franchiseSection = await buildFranchiseSection(media, animeFranchise).catch(() => null);
+  if (franchiseSection && /\bnaruto\b/i.test(franchiseSection.title)) {
+    const sortNarutoEntries = (entries: any[]) => {
+      return [...entries].sort((a, b) => {
+        const getRank = (title: string) => {
+          const t = title.toLowerCase();
+          if (/\bboruto\b/i.test(t)) return 3;
+          if (/\bshippuden\b/i.test(t)) return 2;
+          if (/\bnaruto\b/i.test(t)) return 1;
+          return 4;
+        };
+        const rankA = getRank(a.title);
+        const rankB = getRank(b.title);
+        if (rankA !== rankB) return rankA - rankB;
+        return (parseInt(a.meta) || 0) - (parseInt(b.meta) || 0);
+      });
+    };
+    franchiseSection.entries = sortNarutoEntries(franchiseSection.entries);
+    if (franchiseSection.secondaryEntries) {
+      franchiseSection.secondaryEntries = sortNarutoEntries(franchiseSection.secondaryEntries);
+    }
+  }
+  return franchiseSection;
+});
+
+async function DeferredSeriesContext({ media, animeFranchise, easterEgg }: { media: MediaItem, animeFranchise: any, easterEgg: any }) {
+  const franchiseSection = await getCachedFranchiseSection(media, animeFranchise);
+  const seriesContext = buildSeriesContext(media, franchiseSection);
+  
+  if (!seriesContext && !easterEgg) return null;
+
+  return (
+    <div className="detail-note-stack">
+      {seriesContext ? (
+        <div className="detail-context-note glass">
+          <p className="eyebrow">{seriesContext.relationshipLabel}</p>
+          <p className="copy">{seriesContext.summary}</p>
+        </div>
+      ) : null}
+      {easterEgg ? (
+        <div className="detail-context-note glass">
+          <p className="eyebrow">{easterEgg.kicker}</p>
+          <p className="copy">{easterEgg.copy}</p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+async function DeferredFriendsActivity({ viewerId, friends, media }: { viewerId: string, friends: any[], media: MediaItem }) {
+  if (viewerId === "guest-vault" || !friends.length) return null;
+  const friendsActivity = await buildFriendsActivity(viewerId, friends, media).catch(() => []);
+  
+  return (
+    <div className="info-panel glass">
+      <p className="eyebrow">Friends activity</p>
+      <h2 className="headline" style={{ marginTop: 6 }}>
+        {friendsActivity.length ? "Friends who watched this" : "No friend activity yet"}
+      </h2>
+      {friendsActivity.length ? (
+        <div className="credit-list" style={{ marginTop: 14 }}>
+          {friendsActivity.map((entry) => (
+            <div key={entry.friendId} className="credit-row">
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                {entry.friendAvatarUrl ? (
+                  <SafeImg src={entry.friendAvatarUrl} alt={entry.friendName} className="folder-row-avatar" />
+                ) : (
+                  <span className="folder-row-avatar folder-row-avatar-fallback">{entry.friendName.charAt(0).toUpperCase()}</span>
+                )}
+                <div>
+                  <strong>{entry.friendName}</strong>
+                  <div className="muted">{entry.friendHandle}</div>
+                </div>
+              </div>
+              <div className="muted" style={{ textAlign: "right", maxWidth: 420 }}>
+                <div>{entry.rating ? `${entry.rating} / 5` : "Watched"}</div>
+                {entry.review ? <div>{entry.review.length > 120 ? `${entry.review.slice(0, 117)}...` : entry.review}</div> : null}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="copy" style={{ marginTop: 12 }}>
+          Once friends watch or rate this title, their activity and written notes will appear here.
+        </p>
+      )}
+    </div>
+  );
+}
+
+async function DeferredCommunityReviews({ media }: { media: MediaItem }) {
+  const summary = await getCommunityRatingSummary(media.source, media.sourceId, 3);
+  return (
+    <CommunityReviews
+      mediaTitle={media.title}
+      mediaSlug={media.slug}
+      source={media.source}
+      sourceId={media.sourceId}
+      type={media.type}
+      summary={summary}
+    />
+  );
+}
+
+async function DeferredRelatedRail({ media, animeFranchise }: { media: MediaItem, animeFranchise: any }) {
+  const [related, franchiseSection] = await Promise.all([
+    getRelatedMediaRail(media).catch(() => [] as MediaItem[]),
+    getCachedFranchiseSection(media, animeFranchise)
+  ]);
   
   // Extract both IDs and Source IDs from franchise section to ensure perfect filtering
   const franchiseIds = new Set([
@@ -3172,42 +3278,9 @@ export default async function MediaDetailPage({
     entries: [],
   };
 
-  const [franchiseSection, dbData] = await Promise.all([
-    buildFranchiseSection(media, animeFranchise).catch(() => null),
-    dbPromise,
-  ]);
-
-  // Rework Naruto Franchise Order specifically if detected
-  if (franchiseSection && /\bnaruto\b/i.test(franchiseSection.title)) {
-    const sortNarutoEntries = (entries: any[]) => {
-      return [...entries].sort((a, b) => {
-        const getRank = (title: string) => {
-          const t = title.toLowerCase();
-          if (/\bboruto\b/i.test(t)) return 3;
-          if (/\bshippuden\b/i.test(t)) return 2;
-          if (/\bnaruto\b/i.test(t)) return 1;
-          return 4;
-        };
-        const rankA = getRank(a.title);
-        const rankB = getRank(b.title);
-        if (rankA !== rankB) return rankA - rankB;
-        
-        // Secondary sort by year/date for movies or multiple entries in same category
-        return (parseInt(a.meta) || 0) - (parseInt(b.meta) || 0);
-      });
-    };
-    franchiseSection.entries = sortNarutoEntries(franchiseSection.entries);
-    if (franchiseSection.secondaryEntries) {
-      franchiseSection.secondaryEntries = sortNarutoEntries(franchiseSection.secondaryEntries);
-    }
-  }
+  const dbData = await dbPromise;
   const [shellData, library] = dbData;
   const sidebarFolders = shellData?.folders ?? [];
-  const friendsActivity = viewerId !== "guest-vault" && shellData?.friends?.length
-    ? await buildFriendsActivity(viewerId, shellData.friends, media)
-    : [];
-  const communityReviews = await getCommunityRatingSummary(media.source, media.sourceId, 3);
-  const seriesContext = buildSeriesContext(media, franchiseSection);
   const runtimeLabel =
     media.type === "game"
       ? "Platforms"
@@ -3358,22 +3431,7 @@ export default async function MediaDetailPage({
                     <MediaActions item={media} viewerId={viewerId} />
                   </div>
 
-                  {seriesContext || easterEgg ? (
-                    <div className="detail-note-stack">
-                      {seriesContext ? (
-                        <div className="detail-context-note glass">
-                          <p className="eyebrow">{seriesContext.relationshipLabel}</p>
-                          <p className="copy">{seriesContext.summary}</p>
-                        </div>
-                      ) : null}
-                      {easterEgg ? (
-                        <div className="detail-context-note glass">
-                          <p className="eyebrow">{easterEgg.kicker}</p>
-                          <p className="copy">{easterEgg.copy}</p>
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
+                  <Suspense fallback={null}><DeferredSeriesContext media={media} animeFranchise={animeFranchise} easterEgg={easterEgg} /></Suspense>
 
                   <div className="detail-sections-stack">
                     <section className="detail-section">
@@ -3508,49 +3566,12 @@ export default async function MediaDetailPage({
           ) : null}
 
           <section id="detail-friends" className="section-stack" style={{ paddingTop: 0 }}>
-            <div className="info-panel glass">
-              <p className="eyebrow">Friends activity</p>
-              <h2 className="headline" style={{ marginTop: 6 }}>
-                {friendsActivity.length ? "Friends who watched this" : "No friend activity yet"}
-              </h2>
-              {friendsActivity.length ? (
-                <div className="credit-list" style={{ marginTop: 14 }}>
-                  {friendsActivity.map((entry) => (
-                    <div key={entry.friendId} className="credit-row">
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        {entry.friendAvatarUrl ? (
-                          <SafeImg src={entry.friendAvatarUrl} alt={entry.friendName} className="folder-row-avatar" />
-                        ) : (
-                          <span className="folder-row-avatar folder-row-avatar-fallback">{entry.friendName.charAt(0).toUpperCase()}</span>
-                        )}
-                        <div>
-                          <strong>{entry.friendName}</strong>
-                          <div className="muted">{entry.friendHandle}</div>
-                        </div>
-                      </div>
-                      <div className="muted" style={{ textAlign: "right", maxWidth: 420 }}>
-                        <div>{entry.rating ? `${entry.rating} / 5` : "Watched"}</div>
-                        {entry.review ? <div>{entry.review.length > 120 ? `${entry.review.slice(0, 117)}...` : entry.review}</div> : null}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="copy" style={{ marginTop: 12 }}>
-                  Once friends watch or rate this title, their activity and written notes will appear here.
-                </p>
-              )}
-            </div>
+            <Suspense fallback={<div className="info-panel glass"><p className="eyebrow">Friends activity</p><h2 className="headline" style={{ marginTop: 6 }}>Loading activity...</h2></div>}>
+              <DeferredFriendsActivity viewerId={viewerId} friends={shellData?.friends ?? []} media={media} />
+            </Suspense>
           </section>
 
-          <CommunityReviews
-            mediaTitle={media.title}
-            mediaSlug={media.slug}
-            source={media.source}
-            sourceId={media.sourceId}
-            type={media.type}
-            summary={communityReviews}
-          />
+          <Suspense fallback={null}><DeferredCommunityReviews media={media} /></Suspense>
 
           {/* Legacy detail block removed during cleanup.
           <section className="section-stack" style={{ paddingTop: 0 }}>
@@ -3603,7 +3624,7 @@ export default async function MediaDetailPage({
               </div>
             </div>
           }>
-            <DeferredRelatedRail media={media} franchiseSection={franchiseSection} />
+            <DeferredRelatedRail media={media} animeFranchise={animeFranchise} />
           </Suspense>
           </section>
         </main>

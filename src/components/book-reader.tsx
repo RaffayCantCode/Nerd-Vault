@@ -96,6 +96,7 @@ export function BookReader({
   const [draftPage, setDraftPage] = useState(String(Math.max(1, initialProgress?.currentPage ?? 1)));
   const [hasResolvedSavedPage, setHasResolvedSavedPage] = useState(Boolean(initialProgress));
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showControls, setShowControls] = useState(false);
   const paperRef = useRef<HTMLElement | null>(null);
   const pathname = usePathname();
 
@@ -339,7 +340,12 @@ export function BookReader({
       <div className="books-reader-shell books-reader-shell-premium" data-theme={theme}>
         <BooksSidebar theme={theme} active="reader" />
         <main className="books-reader-main books-reader-main-premium">
-          <div className="books-empty-state">{error || "This book could not be loaded."}</div>
+          <div className="books-empty-state">
+            {error || "This book could not be loaded."}
+            <div style={{ marginTop: 24 }}>
+              <Link href="/books" className="books-card-button books-card-button-primary">Back to Library</Link>
+            </div>
+          </div>
         </main>
       </div>
     );

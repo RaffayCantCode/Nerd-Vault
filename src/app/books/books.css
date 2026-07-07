@@ -1599,3 +1599,65 @@
 .books-skeleton-long {
   width: 94%;
 }
+
+/* Immersive Reader Overrides */
+.books-reader-fullscreen {
+  display: block;
+}
+
+.books-reader-main-immersive {
+  position: relative;
+  min-height: 100vh;
+  padding: 0;
+  overflow: hidden;
+}
+
+.books-reader-overlay-top,
+.books-reader-overlay-bottom {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%) translateY(0);
+  z-index: 100;
+  width: min(90vw, 800px);
+  max-height: 90vh;
+  overflow-y: auto;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 300ms ease, transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.books-reader-overlay-top {
+  top: 16px;
+  transform: translateX(-50%) translateY(-20px);
+}
+
+.books-reader-overlay-bottom {
+  bottom: 16px;
+  transform: translateX(-50%) translateY(20px);
+}
+
+.books-reader-overlay-top.is-visible,
+.books-reader-overlay-bottom.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Overriding .books-reader-paper to fill the screen */
+.books-reader-fullscreen .books-reader-paper {
+  height: 100vh;
+  width: 100vw;
+  max-width: none;
+  margin: 0;
+  padding: 40px 16px;
+  border-radius: 0;
+  border: none;
+  background: var(--books-bg);
+  box-shadow: none;
+}
+
+.books-reader-fullscreen .books-reader-paper-inner {
+  padding: clamp(26px, 4vw, 48px);
+  border: none;
+  background: transparent;
+}

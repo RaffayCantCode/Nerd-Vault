@@ -261,14 +261,36 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
     if (typeof window === "undefined") return BASE_PAGE_SIZE;
     return window.innerWidth >= 1700 ? XL_PAGE_SIZE : BASE_PAGE_SIZE;
   });
-  const initialPayload: BrowseApiPayload = {
-    page: 1,
-    totalPages: Math.max(1, initialTotalPages),
-    totalResults: initialCatalogItems.length,
-    items: canHydrateFromBootstrap ? initialCatalogItems.slice(0, pageSize) : [],
-  };
+  const initialPayload: BrowseApiPayload = (() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cachedStr = window.sessionStorage.getItem("nerdvault-browse-payload-cache");
+        if (cachedStr) {
+          const cached = JSON.parse(cachedStr);
+          const currentHref = buildBrowseHref(
+            initialFilter === "movie" || initialFilter === "show" || initialFilter === "anime" || initialFilter === "game" ? initialFilter : "all",
+            Boolean(initialQuery.trim()) ? 1 : initialPage,
+            Boolean(initialQuery.trim()) ? "all" : initialGenre || "all",
+            initialQuery,
+            Boolean(initialQuery.trim()) ? "discovery" : (initialSort === "newest" || initialSort === "rating" || initialSort === "title" ? initialSort : "discovery"),
+            initialSeed
+          );
+          if (cached.href === currentHref && cached.payload?.items?.length) {
+            return cached.payload;
+          }
+        }
+      } catch {}
+    }
+    return {
+      page: 1,
+      totalPages: Math.max(1, initialTotalPages),
+      totalResults: initialCatalogItems.length,
+      items: canHydrateFromBootstrap ? initialCatalogItems.slice(0, pageSize) : [],
+    };
+  })();
+  
   const [payload, setPayload] = useState<BrowseApiPayload>(initialPayload);
-  const [isLoading, setIsLoading] = useState(!canHydrateFromBootstrap);
+  const [isLoading, setIsLoading] = useState(!canHydrateFromBootstrap && initialPayload.page === 1 && !initialPayload.items.length);
   const [error, setError] = useState<string | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -280,20 +302,24 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
   const workspaceRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    let ticking = false;
     const handleScroll = (e: Event) => {
-      let scrollPos = 0;
-      if (e.target && e.target !== document) {
-        scrollPos = (e.target as HTMLElement).scrollTop || 0;
-      } else {
-        scrollPos = window.scrollY || document.documentElement.scrollTop || 0;
-      }
-      
-      // Only show the button when the user has scrolled down by at least 1.5x the height of their screen
-      // This ensures they are "deep" into the scroll before it appears
-      if (scrollPos > window.innerHeight * 1.5) {
-        setShowScrollTop(true);
-      } else {
-        setShowScrollTop(false);
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          let scrollPos = 0;
+          if (e.target && e.target !== document) {
+            scrollPos = (e.target as HTMLElement).scrollTop || 0;
+          } else {
+            scrollPos = window.scrollY || document.documentElement.scrollTop || 0;
+          }
+          
+          setShowScrollTop((prev) => {
+            const next = scrollPos > window.innerHeight * 1.5;
+            return prev === next ? prev : next;
+          });
+          ticking = false;
+        });
+        ticking = true;
       }
     };
 
@@ -373,6 +399,15 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
     window.history.replaceState(null, "", currentHref);
     window.sessionStorage.setItem(BROWSE_LAST_URL_KEY, currentHref);
   }, [currentHref]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && payload.items.length > 0) {
+      window.sessionStorage.setItem("nerdvault-browse-payload-cache", JSON.stringify({
+        href: currentHref,
+        payload
+      }));
+    }
+  }, [payload, currentHref]);
 
   useEffect(() => {
     const urlSeed = searchParams.get("seed");
@@ -777,13 +812,14 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
         initialFriends={initialFriends}
       />
 
-      <section
-        ref={surfacingRef}
-        className="workspace-hero browse-surfacing-hero"
-        onMouseEnter={() => setIsHeroPaused(true)}
-        onMouseLeave={() => setIsHeroPaused(false)}
-      >
-        {featured ? (
+      {!isSearchActive && (
+        <section
+          ref={surfacingRef}
+          className="workspace-hero browse-surfacing-hero"
+          onMouseEnter={() => setIsHeroPaused(true)}
+          onMouseLeave={() => setIsHeroPaused(false)}
+        >
+          {featured ? (
           <>
             <div className="hero-media">
               <img
@@ -872,6 +908,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
           </div>
         )}
       </section>
+      )}
 
       <section id="browse-controls" className="section-stack" style={{ paddingTop: 0 }}>
         <div className={`browse-toolbar ${isFilterOpen ? "is-open" : ""}`}>

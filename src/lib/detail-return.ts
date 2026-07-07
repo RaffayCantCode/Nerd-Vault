@@ -11,6 +11,7 @@ export type BrowseReturnContext = {
   scrollY: number;
   cardId?: string;
   cardTop?: number;
+  payload?: any;
 };
 
 export function readDetailReturnTarget(): DetailReturnTarget | null {
