@@ -20361,3 +20361,276 @@ img.img-loaded {
     -webkit-overflow-scrolling: touch;
   }
 }
+
+/* ============================================================
+   NerdVault — Media Detail Page (clean, Letterboxd-inspired)
+   ============================================================ */
+
+.nv-detail-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  background: #05070c !important;
+  padding: 0 !important;
+}
+
+.nv-detail-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.35;
+}
+
+.nv-detail-backdrop img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(2px);
+}
+
+.nv-detail-backdrop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(5,7,12,0.6) 0%, rgba(5,7,12,0.92) 70%, #05070c 100%);
+}
+
+.nv-detail-content {
+  position: relative;
+  z-index: 1;
+  padding: 32px 24px 48px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.nv-detail-grid {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 32px;
+  align-items: start;
+}
+
+.nv-detail-poster {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  aspect-ratio: 2/3;
+  background: rgba(14,18,30,0.6);
+}
+
+.nv-detail-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.nv-detail-info {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.nv-detail-title {
+  font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin: 0;
+  color: #fff;
+  text-transform: none;
+}
+
+.nv-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.nv-detail-meta .detail-pill {
+  padding: 4px 12px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.75);
+}
+
+.nv-detail-meta .nv-detail-rating {
+  color: #fbbf24;
+  background: rgba(251,191,36,0.08);
+  border-color: rgba(251,191,36,0.15);
+}
+
+.nv-detail-actions {
+  padding: 4px 0;
+}
+
+.nv-detail-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.nv-detail-synopsis p {
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: rgba(246,247,251,0.7);
+  margin: 0;
+}
+
+.nv-detail-facts {
+  padding: 20px 24px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.nv-facts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 20px;
+}
+
+.nv-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nv-fact-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: rgba(255,255,255,0.4);
+  font-weight: 600;
+}
+
+.nv-fact-value {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.85);
+}
+
+.nv-fact-link {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--detail-accent, #69C5AC);
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+
+.nv-fact-link:hover { opacity: 0.8; }
+
+.nv-detail-credits-panel {
+  padding: 24px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.nv-credits-heading {
+  margin-bottom: 16px;
+}
+
+.nv-credits-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.nv-credit-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.nv-credit-chip strong {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.nv-credit-chip span {
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.5);
+}
+
+.nv-credits-empty {
+  color: rgba(255,255,255,0.4);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.nv-external-links {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.nv-external-heading {
+  margin-bottom: 12px;
+  display: block;
+}
+
+.nv-external-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.nv-external-btn {
+  padding: 10px 20px !important;
+  font-size: 0.88rem !important;
+  border-radius: 8px !important;
+}
+
+@media (max-width: 768px) {
+  .nv-detail-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .nv-detail-poster {
+    max-width: 180px;
+    margin: 0 auto;
+  }
+
+  .nv-detail-content {
+    padding: 20px 16px 32px;
+  }
+
+  .nv-detail-title {
+    text-align: center;
+  }
+
+  .nv-detail-meta {
+    justify-content: center;
+  }
+
+  .nv-detail-actions .media-actions {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .nv-detail-poster {
+    max-width: 140px;
+  }
+
+  .nv-facts-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .nv-credits-grid {
+    grid-template-columns: 1fr;
+  }
+}

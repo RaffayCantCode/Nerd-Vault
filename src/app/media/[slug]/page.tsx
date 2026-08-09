@@ -3392,8 +3392,8 @@ export default async function MediaDetailPage({
               sourceUrl={media.details.sourceUrl}
             />
           ) : null}
-          <section id="detail-overview" className="detail-hero glass">
-            <div className="hero-media">
+          <section id="detail-overview" className="detail-hero glass nv-detail-hero">
+            <div className="hero-media nv-detail-backdrop">
               <SafeImg
                 src={optimizeMediaImageUrl(media.backdropUrl || media.coverUrl, "backdrop") ?? (media.backdropUrl || media.coverUrl)}
                 alt={`${media.title} backdrop`}
@@ -3402,12 +3402,11 @@ export default async function MediaDetailPage({
                 fetchPriority="high"
               />
             </div>
-            <div className="detail-content">
+            <div className="detail-content nv-detail-content">
               <DetailBackButton />
 
-              {/* Wide info grid: poster + details side by side */}
-              <div className="detail-info-grid">
-                <aside className="detail-poster-col glass">
+              <div className="detail-info-grid nv-detail-grid">
+                <aside className="detail-poster-col glass nv-detail-poster">
                   <ResilientMediaImage
                     item={media}
                     displayIntent="cover"
@@ -3418,78 +3417,79 @@ export default async function MediaDetailPage({
                   />
                 </aside>
 
-                <div className="detail-copy-col">
-                  <h1 className="display detail-display">{media.title}</h1>
-                  <div className="detail-meta-row">
+                <div className="detail-copy-col nv-detail-info">
+                  <h1 className="display detail-display nv-detail-title">{media.title}</h1>
+
+                  <div className="detail-meta-row nv-detail-meta">
                     <span className="detail-pill">{media.year}</span>
                     <span className="detail-pill">{genreValue}</span>
-                    <span className="detail-pill">★ {media.rating.toFixed(1)}</span>
+                    <span className="detail-pill nv-detail-rating">★ {media.rating.toFixed(1)}</span>
                     <span className="detail-pill">{releaseValue}</span>
                   </div>
 
-                  <div className="detail-actions-band">
+                  <div className="detail-actions-band nv-detail-actions">
                     <MediaActions item={media} viewerId={viewerId} />
                   </div>
 
                   <Suspense fallback={null}><DeferredSeriesContext media={media} animeFranchise={animeFranchise} easterEgg={easterEgg} /></Suspense>
 
-                  <div className="detail-sections-stack">
-                    <section className="detail-section">
-                      <h2 className="eyebrow">Description</h2>
+                  <div className="detail-sections-stack nv-detail-sections">
+                    <section className="detail-section nv-detail-synopsis">
+                      <h2 className="eyebrow">Synopsis</h2>
                       <p className="copy detail-overview-copy">{aboutText}</p>
                     </section>
 
-                    <div className="info-panel glass" style={{ marginTop: 24, padding: 24, borderRadius: 24 }}>
-                      <div className="detail-meta-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 24 }}>
-                        <section className="detail-section">
-                          <h2 className="eyebrow">{studioLabel}</h2>
-                          <p className="copy" style={{ fontSize: '0.95rem', fontWeight: 600 }}>{studioValue}</p>
-                        </section>
-                        <section className="detail-section">
-                          <h2 className="eyebrow">{runtimeLabel}</h2>
-                          <p className="copy" style={{ fontSize: '0.95rem', fontWeight: 600 }}>{runtimeValue}</p>
-                        </section>
-                        <section className="detail-section">
-                          <h2 className="eyebrow">Status</h2>
-                          <p className="copy" style={{ fontSize: '0.95rem', fontWeight: 600 }}>{statusValue}</p>
-                        </section>
+                    <div className="info-panel glass nv-detail-facts">
+                      <div className="detail-meta-grid nv-facts-grid">
+                        <div className="nv-fact">
+                          <span className="nv-fact-label">{studioLabel}</span>
+                          <span className="nv-fact-value">{studioValue}</span>
+                        </div>
+                        <div className="nv-fact">
+                          <span className="nv-fact-label">{runtimeLabel}</span>
+                          <span className="nv-fact-value">{runtimeValue}</span>
+                        </div>
+                        <div className="nv-fact">
+                          <span className="nv-fact-label">Status</span>
+                          <span className="nv-fact-value">{statusValue}</span>
+                        </div>
                         {sourceReference.url ? (
-                          <section className="detail-section">
-                            <h2 className="eyebrow">Source</h2>
-                            <a href={sourceReference.url} target="_blank" rel="noreferrer" className="copy detail-source-link" style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--detail-accent)' }}>
+                          <div className="nv-fact">
+                            <span className="nv-fact-label">Source</span>
+                            <a href={sourceReference.url} target="_blank" rel="noreferrer" className="nv-fact-link">
                               {sourceReference.label} ↗
                             </a>
-                          </section>
+                          </div>
                         ) : null}
                       </div>
+                    </div>
 
-                      <div style={{ marginTop: 32, paddingTop: 32, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                        <h2 className="eyebrow" style={{ marginBottom: 16 }}>{media.type === "game" ? "Studio / Creatives" : "Key Cast"}</h2>
-                        {spotlightCredits.length ? (
-                          <div className="detail-credits-grid">
-                            {spotlightCredits.map((credit) => (
-                              <div key={`${credit.name}-${credit.role}`} className="detail-credit-chip glass" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                                <strong>{credit.name}</strong>
-                                <span>{credit.role}{credit.character ? ` · ${credit.character}` : ""}</span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="copy">Source data is light on credits for this title right now.</p>
-                        )}
-                      </div>
+                    <div className="info-panel glass nv-detail-credits-panel">
+                      <h2 className="eyebrow nv-credits-heading">{media.type === "game" ? "Studio / Creatives" : "Key Cast"}</h2>
+                      {spotlightCredits.length ? (
+                        <div className="detail-credits-grid nv-credits-grid">
+                          {spotlightCredits.map((credit) => (
+                            <div key={`${credit.name}-${credit.role}`} className="detail-credit-chip nv-credit-chip">
+                              <strong>{credit.name}</strong>
+                              <span>{credit.role}{credit.character ? ` · ${credit.character}` : ""}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="copy nv-credits-empty">No credits listed yet.</p>
+                      )}
 
                       {externalLinks.length > 0 && (
-                        <div style={{ marginTop: 32, paddingTop: 32, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                          <h2 className="eyebrow" style={{ marginBottom: 16 }}>{primaryExternalAction} / Official Links</h2>
-                          <div className="button-row">
+                        <div className="nv-external-links">
+                          <span className="eyebrow nv-external-heading">{primaryExternalAction} / Official Links</span>
+                          <div className="button-row nv-external-row">
                             {primaryExternalLink ? (
-                              <a href={primaryExternalLink.url} target="_blank" rel="noreferrer" className="button button-primary" style={{ padding: '10px 20px', fontSize: '0.9rem' }}>
+                              <a href={primaryExternalLink.url} target="_blank" rel="noreferrer" className="button button-primary nv-external-btn">
                                 {primaryExternalAction} on {primaryExternalLink.name}
                               </a>
                             ) : null}
                             {secondaryExternalLinks.slice(0, 3).map((link) => (
-                              <a key={link.name} href={link.url} target="_blank" rel="noreferrer" className="button button-secondary" style={{ padding: '10px 20px', fontSize: '0.9rem' }}>
+                              <a key={link.name} href={link.url} target="_blank" rel="noreferrer" className="button button-secondary nv-external-btn">
                                 {link.name}
                               </a>
                             ))}
