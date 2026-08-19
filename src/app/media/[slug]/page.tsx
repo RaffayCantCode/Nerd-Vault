@@ -3385,13 +3385,6 @@ export default async function MediaDetailPage({
             initialProfile={shellData?.viewerProfile ?? null}
             initialFriends={shellData?.friends ?? []}
           />
-          {media.details.trailerUrl ? (
-            <DetailTrailerPlayer
-              title={media.title}
-              trailerUrl={media.details.trailerUrl}
-              sourceUrl={media.details.sourceUrl}
-            />
-          ) : null}
           <section id="detail-overview" className="detail-hero glass nv-detail-hero">
             <div className="hero-media nv-detail-backdrop">
               <SafeImg
@@ -3405,8 +3398,8 @@ export default async function MediaDetailPage({
             <div className="detail-content nv-detail-content">
               <DetailBackButton />
 
-              <div className="detail-info-grid nv-detail-grid">
-                <aside className="detail-poster-col glass nv-detail-poster">
+              <div className="detail-center-showcase">
+                <div className="detail-center-poster glass">
                   <ResilientMediaImage
                     item={media}
                     displayIntent="cover"
@@ -3415,88 +3408,99 @@ export default async function MediaDetailPage({
                     decoding="async"
                     fetchPriority="high"
                   />
-                </aside>
+                </div>
 
-                <div className="detail-copy-col nv-detail-info">
+                <div className="detail-center-header">
                   <h1 className="display detail-display nv-detail-title">{media.title}</h1>
 
                   <div className="detail-meta-row nv-detail-meta">
+                    <span className="detail-pill nv-detail-type-pill">{media.type === "anime_movie" ? "Anime Movie" : media.type === "anime" ? "Anime" : media.type === "game" ? "Game" : media.type === "show" ? "Show" : "Movie"}</span>
                     <span className="detail-pill">{media.year}</span>
                     <span className="detail-pill">{genreValue}</span>
                     <span className="detail-pill nv-detail-rating">★ {media.rating.toFixed(1)}</span>
-                    <span className="detail-pill">{releaseValue}</span>
+                    {releaseValue ? <span className="detail-pill">{releaseValue}</span> : null}
+                    {media.details.trailerUrl ? (
+                      <DetailTrailerPlayer
+                        item={media}
+                        title={media.title}
+                        trailerUrl={media.details.trailerUrl}
+                        sourceUrl={media.details.sourceUrl}
+                      />
+                    ) : null}
                   </div>
+                </div>
 
-                  <div className="detail-actions-band nv-detail-actions">
-                    <MediaActions item={media} viewerId={viewerId} />
-                  </div>
+                <div className="detail-actions-band nv-detail-actions">
+                  <MediaActions item={media} viewerId={viewerId} />
+                </div>
+              </div>
 
-                  <Suspense fallback={null}><DeferredSeriesContext media={media} animeFranchise={animeFranchise} easterEgg={easterEgg} /></Suspense>
+              <div className="detail-center-body">
+                <Suspense fallback={null}><DeferredSeriesContext media={media} animeFranchise={animeFranchise} easterEgg={easterEgg} /></Suspense>
 
-                  <div className="detail-sections-stack nv-detail-sections">
-                    <section className="detail-section nv-detail-synopsis">
-                      <h2 className="eyebrow">Synopsis</h2>
-                      <p className="copy detail-overview-copy">{aboutText}</p>
-                    </section>
+                <div className="detail-sections-stack nv-detail-sections">
+                  <section className="detail-section nv-detail-synopsis glass">
+                    <h2 className="eyebrow">Synopsis</h2>
+                    <p className="copy detail-overview-copy">{aboutText}</p>
+                  </section>
 
-                    <div className="info-panel glass nv-detail-facts">
-                      <div className="detail-meta-grid nv-facts-grid">
-                        <div className="nv-fact">
-                          <span className="nv-fact-label">{studioLabel}</span>
-                          <span className="nv-fact-value">{studioValue}</span>
-                        </div>
-                        <div className="nv-fact">
-                          <span className="nv-fact-label">{runtimeLabel}</span>
-                          <span className="nv-fact-value">{runtimeValue}</span>
-                        </div>
-                        <div className="nv-fact">
-                          <span className="nv-fact-label">Status</span>
-                          <span className="nv-fact-value">{statusValue}</span>
-                        </div>
-                        {sourceReference.url ? (
-                          <div className="nv-fact">
-                            <span className="nv-fact-label">Source</span>
-                            <a href={sourceReference.url} target="_blank" rel="noreferrer" className="nv-fact-link">
-                              {sourceReference.label} ↗
-                            </a>
-                          </div>
-                        ) : null}
+                  <div className="info-panel glass nv-detail-facts">
+                    <div className="detail-meta-grid nv-facts-grid">
+                      <div className="nv-fact">
+                        <span className="nv-fact-label">{studioLabel}</span>
+                        <span className="nv-fact-value">{studioValue}</span>
                       </div>
+                      <div className="nv-fact">
+                        <span className="nv-fact-label">{runtimeLabel}</span>
+                        <span className="nv-fact-value">{runtimeValue}</span>
+                      </div>
+                      <div className="nv-fact">
+                        <span className="nv-fact-label">Status</span>
+                        <span className="nv-fact-value">{statusValue}</span>
+                      </div>
+                      {sourceReference.url ? (
+                        <div className="nv-fact">
+                          <span className="nv-fact-label">Source</span>
+                          <a href={sourceReference.url} target="_blank" rel="noreferrer" className="nv-fact-link">
+                            {sourceReference.label} ↗
+                          </a>
+                        </div>
+                      ) : null}
                     </div>
+                  </div>
 
-                    <div className="info-panel glass nv-detail-credits-panel">
-                      <h2 className="eyebrow nv-credits-heading">{media.type === "game" ? "Studio / Creatives" : "Key Cast"}</h2>
-                      {spotlightCredits.length ? (
-                        <div className="detail-credits-grid nv-credits-grid">
-                          {spotlightCredits.map((credit) => (
-                            <div key={`${credit.name}-${credit.role}`} className="detail-credit-chip nv-credit-chip">
-                              <strong>{credit.name}</strong>
-                              <span>{credit.role}{credit.character ? ` · ${credit.character}` : ""}</span>
-                            </div>
+                  <div className="info-panel glass nv-detail-credits-panel">
+                    <h2 className="eyebrow nv-credits-heading">{media.type === "game" ? "Studio / Creatives" : "Key Cast"}</h2>
+                    {spotlightCredits.length ? (
+                      <div className="detail-credits-grid nv-credits-grid">
+                        {spotlightCredits.map((credit) => (
+                          <div key={`${credit.name}-${credit.role}`} className="detail-credit-chip nv-credit-chip">
+                            <strong>{credit.name}</strong>
+                            <span>{credit.role}{credit.character ? ` · ${credit.character}` : ""}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="copy nv-credits-empty">No credits listed yet.</p>
+                    )}
+
+                    {externalLinks.length > 0 && (
+                      <div className="nv-external-links">
+                        <span className="eyebrow nv-external-heading">{primaryExternalAction} / Official Links</span>
+                        <div className="button-row nv-external-row">
+                          {primaryExternalLink ? (
+                            <a href={primaryExternalLink.url} target="_blank" rel="noreferrer" className="button button-primary nv-external-btn">
+                              {primaryExternalAction} on {primaryExternalLink.name}
+                            </a>
+                          ) : null}
+                          {secondaryExternalLinks.slice(0, 3).map((link) => (
+                            <a key={link.name} href={link.url} target="_blank" rel="noreferrer" className="button button-secondary nv-external-btn">
+                              {link.name}
+                            </a>
                           ))}
                         </div>
-                      ) : (
-                        <p className="copy nv-credits-empty">No credits listed yet.</p>
-                      )}
-
-                      {externalLinks.length > 0 && (
-                        <div className="nv-external-links">
-                          <span className="eyebrow nv-external-heading">{primaryExternalAction} / Official Links</span>
-                          <div className="button-row nv-external-row">
-                            {primaryExternalLink ? (
-                              <a href={primaryExternalLink.url} target="_blank" rel="noreferrer" className="button button-primary nv-external-btn">
-                                {primaryExternalAction} on {primaryExternalLink.name}
-                              </a>
-                            ) : null}
-                            {secondaryExternalLinks.slice(0, 3).map((link) => (
-                              <a key={link.name} href={link.url} target="_blank" rel="noreferrer" className="button button-secondary nv-external-btn">
-                                {link.name}
-                              </a>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

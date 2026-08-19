@@ -1,5 +1,3 @@
-import Image from "next/image";
-
 type BrandLogoProps = {
   className?: string;
   alt?: string;
@@ -9,12 +7,13 @@ type BrandLogoProps = {
 export function BrandLogo({ className, alt = "NerdVault logo", priority = false }: BrandLogoProps) {
   return (
     <span className={`brand-mark-logo-unified ${className ?? ""}`.trim()}>
-      <Image
+      <img
         src="/brand/logo-mark-clean.svg"
         alt={alt}
         width={56}
         height={56}
-        priority={priority}
+        loading={priority ? "eager" : "lazy"}
+        decoding="async"
         className="brand-logo-unified-image"
       />
     </span>

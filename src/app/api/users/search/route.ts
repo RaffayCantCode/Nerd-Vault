@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { searchUsers } from "@/lib/vault-server";
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -15,14 +15,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: true, results: [] });
   }
 
-  const users = await prisma.user.findMany({
-    where: {
-      id: { not: session.user.id },
-      name: { contains: q, mode: "insensitive" },
-    },
-    select: { id: true, name: true, image: true },
-    take: 20,
-  });
+  const users = await searchUsers(session.user.id, q);
 
   return NextResponse.json({
     ok: true,
@@ -30,7 +23,7 @@ export async function GET(request: NextRequest) {
       id: u.id,
       name: u.name ?? "Unknown",
       handle: u.name ?? "",
-      avatarUrl: u.image ?? undefined,
+      avatarUrl: u.avatarUrl ?? undefined,
     })),
   });
 }

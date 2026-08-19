@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { queryOne } from "@/lib/d1";
 import { redirect } from "next/navigation";
 
 export default async function AdminLayout({
@@ -13,10 +13,7 @@ export default async function AdminLayout({
     redirect("/sign-in?redirectTo=/admin");
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true },
-  });
+  const user = await queryOne<{ role: string | null }>(`SELECT role FROM users WHERE id = ? LIMIT 1`, [session.user.id]);
 
   if (user?.role !== "ADMIN") {
     redirect("/");

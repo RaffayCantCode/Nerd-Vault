@@ -430,13 +430,12 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
         <div className="media-actions">
           <div className="media-action-surface glass">
             <div className="media-action-section">
-              <p className="eyebrow">Library</p>
-              <div className="button-row">
-                <button className="button button-secondary" type="button" onClick={() => setShowGuestAuthModal(true)}>
+              <div className="button-row media-actions-bar">
+                <button className="button button-primary" type="button" onClick={() => setShowGuestAuthModal(true)}>
                   Mark as {primaryLabel}
                 </button>
                 <button className="button button-secondary" type="button" onClick={() => setShowGuestAuthModal(true)}>
-                  {item.type === "game" ? "Playing" : "Watching"}
+                  {watchStatusLabel}
                 </button>
                 <button className="button button-secondary" type="button" onClick={() => setShowGuestAuthModal(true)}>
                   On Hold
@@ -452,7 +451,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
                   Add to wishlist
                 </button>
               </div>
-              <p className="copy" style={{ marginTop: 14 }}>
+              <p className="copy media-action-guest-note">
                 Guest mode keeps library actions locked until you sign in.
               </p>
             </div>
@@ -473,34 +472,12 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
     <div className="media-actions">
       <div className="media-action-surface glass">
         <div className="media-action-section">
-          <div className="media-action-hero">
-            <div
-              className="media-action-hero-backdrop"
-              style={{ backgroundImage: `linear-gradient(135deg, rgba(6, 9, 16, 0.18), rgba(6, 9, 16, 0.82)), url(${item.backdropUrl || item.coverUrl})` }}
-              aria-hidden="true"
-            />
-            <ResilientMediaImage
-              item={item}
-              className="media-action-hero-image"
-              displayIntent="cover"
-              upgradeIntent="cover"
-              loading="eager"
-              decoding="async"
-              fetchPriority="high"
-            />
-            <div className="media-action-hero-copy">
-              <p className="eyebrow">Library</p>
-              <strong>{item.title}</strong>
-              <span>{item.type === "game" ? "Log a playthrough, score, and recommendation signal." : "Log a watch, score, and recommendation signal."}</span>
-            </div>
-          </div>
-
-          <div className="button-row">
-            <button className={`button ${isWatched ? "button-success" : "button-secondary"}`} type="button" onClick={() => setReviewOpen(true)}>
-              {isWatched ? "Edit review" : `Mark as ${primaryLabel}`}
+          <div className="button-row media-actions-bar">
+            <button className={`button ${isWatched ? "button-success" : "button-primary"}`} type="button" onClick={() => setReviewOpen(true)}>
+              {isWatched ? `✓ ${primaryLabel} / Edit review` : `Mark as ${primaryLabel}`}
             </button>
             <button
-              className={`button ${isWatchingActive ? "button-primary" : "button-secondary"}`}
+              className={`button ${isWatchingActive ? "button-accent is-active-status" : "button-secondary"}`}
               type="button"
               onClick={() => void handleStatusToggle(watchStatusLabel)}
               disabled={isTogglingStatus}
@@ -508,7 +485,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
               {isTogglingStatus && isWatchingActive ? "Saving..." : watchStatusLabel}
             </button>
             <button
-              className={`button ${isOnHoldActive ? "button-accent" : "button-secondary"}`}
+              className={`button ${isOnHoldActive ? "button-accent is-active-status" : "button-secondary"}`}
               type="button"
               onClick={() => void handleStatusToggle("On Hold")}
               disabled={isTogglingStatus}
@@ -516,7 +493,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
               {isTogglingStatus && isOnHoldActive ? "Saving..." : "On Hold"}
             </button>
             <button
-              className={`button ${isDroppedActive ? "button-accent" : "button-secondary"}`}
+              className={`button ${isDroppedActive ? "button-accent is-active-status" : "button-secondary"}`}
               type="button"
               onClick={() => void handleStatusToggle("Dropped")}
               disabled={isTogglingStatus}
@@ -526,30 +503,31 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
             <button className="button button-secondary" type="button" onClick={() => setRecommendOpen(true)}>
               Recommend
             </button>
-            {isWatched ? (
-              <button className="button button-secondary" type="button" onClick={() => void handleRemoveWatched()} disabled={isSavingReview}>
-                {isSavingReview ? "Saving..." : `Remove ${primaryLabel}`}
-              </button>
-            ) : null}
             <button
-              className={`button ${isWishlisted ? "button-accent" : "button-secondary"}`}
+              className={`button ${isWishlisted ? "button-accent is-active-status" : "button-secondary"}`}
               type="button"
               onClick={() => void handleWishlist()}
               disabled={isTogglingWishlist}
             >
-              {isTogglingWishlist ? "Saving..." : isWishlisted ? "Remove wishlist" : "Add to wishlist"}
+              <Heart size={16} fill={isWishlisted ? "currentColor" : "none"} />
+              {isTogglingWishlist ? "Saving..." : isWishlisted ? "Wishlisted" : "Add to wishlist"}
             </button>
+            {isWatched ? (
+              <button className="button button-secondary" type="button" onClick={() => void handleRemoveWatched()} disabled={isSavingReview} title={`Remove ${primaryLabel}`}>
+                {isSavingReview ? "Saving..." : `Remove ${primaryLabel}`}
+              </button>
+            ) : null}
           </div>
 
           {isWatched && (reviewRating || reviewTitle.trim() || reviewText.trim()) ? (
-            <p className="copy" style={{ marginTop: 14 }}>
+            <p className="copy media-saved-review-note">
               {reviewRating ? `${renderStars(reviewRating)} saved.` : "Review saved."} {(reviewTitle || reviewText).trim().slice(0, 120)}
             </p>
           ) : null}
         </div>
 
-        <div className="media-action-section">
-          <p className="eyebrow">Lists</p>
+        <div className="media-action-section media-action-lists-section">
+          <p className="eyebrow">Custom Lists</p>
           <div className="folder-action-panel">
             <div className="picker-grid">
               {listOptions.length ? (
@@ -567,7 +545,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
                   );
                 })
               ) : (
-                <p className="copy">No lists yet. Create your first one below.</p>
+                <p className="copy">No custom lists yet. Create one below.</p>
               )}
             </div>
             <div className="folder-action-row">

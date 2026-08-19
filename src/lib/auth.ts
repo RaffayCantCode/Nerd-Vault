@@ -1,50 +1,17 @@
-import NextAuth from "next-auth";
-import { PrismaAdapter } from "@auth/prisma-adapter";
+import NextAuth, { type NextAuthConfig } from "next-auth";
+import { D1Adapter } from "@auth/d1-adapter";
 import { compare } from "bcryptjs";
-import type { Provider } from "next-auth/providers";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 
 import { credentialsSignInSchema, normalizeEmail } from "@/lib/auth-credentials";
 import { getAuthBaseUrl, getAuthSecret, getGoogleClientId, getGoogleClientSecret } from "@/lib/auth-env";
-import { prisma } from "@/lib/prisma";
+import { getD1Database } from "@/lib/cloudflare-env";
+import { ensureDatabaseReady, queryOne } from "@/lib/d1";
 
-const authSecret = getAuthSecret();
-const authBaseUrl = getAuthBaseUrl();
-const googleClientId = getGoogleClientId();
-const googleClientSecret = getGoogleClientSecret();
+const googleConfigured = Boolean(getGoogleClientId() && getGoogleClientSecret() && getAuthSecret());
 
-if (authSecret) {
-  process.env.AUTH_SECRET = authSecret;
-  process.env.NEXTAUTH_SECRET = authSecret;
-}
-
-if (authBaseUrl) {
-  process.env.AUTH_URL = authBaseUrl;
-  process.env.NEXTAUTH_URL = authBaseUrl;
-}
-
-if (googleClientId) {
-  process.env.AUTH_GOOGLE_ID = googleClientId;
-}
-
-if (googleClientSecret) {
-  process.env.AUTH_GOOGLE_SECRET = googleClientSecret;
-}
-
-if (process.env.NODE_ENV === "production" && !authSecret) {
-  console.error(
-    "[auth] Missing AUTH_SECRET (or NEXTAUTH_SECRET) in the Netlify runtime environment. Google sign-in will fail with error=Configuration.",
-  );
-}
-
-const googleConfigured = Boolean(
-  googleClientId &&
-    googleClientSecret &&
-    authSecret,
-);
-
-const providers: Provider[] = [
+const providers: NextAuthConfig["providers"] = [
   Credentials({
     name: "Email and password",
     credentials: {
@@ -53,22 +20,27 @@ const providers: Provider[] = [
     },
     async authorize(credentials) {
       const parsed = credentialsSignInSchema.safeParse(credentials);
-
       if (!parsed.success) {
         return null;
       }
 
       const email = normalizeEmail(parsed.data.email);
-      const user = await prisma.user.findUnique({
-        where: { email },
-      });
+      const user = await queryOne<{
+        id: string;
+        name: string | null;
+        email: string | null;
+        image: string | null;
+        password_hash: string | null;
+      }>(
+        `SELECT id, name, email, image, password_hash FROM users WHERE email = ? LIMIT 1`,
+        [email],
+      );
 
-      if (!user?.passwordHash) {
+      if (!user?.password_hash) {
         return null;
       }
 
-      const passwordMatches = await compare(parsed.data.password, user.passwordHash);
-
+      const passwordMatches = await compare(parsed.data.password, user.password_hash);
       if (!passwordMatches) {
         return null;
       }
@@ -86,92 +58,95 @@ const providers: Provider[] = [
 if (googleConfigured) {
   providers.unshift(
     Google({
-      clientId: googleClientId!,
-      clientSecret: googleClientSecret!,
-      // Link Google to an existing email/password account instead of failing the callback.
+      clientId: getGoogleClientId()!,
+      clientSecret: getGoogleClientSecret()!,
       allowDangerousEmailAccountLinking: true,
     }),
   );
 }
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
-  secret: authSecret,
-  trustHost: true,
-  adapter: PrismaAdapter(prisma),
-  debug: process.env.AUTH_DEBUG === "true",
-  session: {
-    // Credentials auth is most reliable with JWT strategy.
-    // Keep token payload intentionally tiny to avoid cookie bloat.
-    strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-    updateAge: 24 * 60 * 60, // 24 hours
-  },
-  providers,
-  pages: {
-    signIn: "/sign-in",
-    error: "/sign-in",
-  },
-  // Let NextAuth use its default compact cookies. Custom overrides were
-  // contributing to REQUEST_HEADER_TOO_LARGE by inflating cookie names.
-  // The sessionToken default already respects __Secure- prefix in production.
-  cookies: {
-    sessionToken: {
-      name: process.env.NODE_ENV === "production" 
-        ? "__Secure-authjs.session-token" 
-        : "authjs.session-token",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: process.env.NODE_ENV === "production",
+export const { handlers, signIn, signOut, auth } = NextAuth(async () => {
+  const authSecret = getAuthSecret();
+  const authBaseUrl = getAuthBaseUrl();
+  if (!authSecret) {
+    throw new Error("AUTH_SECRET is required. Configure it in Cloudflare Pages.");
+  }
+
+  await ensureDatabaseReady();
+  const database = await getD1Database();
+
+  return {
+    secret: authSecret,
+    trustHost: true,
+    adapter: D1Adapter(database as any),
+    debug: process.env.AUTH_DEBUG === "true",
+    session: {
+      strategy: "jwt",
+      maxAge: 30 * 24 * 60 * 60,
+      updateAge: 24 * 60 * 60,
+    },
+    providers,
+    pages: {
+      signIn: "/sign-in",
+      error: "/sign-in",
+    },
+    useSecureCookies: process.env.NODE_ENV === "production",
+    cookies: authBaseUrl
+      ? undefined
+      : {
+          sessionToken: {
+            name: process.env.NODE_ENV === "production" ? "__Secure-authjs.session-token" : "authjs.session-token",
+            options: {
+              httpOnly: true,
+              sameSite: "lax",
+              path: "/",
+              secure: process.env.NODE_ENV === "production",
+            },
+          },
+        },
+    events: {
+      async signIn({ user, account, isNewUser }) {
+        if (process.env.AUTH_DEBUG === "true") {
+          console.info("[auth] signIn", {
+            provider: account?.provider,
+            userId: user.id,
+            isNewUser,
+          });
+        }
       },
     },
-  },
-  events: {
-    async signIn({ user, account, isNewUser }) {
-      if (process.env.AUTH_DEBUG === "true") {
-        console.info("[auth] signIn", {
-          provider: account?.provider,
-          userId: user.id,
-          isNewUser,
-        });
-      }
+    callbacks: {
+      async signIn({ user, account }) {
+        if (account?.provider === "google" && !user.email) {
+          return false;
+        }
+        return true;
+      },
+      async jwt({ token, user }) {
+        return {
+          sub: user?.id ?? token.sub,
+          name: user?.name ?? token.name,
+          email: user?.email ?? token.email,
+          picture: user?.image ?? token.picture,
+          iat: token.iat,
+          exp: token.exp,
+          jti: token.jti,
+        };
+      },
+      async session({ session, token }) {
+        if (session.user) {
+          session.user.id = token.sub ?? session.user.id;
+          session.user.name = token.name ?? session.user.name;
+          session.user.email = token.email ?? session.user.email;
+          session.user.image = token.picture ?? session.user.image;
+        }
+        return session;
+      },
+      async redirect({ url, baseUrl }) {
+        if (url.startsWith("/")) return `${baseUrl}${url}`;
+        if (new URL(url).origin === baseUrl) return url;
+        return baseUrl;
+      },
     },
-  },
-  callbacks: {
-    async signIn({ user, account }) {
-      if (account?.provider === "google" && !user.email) {
-        return false;
-      }
-
-      return true;
-    },
-    async jwt({ token, user }) {
-      // IMPORTANT: Return ONLY the minimal fields needed to identify the session.
-      // NextAuth v5 + Google automatically populates `token` with name, email,
-      // picture, and the full Google account object (access_token, id_token,
-      // refresh_token, etc.). Returning the full token causes the JWT to exceed
-      // a single cookie's size limit (~4KB), forcing NextAuth to chunk it across
-      // 20+ cookies and blowing past Vercel's REQUEST_HEADER_TOO_LARGE limit.
-      return {
-        sub: user?.id ?? token.sub,
-        iat: token.iat,
-        exp: token.exp,
-        jti: token.jti,
-      };
-    },
-    async session({ session, token }) {
-      if (token?.sub && session.user) {
-        session.user.id = token.sub;
-      }
-      return session;
-    },
-    async redirect({ url, baseUrl }) {
-      // Allows relative callback URLs
-      if (url.startsWith("/")) return `${baseUrl}${url}`;
-      // Allows callback URLs on the same origin
-      if (new URL(url).origin === baseUrl) return url;
-      return baseUrl;
-    },
-  },
+  };
 });

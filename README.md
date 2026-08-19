@@ -95,8 +95,29 @@ NerdVault (NV) is a sleek, modern web platform that allows users to track, organ
   * Movies/Shows
   * Games
   * Anime
-* Scalable database design for user libraries and interactions
-* Real-time updates for social features
+* Cloudflare Pages for deployment with `nodejs_compat`
+* Cloudflare D1 for the application database and Auth.js adapter
+* Browser-safe runtime code so the app can run at the edge without Vercel-specific assumptions
+* Real-time-ish social updates through request-time refresh and cache revalidation
+
+**Local Development**
+
+* `npm run dev` for the Next.js dev server
+* `npm run build` for the normal production build
+* `npm run pages:build` for the Cloudflare Pages packaging flow
+* `npm run pages:deploy` after connecting the Pages project in Cloudflare
+
+**Cloudflare Setup**
+
+* Bind a D1 database as `DB`
+* Set `AUTH_SECRET` and `AUTH_URL`
+* Add Google OAuth credentials if you want social sign-in
+* Add any media API keys you use for browse and detail pages
+* Use the Cloudflare Pages build output at `.vercel/output/static`
+
+**Note**
+
+* On Windows, local `npm run pages:build` can be limited by the underlying Cloudflare/Vercel adapter symlink behavior. The app itself still passes `npm run build`, and Pages builds are intended to run in Cloudflare's Linux build environment.
 
 
 **Goal:**

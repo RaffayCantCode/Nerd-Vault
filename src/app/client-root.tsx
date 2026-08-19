@@ -9,13 +9,11 @@ import { ScrollManager } from "@/components/scroll-manager";
 
 export function ClientRoot({ 
   children,
-  fontVariable 
 }: { 
   children: React.ReactNode;
-  fontVariable: string;
 }) {
   return (
-    <body className={`${fontVariable}`} style={{ ["--font-display" as string]: "var(--font-sans)" }}>
+    <body style={{ ["--font-display" as string]: "var(--font-sans)" }}>
       <Suspense fallback={null}>
         <ScrollManager />
       </Suspense>

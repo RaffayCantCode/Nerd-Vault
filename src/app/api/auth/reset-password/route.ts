@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHash } from "crypto";
 import { hash } from "bcryptjs";
-import { prisma } from "@/lib/prisma";
 
-export const runtime = "nodejs";
+import { execute, queryOne } from "@/lib/d1";
 
-function hashResetToken(token: string) {
-  return createHash("sha256").update(token).digest("hex");
+async function hashResetToken(token: string) {
+  const bytes = new TextEncoder().encode(token);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 export async function POST(request: NextRequest) {
@@ -17,26 +19,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid token or password." }, { status: 400 });
     }
 
-    const resetToken = await prisma.passwordResetToken.findUnique({
-      where: { token: hashResetToken(token) },
-    });
+    const resetToken = await queryOne<{
+      id: string;
+      email: string;
+      used: number;
+      expires: string;
+    }>(`SELECT * FROM password_reset_tokens WHERE token = ? LIMIT 1`, [await hashResetToken(token)]);
 
-    if (!resetToken || resetToken.used || resetToken.expires < new Date()) {
+    if (!resetToken || resetToken.used || new Date(resetToken.expires) < new Date()) {
       return NextResponse.json({ error: "This reset link is invalid or has expired." }, { status: 400 });
     }
 
     const passwordHash = await hash(password, 12);
 
-    await prisma.$transaction([
-      prisma.user.update({
-        where: { email: resetToken.email },
-        data: { passwordHash },
-      }),
-      prisma.passwordResetToken.update({
-        where: { id: resetToken.id },
-        data: { used: true },
-      }),
-    ]);
+    await execute(
+      `
+        UPDATE users
+        SET password_hash = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE email = ?
+      `,
+      [passwordHash, resetToken.email],
+    );
+
+    await execute(
+      `
+        UPDATE password_reset_tokens
+        SET used = 1
+        WHERE id = ?
+      `,
+      [resetToken.id],
+    );
 
     return NextResponse.json(
       { ok: true },
@@ -53,3 +65,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+

@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ListDetailWorkspace } from "@/components/list-detail-workspace";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
-import { prisma } from "@/lib/prisma";
+import { queryOne } from "@/lib/d1";
 import { getListById } from "@/lib/vault-server";
 
 type Props = {
@@ -27,8 +27,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 async function getListOwner(listId: string): Promise<string> {
-  const row = await prisma.folder.findUnique({ where: { id: listId }, select: { userId: true } });
-  return row?.userId ?? "";
+  const row = await queryOne<{ user_id: string }>(`SELECT user_id FROM folders WHERE id = ? LIMIT 1`, [listId]);
+  return row?.user_id ?? "";
 }
 
 export default async function ListDetailPage({ params }: Props) {

@@ -47,15 +47,6 @@ function IconCompass() {
   );
 }
 
-function IconBook() {
-  return (
-    <svg className="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M5 4.5h14v15H5z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-      <path d="M9 4.5v6.2l2.5-1.6L14 10.7V4.5" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 function IconActivity() {
   return (
     <svg className="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -104,7 +95,7 @@ function IconLeave() {
 }
 
 type AppSidebarProps = {
-  active: "vault" | "browse" | "books" | "activity" | "friends";
+  active: "vault" | "browse" | "activity" | "friends";
   redirectTo?: string;
 };
 
@@ -145,15 +136,6 @@ export async function AppSidebar({ active, redirectTo = "/home" }: AppSidebarPro
             <IconCompass />
             <span className="sidebar-nav-label">Browse</span>
           </BrowseResetLink>
-          <Link
-            href="/books"
-            className={`sidebar-nav-button ${active === "books" ? "is-active" : ""}`}
-            aria-label="Books"
-            title="Books"
-          >
-            <IconBook />
-            <span className="sidebar-nav-label">Books</span>
-          </Link>
           <Link
             href="/activity"
             className={`sidebar-nav-button ${active === "activity" ? "is-active" : ""}`}

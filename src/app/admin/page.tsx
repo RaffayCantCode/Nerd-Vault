@@ -1,48 +1,51 @@
-import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import { getAdminOverview } from "@/lib/vault-server";
 
 export default async function AdminDashboard() {
-  const [userCount, mediaCount, settings] = await Promise.all([
-    prisma.user.count().catch(() => 0),
-    prisma.media.count().catch(() => 0),
-    prisma.siteSettings.findUnique({
-      where: { id: "global" },
-    }).catch(() => null),
-  ]);
+  const { userCount, mediaCount, settings } = await getAdminOverview();
 
   return (
-    <div className="admin-dashboard container" style={{ padding: '40px 20px', minHeight: '100vh', background: '#060911', color: 'white' }}>
-      <header className="admin-header" style={{ marginBottom: 40 }}>
-        <h1 className="display" style={{ fontSize: '3rem', marginBottom: 10 }}>NerdVault Admin</h1>
-        <p className="copy">Manage homepage messaging, media operations, and user visibility from one control surface.</p>
-      </header>
+    <div className="admin-page">
+      <div className="admin-page-shell">
+        <header className="admin-hero">
+          <p className="eyebrow">Admin</p>
+          <h1 className="display">NerdVault Admin</h1>
+          <p className="copy">Manage homepage messaging, media operations, and user visibility from one control surface.</p>
+        </header>
 
-      <div className="admin-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
-        <div className="admin-card glass" style={{ padding: 30, borderRadius: 24 }}>
-          <h2 className="headline" style={{ marginBottom: 15 }}>Brand Messaging</h2>
-          <p className="copy" style={{ marginBottom: 20 }}>Control hero copy and primary brand voice on the landing experience.</p>
-          <div style={{ display: 'grid', gap: 10 }}>
-            <p><strong>Hero Title:</strong> {settings?.heroTitle || "Default"}</p>
-            <p><strong>Hero Subtitle:</strong> {settings?.heroSubtitle || "Default"}</p>
-          </div>
-          <Link href="/admin/settings" className="button button-primary" style={{ marginTop: 20, width: '100%' }}>
-            Edit Settings
-          </Link>
-        </div>
+        <div className="admin-grid">
+          <section className="admin-card glass">
+            <div className="admin-card-copy">
+              <h2 className="headline">Brand Messaging</h2>
+              <p className="copy">Control hero copy and primary brand voice on the landing experience.</p>
+            </div>
+            <div className="admin-stat-list">
+              <p className="admin-stat"><strong>Hero Title</strong> <span>{settings?.hero_title || "Default"}</span></p>
+              <p className="admin-stat"><strong>Hero Subtitle</strong> <span>{settings?.hero_subtitle || "Default"}</span></p>
+            </div>
+            <Link href="/admin/settings" className="button button-primary">
+              Edit Settings
+            </Link>
+          </section>
 
-        <div className="admin-card glass" style={{ padding: 30, borderRadius: 24 }}>
-          <h2 className="headline" style={{ marginBottom: 15 }}>Media Operations</h2>
-          <p className="copy" style={{ marginBottom: 20 }}>Monitor catalog health across movies, TV shows, anime, and games.</p>
-          <p><strong>Total Media:</strong> {mediaCount}</p>
-        </div>
+          <section className="admin-card glass">
+            <div className="admin-card-copy">
+              <h2 className="headline">Media Operations</h2>
+              <p className="copy">Monitor catalog health across movies, TV shows, anime, and games.</p>
+            </div>
+            <p className="admin-stat"><strong>Total Media</strong> <span>{mediaCount}</span></p>
+          </section>
 
-        <div className="admin-card glass" style={{ padding: 30, borderRadius: 24 }}>
-          <h2 className="headline" style={{ marginBottom: 15 }}>User Management</h2>
-          <p className="copy" style={{ marginBottom: 20 }}>Review registered users and keep account operations stable.</p>
-          <p><strong>Total Users:</strong> {userCount}</p>
-          <Link href="/admin/users" className="button button-secondary" style={{ marginTop: 20, width: '100%' }}>
-            Manage Users
-          </Link>
+          <section className="admin-card glass">
+            <div className="admin-card-copy">
+              <h2 className="headline">User Management</h2>
+              <p className="copy">Review registered users and keep account operations stable.</p>
+            </div>
+            <p className="admin-stat"><strong>Total Users</strong> <span>{userCount}</span></p>
+            <Link href="/admin/users" className="button button-secondary">
+              Manage Users
+            </Link>
+          </section>
         </div>
       </div>
     </div>

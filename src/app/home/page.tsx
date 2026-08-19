@@ -8,7 +8,7 @@ import { auth } from "@/lib/auth";
 import { buildHomeFeed } from "@/lib/home-feed";
 import { ensureCurrentUserRecord, getLibraryStateForUser, getVaultProfilePayload, getViewerShellData } from "@/lib/vault-server";
 
-// Allow Netlify/CDN to cache the guest shell; signed-in sections still refresh per request via auth().
+// Allow Cloudflare to cache the guest shell; signed-in sections still refresh per request via auth().
 export const revalidate = 60;
 
 export default async function HomeHubPage({

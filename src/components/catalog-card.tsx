@@ -40,6 +40,14 @@ function getDetailRouteType(item: Pick<MediaItem, "source" | "type">) {
   return item.type;
 }
 
+function formatMediaTypeLabel(type: string) {
+  if (type === "anime_movie") return "Anime Movie";
+  if (type === "anime") return "Anime";
+  if (type === "game") return "Game";
+  if (type === "show") return "Show";
+  return "Movie";
+}
+
 function renderUserStars(rating?: number | null) {
   if (!rating) {
     return null;
@@ -182,14 +190,13 @@ export const CatalogCard = memo(function CatalogCard({
       data-browse-card-id={browseCardId}
       data-media-type={item.type}
       data-media-source={item.source}
-      className={`catalog-card ${showUserRatingBelow && item.userRating ? "has-user-rating" : ""} ${isNavigating ? "is-navigating" : ""} ${isVisible ? "is-visible" : ""} ${isImageLoaded ? "has-media-loaded" : "is-media-pending"}`}
+      className={`catalog-card nv-poster-card ${showUserRatingBelow && item.userRating ? "has-user-rating" : ""} ${isNavigating ? "is-navigating" : ""} ${isVisible ? "is-visible" : ""} ${isImageLoaded ? "has-media-loaded" : "is-media-pending"}`}
       prefetch={false}
       onClick={handleNavigate}
       onMouseEnter={warmRoute}
       onFocus={warmRoute}
     >
       <div className="catalog-card-media">
-        {/* Skeleton placeholder - visible until image loads */}
         {!isImageLoaded && (
           <div className="catalog-card-skeleton" aria-hidden="true">
             <div className="skeleton-shimmer" />
@@ -206,38 +213,59 @@ export const CatalogCard = memo(function CatalogCard({
             onLoadStateChange={setIsImageLoaded}
           />
         )}
-        <div className="catalog-sheen" />
-        {isNavigating ? (
-          <div className="catalog-card-loader" aria-hidden="true">
-            <NVLoader compact label="Opening..." />
-          </div>
-        ) : null}
-      </div>
 
-      <div className="catalog-copy">
-        <h3 className="catalog-title" title={item.title}>{item.title}</h3>
-        {item.genres.length > 0 && (
-          <p className="catalog-genres">
-            {item.genres.slice(0, 2).join(" • ")}
-          </p>
-        )}
-        <div className="meta-row">
-          <span className="pill">{item.type}</span>
-          <span className="pill">{item.year}</span>
-          <span className="pill rating">{item.rating.toFixed(1)}</span>
+        {/* Top Badges Overlaid on Poster */}
+        <div className="catalog-poster-topbar">
+          <span className="catalog-type-pill-minimal">
+            {formatMediaTypeLabel(item.type)}
+          </span>
+          {item.rating > 0 && (
+            <span className="catalog-rating-pill-minimal">
+              <span className="star-icon">★</span>
+              <span>{item.rating.toFixed(1)}</span>
+            </span>
+          )}
         </div>
-        {item.userRating && showUserRatingBelow ? (
-          <div className="catalog-user-rating-row" aria-label={`Your rating: ${item.userRating} out of 5`}>
-            <span className="catalog-user-rating-label">Your rating</span>
-            <span className="catalog-user-rating-stars">{renderUserStars(item.userRating)}</span>
+
+        {/* Smooth contrast vignette for text legibility */}
+        <div className="catalog-poster-scrim" />
+
+        {/* Bottom Details Overlaid on Poster */}
+        <div className="catalog-poster-bottom">
+          <h3 className="catalog-poster-title" title={item.title}>
+            {item.title}
+          </h3>
+          <div className="catalog-poster-meta">
+            <span className="catalog-poster-year">{item.year || "TBD"}</span>
+            {item.genres.length > 0 && (
+              <>
+                <span className="catalog-poster-dot">•</span>
+                <span className="catalog-poster-genre">{item.genres[0]}</span>
+              </>
+            )}
           </div>
-        ) : null}
-        {item.userReview ? (
-          <p className="catalog-review-preview">
-            {item.userReview.length > 96 ? `${item.userReview.slice(0, 93).trimEnd()}...` : item.userReview}
-          </p>
+
+          {item.userRating && showUserRatingBelow ? (
+            <div className="catalog-poster-user-rating" aria-label={`Your rating: ${item.userRating} out of 5`}>
+              <span className="user-rating-label">You</span>
+              <span className="user-rating-stars">{renderUserStars(item.userRating)}</span>
+            </div>
+          ) : null}
+
+          {item.userReview ? (
+            <p className="catalog-poster-review">
+              {item.userReview.length > 70 ? `${item.userReview.slice(0, 67).trimEnd()}...` : item.userReview}
+            </p>
+          ) : null}
+        </div>
+
+        {isNavigating ? (
+          <div className="catalog-card-nav-indicator" aria-hidden="true">
+            <div className="catalog-nav-bar-progress" />
+          </div>
         ) : null}
       </div>
     </Link>
   );
 });
+

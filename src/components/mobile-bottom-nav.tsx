@@ -61,7 +61,7 @@ function DockIconFolders() {
   );
 }
 
-const APP_ROUTE_PREFIXES = ["/home", "/browse", "/support", "/media", "/profile", "/books", "/vault", "/activity", "/friends"];
+const APP_ROUTE_PREFIXES = ["/home", "/browse", "/support", "/media", "/profile", "/vault", "/activity", "/friends", "/lists"];
 
 function FoldersDockButton({ foldersOpen, fullPath }: { foldersOpen: boolean; fullPath: string }) {
   const signInHref = guestSignInHref(fullPath);
@@ -102,10 +102,10 @@ export function MobileBottomNav() {
   const isDetailRoute = pathname.startsWith("/media/");
   const isHomeRoute = pathname === "/home";
   const isBrowseRoute = pathname.startsWith("/browse");
-  const isBooksRoute = pathname.startsWith("/books");
   const isActivityRoute = pathname.startsWith("/activity");
   const isFriendsRoute = pathname.startsWith("/friends");
   const isProfileContext = pathname.startsWith("/profile") || (pathname === "/home" && searchParams.get("tab") === "media");
+  const fullPath = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
   const visible = shouldShowMobileDock(pathname);
 
   useEffect(() => {
@@ -157,15 +157,6 @@ export function MobileBottomNav() {
             Related
           </button>
         </div>
-      ) : isBooksRoute ? (
-        <div className="nv-mobile-section-dock glass" aria-label="Book reader navigation">
-          <button type="button" className="nv-mobile-section-chip" onClick={() => jumpToSection("book-reader")}>
-            Reader
-          </button>
-          <button type="button" className="nv-mobile-section-chip" onClick={() => jumpToSection("book-details")}>
-            Details
-          </button>
-        </div>
       ) : null}
 
       <nav className="nv-mobile-dock glass" aria-label="Primary mobile navigation">
@@ -185,6 +176,7 @@ export function MobileBottomNav() {
           <DockIconFriends />
           <span>Friends</span>
         </Link>
+        <FoldersDockButton foldersOpen={foldersOpen} fullPath={fullPath} />
         <Link href="/home?tab=media" className={`nv-mobile-dock-link ${isProfileContext ? "is-active" : ""}`} aria-label="Profile">
           <DockIconProfile />
           <span>Profile</span>

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { memo, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -171,7 +171,7 @@ export const AppTopBar = memo(function AppTopBar({
     <section className={`app-topbar glass ${(inboxOpen || profileMenuOpen || guestPromptOpen) ? "is-layered" : ""}`}>
       <div className="app-topbar-meta">
         <p className="eyebrow">Vault hub</p>
-        <p className="app-topbar-summary">Friends, inbox, and your account stay within reach.</p>
+        <p className="app-topbar-summary">Your library, inbox, and friends stay close without getting in the way.</p>
       </div>
 
       <div className="app-topbar-actions">
@@ -287,7 +287,7 @@ export const AppTopBar = memo(function AppTopBar({
                             Mark read
                           </button>
                           <button type="button" className="button button-secondary" onClick={() => void dismissInboxNotification(notification.id)}>
-                            X
+                            Dismiss
                           </button>
                         </div>
                       </div>
@@ -383,4 +383,5 @@ export const AppTopBar = memo(function AppTopBar({
     </section>
   );
 });
+
 

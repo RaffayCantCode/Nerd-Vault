@@ -1,13 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHash, randomBytes } from "crypto";
-import { prisma } from "@/lib/prisma";
+
 import { getAuthBaseUrl } from "@/lib/auth-env";
+import { execute, queryOne, uuid } from "@/lib/d1";
 import { sendPasswordResetEmail } from "@/lib/email";
 
-export const runtime = "nodejs";
+function toBase64Url(bytes: Uint8Array) {
+  let binary = "";
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
 
-function hashResetToken(token: string) {
-  return createHash("sha256").update(token).digest("hex");
+async function hashResetToken(token: string) {
+  const bytes = new TextEncoder().encode(token);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 export async function POST(request: NextRequest) {
@@ -19,33 +29,35 @@ export async function POST(request: NextRequest) {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
-
-    const user = await prisma.user.findUnique({
-      where: { email: normalizedEmail },
-      select: { id: true },
-    });
+    const user = await queryOne<{ id: string }>(`SELECT id FROM users WHERE email = ? LIMIT 1`, [normalizedEmail]);
 
     if (!user) {
-      return NextResponse.json({ error: "If an account with that email exists, a reset link has been sent." }, { status: 200 });
+      return NextResponse.json(
+        { error: "If an account with that email exists, a reset link has been sent." },
+        { status: 200 },
+      );
     }
 
-    const token = randomBytes(32).toString("base64url");
-    const tokenHash = hashResetToken(token);
+    const randomTokenBytes = new Uint8Array(32);
+    crypto.getRandomValues(randomTokenBytes);
+    const token = toBase64Url(randomTokenBytes);
+    const tokenHash = await hashResetToken(token);
 
-    await prisma.passwordResetToken.deleteMany({
-      where: {
-        email: normalizedEmail,
-        OR: [{ used: false }, { expires: { lt: new Date() } }],
-      },
-    });
+    await execute(
+      `
+        DELETE FROM password_reset_tokens
+        WHERE email = ? AND (used = 0 OR expires < CURRENT_TIMESTAMP)
+      `,
+      [normalizedEmail],
+    );
 
-    await prisma.passwordResetToken.create({
-      data: {
-        email: normalizedEmail,
-        token: tokenHash,
-        expires: new Date(Date.now() + 60 * 60 * 1000),
-      },
-    });
+    await execute(
+      `
+        INSERT INTO password_reset_tokens (id, email, token, expires, used, created_at)
+        VALUES (?, ?, ?, datetime(CURRENT_TIMESTAMP, '+1 hour'), 0, CURRENT_TIMESTAMP)
+      `,
+      [uuid(), normalizedEmail, tokenHash],
+    );
 
     const baseUrl = getAuthBaseUrl() ?? "https://nerdvault.site";
     const resetLink = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
@@ -67,3 +79,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+

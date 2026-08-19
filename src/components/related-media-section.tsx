@@ -22,7 +22,7 @@ export function RelatedMediaSection({
 
   return (
     <div className="related-media-section">
-      <div className="catalog-grid">
+      <div className="related-media-grid">
         {visibleItems.map((item, index) => (
           <div
             key={item.id}

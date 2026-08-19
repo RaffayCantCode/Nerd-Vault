@@ -57,38 +57,30 @@ export function ExpandableRelatedSection({
   mediaTitle,
   showFranchiseSection = true,
 }: ExpandableRelatedSectionProps) {
-  const [cardsPerRow, setCardsPerRow] = useState(4);
+  const [cardsPerRow, setCardsPerRow] = useState(6);
   const [visibleRows, setVisibleRows] = useState(2);
   const [highlightedFromIndex, setHighlightedFromIndex] = useState<number | null>(null);
   const initialRows = 2;
-  const additionalRowsPerExpand = 1;
+  const additionalRowsPerExpand = 2;
   const relatedContainerRef = useRef<HTMLDivElement | null>(null);
   const previousVisibleCountRef = useRef(0);
   const userExpandedRef = useRef(false);
 
   useEffect(() => {
     function syncCardsPerRow() {
-      if (window.innerWidth < 640) {
+      if (typeof window === "undefined") return;
+      const width = window.innerWidth;
+      if (width < 550) {
         setCardsPerRow(2);
-        return;
-      }
-
-      if (window.innerWidth < 900) {
-        setCardsPerRow(2);
-        return;
-      }
-
-      if (window.innerWidth < 1200) {
+      } else if (width < 820) {
         setCardsPerRow(3);
-        return;
-      }
-
-      if (window.innerWidth >= 1700) {
+      } else if (width < 1100) {
+        setCardsPerRow(4);
+      } else if (width < 1400) {
         setCardsPerRow(5);
-        return;
+      } else {
+        setCardsPerRow(6);
       }
-
-      setCardsPerRow(4);
     }
 
     syncCardsPerRow();
@@ -163,7 +155,7 @@ export function ExpandableRelatedSection({
         </div>
       ) : null}
 
-      <div className="section-header" style={{ marginTop: showFranchiseSection ? 60 : 0 }}>
+      <div className="section-header" style={{ marginTop: showFranchiseSection ? 48 : 0 }}>
         <div>
           <p className="eyebrow">Discover</p>
           <h2 className="headline">More like this</h2>
@@ -182,21 +174,21 @@ export function ExpandableRelatedSection({
       </div>
 
       <div className="related-actions-row modern-cta-row">
-        <DetailBackButton className="modern-btn-secondary" />
+        <div className="modern-cta-group">
+          <DetailBackButton className="modern-btn-secondary" />
 
-        <div className="related-expand-actions modern-cta-group">
-          {canCollapse ? (
+          {canCollapse && (
             <button type="button" onClick={handleCollapse} className="modern-btn-secondary">
               Show Less
             </button>
-          ) : null}
+          )}
 
-          {hasMore ? (
+          {hasMore && (
             <button type="button" onClick={handleExpand} className="modern-btn-primary">
               <span className="modern-btn-label">View More</span>
               <span className="modern-btn-badge">+{Math.min(cardsPerRow * additionalRowsPerExpand, related.length - visibleCount)}</span>
             </button>
-          ) : null}
+          )}
         </div>
       </div>
     </section>

@@ -6,14 +6,10 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { credentialsSignInSchema, credentialsSignUpSchema, normalizeEmail } from "@/lib/auth-credentials";
-import { getAuthCookiesToDelete } from "@/lib/auth-cookies";
 import { getAuthSecret, getGoogleClientId, getGoogleClientSecret } from "@/lib/auth-env";
 import { signIn } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { execute, queryOne, uuid } from "@/lib/d1";
 
-// Next.js throws a special NEXT_REDIRECT error internally when `redirect()` is called
-// (including inside next-auth's `signIn()`). We must re-throw these so the redirect
-// actually happens. Catching them and treating them as failures causes false "sign-in failed" errors.
 function isNextRedirect(error: unknown): boolean {
   return (
     typeof error === "object" &&
@@ -42,17 +38,8 @@ export async function signInWithGoogle(formData?: FormData) {
     redirect("/sign-in?mode=login&error=google-not-configured");
   }
 
-  const cookieStore = await cookies();
-  const cookieNames = cookieStore.getAll().map((cookie) => cookie.name);
-  const staleAuthCookies = getAuthCookiesToDelete(cookieNames);
-
-  // Only clear stale session chunks here. OAuth PKCE/state cookies are cleared on the
-  // client right before submit; deleting them again server-side can break the callback.
-  for (const cookieName of staleAuthCookies) {
-    cookieStore.delete(cookieName);
-  }
-
   const redirectTo = sanitizeRedirectTo(formData?.get("redirectTo"));
+  const cookieStore = await cookies();
   cookieStore.set("nv.redirect-to", redirectTo, {
     httpOnly: false,
     sameSite: "lax",
@@ -64,15 +51,12 @@ export async function signInWithGoogle(formData?: FormData) {
   try {
     await signIn("google", { redirectTo });
   } catch (error) {
-    // Re-throw Next.js redirect exceptions — these are how successful redirects work internally.
-    // Swallowing them causes the redirect to never happen and shows a false error to the user.
     if (isNextRedirect(error)) {
       throw error;
     }
 
     if (error instanceof AuthError) {
-      const code = error.type ?? "google-sign-in-failed";
-      redirect(`/sign-in?mode=login&error=${encodeURIComponent(code)}&redirectTo=${encodeURIComponent(redirectTo)}`);
+      redirect(`/sign-in?mode=login&error=${encodeURIComponent(error.type ?? "google-sign-in-failed")}&redirectTo=${encodeURIComponent(redirectTo)}`);
     }
 
     redirect(`/sign-in?mode=login&error=${encodeURIComponent("google-sign-in-failed")}&redirectTo=${encodeURIComponent(redirectTo)}`);
@@ -94,10 +78,7 @@ export async function signUpWithCredentials(formData: FormData) {
   }
 
   const email = normalizeEmail(parsed.data.email);
-  const existingUser = await prisma.user.findUnique({
-    where: { email },
-    select: { id: true },
-  });
+  const existingUser = await queryOne<{ id: string }>(`SELECT id FROM users WHERE email = ? LIMIT 1`, [email]);
 
   if (existingUser) {
     redirect(
@@ -107,13 +88,25 @@ export async function signUpWithCredentials(formData: FormData) {
 
   const passwordHash = await hash(parsed.data.password, 12);
 
-  await prisma.user.create({
-    data: {
-      name: parsed.data.name.trim(),
-      email,
-      passwordHash,
-    },
-  });
+  await execute(
+    `
+      INSERT INTO users (
+        id,
+        name,
+        email,
+        image,
+        password_hash,
+        role,
+        has_seen_onboarding,
+        watched_visibility,
+        wishlist_visibility,
+        folders_default_visibility,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, NULL, ?, 'USER', 0, 'public', 'friends', 'public', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `,
+    [uuid(), parsed.data.name.trim(), email, passwordHash],
+  );
 
   redirect(`/sign-in?mode=login&success=account-created&redirectTo=${encodeURIComponent(redirectTo)}`);
 }
@@ -131,20 +124,7 @@ export async function signInWithCredentials(formData: FormData) {
 
   const redirectTo = sanitizeRedirectTo(formData.get("redirectTo"));
   const cookieStore = await cookies();
-  const cookieNames = cookieStore.getAll().map((cookie) => cookie.name);
-  const staleAuthCookies = getAuthCookiesToDelete(cookieNames);
-  const credentialFlowCookieReset = [
-    "authjs.session-token",
-    "__Secure-authjs.session-token",
-    "__Host-authjs.session-token",
-    "next-auth.session-token",
-    "__Secure-next-auth.session-token",
-    "__Host-next-auth.session-token",
-  ];
-
-  for (const cookieName of new Set([...staleAuthCookies, ...credentialFlowCookieReset])) {
-    cookieStore.delete(cookieName);
-  }
+  cookieStore.delete("nv.redirect-to");
 
   try {
     await signIn("credentials", {
@@ -153,20 +133,15 @@ export async function signInWithCredentials(formData: FormData) {
       redirectTo,
     });
   } catch (error) {
-    // Re-throw Next.js redirect exceptions — these are how successful redirects work internally.
-    // Swallowing them causes the redirect to never happen and shows a false error to the user.
     if (isNextRedirect(error)) {
       throw error;
     }
 
     if (error instanceof AuthError) {
-      redirect(
-        `/sign-in?mode=login&error=${encodeURIComponent("Incorrect email or password.")}&redirectTo=${encodeURIComponent(redirectTo)}`,
-      );
+      redirect(`/sign-in?mode=login&error=${encodeURIComponent("Incorrect email or password.")}&redirectTo=${encodeURIComponent(redirectTo)}`);
     }
 
-    // Unknown error — do NOT show a generic "sign-in-failed" since that is confusing.
-    // Re-throw so Next.js handles it properly (it may be another redirect or framework error).
     throw error;
   }
 }
+

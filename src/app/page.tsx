@@ -1,226 +1,247 @@
 import Image from "next/image";
 import Link from "next/link";
 import {
-  Film, Tv, Gamepad2, BookOpen, Search, Sparkles,
-  Star, Users, ArrowRight, Bookmark,
+  Film, Tv, Gamepad2, Search, Sparkles,
+  Star, Users, ArrowRight, Compass, Flame,
+  Layers, CheckCircle2, Bookmark,
 } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { SiteHeader } from "@/components/site-header";
+import { BrandLogo } from "@/components/brand-logo";
 import { BrowseResetLink } from "@/components/browse-reset-link";
 import { getBrowseDiscoverySeed, getBrowseBootstrapCatalog } from "@/lib/browse-bootstrap";
 import { browseAniListAnime } from "@/lib/sources/anilist";
-import { fetchBooksPage } from "@/lib/books";
 import { isFamilyFriendlyMediaItem } from "@/lib/media-safety";
 import { MediaItem } from "@/lib/types";
-import { BookSummary } from "@/lib/book-types";
-import { prisma } from "@/lib/prisma";
 import { optimizeMediaImageUrl } from "@/lib/media-image";
 import { ResilientMediaImage } from "@/components/resilient-media-image";
+import { LandingMediaRail } from "@/components/landing-media-rail";
+import { LandingMarqueeStream } from "@/components/landing-marquee-stream";
+import { getPublicCommunityActivity } from "@/lib/vault-server";
 
 export const dynamic = "force-dynamic";
+
+function formatMediaTypeLabel(type: string) {
+  if (type === "anime_movie") return "Anime Movie";
+  if (type === "anime") return "Anime";
+  if (type === "game") return "Game";
+  if (type === "show") return "Show";
+  return "Movie";
+}
 
 export default async function HomePage() {
   const seed = getBrowseDiscoverySeed();
 
-  const [bootstrapResult, booksResult, session, animeExtra] = await Promise.all([
+  const [bootstrapResult, session, animeExtra] = await Promise.all([
     getBrowseBootstrapCatalog(seed).catch(() => ({ catalog: [] as MediaItem[], surfacing: [] as MediaItem[] })),
-    fetchBooksPage({ page: 1, query: "" }).catch(() => ({ items: [] as BookSummary[] })),
     auth().catch(() => null),
     browseAniListAnime({ page: 2, query: "", genre: "", sort: "rating", seed: seed + 77 }).catch(() => ({
       items: [] as MediaItem[], page: 2, totalPages: 1, totalResults: 0,
     })),
   ]);
 
-  const realActivity = await prisma.watchedItem.findMany({
-    take: 6,
-    orderBy: { watchedAt: "desc" },
-    where: { user: { watchedVisibility: "public" } },
-    include: {
-      user: { select: { name: true, image: true } },
-      media: {
-        select: { slug: true, title: true, type: true, coverUrl: true, backdropUrl: true, rating: true, source: true, sourceId: true },
-      },
-    },
-  }).catch(() => []);
-
+  const realActivity = await getPublicCommunityActivity(8).catch(() => []);
   const isSignedIn = Boolean(session?.user?.id);
 
   const catalog = (bootstrapResult.catalog || []).filter(isFamilyFriendlyMediaItem);
 
-  const movies = catalog.filter((i) => i.type === "movie");
-  const shows = catalog.filter((i) => i.type === "show");
-  const games = catalog.filter((i) => i.type === "game");
-  const books = booksResult.items || [];
-
+  const movies = catalog.filter((i) => i.type === "movie").slice(0, 16);
+  const shows = catalog.filter((i) => i.type === "show").slice(0, 16);
+  const games = catalog.filter((i) => i.type === "game").slice(0, 16);
   const animeBase = catalog.filter((i) => i.type === "anime");
   const animeSuppl = (animeExtra.items || [])
     .filter(isFamilyFriendlyMediaItem)
     .filter((i) => !animeBase.some((a) => a.sourceId === i.sourceId));
-  const anime = [...animeBase, ...animeSuppl].slice(0, 24);
+  const anime = [...animeBase, ...animeSuppl].slice(0, 16);
 
-  const featured = catalog.filter((i) => i.backdropUrl && i.overview && i.rating > 0).slice(0, 4);
+  // Prepare moving marquee lanes (mixing types for rich variety)
+  const marqueeLane1 = [...movies.slice(0, 10), ...anime.slice(0, 10)];
+  const marqueeLane2 = [...shows.slice(0, 10), ...games.slice(0, 10)];
 
   return (
     <div className="nv-landing">
       <SiteHeader />
 
-      <main>
-        {/* HERO */}
-        <section className="nv-hero-section">
-          <div className="nv-hero-inner">
-            <h1 className="nv-hero-title">
-              Track everything<br />
-              you watch &amp; play.
-            </h1>
-            <p className="nv-hero-subtitle">
-              One vault for films, shows, anime, and games. Rate, review, and discover your next favorite — all in one place.
-            </p>
+      <main className="nv-landing-main">
+        {/* CENTERPIECE HERO STAGE */}
+        <section className="nv-hero-centerpiece">
+          <div className="nv-hero-ambient-glow" aria-hidden="true" />
 
-            <form action="/browse" method="GET" className="nv-hero-search-form">
+          <div className="nv-hero-centerpiece-content">
+            {/* 1. Center 3D Floating Brand Logo Emblem */}
+            <div className="nv-hero-logo-stage">
+              <div className="nv-hero-3d-ambient" aria-hidden="true" />
+              <div className="nv-hero-3d-emblem">
+                <div className="nv-3d-sheen" />
+                <BrandLogo className="nv-hero-3d-logo-img" priority />
+              </div>
+            </div>
+
+            {/* 2. Site Name & Description / Tagline */}
+            <div className="nv-hero-title-group">
+              <span className="nv-hero-pill-badge">
+                <Sparkles size={13} />
+                <span>Cinema · Shows · Anime · Games</span>
+              </span>
+              <h1 className="nv-hero-main-title">
+                Nerd<span className="nv-accent-gradient">Vault</span>
+              </h1>
+              <p className="nv-hero-tagline">
+                One unified vault for everything you watch &amp; play.
+              </p>
+              <p className="nv-hero-description">
+                The ultimate personal logbook. Rate titles, organize custom backlogs, discover trending media, and follow your friends without algorithmic clutter.
+              </p>
+            </div>
+
+            {/* 3. Primary Action Buttons */}
+            <div className="nv-hero-cta-buttons">
+              <Link
+                href={isSignedIn ? "/home" : "/sign-in"}
+                className="button button-primary nv-hero-cta-primary"
+              >
+                <span>{isSignedIn ? "Open Your Vault" : "Start Your Vault — Free"}</span>
+                <ArrowRight size={17} />
+              </Link>
+              <BrowseResetLink className="button button-secondary nv-hero-cta-secondary">
+                <span>Browse Full Catalog</span>
+                <Compass size={17} />
+              </BrowseResetLink>
+            </div>
+
+            {/* 4. Instant Live Search Bar */}
+            <form action="/browse" method="GET" className="nv-hero-search-wrapper glass">
               <input type="hidden" name="focus" value="results" />
-              <Search size={18} className="nv-search-icon" />
+              <Search size={18} className="nv-hero-search-icon" aria-hidden="true" />
               <input
                 type="search"
                 name="query"
-                className="nv-hero-search-input"
-                placeholder="Search for movies, shows, anime, games..."
+                className="nv-hero-search-field"
+                placeholder="Search across movies, anime, series, and video games..."
                 required
               />
-              <button type="submit" className="nv-hero-search-btn">Search</button>
+              <button type="submit" className="nv-hero-search-submit">
+                Search
+              </button>
             </form>
 
-            <div className="nv-hero-actions">
-              {isSignedIn ? (
-                <>
-                  <Link href="/home" className="nv-btn-primary">Open My Vault</Link>
-                  <BrowseResetLink className="nv-btn-ghost">Browse Catalog</BrowseResetLink>
-                </>
-              ) : (
-                <>
-                  <Link href="/sign-in" className="nv-btn-primary">Create Free Account</Link>
-                  <BrowseResetLink className="nv-btn-ghost">Explore First</BrowseResetLink>
-                </>
-              )}
-            </div>
-          </div>
-
-          {featured.length > 0 && (
-            <div className="nv-hero-posters">
-              {featured.slice(0, 4).map((item, i) => (
-                <Link
-                  key={`hero-${item.id}-${i}`}
-                  href={`/media/${item.slug}?source=${item.source}&sourceId=${item.sourceId}&type=${item.type}`}
-                  className={`nv-hero-poster nv-hero-poster-${i}`}
-                >
-                  <ResilientMediaImage
-                    item={item}
-                    displayIntent="cover"
-                    upgradeIntent="cover"
-                    loading="eager"
-                    decoding="async"
-                    {...(i === 0 ? { fetchPriority: "high" as const } : {})}
-                  />
-                </Link>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* MEDIA TYPES */}
-        <section className="nv-section nv-types-section">
-          <div className="nv-section-inner">
-            <div className="nv-types-grid">
-              <Link href="/browse?focus=results&mediaType=movie" className="nv-type-card">
-                <Film size={22} />
-                <span className="nv-type-name">Movies</span>
+            {/* 5. Fast Category Navigation Pills */}
+            <div className="nv-hero-category-pills">
+              <Link href="/browse?focus=results&mediaType=movie" className="nv-category-chip chip-movie">
+                <Film size={15} />
+                <span>Movies</span>
               </Link>
-              <Link href="/browse?focus=results&mediaType=show" className="nv-type-card">
-                <Tv size={22} />
-                <span className="nv-type-name">TV Shows</span>
+              <Link href="/browse?focus=results&mediaType=show" className="nv-category-chip chip-show">
+                <Tv size={15} />
+                <span>TV Shows</span>
               </Link>
-              <Link href="/browse?focus=results&mediaType=anime" className="nv-type-card">
-                <Sparkles size={22} />
-                <span className="nv-type-name">Anime</span>
+              <Link href="/browse?focus=results&mediaType=anime" className="nv-category-chip chip-anime">
+                <Sparkles size={15} />
+                <span>Anime</span>
               </Link>
-              <Link href="/browse?focus=results&mediaType=game" className="nv-type-card">
-                <Gamepad2 size={22} />
-                <span className="nv-type-name">Games</span>
-              </Link>
-              <Link href="/books" className="nv-type-card">
-                <BookOpen size={22} />
-                <span className="nv-type-name">Books</span>
+              <Link href="/browse?focus=results&mediaType=game" className="nv-category-chip chip-game">
+                <Gamepad2 size={15} />
+                <span>Games</span>
               </Link>
             </div>
           </div>
         </section>
 
-        {/* CATALOG RAILS */}
+        {/* CONTINUOUS MOVING MEDIA STREAMS (MARQUEES) */}
+        <LandingMarqueeStream
+          lane1Items={marqueeLane1}
+          lane2Items={marqueeLane2}
+        />
+
+        {/* CURATED CATEGORY RAILS WITH SMOOTH BUTTON CONTROLS */}
         {movies.length > 0 && (
-          <RailRow label="Trending Movies" icon={<Film size={16} />} items={movies} href="/browse?mediaType=movie" />
-        )}
-        {shows.length > 0 && (
-          <RailRow label="Popular Shows" icon={<Tv size={16} />} items={shows} href="/browse?mediaType=show" />
-        )}
-        {anime.length > 0 && (
-          <RailRow label="Top Anime" icon={<Sparkles size={16} />} items={anime} href="/browse?mediaType=anime" />
-        )}
-        {games.length > 0 && (
-          <RailRow label="Top Games" icon={<Gamepad2 size={16} />} items={games} href="/browse?mediaType=game" />
-        )}
-        {books.length > 0 && (
-          <RailRow
-            label="Classic Books"
-            icon={<BookOpen size={16} />}
-            items={books.map((b) => ({
-              id: `book-${b.id}`,
-              slug: String(b.id),
-              source: "local" as const,
-              sourceId: String(b.id),
-              title: b.title,
-              type: "game" as const,
-              year: 0,
-              rating: 0,
-              language: "en",
-              genres: b.genres,
-              coverUrl: b.coverUrl || "",
-              backdropUrl: b.coverUrl || "",
-              overview: b.summary,
-              credits: [],
-              details: {},
-            })) as MediaItem[]}
-            href="/books"
+          <LandingMediaRail
+            label="Trending Movies"
+            eyebrow="Cinema Spotlight"
+            icon={<Film size={18} />}
+            items={movies}
+            viewAllHref="/browse?mediaType=movie"
+            accentColor="#f59e0b"
           />
         )}
 
-        {/* COMMUNITY */}
+        {shows.length > 0 && (
+          <LandingMediaRail
+            label="Popular TV Shows"
+            eyebrow="Binge-Worthy Series"
+            icon={<Tv size={18} />}
+            items={shows}
+            viewAllHref="/browse?mediaType=show"
+            accentColor="#a855f7"
+          />
+        )}
+
+        {anime.length > 0 && (
+          <LandingMediaRail
+            label="Top Airing Anime"
+            eyebrow="AniList Highlights"
+            icon={<Sparkles size={18} />}
+            items={anime}
+            viewAllHref="/browse?mediaType=anime"
+            accentColor="#ec4899"
+          />
+        )}
+
+        {games.length > 0 && (
+          <LandingMediaRail
+            label="Acclaimed Video Games"
+            eyebrow="Player Favorites"
+            icon={<Gamepad2 size={18} />}
+            items={games}
+            viewAllHref="/browse?mediaType=game"
+            accentColor="#10b981"
+          />
+        )}
+
+        {/* COMMUNITY PULSE */}
         {realActivity.length > 0 && (
           <section className="nv-section nv-community-section">
             <div className="nv-section-inner">
               <div className="nv-section-head">
-                <h2 className="nv-section-title">
-                  <Users size={18} /> Community Activity
-                </h2>
+                <div>
+                  <p className="eyebrow">Community Pulse</p>
+                  <h2 className="nv-section-title">
+                    <Users size={20} /> Recent Member Activity
+                  </h2>
+                </div>
                 <Link href={isSignedIn ? "/activity" : "/sign-in"} className="nv-section-link">
-                  {isSignedIn ? "View all" : "Join in"} <ArrowRight size={13} />
+                  {isSignedIn ? "View full activity" : "Join community"} <ArrowRight size={14} />
                 </Link>
               </div>
+
               <div className="nv-community-grid">
-                {realActivity.slice(0, 6).map((entry, i) => {
-                  const name = entry.user.name || "Member";
-                  const imageUrl = optimizeMediaImageUrl(entry.media.backdropUrl || entry.media.coverUrl || "/fallback-poster.jpg", "cover");
+                {realActivity.slice(0, 8).map((entry, i) => {
+                  const name = entry.user_name || "Member";
+                  const imageUrl = optimizeMediaImageUrl(entry.media_backdrop_url || entry.media_cover_url || "/fallback-poster.jpg", "cover");
                   return (
                     <Link
-                      key={`act-${entry.userId}-${entry.mediaId}-${i}`}
-                      href={`/media/${entry.media.slug}?source=${entry.media.source}&sourceId=${entry.media.sourceId}&type=${entry.media.type}`}
-                      className="nv-community-card"
+                      key={`act-${entry.user_id}-${entry.media_id}-${i}`}
+                      href={`/media/${entry.media_slug}?source=${entry.media_source}&sourceId=${entry.media_source_id}&type=${entry.media_type}`}
+                      className="nv-community-card glass"
                     >
-                      <img src={imageUrl} alt={entry.media.title} loading="lazy" />
-                      <div className="nv-community-body">
-                        <span className="nv-community-user">{name}</span>
-                        <span className="nv-community-action">
-                          {entry.rating ? `rated ★ ${entry.rating.toFixed(1)}` : "logged"}
-                        </span>
-                        <strong className="nv-community-title">{entry.media.title}</strong>
+                      <div className="nv-community-img-wrap">
+                        <img src={imageUrl || "/fallback-poster.jpg"} alt="" loading="lazy" />
+                        <div className="nv-community-img-overlay" />
+                      </div>
+                      <div className="nv-community-card-body">
+                        <div className="nv-community-user-row">
+                          <div className="nv-community-avatar">{name.slice(0, 1).toUpperCase()}</div>
+                          <span className="nv-community-username">{name}</span>
+                        </div>
+                        <p className="nv-community-action-text">
+                          {entry.notes ? "Reviewed" : entry.rating ? "Rated" : "Logged"}{" "}
+                          <strong>{entry.media_title}</strong>
+                        </p>
+                        {entry.rating ? (
+                          <div className="nv-community-rating">
+                            {"★".repeat(entry.rating)}{"☆".repeat(Math.max(0, 5 - entry.rating))}
+                          </div>
+                        ) : null}
                       </div>
                     </Link>
                   );
@@ -230,112 +251,92 @@ export default async function HomePage() {
           </section>
         )}
 
-        {/* FEATURES */}
-        <section className="nv-section nv-features-section">
+        {/* VALUE PILLARS */}
+        <section className="nv-section nv-pillars-section">
           <div className="nv-section-inner">
-            <div className="nv-features-grid">
-              <div className="nv-feature">
-                <div className="nv-feature-icon"><Star size={20} /></div>
-                <h3>Rate &amp; Review</h3>
-                <p>Star ratings and written reviews for everything in your vault.</p>
+            <div className="nv-pillars-grid">
+              <div className="nv-pillar-card glass">
+                <div className="nv-pillar-icon icon-teal"><Layers size={24} /></div>
+                <h3>All 4 Media Worlds in One Place</h3>
+                <p>No more fragmenting your tastes across multiple apps. Manage films, anime, TV shows, and video games inside a single elegant dashboard.</p>
               </div>
-              <div className="nv-feature">
-                <div className="nv-feature-icon"><Bookmark size={20} /></div>
-                <h3>Track &amp; Organize</h3>
-                <p>Mark what you&apos;ve watched, what you&apos;re watching, and what&apos;s next on your list.</p>
+
+              <div className="nv-pillar-card glass">
+                <div className="nv-pillar-icon icon-purple"><Bookmark size={24} /></div>
+                <h3>Chronological Franchise Timelines</h3>
+                <p>Never wonder which movie or OVA comes next. NerdVault automatically constructs sequential franchise viewing orders for major sagas.</p>
               </div>
-              <div className="nv-feature">
-                <div className="nv-feature-icon"><Users size={20} /></div>
-                <h3>Share with Friends</h3>
-                <p>See what your friends are watching and recommend your favorites.</p>
+
+              <div className="nv-pillar-card glass">
+                <div className="nv-pillar-icon icon-amber"><Star size={24} /></div>
+                <h3>Letterboxd-Grade Logging &amp; Reviews</h3>
+                <p>Star ratings, in-depth written reviews, personal rewatch logs, and personalized backlog folders built for real media fans.</p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* CTA */}
-        <section className="nv-section nv-cta-section">
-          <div className="nv-section-inner">
-            <div className="nv-cta-content">
-              <h2 className="nv-cta-title">
-                Start building<br />your vault today.
-              </h2>
-              <p className="nv-cta-sub">
-                {isSignedIn
-                  ? "Pick up where you left off or discover something new."
-                  : "Free to join. Log every movie, show, anime, and game you love."}
-              </p>
-              <div className="nv-cta-actions">
-                {isSignedIn ? (
-                  <>
-                    <Link href="/home" className="nv-btn-primary">Open My Vault</Link>
-                    <BrowseResetLink className="nv-btn-ghost">Browse Catalog</BrowseResetLink>
-                  </>
-                ) : (
-                  <>
-                    <Link href="/sign-in" className="nv-btn-primary">Create Free Account</Link>
-                    <BrowseResetLink className="nv-btn-ghost">Explore First</BrowseResetLink>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* FOOTER */}
+        {/* STRUCTURED LUXURY FOOTER */}
         <footer className="nv-landing-footer">
           <div className="nv-section-inner nv-footer-inner">
-            <div className="nv-footer-brand">
-              <Image src="/brand/logo-mark-clean.svg" alt="NerdVault" width={20} height={20} />
-              <span>NerdVault</span>
+            <div className="nv-footer-main-row">
+              <div className="nv-footer-brand-col">
+                <div className="nv-footer-brand-lockup">
+                  <div className="nv-footer-mini-emblem">
+                    <BrandLogo className="nv-footer-logo" />
+                  </div>
+                  <strong className="nv-footer-brand-name">Nerd<span className="nv-accent-gradient">Vault</span></strong>
+                </div>
+                <p className="nv-footer-brand-tagline">
+                  The unified entertainment logbook for films, TV series, anime, and games.
+                </p>
+              </div>
+
+              <div className="nv-footer-nav-cols">
+                <div className="nv-footer-nav-group">
+                  <h4>Catalog</h4>
+                  <Link href="/browse?mediaType=movie">Movies</Link>
+                  <Link href="/browse?mediaType=show">TV Shows</Link>
+                  <Link href="/browse?mediaType=anime">Anime</Link>
+                  <Link href="/browse?mediaType=game">Video Games</Link>
+                </div>
+
+                <div className="nv-footer-nav-group">
+                  <h4>Features</h4>
+                  <BrowseResetLink>Browse Discovery</BrowseResetLink>
+                  <Link href="/activity">Community Feed</Link>
+                  <Link href={isSignedIn ? "/vault" : "/sign-in"}>Custom Backlogs</Link>
+                  <Link href={isSignedIn ? "/friends" : "/sign-in"}>Friends &amp; Social</Link>
+                </div>
+
+                <div className="nv-footer-nav-group">
+                  <h4>Account</h4>
+                  {isSignedIn ? (
+                    <>
+                      <Link href="/profile">My Profile</Link>
+                      <Link href="/home">Personal Dashboard</Link>
+                      <Link href="/vault">Vault Shelves</Link>
+                    </>
+                  ) : (
+                    <>
+                      <Link href="/sign-in">Sign In</Link>
+                      <Link href="/sign-in?mode=register">Create Account</Link>
+                      <Link href="/support">Help &amp; FAQ</Link>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
-            <nav className="nv-footer-links">
-              <BrowseResetLink>Browse</BrowseResetLink>
-              <Link href="/books">Books</Link>
-              <Link href="/support">Support</Link>
-              {isSignedIn
-                ? <Link href="/home">My Vault</Link>
-                : <Link href="/sign-in">Sign In</Link>}
-            </nav>
-            <p className="nv-footer-copy">© {new Date().getFullYear()} NerdVault</p>
+
+            <div className="nv-footer-bottom-bar">
+              <p className="nv-footer-copy">© {new Date().getFullYear()} NerdVault. All rights reserved.</p>
+              <div className="nv-footer-badge">
+                <span>Handcrafted for true media lovers</span>
+              </div>
+            </div>
           </div>
         </footer>
       </main>
     </div>
-  );
-}
-
-function RailRow({ label, icon, items, href }: { label: string; icon: React.ReactNode; items: MediaItem[]; href: string }) {
-  if (!items.length) return null;
-  return (
-    <section className="nv-section nv-rail-section">
-      <div className="nv-section-inner">
-        <div className="nv-section-head">
-          <h2 className="nv-section-title">{icon} {label}</h2>
-          <Link href={href} className="nv-section-link">View all <ArrowRight size={13} /></Link>
-        </div>
-        <div className="nv-rail">
-          {items.slice(0, 12).map((item, i) => (
-            <Link
-              key={`rail-${item.id}-${i}`}
-              href={`/media/${item.slug}?source=${item.source}&sourceId=${item.sourceId}&type=${item.type}`}
-              className="nv-rail-card"
-            >
-              <div className="nv-rail-poster">
-                {item.rating > 0 && <span className="nv-rail-rating">★ {item.rating.toFixed(1)}</span>}
-                <img
-                  src={optimizeMediaImageUrl(item.coverUrl, "cover") || "/fallback-poster.jpg"}
-                  alt={item.title}
-                  loading={i < 4 ? "eager" : "lazy"}
-                  decoding="async"
-                />
-              </div>
-              <h3 className="nv-rail-title">{item.title}</h3>
-              {item.year > 0 && <span className="nv-rail-year">{item.year}</span>}
-            </Link>
-          ))}
-        </div>
-      </div>
-    </section>
   );
 }

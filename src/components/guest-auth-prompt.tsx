@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { guestSignInHref } from "@/lib/guest";
 
 type GuestAuthPromptProps = {
@@ -40,11 +41,11 @@ export function GuestAuthPrompt({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  if (!mounted || !isOpen) {
+  if (!mounted || !isOpen || typeof document === "undefined") {
     return null;
   }
 
-  return (
+  return createPortal(
     <div className="guest-auth-overlay" onClick={onClose} role="presentation">
       <div
         className="guest-auth-modal glass"
@@ -70,6 +71,7 @@ export function GuestAuthPrompt({
           </Link>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -7,11 +7,10 @@ import {
 } from "@/lib/catalog-utils";
 import { dedupeMediaKey, rankCandidatesForQuery, validateSearchResults } from "@/lib/search-utils";
 import { MediaItem } from "@/lib/types";
-import {
-  isServerlessDeploy,
-  MIXED_GENRE_MAX_API_PAGES,
-  MIXED_GENRE_MAX_DEPTH_ROUNDS,
-} from "@/lib/serverless-limits";
+
+const isServerlessDeploy = false;
+const MIXED_GENRE_MAX_API_PAGES = 12;
+const MIXED_GENRE_MAX_DEPTH_ROUNDS = 3;
 
 const MIXED_CACHE_TTL_MS = 1000 * 60 * 30;
 const SEARCH_FETCH_PAGES = 2;

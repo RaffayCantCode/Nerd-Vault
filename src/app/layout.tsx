@@ -1,12 +1,16 @@
 import type { Metadata, Viewport } from "next";
-import { Poppins } from "next/font/google";
 import { ClientRoot } from "./client-root";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { queryOne } from "@/lib/d1";
 import { OnboardingTour } from "@/components/onboarding-tour";
-import { AuthCookieReset } from "@/components/auth-cookie-reset";
-import "./globals.css";
-import "./landing-rehaul.css";
+import "../styles/tokens.css";
+import "../styles/base.css";
+import "../styles/components.css";
+import "../styles/admin.css";
+import "../styles/detail.css";
+import "../styles/landing.css";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://nerdvault.site"),
@@ -16,7 +20,7 @@ export const metadata: Metadata = {
     template: "%s · NerdVault",
   },
   description:
-    "Your vault for games, film, TV, and anime - track what lands, wishlist what's next, smart folders like playlists, and discovery that feels curated.",
+    "Track, organize, and discover movies, TV shows, anime, and video games in one fast, polished vault.",
   icons: {
     icon: [
       { url: "/brand/logo-mark-clean.svg", type: "image/svg+xml", sizes: "any" },
@@ -38,8 +42,8 @@ export const metadata: Metadata = {
     "NerdVault",
     "nerdvault.site",
     "entertainment archive",
-    "read stories",
-    "project gutenberg",
+    "discover media",
+    "track movies",
   ],
   alternates: {
     canonical: "/",
@@ -47,7 +51,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "NerdVault | Your Universe of Entertainment",
     description:
-      "One vault for everything you watch and play. Folders, detail pages, and browse tuned for taste, not noise.",
+      "One vault for everything you watch and play. Fast tracking, discovery, and social features tuned for taste, not noise.",
     url: "https://nerdvault.site",
     siteName: "NerdVault",
     images: [
@@ -63,7 +67,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "NerdVault | Your Universe of Entertainment",
-    description: "Log what hit. Save what calls next. The ultimate platform for tracking everything you love.",
+    description: "Log what hit. Save what calls next. The platform for tracking everything you love.",
     images: ["/opengraph-image"],
   },
   robots: {
@@ -87,13 +91,6 @@ export const viewport: Viewport = {
   colorScheme: "dark",
 };
 
-const brandFont = Poppins({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--font-sans",
-  display: "swap",
-});
-
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
@@ -105,11 +102,11 @@ export default async function RootLayout({
 
   if (session?.user?.id) {
     try {
-      const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { hasSeenOnboarding: true },
-      });
-      hasSeenOnboarding = user?.hasSeenOnboarding ?? false;
+      const user = await queryOne<{ has_seen_onboarding: number | null }>(
+        `SELECT has_seen_onboarding FROM users WHERE id = ? LIMIT 1`,
+        [session.user.id],
+      );
+      hasSeenOnboarding = Boolean(user?.has_seen_onboarding);
     } catch (e) {
       console.error("User onboarding status could not be checked:", e);
       hasSeenOnboarding = true;
@@ -118,8 +115,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
-      {/* Preconnect to image CDNs to reduce first-image latency.
-          AniList (s4.anilist.co) in particular benefits from early connection establishment. */}
+      {/* Preconnect to image CDNs to reduce first-image latency. */}
       <head>
         <link rel="preconnect" href="https://s4.anilist.co" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://s4.anilist.co" />
@@ -128,12 +124,10 @@ export default async function RootLayout({
         <link rel="preconnect" href="https://images.igdb.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://images.igdb.com" />
       </head>
-      <ClientRoot fontVariable={brandFont.variable}>
-        <AuthCookieReset />
+      <ClientRoot>
         {session?.user && !hasSeenOnboarding && <OnboardingTour hasSeenOnboarding={hasSeenOnboarding} />}
         {children}
       </ClientRoot>
     </html>
   );
 }
-

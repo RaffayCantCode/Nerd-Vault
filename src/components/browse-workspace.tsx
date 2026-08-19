@@ -314,7 +314,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
           }
           
           setShowScrollTop((prev) => {
-            const next = scrollPos > window.innerHeight * 1.5;
+            const next = scrollPos > window.innerHeight * 0.75;
             return prev === next ? prev : next;
           });
           ticking = false;
@@ -329,9 +329,10 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
     
     return () => window.removeEventListener("scroll", handleScroll, { capture: true });
   }, [activePage]);
-  // pageKey increments each time a new page of results loads in — used to trigger the stagger animation
+  // pageKey increments each time a new page of results loads in - used to trigger the stagger animation
   const [pageKey, setPageKey] = useState(0);
   const [heroIndex, setHeroIndex] = useState(0);
+  const [isHeroExpanded, setIsHeroExpanded] = useState(false);
   const [isHeroInView, setIsHeroInView] = useState(true);
   const [isDocumentVisible, setIsDocumentVisible] = useState(true);
   const [isHeroPaused, setIsHeroPaused] = useState(false);
@@ -454,7 +455,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
 
       // If the SSR bootstrap grid is already displayed (page 1, no filters, no
       // search, discovery sort) and the user hasn't changed anything yet, skip
-      // the fetch entirely — this prevents the grid from refreshing 2-3 seconds
+      // the fetch entirely - this prevents the grid from refreshing 2-3 seconds
       // after the page loads.
       if (canHydrateFromBootstrap && !hasInteractedRef.current) {
         setIsLoading(false);
@@ -781,7 +782,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
         }
       },
       {
-        rootMargin: "800px 0px",
+        rootMargin: "1400px 0px",
         threshold: 0,
       }
     );
@@ -799,6 +800,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
     }
 
     setHeroIndex((nextIndex + featuredDeck.length) % featuredDeck.length);
+    setIsHeroExpanded(false);
   }
 
   return (
@@ -815,7 +817,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
       {!isSearchActive && (
         <section
           ref={surfacingRef}
-          className="workspace-hero browse-surfacing-hero"
+          className={`workspace-hero browse-surfacing-hero ${isHeroExpanded ? "is-expanded" : ""}`}
           onMouseEnter={() => setIsHeroPaused(true)}
           onMouseLeave={() => setIsHeroPaused(false)}
         >
@@ -839,7 +841,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
                   <p className="eyebrow" style={{ margin: 0 }}>Now Surfing</p>
                   {featuredDeck.length > 1 ? (
                     <div className="hero-nav-controls">
-                      <button type="button" className="hero-nav-arrow" onClick={() => setHeroIndexWithReset(heroIndex - 1)}>
+                      <button type="button" className="hero-nav-arrow" onClick={() => setHeroIndexWithReset(heroIndex - 1)} aria-label="Previous featured title">
                         {"<"}
                       </button>
                       <div className="surfacing-pills">
@@ -854,7 +856,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
                           </button>
                         ))}
                       </div>
-                      <button type="button" className="hero-nav-arrow" onClick={() => setHeroIndexWithReset(heroIndex + 1)}>
+                      <button type="button" className="hero-nav-arrow" onClick={() => setHeroIndexWithReset(heroIndex + 1)} aria-label="Next featured title">
                         {">"}
                       </button>
                     </div>
@@ -868,8 +870,23 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
                     <span className="hero-stat">{featured.year || "Unknown year"}</span>
                     <span className="hero-stat">★ {featured.rating.toFixed(1)}</span>
                   </div>
-                  <p className="copy workspace-hero-copy">{decodeHtmlEntities(featured.overview)}</p>
-                  <div className="button-row" style={{ marginTop: 20 }}>
+                  {featured.overview ? (
+                    <div className="workspace-hero-copy-wrap">
+                      <p className={`copy workspace-hero-copy ${isHeroExpanded ? "is-expanded" : "is-clamped"}`}>
+                        {decodeHtmlEntities(featured.overview)}
+                      </p>
+                      {decodeHtmlEntities(featured.overview).length > 160 ? (
+                        <button
+                          type="button"
+                          className="browse-hero-readmore-btn"
+                          onClick={() => setIsHeroExpanded(!isHeroExpanded)}
+                        >
+                          {isHeroExpanded ? "Read less" : "Read more"}
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  <div className="button-row" style={{ marginTop: 12 }}>
                     <Link
                       href={{
                         pathname: `/media/${featured.slug}`,
@@ -894,7 +911,7 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
                   className="hero-art-image"
                   displayIntent="cover"
                   upgradeIntent="backdrop"
-                  sizes="(max-width: 640px) 100vw, 440px"
+                  sizes="(max-width: 640px) 100vw, 250px"
                   loading="eager"
                   fetchPriority="high"
                   decoding="async"
@@ -987,14 +1004,17 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
 
 
         <div ref={mediaListRef} className="browse-status-dock-container">
-          <form className="browse-live-search browse-search-dock glass" onSubmit={handleSubmit}>
-            <label className="sort-label" htmlFor="browse-live-search">Search results</label>
-            <div className="browse-live-search-row">
+          <form className="browse-live-search-bar glass" onSubmit={handleSubmit}>
+            <div className="browse-search-input-wrap">
+              <svg className="browse-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
               <input
                 id="browse-live-search"
                 className="browse-search-input"
                 type="search"
-                placeholder="Type to filter titles..."
+                placeholder="Search titles, anime, games, shows..."
                 value={query}
                 onChange={(event) => {
                   const nextQuery = event.target.value;
@@ -1008,15 +1028,27 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
                   hasInteractedRef.current = true;
                 }}
               />
-              <button type="submit" className="button button-primary browse-search-submit">
-                Search
-              </button>
               {query.trim() ? (
-                <button type="button" className="button button-secondary browse-search-clear" onClick={() => { setQuery(""); setActivePage(1); hasInteractedRef.current = true; }}>
-                  Clear
+                <button
+                  type="button"
+                  className="browse-search-clear-btn"
+                  onClick={() => {
+                    setQuery("");
+                    setActivePage(1);
+                    hasInteractedRef.current = true;
+                  }}
+                  aria-label="Clear search"
+                >
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
                 </button>
               ) : null}
             </div>
+            <button type="submit" className="button button-primary browse-search-submit-btn">
+              Search
+            </button>
           </form>
 
           <div className="section-header browse-status" style={{ alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }} ref={resultsRef}>
@@ -1087,21 +1119,25 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
         type="button"
         className={`scroll-to-top-fab ${showScrollTop ? "is-visible" : ""}`}
         onClick={() => {
-          const controls = document.getElementById("browse-controls");
-          if (controls) {
-            controls.scrollIntoView({ behavior: "smooth", block: "start" });
+          const searchBar = document.querySelector(".browse-live-search-bar") || document.getElementById("browse-controls");
+          if (searchBar) {
+            const top = searchBar.getBoundingClientRect().top + window.scrollY - 84;
+            window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
           } else {
             window.scrollTo({ top: 0, behavior: "smooth" });
           }
         }}
-        aria-label="Scroll back to filters"
+        aria-label="Scroll back up to search bar"
       >
-        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <polyline points="18 15 12 9 6 15" />
         </svg>
+        <span>Back to search</span>
       </button>,
       document.body
     ) : null}
   </>
 );
 });
+
+

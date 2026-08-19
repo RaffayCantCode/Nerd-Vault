@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Heart, X } from "lucide-react";
 
 type AuthRequiredModalProps = {
@@ -20,13 +22,19 @@ export function AuthRequiredModal({
   ctaLabel = "Log In / Sign Up",
   onClose,
 }: AuthRequiredModalProps) {
-  if (!isOpen) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted || !isOpen || typeof document === "undefined") {
     return null;
   }
 
   const href = redirectTo ? `/sign-in?redirectTo=${encodeURIComponent(redirectTo)}` : "/sign-in";
 
-  return (
+  return createPortal(
     <div className="sidebar-modal-shell auth-required-overlay" onClick={onClose} role="presentation">
       <div
         className="sidebar-folder-modal glass auth-required-modal"
@@ -57,6 +65,7 @@ export function AuthRequiredModal({
           </Link>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

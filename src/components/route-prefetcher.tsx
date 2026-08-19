@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-const CORE_ROUTES = ["/browse", "/home", "/books"] as const;
+const CORE_ROUTES = ["/browse", "/home"] as const;
 
 export function RoutePrefetcher() {
   const router = useRouter();
