@@ -5,15 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "pages:build": "node scripts/pages-build.mjs",
-    "pages:dev": "wrangler pages dev .vercel/output/static",
-    "pages:deploy": "wrangler pages deploy .vercel/output/static",
-    "deploy": "npm run pages:build && npm run pages:deploy",
-    "d1:create": "wrangler d1 create nerdvault-db",
-    "d1:migrate:local": "wrangler d1 migrations apply nerdvault-db --local",
-    "d1:migrate:remote": "wrangler d1 migrations apply nerdvault-db --remote",
-    "d1:execute:remote": "wrangler d1 execute nerdvault-db --remote --file=./migrations/0001_initial_schema.sql",
-    "cf:typegen": "wrangler types",
+    "start": "next start",
     "lint": "tsc --noEmit",
     "clean": "node -e \"const fs=require('fs');['.next','tsconfig.tsbuildinfo'].forEach((p)=>fs.rmSync(p,{recursive:true,force:true}));\"",
     "clean:deep": "node -e \"const fs=require('fs');['.next','tsconfig.tsbuildinfo','node_modules'].forEach((p)=>fs.rmSync(p,{recursive:true,force:true}));\""
@@ -29,7 +21,6 @@
     "lucide-react": "^0.511.0",
     "next": "16.2.6",
     "next-auth": "^5.0.0-beta.29",
-    "@cloudflare/next-on-pages": "^1.13.13",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "zod": "^3.24.4"

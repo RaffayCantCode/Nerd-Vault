@@ -1,4 +1,3 @@
-import { getRequestContext } from "@cloudflare/next-on-pages";
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
@@ -46,12 +45,8 @@ let localDatabaseBundle: { db: D1DatabaseLike } | null = null;
 let d1HttpClient: D1DatabaseLike | null = null;
 
 function readCloudflareBindings(): CloudflareBindingBag {
-  try {
-    const context = getRequestContext();
-    return (context?.env ?? {}) as CloudflareBindingBag;
-  } catch {
-    return (process.env as unknown as CloudflareBindingBag) ?? {};
-  }
+  const globalEnv = (globalThis as unknown as { env?: CloudflareBindingBag }).env;
+  return globalEnv ?? (process.env as unknown as CloudflareBindingBag) ?? {};
 }
 
 export function getRuntimeEnv() {
