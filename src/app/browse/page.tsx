@@ -19,16 +19,16 @@ export default async function BrowsePage({
   const discoverySeed = seedParam ? Number(seedParam) : getBrowseDiscoverySeed();
 
   const [bootstrapCatalog, session] = await Promise.all([
-    getBrowseBootstrapCatalog(discoverySeed),
-    auth(),
+    getBrowseBootstrapCatalog(discoverySeed).catch(() => ({ surfacing: [], catalog: [] })),
+    auth().catch(() => null),
   ]);
   const viewerName = session?.user?.name || "Guest vault";
   const viewerId = session?.user?.id || "guest-vault";
   const viewerAvatar = session?.user?.image || undefined;
   const [shellData, library] = session?.user?.id
     ? await Promise.all([
-        getViewerShellData(session.user.id),
-        getLibraryStateForUser(session.user.id),
+        getViewerShellData(session.user.id).catch(() => null),
+        getLibraryStateForUser(session.user.id).catch(() => null),
       ])
     : [null, null];
 

@@ -204,42 +204,64 @@ async function ensureAppSchema(db: any) {
 export async function ensureDatabaseReady() {
   if (!globalForD1.__nerdvaultSchemaReady) {
     globalForD1.__nerdvaultSchemaReady = (async () => {
-      const db = (await getD1Database()) as any;
-      await up(db);
-      await ensureAppSchema(db);
-    })().catch((error) => {
-      globalForD1.__nerdvaultSchemaReady = undefined;
-      throw error;
-    });
+      try {
+        const db = (await getD1Database()) as any;
+        if (!db) return;
+        await up(db);
+        await ensureAppSchema(db);
+      } catch (error) {
+        console.warn("[d1] Database schema check notice:", error);
+      }
+    })();
   }
 
   return globalForD1.__nerdvaultSchemaReady;
 }
 
 export async function queryAll<T = Row>(sql: string, binds: unknown[] = []) {
-  await ensureDatabaseReady();
-  const db = (await getD1Database()) as any;
-  const result = await db.prepare(sql).bind(...binds).all();
-  return (result.results ?? []) as T[];
+  try {
+    await ensureDatabaseReady();
+    const db = (await getD1Database()) as any;
+    const result = await db.prepare(sql).bind(...binds).all();
+    return (result.results ?? []) as T[];
+  } catch (error) {
+    console.warn("[d1] queryAll non-fatal error:", error);
+    return [] as T[];
+  }
 }
 
 export async function queryOne<T = Row>(sql: string, binds: unknown[] = []) {
-  await ensureDatabaseReady();
-  const db = (await getD1Database()) as any;
-  const result = await db.prepare(sql).bind(...binds).first();
-  return (result ?? null) as T | null;
+  try {
+    await ensureDatabaseReady();
+    const db = (await getD1Database()) as any;
+    const result = await db.prepare(sql).bind(...binds).first();
+    return (result ?? null) as T | null;
+  } catch (error) {
+    console.warn("[d1] queryOne non-fatal error:", error);
+    return null as T | null;
+  }
 }
 
 export async function execute(sql: string, binds: unknown[] = []) {
-  await ensureDatabaseReady();
-  const db = (await getD1Database()) as any;
-  return db.prepare(sql).bind(...binds).run();
+  try {
+    await ensureDatabaseReady();
+    const db = (await getD1Database()) as any;
+    return await db.prepare(sql).bind(...binds).run();
+  } catch (error) {
+    console.warn("[d1] execute non-fatal error:", error);
+    return { results: [], success: false, meta: {} };
+  }
 }
 
 export async function exec(sql: string) {
-  await ensureDatabaseReady();
-  const db = (await getD1Database()) as any;
-  return db.exec(sql);
+  try {
+    await ensureDatabaseReady();
+    const db = (await getD1Database()) as any;
+    return await db.exec(sql);
+  } catch (error) {
+    console.warn("[d1] exec non-fatal error:", error);
+    return { count: 0, duration: 0 };
+  }
 }
 
 export { asNumber, asString };

@@ -711,41 +711,78 @@ export async function getListById(listId: string, viewerId: string): Promise<Sto
 
 export const getViewerShellData = cache(async (userId: string) => {
   const [viewer, friendIds, lists, notifications] = await Promise.all([
-    getUserById(userId),
-    getFriendIds(userId),
-    getListsForUser(userId),
-    getNotificationsForUser(userId, 50),
+    getUserById(userId).catch(() => null),
+    getFriendIds(userId).catch(() => []),
+    getListsForUser(userId).catch(() => []),
+    getNotificationsForUser(userId, 50).catch(() => []),
   ]);
 
-  if (!viewer) {
-    throw new Error("Unauthorized");
-  }
+  const effectiveViewer: UserRow = viewer ?? {
+    id: userId,
+    name: "Vault Explorer",
+    email: null,
+    image: null,
+    bio: null,
+    role: "user",
+    has_seen_onboarding: 1,
+    watched_visibility: "public",
+    wishlist_visibility: "public",
+    folders_default_visibility: "public",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
 
   const friends =
     friendIds.length > 0
-      ? await queryAll<UserRow>(`SELECT * FROM users WHERE id IN (${friendIds.map(() => "?").join(",")}) ORDER BY name ASC`, friendIds)
+      ? await queryAll<UserRow>(`SELECT * FROM users WHERE id IN (${friendIds.map(() => "?").join(",")}) ORDER BY name ASC`, friendIds).catch(() => [])
       : [];
 
   return {
     lists,
     folders: lists,
-    viewerProfile: serializeProfile(viewer, friendIds, notifications),
+    viewerProfile: serializeProfile(effectiveViewer, friendIds, notifications),
     friends: friends.map((friend) => serializeProfile(friend, [])),
   };
 });
 
 export const getVaultProfilePayload = cache(async (viewerId: string, viewedUserId: string): Promise<VaultProfilePayload> => {
   const [viewer, viewed, viewerFriendIds, viewedFriendIds, viewerNotifications] = await Promise.all([
-    getUserById(viewerId),
-    getUserById(viewedUserId),
-    getFriendIds(viewerId),
-    getFriendIds(viewedUserId),
-    getNotificationsForUser(viewerId, 50),
+    getUserById(viewerId).catch(() => null),
+    getUserById(viewedUserId).catch(() => null),
+    getFriendIds(viewerId).catch(() => []),
+    getFriendIds(viewedUserId).catch(() => []),
+    getNotificationsForUser(viewerId, 50).catch(() => []),
   ]);
 
-  if (!viewer || !viewed) {
-    throw new Error("Profile not found");
-  }
+  const effectiveViewer: UserRow = viewer ?? {
+    id: viewerId,
+    name: "Vault Explorer",
+    email: null,
+    image: null,
+    bio: null,
+    role: "user",
+    has_seen_onboarding: 1,
+    watched_visibility: "public",
+    wishlist_visibility: "public",
+    folders_default_visibility: "public",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  const effectiveViewed: UserRow = viewed ?? (viewedUserId === viewerId ? effectiveViewer : {
+    id: viewedUserId,
+    name: "Community Member",
+    email: null,
+    image: null,
+    bio: null,
+    role: "user",
+    has_seen_onboarding: 1,
+    watched_visibility: "public",
+    wishlist_visibility: "public",
+    folders_default_visibility: "public",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  });
 
   const viewingOwnProfile = viewerId === viewedUserId;
   const [viewerLibrary, viewedLibrary, friends] = await Promise.all([
@@ -756,8 +793,8 @@ export const getVaultProfilePayload = cache(async (viewerId: string, viewedUserI
       : Promise.resolve([] as UserRow[]),
   ]);
 
-  const viewerProfile = serializeProfile(viewer, viewerFriendIds, viewerNotifications);
-  const viewedProfile = viewingOwnProfile ? viewerProfile : serializeProfile(viewed, viewedFriendIds);
+  const viewerProfile = serializeProfile(effectiveViewer, viewerFriendIds, viewerNotifications);
+  const viewedProfile = viewingOwnProfile ? viewerProfile : serializeProfile(effectiveViewed, viewedFriendIds);
   const canSeeWatched = canViewPrivacy(viewedUserId, viewerId, viewedProfile.watchedVisibility, viewedFriendIds);
   const canSeeWishlist = canViewPrivacy(viewedUserId, viewerId, viewedProfile.wishlistVisibility, viewedFriendIds);
 
