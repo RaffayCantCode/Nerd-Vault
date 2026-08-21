@@ -3079,7 +3079,11 @@ async function DeferredFriendsActivity({ viewerId, friends, media }: { viewerId:
 }
 
 async function DeferredCommunityReviews({ media }: { media: MediaItem }) {
-  const summary = await getCommunityRatingSummary(media.source, media.sourceId, 3);
+  const summary = await getCommunityRatingSummary(media.source, media.sourceId, 3).catch(() => ({
+    average: null,
+    count: 0,
+    reviews: [],
+  }));
   return (
     <CommunityReviews
       mediaTitle={media.title}
@@ -3095,7 +3099,7 @@ async function DeferredCommunityReviews({ media }: { media: MediaItem }) {
 async function DeferredRelatedRail({ media, animeFranchise }: { media: MediaItem, animeFranchise: any }) {
   const [related, franchiseSection] = await Promise.all([
     getRelatedMediaRail(media).catch(() => [] as MediaItem[]),
-    getCachedFranchiseSection(media, animeFranchise)
+    getCachedFranchiseSection(media, animeFranchise).catch(() => null)
   ]);
   
   // Extract both IDs and Source IDs from franchise section to ensure perfect filtering
@@ -3134,7 +3138,7 @@ export default async function MediaDetailPage({
   params: Promise<{ slug: string }>;
   searchParams: Promise<{ source?: string; sourceId?: string; type?: string }>;
 }) {
-  const session = await auth();
+  const session = await auth().catch(() => null);
   const viewerName = session?.user?.name || "Guest vault";
   const viewerId = session?.user?.id || "guest-vault";
   const viewerAvatar = session?.user?.image || undefined;
