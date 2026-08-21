@@ -141,28 +141,63 @@ function createD1HttpClient(accountId: string, databaseId: string, apiToken: str
 }
 
 function createMemoryFallbackDatabase(): D1DatabaseLike {
-  return {
-    async exec() {
-      return { count: 0, duration: 0 };
-    },
-    prepare() {
-      const wrap = () => ({
-        bind() {
-          return wrap();
-        },
-        async all<T = Record<string, unknown>>() {
-          return { results: [] as T[] };
-        },
-        async first<T = Record<string, unknown>>() {
-          return null as T | null;
-        },
-        async run() {
-          return { results: [], success: true, meta: {} };
-        },
-      });
-      return wrap();
-    },
-  };
+  try {
+    const { DatabaseSync } = require("node:sqlite");
+    const database = new DatabaseSync(":memory:");
+    return {
+      async exec(sql: string) {
+        database.exec(sql);
+        return { count: 1, duration: 0 };
+      },
+      prepare(sql: string) {
+        const statement = database.prepare(sql);
+        let boundParams: unknown[] = [];
+
+        const wrap = () => ({
+          bind(...binds: unknown[]) {
+            boundParams = binds;
+            return wrap();
+          },
+          async all<T = Record<string, unknown>>() {
+            return { results: statement.all(...(boundParams as never[])) as T[] };
+          },
+          async first<T = Record<string, unknown>>() {
+            const res = statement.get(...(boundParams as never[]));
+            return (res ?? null) as T | null;
+          },
+          async run() {
+            const res = statement.run(...(boundParams as never[]));
+            return { results: [], success: true, meta: res as unknown as Record<string, unknown> };
+          },
+        });
+
+        return wrap();
+      },
+    };
+  } catch {
+    return {
+      async exec() {
+        return { count: 0, duration: 0 };
+      },
+      prepare() {
+        const wrap = () => ({
+          bind() {
+            return wrap();
+          },
+          async all<T = Record<string, unknown>>() {
+            return { results: [] as T[] };
+          },
+          async first<T = Record<string, unknown>>() {
+            return null as T | null;
+          },
+          async run() {
+            return { results: [], success: true, meta: {} };
+          },
+        });
+        return wrap();
+      },
+    };
+  }
 }
 
 async function getLocalSqliteDatabase(): Promise<D1DatabaseLike> {

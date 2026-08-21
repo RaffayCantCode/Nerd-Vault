@@ -8,11 +8,12 @@ export function GoogleSignInForm({ redirectTo, disabled }: { redirectTo: string;
   }
 
   return (
-    <form action={handleSubmit} style={{ marginTop: 18 }}>
+    <form action={handleSubmit} className="auth-google-form" style={{ width: "100%", display: "flex", justifyContent: "center", marginTop: 16 }}>
       <input type="hidden" name="redirectTo" value={redirectTo} />
       <button
         type="submit"
         className="button button-secondary auth-google-button"
+        style={{ width: "100%", justifyContent: "center", textAlign: "center" }}
         disabled={disabled}
       >
         Continue with Google

@@ -64,6 +64,55 @@ async function ensureUserColumns(db: any) {
 
 async function ensureAppSchema(db: any) {
   await db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      name TEXT,
+      email TEXT UNIQUE,
+      emailVerified TEXT,
+      image TEXT,
+      bio TEXT,
+      password_hash TEXT,
+      role TEXT DEFAULT 'USER',
+      has_seen_onboarding INTEGER DEFAULT 0,
+      watched_visibility TEXT DEFAULT 'public',
+      wishlist_visibility TEXT DEFAULT 'friends',
+      folders_default_visibility TEXT DEFAULT 'public',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS accounts (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      type TEXT NOT NULL,
+      provider TEXT NOT NULL,
+      providerAccountId TEXT NOT NULL,
+      refresh_token TEXT,
+      access_token TEXT,
+      expires_at INTEGER,
+      token_type TEXT,
+      scope TEXT,
+      id_token TEXT,
+      session_state TEXT,
+      UNIQUE(provider, providerAccountId),
+      FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT PRIMARY KEY,
+      sessionToken TEXT UNIQUE NOT NULL,
+      userId TEXT NOT NULL,
+      expires TEXT NOT NULL,
+      FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS verification_tokens (
+      identifier TEXT NOT NULL,
+      token TEXT NOT NULL,
+      expires TEXT NOT NULL,
+      PRIMARY KEY (identifier, token)
+    );
+
     CREATE TABLE IF NOT EXISTS site_settings (
       id TEXT PRIMARY KEY,
       hero_title TEXT,

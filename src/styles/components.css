@@ -2161,6 +2161,36 @@
   color: var(--accent);
 }
 
+.auth-google-form {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin: 0.35rem 0;
+}
+
+.auth-google-button {
+  width: 100%;
+  min-height: 46px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--line);
+  color: #fff;
+  transition: all 200ms ease;
+  cursor: pointer;
+}
+
+.auth-google-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
 .auth-alt-actions {
   display: flex;
   align-items: center;

@@ -115,7 +115,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
                 <input type="hidden" name="redirectTo" value={redirectTo} />
                 <div className="auth-field">
                   <label htmlFor="name">Display name</label>
-                  <input id="name" name="name" type="text" placeholder="Raffay" required minLength={2} />
+                  <input id="name" name="name" type="text" placeholder="e.g. Alex Rivera" required minLength={2} />
                 </div>
                 <div className="auth-field">
                   <label htmlFor="signup-email">Email</label>
