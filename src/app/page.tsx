@@ -32,27 +32,19 @@ function formatMediaTypeLabel(type: string) {
 export default async function HomePage() {
   const seed = getBrowseDiscoverySeed();
 
-  const [bootstrapResult, session, animeExtra] = await Promise.all([
+  const [bootstrapResult, session, realActivity] = await Promise.all([
     getBrowseBootstrapCatalog(seed).catch(() => ({ catalog: [] as MediaItem[], surfacing: [] as MediaItem[] })),
     auth().catch(() => null),
-    browseAniListAnime({ page: 2, query: "", genre: "", sort: "rating", seed: seed + 77 }).catch(() => ({
-      items: [] as MediaItem[], page: 2, totalPages: 1, totalResults: 0,
-    })),
+    getPublicCommunityActivity(8).catch(() => []),
   ]);
 
-  const realActivity = await getPublicCommunityActivity(8).catch(() => []);
   const isSignedIn = Boolean(session?.user?.id);
-
   const catalog = (bootstrapResult.catalog || []).filter(isFamilyFriendlyMediaItem);
 
   const movies = catalog.filter((i) => i.type === "movie").slice(0, 16);
   const shows = catalog.filter((i) => i.type === "show").slice(0, 16);
   const games = catalog.filter((i) => i.type === "game").slice(0, 16);
-  const animeBase = catalog.filter((i) => i.type === "anime");
-  const animeSuppl = (animeExtra.items || [])
-    .filter(isFamilyFriendlyMediaItem)
-    .filter((i) => !animeBase.some((a) => a.sourceId === i.sourceId));
-  const anime = [...animeBase, ...animeSuppl].slice(0, 16);
+  const anime = catalog.filter((i) => i.type === "anime" || i.type === "anime_movie").slice(0, 16);
 
   // Prepare moving marquee lanes (mixing types for rich variety)
   const marqueeLane1 = [...movies.slice(0, 10), ...anime.slice(0, 10)];

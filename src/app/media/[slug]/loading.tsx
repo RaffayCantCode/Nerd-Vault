@@ -13,7 +13,7 @@ export default function MediaLoading() {
           </div>
         </div>
         <main className="workspace media-loading-workspace">
-          <RouteLoader label="Loading details..." className="media-loading-route-loader" />
+          <RouteLoader label="Loading page..." type="media" className="media-loading-route-loader" />
         </main>
       </div>
     </div>

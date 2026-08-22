@@ -13,7 +13,7 @@ export default function BrowseLoading() {
           </div>
         </div>
         <main className="workspace">
-          <RouteLoader label="Loading browse..." />
+          <RouteLoader label="Loading page..." type="browse" />
         </main>
       </div>
     </div>

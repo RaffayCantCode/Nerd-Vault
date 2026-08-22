@@ -660,65 +660,77 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 1rem;
+  padding-bottom: 0.25rem;
 }
 
 .nv-section-title {
   display: inline-flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.65rem;
   margin: 0.25rem 0 0;
   font-size: 1.45rem;
   font-weight: 800;
   color: #fff;
+  letter-spacing: -0.02em;
 }
 
 .nv-rail-head-actions {
   display: flex;
   align-items: center;
-  gap: 1.1rem;
+  gap: 0.85rem;
 }
 
 .nv-rail-scroll-btns {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.4rem;
 }
 
 .nv-rail-arrow-btn {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 999px;
-  border: 1px solid var(--line);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.04);
   color: var(--text);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 160ms ease;
+  transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(10px);
 }
 
 .nv-rail-arrow-btn:hover {
-  background: rgba(105, 197, 172, 0.15);
-  border-color: rgba(105, 197, 172, 0.35);
+  background: rgba(105, 197, 172, 0.18);
+  border-color: rgba(105, 197, 172, 0.45);
   color: var(--accent);
-  transform: scale(1.06);
+  transform: scale(1.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .nv-section-link {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  color: var(--muted-strong);
-  font-size: 0.88rem;
-  font-weight: 700;
-  transition: color 160ms ease, transform 160ms ease;
+  gap: 0.45rem;
+  color: var(--text);
+  font-size: 0.84rem;
+  font-weight: 750;
+  padding: 0.38rem 0.95rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(12px);
+  transition: all 220ms cubic-bezier(0.16, 1, 0.3, 1);
   text-decoration: none;
 }
 
 .nv-section-link:hover {
-  color: var(--accent);
-  transform: translateX(2px);
+  color: #fff;
+  background: rgba(105, 197, 172, 0.16);
+  border-color: rgba(105, 197, 172, 0.45);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
 }
 
 .nv-rail-track-container {
@@ -1237,11 +1249,27 @@
   background: linear-gradient(135deg, rgba(32, 50, 72, 0.95), rgba(12, 18, 30, 0.98));
   border: 1.5px solid rgba(105, 197, 172, 0.4);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  flex: none;
 }
 
-.nv-footer-mini-emblem .brand-logo-unified-image {
-  width: 24px;
-  height: 24px;
+.nv-footer-mini-emblem .brand-mark-logo-unified,
+.nv-footer-mini-emblem .brand-mark,
+.nv-footer-mini-emblem .brand-mark-logo {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  overflow: visible;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nv-footer-mini-emblem .brand-logo-unified-image,
+.nv-footer-mini-emblem .brand-logo-image {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
 }
 
 .nv-footer-brand-name {

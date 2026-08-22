@@ -76,7 +76,7 @@ export function LandingMediaRail({
               </button>
             </div>
             <Link href={viewAllHref} className="nv-section-link">
-              View all ({items.length}) <ArrowRight size={14} />
+              View more <ArrowRight size={14} />
             </Link>
           </div>
         </div>

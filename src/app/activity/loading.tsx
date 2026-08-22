@@ -13,7 +13,7 @@ export default function ActivityLoading() {
           </div>
         </div>
         <main className="workspace">
-          <RouteLoader label="Loading activity..." />
+          <RouteLoader label="Loading page..." />
         </main>
       </div>
     </div>

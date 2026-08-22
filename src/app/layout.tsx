@@ -9,6 +9,7 @@ import "../styles/components.css";
 import "../styles/admin.css";
 import "../styles/detail.css";
 import "../styles/landing.css";
+import "../styles/support.css";
 
 export const dynamic = "force-dynamic";
 

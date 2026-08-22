@@ -13,7 +13,7 @@ export default function HomeLoading() {
           </div>
         </div>
         <main className="workspace home-workspace">
-          <RouteLoader label="Opening Home..." />
+          <RouteLoader label="Loading page..." type="vault" />
         </main>
       </div>
     </div>

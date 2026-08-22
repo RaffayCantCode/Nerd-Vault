@@ -13,7 +13,7 @@ export default function SupportLoading() {
           </div>
         </div>
         <main className="workspace">
-          <RouteLoader label="Opening support..." />
+          <RouteLoader label="Loading page..." />
         </main>
       </div>
     </div>

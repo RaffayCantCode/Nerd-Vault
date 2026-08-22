@@ -1179,24 +1179,6 @@
   color: var(--text);
 }
 
-.support-page-shell,
-.support-workspace {
-  min-height: 100svh;
-}
-
-.support-page {
-  padding: 1.5rem 0 4rem;
-}
-
-.support-shell {
-  display: grid;
-  gap: 1rem;
-}
-
-.support-hero,
-.support-card,
-.support-highlight-card,
-.support-guidelines,
 .landing-auth-card,
 .nv-feature,
 .nv-cta-content,
@@ -1246,15 +1228,12 @@
   color: var(--danger);
 }
 
-.support-main-grid,
-.support-highlights,
 .nv-features-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 1rem;
 }
 
-.support-action-row,
 .nv-hero-actions,
 .nv-cta-actions {
   display: flex;
@@ -1262,13 +1241,6 @@
   gap: 0.75rem;
 }
 
-.support-badge-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.55rem;
-}
-
-.support-badge,
 .pill,
 .tag,
 .chip {
@@ -1281,22 +1253,6 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: var(--text-soft);
   font-size: 0.82rem;
-}
-
-.support-list {
-  margin: 0;
-  padding-left: 1.1rem;
-  display: grid;
-  gap: 0.55rem;
-}
-
-.support-template pre {
-  margin: 0;
-  padding: 0.9rem;
-  border-radius: 16px;
-  background: rgba(0, 0, 0, 0.2);
-  color: var(--text-soft);
-  overflow-x: auto;
 }
 
 .vault-unified-shell {
@@ -2261,5 +2217,274 @@
   justify-content: center;
   gap: 0.85rem;
   flex-wrap: wrap;
+}
+
+/* =========================================================
+   FULL-PAGE SKELETON SCREEN & CENTERED LOGO HERO
+   ========================================================= */
+.nv-skeleton-page-container {
+  position: relative;
+  width: 100%;
+  min-height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.nv-skeleton-center-hero {
+  position: fixed;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.nv-skeleton-emblem-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nv-skeleton-glow-ambient {
+  position: absolute;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(105, 197, 172, 0.45) 0%, rgba(30, 189, 194, 0.15) 50%, transparent 70%);
+  filter: blur(28px);
+  animation: skeletonAmbientPulse 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes skeletonAmbientPulse {
+  0% { transform: scale(0.85); opacity: 0.5; }
+  100% { transform: scale(1.3); opacity: 0.95; }
+}
+
+.nv-skeleton-emblem {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  border-radius: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #182838 0%, #0c1520 60%, #060b10 100%);
+  border: 1.5px solid rgba(105, 197, 172, 0.65);
+  box-shadow:
+    0 8px 25px rgba(0, 0, 0, 0.7),
+    0 0 35px rgba(105, 197, 172, 0.35),
+    inset 0 1px 2px rgba(255, 255, 255, 0.4);
+  animation: skeletonEmblemFloat 3s ease-in-out infinite alternate;
+}
+
+@keyframes skeletonEmblemFloat {
+  0% { transform: translateY(0) scale(0.98); }
+  100% { transform: translateY(-6px) scale(1.03); }
+}
+
+.nv-skeleton-logo-img {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nv-skeleton-logo-img .brand-logo-unified-image {
+  width: 42px;
+  height: 42px;
+  filter: drop-shadow(0 2px 10px rgba(105, 197, 172, 0.6));
+}
+
+.nv-skeleton-label {
+  font-size: 0.92rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.92);
+  margin: 0;
+  text-shadow: 0 0 14px rgba(105, 197, 172, 0.5);
+  animation: skeletonTextPulse 1.8s ease-in-out infinite alternate;
+}
+
+@keyframes skeletonTextPulse {
+  0% { opacity: 0.65; }
+  100% { opacity: 1; }
+}
+
+/* Shimmer Wireframes */
+.nv-skeleton-layout-wireframe {
+  width: 100%;
+  opacity: 0.38;
+  pointer-events: none;
+  filter: grayscale(0.2);
+}
+
+.nv-shimmer-box {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.nv-shimmer-box::after,
+.nv-shimmer-sub::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.06) 40%,
+    rgba(105, 197, 172, 0.12) 50%,
+    rgba(255, 255, 255, 0.06) 60%,
+    transparent 100%
+  );
+  animation: skeletonWave 1.8s ease-in-out infinite;
+}
+
+@keyframes skeletonWave {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.nv-skeleton-grid-view {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding-top: 1rem;
+}
+
+.nv-skeleton-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.nv-skeleton-pill {
+  border-radius: 999px;
+}
+
+.nv-skeleton-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1.25rem;
+}
+
+.nv-skeleton-card {
+  aspect-ratio: 2 / 3;
+  border-radius: 18px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0.85rem;
+}
+
+.nv-skeleton-card-topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.nv-skeleton-badge {
+  position: relative;
+  width: 48px;
+  height: 20px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.nv-skeleton-card-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.nv-skeleton-card-line {
+  position: relative;
+  width: 75%;
+  height: 14px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.nv-skeleton-card-line-sm {
+  position: relative;
+  width: 45%;
+  height: 10px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+/* Media Detail Skeleton Wireframe */
+.nv-skeleton-media-view {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.nv-skeleton-banner {
+  width: 100%;
+  height: 380px;
+  border-radius: 28px;
+}
+
+.nv-skeleton-media-content {
+  display: flex;
+  gap: 2rem;
+  margin-top: -100px;
+  padding: 0 1.5rem;
+}
+
+.nv-skeleton-poster {
+  width: 220px;
+  aspect-ratio: 2 / 3;
+  border-radius: 20px;
+  flex: none;
+}
+
+.nv-skeleton-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  flex: 1;
+  padding-top: 100px;
+}
+
+.nv-skeleton-title {
+  width: 50%;
+  height: 32px;
+  border-radius: 8px;
+}
+
+.nv-skeleton-pill-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.nv-skeleton-desc {
+  width: 90%;
+  height: 16px;
+  border-radius: 6px;
+}
+
+.nv-skeleton-desc-short {
+  width: 65%;
+  height: 16px;
+  border-radius: 6px;
 }
 

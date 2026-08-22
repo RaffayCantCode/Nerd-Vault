@@ -29,16 +29,12 @@ export function BrowseResetLink({
   ariaLabel?: string;
   title?: string;
 }) {
-  const router = useRouter();
-
-  const resetBrowseState = useCallback((event: MouseEvent<HTMLAnchorElement>) => {
+  const resetBrowseState = useCallback(() => {
     if (typeof window === "undefined") {
       return;
     }
 
     try {
-      event.preventDefault();
-
       // Clear the client-side browse page cache so stale pages don't bleed in.
       clearBrowseClientCache();
 
@@ -47,17 +43,10 @@ export function BrowseResetLink({
       window.sessionStorage.removeItem(BROWSE_SCROLL_KEY);
       window.sessionStorage.removeItem(BROWSE_SEED_KEY);
       window.sessionStorage.removeItem(BROWSE_RETURN_CONTEXT_KEY);
-
-      // Generate a fresh seed and navigate — this forces a new server render
-      // with completely different discovery content (new Now Surfacing + new grid).
-      const freshSeed = generateFreshSeed();
-      const freshUrl = `/browse?seed=${freshSeed}`;
-      window.sessionStorage.setItem(BROWSE_LAST_URL_KEY, freshUrl);
-      router.push(freshUrl, { scroll: true });
     } catch {
-      // If anything fails, let the default Link href handle navigation.
+      // ignore
     }
-  }, [router]);
+  }, []);
 
   return (
     <Link

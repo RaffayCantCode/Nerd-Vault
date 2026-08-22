@@ -8,15 +8,14 @@ import { auth } from "@/lib/auth";
 import { buildHomeFeed } from "@/lib/home-feed";
 import { ensureCurrentUserRecord, getLibraryStateForUser, getVaultProfilePayload, getViewerShellData } from "@/lib/vault-server";
 
-// Allow Cloudflare to cache the guest shell; signed-in sections still refresh per request via auth().
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 export default async function HomeHubPage({
   searchParams,
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const session = await auth();
+  const session = await auth().catch(() => null);
   const viewerName = session?.user?.name || "Guest vault";
   const viewerId = session?.user?.id || "guest-vault";
   const viewerAvatar = session?.user?.image || undefined;
