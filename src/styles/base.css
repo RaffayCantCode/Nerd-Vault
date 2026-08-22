@@ -72,6 +72,8 @@ select {
   width: 100%;
   max-width: 100%;
   min-width: 0;
+  padding-right: clamp(1rem, 2vw, 1.75rem);
+  box-sizing: border-box;
 }
 
 .workspace {
@@ -79,6 +81,7 @@ select {
   max-width: 100%;
   width: 100%;
   padding: 0;
+  box-sizing: border-box;
 }
 
 .container,

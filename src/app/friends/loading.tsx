@@ -13,7 +13,7 @@ export default function FriendsLoading() {
           </div>
         </div>
         <main className="workspace">
-          <RouteLoader label="Loading page..." />
+          <RouteLoader label="Loading page..." type="friends" />
         </main>
       </div>
     </div>

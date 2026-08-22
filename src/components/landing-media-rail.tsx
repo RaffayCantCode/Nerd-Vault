@@ -44,15 +44,18 @@ export function LandingMediaRail({
   if (!items.length) return null;
 
   return (
-    <section className="nv-section nv-rail-section">
-      <div className="nv-section-inner">
+    <section className="nv-section nv-rail-section" style={{ "--rail-accent": accentColor || "#69BEAA" } as React.CSSProperties}>
+      <div className="nv-section-inner nv-rail-showcase-box">
+        <div className="nv-rail-ambient-glow" aria-hidden="true" />
+
         <div className="nv-section-head">
-          <div>
-            <p className="eyebrow" style={accentColor ? { color: accentColor } : undefined}>
-              {eyebrow}
-            </p>
+          <div className="nv-rail-head-info">
+            <div className="nv-rail-eyebrow-pill">
+              <span className="nv-rail-eyebrow-dot" />
+              <span>{eyebrow}</span>
+            </div>
             <h2 className="nv-section-title">
-              {icon} {label}
+              {icon} <span>{label}</span>
             </h2>
           </div>
 
@@ -76,7 +79,8 @@ export function LandingMediaRail({
               </button>
             </div>
             <Link href={viewAllHref} className="nv-section-link">
-              View more <ArrowRight size={14} />
+              <span>View more</span>
+              <ArrowRight size={14} />
             </Link>
           </div>
         </div>
@@ -88,6 +92,7 @@ export function LandingMediaRail({
                 key={`rail-${item.id}-${i}`}
                 href={`/media/${item.slug}?source=${item.source}&sourceId=${item.sourceId}&type=${item.type}`}
                 className="nv-rail-card"
+                style={{ "--card-accent": accentColor || "#69BEAA" } as React.CSSProperties}
               >
                 <div className="nv-rail-poster-wrap">
                   <ResilientMediaImage
@@ -98,7 +103,7 @@ export function LandingMediaRail({
                     decoding="async"
                   />
                   
-                  {/* Top Minimalist Badges */}
+                  {/* Top Floating Glass Badges */}
                   <div className="nv-rail-topbar">
                     <span className="nv-rail-type-pill">
                       {formatMediaTypeLabel(item.type)}

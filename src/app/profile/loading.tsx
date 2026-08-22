@@ -13,7 +13,7 @@ export default function ProfileLoading() {
           </div>
         </div>
         <main className="workspace">
-          <RouteLoader label="Loading page..." />
+          <RouteLoader label="Loading page..." type="profile" />
         </main>
       </div>
     </div>
