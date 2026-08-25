@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
 import { RelatedMediaSection } from "@/components/related-media-section";
 import { FranchiseRelatedSection } from "@/components/franchise-related-section";
 import { DetailBackButton } from "@/components/detail-back-button";
@@ -57,89 +56,7 @@ export function ExpandableRelatedSection({
   mediaTitle,
   showFranchiseSection = true,
 }: ExpandableRelatedSectionProps) {
-  const [cardsPerRow, setCardsPerRow] = useState(6);
-  const [visibleRows, setVisibleRows] = useState(2);
-  const [highlightedFromIndex, setHighlightedFromIndex] = useState<number | null>(null);
-  const initialRows = 2;
-  const additionalRowsPerExpand = 2;
-  const relatedContainerRef = useRef<HTMLDivElement | null>(null);
-  const previousVisibleCountRef = useRef(0);
-  const userExpandedRef = useRef(false);
-
-  useEffect(() => {
-    function syncCardsPerRow() {
-      if (typeof window === "undefined") return;
-      const width = window.innerWidth;
-      if (width < 550) {
-        setCardsPerRow(2);
-      } else if (width < 820) {
-        setCardsPerRow(3);
-      } else if (width < 1100) {
-        setCardsPerRow(4);
-      } else if (width < 1400) {
-        setCardsPerRow(5);
-      } else {
-        setCardsPerRow(6);
-      }
-    }
-
-    syncCardsPerRow();
-    window.addEventListener("resize", syncCardsPerRow);
-    return () => window.removeEventListener("resize", syncCardsPerRow);
-  }, []);
-
-  useEffect(() => {
-    setVisibleRows(initialRows);
-    setHighlightedFromIndex(null);
-    userExpandedRef.current = false;
-    previousVisibleCountRef.current = cardsPerRow * initialRows;
-  }, [cardsPerRow, related.length]);
-
-  const visibleCount = useMemo(() => cardsPerRow * visibleRows, [cardsPerRow, visibleRows]);
-  const hasMore = related.length > visibleCount;
-  const canCollapse = visibleRows > initialRows;
-
-  useEffect(() => {
-    if (!userExpandedRef.current || visibleRows <= initialRows) {
-      previousVisibleCountRef.current = visibleCount;
-      return;
-    }
-
-    const previousVisibleCount = previousVisibleCountRef.current;
-    if (visibleCount <= previousVisibleCount || !relatedContainerRef.current) {
-      previousVisibleCountRef.current = visibleCount;
-      return;
-    }
-
-    setHighlightedFromIndex(previousVisibleCount);
-
-    const target = relatedContainerRef.current.querySelector<HTMLElement>(
-      `[data-related-index="${previousVisibleCount}"]`,
-    );
-    if (target) {
-      window.setTimeout(() => {
-        target.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
-      }, 90);
-    }
-
-    const timeout = window.setTimeout(() => setHighlightedFromIndex(null), 1200);
-    previousVisibleCountRef.current = visibleCount;
-    return () => window.clearTimeout(timeout);
-  }, [initialRows, visibleCount, visibleRows]);
-
-  function handleExpand() {
-    userExpandedRef.current = true;
-    setVisibleRows((current) => current + additionalRowsPerExpand);
-  }
-
-  function handleCollapse() {
-    userExpandedRef.current = false;
-    setVisibleRows(initialRows);
-    setHighlightedFromIndex(null);
-    window.setTimeout(() => {
-      relatedContainerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 40);
-  }
+  const maxItems = 12;
 
   return (
     <section className="section-stack expandable-related-section" style={{ paddingTop: 0 }}>
@@ -163,33 +80,12 @@ export function ExpandableRelatedSection({
         </div>
       </div>
 
-      <div className="related-media-headline">
-        <p className="copy">
-          Showing {Math.min(visibleCount, related.length)} of {related.length} recommendations.
-        </p>
-      </div>
-
-      <div ref={relatedContainerRef} className="related-media-container">
-        <RelatedMediaSection items={related} visibleCount={visibleCount} highlightedFromIndex={highlightedFromIndex} />
+      <div className="related-media-container">
+        <RelatedMediaSection items={related} visibleCount={maxItems} />
       </div>
 
       <div className="related-actions-row modern-cta-row">
-        <div className="modern-cta-group">
-          <DetailBackButton className="modern-btn-secondary" />
-
-          {canCollapse && (
-            <button type="button" onClick={handleCollapse} className="modern-btn-secondary">
-              Show Less
-            </button>
-          )}
-
-          {hasMore && (
-            <button type="button" onClick={handleExpand} className="modern-btn-primary">
-              <span className="modern-btn-label">View More</span>
-              <span className="modern-btn-badge">+{Math.min(cardsPerRow * additionalRowsPerExpand, related.length - visibleCount)}</span>
-            </button>
-          )}
-        </div>
+        <DetailBackButton className="modern-btn-secondary" />
       </div>
     </section>
   );

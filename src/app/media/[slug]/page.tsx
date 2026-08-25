@@ -3318,7 +3318,7 @@ export default async function MediaDetailPage({
   const primaryExternalLink = externalLinks[0];
   const secondaryExternalLinks = externalLinks.slice(1);
   const primaryExternalAction = media.type === "game" ? "Buy" : "Watch";
-  const spotlightCredits = dedupeSpotlightCredits(media.credits).slice(0, 6);
+  const spotlightCredits = dedupeSpotlightCredits(media.credits).slice(0, 12);
   const gallery = uniqueGalleryImages(media).filter(img => {
     const lowerImg = img.toLowerCase();
     
@@ -3389,8 +3389,8 @@ export default async function MediaDetailPage({
             initialProfile={shellData?.viewerProfile ?? null}
             initialFriends={shellData?.friends ?? []}
           />
-          <section id="detail-overview" className="detail-hero glass nv-detail-hero">
-            <div className="hero-media nv-detail-backdrop">
+          <section id="detail-overview" className="detail-hero nv-detail-hero">
+            <div className="nv-detail-backdrop">
               <SafeImg
                 src={optimizeMediaImageUrl(media.backdropUrl || media.coverUrl, "backdrop") ?? (media.backdropUrl || media.coverUrl)}
                 alt={`${media.title} backdrop`}
@@ -3399,9 +3399,10 @@ export default async function MediaDetailPage({
                 fetchPriority="high"
               />
             </div>
-            <div className="detail-content nv-detail-content">
-              <DetailBackButton />
 
+            <DetailBackButton />
+
+            <div className="detail-content nv-detail-content">
               <div className="detail-center-showcase">
                 <div className="detail-center-poster glass">
                   <ResilientMediaImage
@@ -3417,25 +3418,33 @@ export default async function MediaDetailPage({
                 <div className="detail-center-header">
                   <h1 className="display detail-display nv-detail-title">{media.title}</h1>
 
-                  <div className="detail-meta-row nv-detail-meta">
-                    <span className="detail-pill nv-detail-type-pill">{media.type === "anime_movie" ? "Anime Movie" : media.type === "anime" ? "Anime" : media.type === "game" ? "Game" : media.type === "show" ? "Show" : "Movie"}</span>
-                    <span className="detail-pill">{media.year}</span>
-                    <span className="detail-pill">{genreValue}</span>
+                  <div className="detail-subtitle">
+                    <span>{media.year}</span>
+                    <span className="muted">{'\u00B7'}</span>
+                    <span className="detail-pill nv-detail-type-pill">{media.type === "anime_movie" ? "Anime Movie" : media.type === "anime" ? "Anime" : media.type === "game" ? "Game" : media.type === "show" ? "TV Show" : "Movie"}</span>
+                    <span className="muted">{'\u00B7'}</span>
                     <span className="detail-pill nv-detail-rating">★ {media.rating.toFixed(1)}</span>
-                    {releaseValue ? <span className="detail-pill">{releaseValue}</span> : null}
                     {media.details.trailerUrl ? (
-                      <DetailTrailerPlayer
-                        item={media}
-                        title={media.title}
-                        trailerUrl={media.details.trailerUrl}
-                        sourceUrl={media.details.sourceUrl}
-                      />
+                      <>
+                        <span className="muted">{'\u00B7'}</span>
+                        <DetailTrailerPlayer
+                          item={media}
+                          title={media.title}
+                          trailerUrl={media.details.trailerUrl}
+                          sourceUrl={media.details.sourceUrl}
+                        />
+                      </>
                     ) : null}
                   </div>
-                </div>
 
-                <div className="detail-actions-band nv-detail-actions">
-                  <MediaActions item={media} viewerId={viewerId} />
+                  <div className="detail-meta-row nv-detail-meta">
+                    <span className="detail-pill">{genreValue}</span>
+                    {releaseValue ? <span className="detail-pill">{releaseValue}</span> : null}
+                  </div>
+
+                  <div className="detail-actions-band nv-detail-actions">
+                    <MediaActions item={media} viewerId={viewerId} />
+                  </div>
                 </div>
               </div>
 
@@ -3448,63 +3457,66 @@ export default async function MediaDetailPage({
                     <p className="copy detail-overview-copy">{aboutText}</p>
                   </section>
 
-                  <div className="info-panel glass nv-detail-facts">
-                    <div className="detail-meta-grid nv-facts-grid">
-                      <div className="nv-fact">
-                        <span className="nv-fact-label">{studioLabel}</span>
-                        <span className="nv-fact-value">{studioValue}</span>
-                      </div>
-                      <div className="nv-fact">
-                        <span className="nv-fact-label">{runtimeLabel}</span>
-                        <span className="nv-fact-value">{runtimeValue}</span>
-                      </div>
-                      <div className="nv-fact">
-                        <span className="nv-fact-label">Status</span>
-                        <span className="nv-fact-value">{statusValue}</span>
-                      </div>
-                      {sourceReference.url ? (
+                  <div className="detail-info-columns">
+                    <div className="info-panel glass nv-detail-facts">
+                      <h2 className="eyebrow">Details</h2>
+                      <div className="detail-meta-grid nv-facts-grid">
                         <div className="nv-fact">
-                          <span className="nv-fact-label">Source</span>
-                          <a href={sourceReference.url} target="_blank" rel="noreferrer" className="nv-fact-link">
-                            {sourceReference.label} ↗
-                          </a>
+                          <span className="nv-fact-label">{studioLabel}</span>
+                          <span className="nv-fact-value">{studioValue}</span>
                         </div>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <div className="info-panel glass nv-detail-credits-panel">
-                    <h2 className="eyebrow nv-credits-heading">{media.type === "game" ? "Studio / Creatives" : "Key Cast"}</h2>
-                    {spotlightCredits.length ? (
-                      <div className="detail-credits-grid nv-credits-grid">
-                        {spotlightCredits.map((credit) => (
-                          <div key={`${credit.name}-${credit.role}`} className="detail-credit-chip nv-credit-chip">
-                            <strong>{credit.name}</strong>
-                            <span>{credit.role}{credit.character ? ` · ${credit.character}` : ""}</span>
+                        <div className="nv-fact">
+                          <span className="nv-fact-label">{runtimeLabel}</span>
+                          <span className="nv-fact-value">{runtimeValue}</span>
+                        </div>
+                        <div className="nv-fact">
+                          <span className="nv-fact-label">Status</span>
+                          <span className="nv-fact-value">{statusValue}</span>
+                        </div>
+                        {sourceReference.url ? (
+                          <div className="nv-fact">
+                            <span className="nv-fact-label">Source</span>
+                            <a href={sourceReference.url} target="_blank" rel="noreferrer" className="nv-fact-link">
+                              {sourceReference.label} ↗
+                            </a>
                           </div>
-                        ))}
+                        ) : null}
                       </div>
-                    ) : (
-                      <p className="copy nv-credits-empty">No credits listed yet.</p>
-                    )}
+                    </div>
 
-                    {externalLinks.length > 0 && (
-                      <div className="nv-external-links">
-                        <span className="eyebrow nv-external-heading">{primaryExternalAction} / Official Links</span>
-                        <div className="button-row nv-external-row">
-                          {primaryExternalLink ? (
-                            <a href={primaryExternalLink.url} target="_blank" rel="noreferrer" className="button button-primary nv-external-btn">
-                              {primaryExternalAction} on {primaryExternalLink.name}
-                            </a>
-                          ) : null}
-                          {secondaryExternalLinks.slice(0, 3).map((link) => (
-                            <a key={link.name} href={link.url} target="_blank" rel="noreferrer" className="button button-secondary nv-external-btn">
-                              {link.name}
-                            </a>
+                    <div className="info-panel glass nv-detail-credits-panel">
+                      <h2 className="eyebrow nv-credits-heading">{media.type === "game" ? "Studio / Creatives" : "Key Cast"}</h2>
+                      {spotlightCredits.length ? (
+                        <div className="detail-credits-grid nv-credits-grid">
+                          {spotlightCredits.map((credit) => (
+                            <div key={`${credit.name}-${credit.role}`} className="detail-credit-chip nv-credit-chip">
+                              <strong>{credit.name}</strong>
+                              <span>{credit.role}{credit.character ? ` · ${credit.character}` : ""}</span>
+                            </div>
                           ))}
                         </div>
-                      </div>
-                    )}
+                      ) : (
+                        <p className="copy nv-credits-empty">No credits listed yet.</p>
+                      )}
+
+                      {externalLinks.length > 0 && (
+                        <div className="nv-external-links">
+                          <span className="eyebrow nv-external-heading">{primaryExternalAction} / Links</span>
+                          <div className="button-row nv-external-row">
+                            {primaryExternalLink ? (
+                              <a href={primaryExternalLink.url} target="_blank" rel="noreferrer" className="button button-primary nv-external-btn">
+                                {primaryExternalAction} on {primaryExternalLink.name}
+                              </a>
+                            ) : null}
+                            {secondaryExternalLinks.slice(0, 3).map((link) => (
+                              <a key={link.name} href={link.url} target="_blank" rel="noreferrer" className="button button-secondary nv-external-btn">
+                                {link.name}
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -3549,27 +3561,6 @@ export default async function MediaDetailPage({
                 </div>
               </div>
               <DetailGallery title={media.title} images={finalGallery} />
-            </section>
-          ) : null}
-
-          {media.credits.length > spotlightCredits.length ? (
-            <section id="detail-credits" className="section-stack" style={{ paddingTop: 0 }}>
-              <div className="info-panel glass">
-                <p className="eyebrow">Full credits</p>
-                <div className="credit-list">
-                  {media.credits.slice(0, 10).map((credit) => (
-                    <div key={`${credit.name}-${credit.role}`} className="credit-row">
-                      <div>
-                        <strong>{credit.name}</strong>
-                        <div className="muted">
-                          {credit.role}
-                          {credit.character ? ` | ${credit.character}` : ""}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </section>
           ) : null}
 

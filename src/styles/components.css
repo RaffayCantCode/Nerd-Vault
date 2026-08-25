@@ -1778,7 +1778,7 @@
   }
 
   .sidebar-shell {
-    position: static;
+    position: fixed;
   }
 
   .sidebar-mobile-backdrop {
@@ -1858,6 +1858,10 @@
   .nv-mobile-dock-wrap {
     display: grid;
     padding-bottom: 0.75rem;
+  }
+
+  .nv-mobile-section-dock {
+    display: none;
   }
 
   .home-media-grid,

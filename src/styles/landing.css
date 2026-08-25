@@ -651,6 +651,10 @@
 
 .nv-rail-section {
   margin: 2.25rem auto;
+  border: none !important;
+  background: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
 }
 
 .nv-rail-showcase-box {

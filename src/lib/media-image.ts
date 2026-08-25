@@ -4,7 +4,7 @@ export type MediaImageIntent = "thumb" | "cover" | "backdrop" | "gallery" | "lig
 const TMDB_SIZES: Record<MediaImageIntent, string> = {
   thumb: "w154",
   cover: "w342",
-  backdrop: "w780",
+  backdrop: "original",
   gallery: "w1280",
   lightbox: "original",
 };
@@ -12,7 +12,7 @@ const TMDB_SIZES: Record<MediaImageIntent, string> = {
 const IGDB_SIZES: Record<MediaImageIntent, string> = {
   thumb: "t_cover_small",
   cover: "t_cover_big",
-  backdrop: "t_720p",
+  backdrop: "t_1080p",
   gallery: "t_1080p",
   lightbox: "t_1080p",
 };
@@ -141,7 +141,7 @@ export function buildMediaImageSrcSet(rawUrl?: string | null, intent: MediaImage
       : intent === "cover"
         ? 360
         : intent === "backdrop"
-          ? 780
+          ? 1920
           : intent === "gallery"
             ? 1280
             : 1920;

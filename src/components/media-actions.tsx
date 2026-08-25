@@ -57,6 +57,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
   const [isTogglingWishlist, setIsTogglingWishlist] = useState(false);
   const [isUpdatingFolder, setIsUpdatingFolder] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [logMenuOpen, setLogMenuOpen] = useState(false);
   const [recommendOpen, setRecommendOpen] = useState(false);
   const [isSavingReview, setIsSavingReview] = useState(false);
   const [isSendingRecommendation, setIsSendingRecommendation] = useState(false);
@@ -131,6 +132,13 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
     const timeout = window.setTimeout(() => setMessage(""), 2600);
     return () => window.clearTimeout(timeout);
   }, [message]);
+
+  useEffect(() => {
+    if (!logMenuOpen) return;
+    const close = () => setLogMenuOpen(false);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [logMenuOpen]);
 
   const listOptions = useMemo(() => lists, [lists]);
   const selectedList = listOptions.find((list) => list.id === folderId);
@@ -430,25 +438,33 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
         <div className="media-actions">
           <div className="media-action-surface glass">
             <div className="media-action-section">
-              <div className="button-row media-actions-bar">
+              <div className="media-actions-bar">
                 <button className="button button-primary" type="button" onClick={() => setShowGuestAuthModal(true)}>
-                  Mark as {primaryLabel}
+                  Log {primaryLabel}
                 </button>
+                <div className="media-log-dropdown-wrapper">
+                  <button
+                    className="button button-secondary"
+                    type="button"
+                    onClick={() => setLogMenuOpen(!logMenuOpen)}
+                  >
+                    Log...
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" style={{marginLeft: 4, opacity: 0.7}}>
+                      <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                  {logMenuOpen && (
+                    <div className="media-log-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                      <button className="button" type="button" onClick={() => { setLogMenuOpen(false); setShowGuestAuthModal(true); }}>{watchStatusLabel}</button>
+                      <button className="button" type="button" onClick={() => { setLogMenuOpen(false); setShowGuestAuthModal(true); }}>On Hold</button>
+                      <button className="button" type="button" onClick={() => { setLogMenuOpen(false); setShowGuestAuthModal(true); }}>Dropped</button>
+                      <button className="button" type="button" onClick={() => { setLogMenuOpen(false); setShowGuestAuthModal(true); }}>Recommend</button>
+                    </div>
+                  )}
+                </div>
                 <button className="button button-secondary" type="button" onClick={() => setShowGuestAuthModal(true)}>
-                  {watchStatusLabel}
-                </button>
-                <button className="button button-secondary" type="button" onClick={() => setShowGuestAuthModal(true)}>
-                  On Hold
-                </button>
-                <button className="button button-secondary" type="button" onClick={() => setShowGuestAuthModal(true)}>
-                  Dropped
-                </button>
-                <button className="button button-secondary" type="button" onClick={() => setShowGuestAuthModal(true)}>
-                  Recommend
-                </button>
-                <button className="button button-secondary" type="button" onClick={() => setShowGuestAuthModal(true)}>
-                  <Heart size={16} />
-                  Add to wishlist
+                  <Heart size={14} />
+                  Wishlist
                 </button>
               </div>
               <p className="copy media-action-guest-note">
@@ -472,49 +488,65 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
     <div className="media-actions">
       <div className="media-action-surface glass">
         <div className="media-action-section">
-          <div className="button-row media-actions-bar">
+          <div className="media-actions-bar">
             <button className={`button ${isWatched ? "button-success" : "button-primary"}`} type="button" onClick={() => setReviewOpen(true)}>
-              {isWatched ? `✓ ${primaryLabel} / Edit review` : `Mark as ${primaryLabel}`}
+              {isWatched ? `✓ ${primaryLabel}` : `Log ${primaryLabel}`}
             </button>
-            <button
-              className={`button ${isWatchingActive ? "button-accent is-active-status" : "button-secondary"}`}
-              type="button"
-              onClick={() => void handleStatusToggle(watchStatusLabel)}
-              disabled={isTogglingStatus}
-            >
-              {isTogglingStatus && isWatchingActive ? "Saving..." : watchStatusLabel}
-            </button>
-            <button
-              className={`button ${isOnHoldActive ? "button-accent is-active-status" : "button-secondary"}`}
-              type="button"
-              onClick={() => void handleStatusToggle("On Hold")}
-              disabled={isTogglingStatus}
-            >
-              {isTogglingStatus && isOnHoldActive ? "Saving..." : "On Hold"}
-            </button>
-            <button
-              className={`button ${isDroppedActive ? "button-accent is-active-status" : "button-secondary"}`}
-              type="button"
-              onClick={() => void handleStatusToggle("Dropped")}
-              disabled={isTogglingStatus}
-            >
-              {isTogglingStatus && isDroppedActive ? "Saving..." : "Dropped"}
-            </button>
-            <button className="button button-secondary" type="button" onClick={() => setRecommendOpen(true)}>
-              Recommend
-            </button>
+            <div className="media-log-dropdown-wrapper">
+              <button
+                className="button button-secondary"
+                type="button"
+                onClick={() => setLogMenuOpen(!logMenuOpen)}
+              >
+                Log...
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" style={{marginLeft: 4, opacity: 0.7}}>
+                  <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+              {logMenuOpen && (
+                <div className="media-log-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    className={`button ${isWatchingActive ? 'is-active' : ''}`}
+                    type="button"
+                    onClick={() => { setLogMenuOpen(false); void handleStatusToggle(watchStatusLabel); }}
+                    disabled={isTogglingStatus}
+                  >
+                    {watchStatusLabel}
+                  </button>
+                  <button
+                    className={`button ${isOnHoldActive ? 'is-active' : ''}`}
+                    type="button"
+                    onClick={() => { setLogMenuOpen(false); void handleStatusToggle("On Hold"); }}
+                    disabled={isTogglingStatus}
+                  >
+                    On Hold
+                  </button>
+                  <button
+                    className={`button ${isDroppedActive ? 'is-active' : ''}`}
+                    type="button"
+                    onClick={() => { setLogMenuOpen(false); void handleStatusToggle("Dropped"); }}
+                    disabled={isTogglingStatus}
+                  >
+                    Dropped
+                  </button>
+                  <button className="button" type="button" onClick={() => { setLogMenuOpen(false); setRecommendOpen(true); }}>
+                    Recommend
+                  </button>
+                </div>
+              )}
+            </div>
             <button
               className={`button ${isWishlisted ? "button-accent is-active-status" : "button-secondary"}`}
               type="button"
               onClick={() => void handleWishlist()}
               disabled={isTogglingWishlist}
             >
-              <Heart size={16} fill={isWishlisted ? "currentColor" : "none"} />
-              {isTogglingWishlist ? "Saving..." : isWishlisted ? "Wishlisted" : "Add to wishlist"}
+              <Heart size={14} fill={isWishlisted ? "currentColor" : "none"} />
+              {isTogglingWishlist ? "Saving..." : isWishlisted ? "Wishlisted" : "Wishlist"}
             </button>
             {isWatched ? (
               <button className="button button-secondary" type="button" onClick={() => void handleRemoveWatched()} disabled={isSavingReview} title={`Remove ${primaryLabel}`}>
-                {isSavingReview ? "Saving..." : `Remove ${primaryLabel}`}
+                {isSavingReview ? "Saving..." : `Unmark`}
               </button>
             ) : null}
           </div>
@@ -527,7 +559,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
         </div>
 
         <div className="media-action-section media-action-lists-section">
-          <p className="eyebrow">Custom Lists</p>
+          <p className="eyebrow">Lists</p>
           <div className="folder-action-panel">
             <div className="picker-grid">
               {listOptions.length ? (
@@ -545,7 +577,7 @@ export function MediaActions({ item, viewerId }: { item: MediaItem; viewerId: st
                   );
                 })
               ) : (
-                <p className="copy">No custom lists yet. Create one below.</p>
+                <p className="copy">No lists yet. Create one below.</p>
               )}
             </div>
             <div className="folder-action-row">
