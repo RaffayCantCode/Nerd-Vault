@@ -8,7 +8,7 @@ import { redirect } from "next/navigation";
 import { credentialsSignInSchema, credentialsSignUpSchema, normalizeEmail } from "@/lib/auth-credentials";
 import { getAuthSecret, getGoogleClientId, getGoogleClientSecret } from "@/lib/auth-env";
 import { signIn } from "@/lib/auth";
-import { execute, queryOne, uuid } from "@/lib/d1";
+import { ensureDatabaseReady, execute, queryOne, uuid } from "@/lib/d1";
 
 function isNextRedirect(error: unknown): boolean {
   return (
@@ -77,16 +77,18 @@ export async function signUpWithCredentials(formData: FormData) {
     redirect(`/sign-in?mode=signup&error=${message}&redirectTo=${encodeURIComponent(redirectTo)}`);
   }
 
+  await ensureDatabaseReady();
   const email = normalizeEmail(parsed.data.email);
   const existingUser = await queryOne<{ id: string }>(`SELECT id FROM users WHERE email = ? LIMIT 1`, [email]);
 
   if (existingUser) {
     redirect(
-      `/sign-in?mode=login&error=${encodeURIComponent("An account with this email already exists.")}&redirectTo=${encodeURIComponent(redirectTo)}`,
+      `/sign-in?mode=login&error=${encodeURIComponent("An account with this email already exists. Please log in.")}&redirectTo=${encodeURIComponent(redirectTo)}`,
     );
   }
 
   const passwordHash = await hash(parsed.data.password, 12);
+  const newUserId = uuid();
 
   await execute(
     `
@@ -105,10 +107,22 @@ export async function signUpWithCredentials(formData: FormData) {
         updated_at
       ) VALUES (?, ?, ?, NULL, ?, 'USER', 0, 'public', 'friends', 'public', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     `,
-    [uuid(), parsed.data.name.trim(), email, passwordHash],
+    [newUserId, parsed.data.name.trim(), email, passwordHash],
   );
 
-  redirect(`/sign-in?mode=login&success=account-created&redirectTo=${encodeURIComponent(redirectTo)}`);
+  // Automatically sign in the newly registered user seamlessly
+  try {
+    await signIn("credentials", {
+      email,
+      password: parsed.data.password,
+      redirectTo,
+    });
+  } catch (error) {
+    if (isNextRedirect(error)) {
+      throw error;
+    }
+    redirect(`/sign-in?mode=login&success=account-created&redirectTo=${encodeURIComponent(redirectTo)}`);
+  }
 }
 
 export async function signInWithCredentials(formData: FormData) {
@@ -122,6 +136,7 @@ export async function signInWithCredentials(formData: FormData) {
     redirect(`/sign-in?mode=login&error=${message}&redirectTo=${encodeURIComponent(sanitizeRedirectTo(formData.get("redirectTo")))}`);
   }
 
+  await ensureDatabaseReady();
   const redirectTo = sanitizeRedirectTo(formData.get("redirectTo"));
   const cookieStore = await cookies();
   cookieStore.delete("nv.redirect-to");
@@ -137,11 +152,18 @@ export async function signInWithCredentials(formData: FormData) {
       throw error;
     }
 
-    if (error instanceof AuthError) {
-      redirect(`/sign-in?mode=login&error=${encodeURIComponent("Incorrect email or password.")}&redirectTo=${encodeURIComponent(redirectTo)}`);
-    }
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    const isCredentialMismatch =
+      error instanceof AuthError ||
+      errorMsg.includes("CredentialsSignin") ||
+      errorMsg.includes("password") ||
+      errorMsg.includes("credential");
 
-    throw error;
+    const message = isCredentialMismatch
+      ? "Incorrect email or password."
+      : "Sign in could not be completed. Please verify your credentials.";
+
+    redirect(`/sign-in?mode=login&error=${encodeURIComponent(message)}&redirectTo=${encodeURIComponent(redirectTo)}`);
   }
 }
 

@@ -19,11 +19,19 @@ export function getAuthBaseUrl() {
 }
 
 export function getGoogleClientId() {
-  return process.env.AUTH_GOOGLE_ID?.trim();
+  return (
+    process.env.AUTH_GOOGLE_ID?.trim() ||
+    process.env.GOOGLE_CLIENT_ID?.trim() ||
+    process.env.GOOGLE_ID?.trim()
+  );
 }
 
 export function getGoogleClientSecret() {
-  return process.env.AUTH_GOOGLE_SECRET?.trim();
+  return (
+    process.env.AUTH_GOOGLE_SECRET?.trim() ||
+    process.env.GOOGLE_CLIENT_SECRET?.trim() ||
+    process.env.GOOGLE_SECRET?.trim()
+  );
 }
 
 export function getAuthEnvDiagnostics() {
