@@ -363,6 +363,11 @@
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)), var(--surface);
   box-shadow: var(--shadow-sm);
   backdrop-filter: blur(16px);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .nv-detail-facts .eyebrow,
@@ -371,21 +376,28 @@
 }
 
 .nv-detail-credits-panel {
-  overflow: visible;
+  overflow: hidden;
 }
 
 .nv-credits-grid {
-  grid-template-columns: repeat(6, 1fr);
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 0.6rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .nv-credit-chip {
   min-width: 0;
+  max-width: 100%;
   padding: 0.7rem 0.8rem;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.07);
   transition: border-color 0.15s ease, background 0.15s ease;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .nv-credit-chip:hover {
@@ -680,27 +692,37 @@
 
 .nv-external-row {
   width: 100%;
+  max-width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .nv-external-btn {
   flex: 1 1 180px;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .nv-detail-backdrop {
   position: relative;
   width: 100%;
+  max-width: 100%;
   height: 440px;
   overflow: hidden;
   pointer-events: none;
+  margin: 0 auto;
 }
 
 .nv-detail-backdrop img {
   width: 100%;
+  max-width: 100%;
   height: 100%;
   object-fit: cover;
   object-position: center 20%;
   opacity: 0.85;
   filter: saturate(1.1);
+  display: block;
 }
 
 .nv-detail-backdrop::after {
@@ -751,12 +773,18 @@
   align-items: center;
   gap: 1.25rem;
   text-align: center;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .nv-deck-info {
   display: grid;
   gap: 0.3rem;
   justify-items: center;
+  width: 100%;
+  max-width: 100%;
 }
 
 .nv-deck-title {
@@ -775,11 +803,15 @@
   flex-direction: column;
   align-items: center;
   gap: 0.75rem;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .nv-deck-stack {
   position: relative;
-  width: 520px;
+  width: min(520px, 100%);
+  max-width: 100%;
   height: 300px;
   perspective: 1000px;
 }
@@ -1891,35 +1923,56 @@
 }
 
 @media (max-width: 720px) {
+  .detail-layout {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
   .detail-hero,
   .list-hero,
   .workspace-hero,
   .profile-stage {
     border-radius: 16px;
     padding: 0;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
   }
 
   .detail-center-showcase {
     flex-direction: column;
     align-items: center;
+    justify-content: center;
+    text-align: center;
     gap: 1rem;
-    padding: 1rem;
+    padding: 1rem 0.75rem;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    margin: 0 auto;
   }
 
   .detail-center-poster {
     width: 140px;
     min-width: 140px;
-    margin-top: -50px;
+    max-width: 140px;
+    margin: -50px auto 0 auto;
+    flex-shrink: 0;
   }
 
   .detail-center-header {
     align-items: center;
-    padding: 0 0.25rem;
+    text-align: center;
+    padding: 0;
+    width: 100%;
+    max-width: 100%;
   }
 
   .detail-center-header .detail-display {
-    font-size: 1.3rem;
+    font-size: clamp(1.25rem, 5vw, 1.55rem);
     text-align: center;
+    margin: 0 auto;
   }
 
   .detail-center-header .detail-subtitle {
@@ -1937,23 +1990,34 @@
     display: flex;
     justify-content: center;
     width: 100%;
+    max-width: 100%;
   }
 
   .detail-center-body {
-    padding: 0 0.75rem 1rem;
+    padding: 0 0.5rem 1rem;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   .nv-detail-backdrop {
-    height: 220px;
+    height: 200px;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
   }
 
   .nv-detail-backdrop img {
     object-position: center 25%;
+    width: 100%;
+    height: 100%;
   }
 
   .media-actions-bar {
     flex-wrap: wrap;
     justify-content: center;
+    width: 100%;
+    max-width: 100%;
   }
 
   .media-actions-bar .button {
@@ -1985,6 +2049,8 @@
   .detail-trailer-modal {
     padding: 0.75rem;
     border-radius: 16px;
+    width: 100%;
+    max-width: 100%;
   }
 
   .detail-trailer-modal-head,
@@ -2004,22 +2070,47 @@
   .detail-trailer-modal {
     padding: 0.75rem;
     border-radius: 16px;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
   }
 
   .detail-meta-grid,
   .detail-credits-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.4rem;
+    width: 100%;
+  }
+
+  .nv-credits-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.4rem;
+    width: 100%;
+  }
+
+  .nv-facts-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.4rem;
+    width: 100%;
+  }
+
+  .nv-external-btn {
+    flex: 1 1 100%;
+    min-height: 40px;
   }
 
   .related-media-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.5rem;
+    width: 100%;
+    max-width: 100%;
   }
 
   .detail-info-columns {
     grid-template-columns: 1fr;
     gap: 0.75rem;
+    width: 100%;
   }
 
   .detail-gallery-grid {
@@ -2028,8 +2119,9 @@
 
   .nv-deck-stack {
     width: 100%;
-    max-width: 320px;
-    height: 180px;
+    max-width: 280px;
+    height: 165px;
+    overflow: hidden;
   }
 
   .nv-deck-card {
@@ -2037,8 +2129,11 @@
   }
 
   .nv-deck-shell {
-    padding: 1rem;
+    padding: 0.85rem 0.5rem;
     border-radius: 16px;
+    overflow: hidden;
+    width: 100%;
+    max-width: 100%;
   }
 
   .nv-deck-title {
@@ -2047,6 +2142,16 @@
 
   .credit-list {
     grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .credit-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   .detail-gallery-shell,
@@ -2054,11 +2159,18 @@
   .ep-panel {
     padding: 0.75rem;
     border-radius: 16px;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
   }
 
   .ep-row {
     grid-template-columns: 32px minmax(0, 1fr);
     gap: 0.5rem;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   .ep-thumb {
@@ -2073,6 +2185,7 @@
   .modern-cta-row {
     flex-direction: column;
     align-items: stretch;
+    width: 100%;
   }
 
   .modern-cta-group {
@@ -2098,5 +2211,42 @@
 
   .section-stack {
     padding-block: 0.5rem;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+  }
+}
+
+@media (max-width: 480px) {
+  .detail-center-poster {
+    width: 125px;
+    min-width: 125px;
+    max-width: 125px;
+    margin: -45px auto 0 auto;
+  }
+
+  .detail-center-header .detail-display {
+    font-size: 1.22rem;
+  }
+
+  .nv-detail-backdrop {
+    height: 180px;
+  }
+
+  .detail-meta-grid,
+  .detail-credits-grid,
+  .nv-credits-grid,
+  .nv-facts-grid {
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+  }
+
+  .nv-credit-chip {
+    padding: 0.55rem 0.7rem;
+  }
+
+  .related-media-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.35rem;
   }
 }

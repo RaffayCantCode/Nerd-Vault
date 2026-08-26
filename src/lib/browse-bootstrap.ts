@@ -57,7 +57,6 @@ async function withTimeout<T>(work: Promise<T>, fallback: T, timeoutMs: number) 
   }
 }
 
-
 function dedupeItems(items: MediaItem[]) {
   const seen = new Set<string>();
 
@@ -124,19 +123,19 @@ async function getBootstrapSource(source: BootstrapSource, seed: number) {
   if (source === "movie" || source === "show") {
     const attempts = await Promise.all([
       withTimeout(
-        browseTmdbCatalog({ type: source, page: 1, query: "", genre: "", sort: "discovery", seed, pageSize: 16 }).catch(() => fallback),
+        browseTmdbCatalog({ type: source, page: 1, query: "", genre: "", sort: "discovery", seed, pageSize: 20 }).catch(() => fallback),
         fallback,
-        8000,
+        8500,
       ),
       withTimeout(
-        browseTmdbCatalog({ type: source, page: 1, query: "", genre: "", sort: "rating", seed: seed + 11, pageSize: 16 }).catch(() => fallback),
+        browseTmdbCatalog({ type: source, page: 1, query: "", genre: "", sort: "rating", seed: seed + 11, pageSize: 20 }).catch(() => fallback),
         fallback,
-        8000,
+        8500,
       ),
       withTimeout(
-        browseTmdbCatalog({ type: source, page: 2, query: "", genre: "", sort: "discovery", seed: seed + 17, pageSize: 16 }).catch(() => fallback),
+        browseTmdbCatalog({ type: source, page: 2, query: "", genre: "", sort: "discovery", seed: seed + 17, pageSize: 20 }).catch(() => fallback),
         fallback,
-        8000,
+        8500,
       ),
     ]);
     const items = dedupeItems(attempts.flatMap((payload) => payload.items));
@@ -147,19 +146,19 @@ async function getBootstrapSource(source: BootstrapSource, seed: number) {
   if (source === "anime") {
     const attempts = await Promise.all([
       withTimeout(
-        browseAniListAnime({ page: 1, query: "", genre: "", sort: "discovery", seed, pageSize: 16 }).catch(() => fallback),
+        browseAniListAnime({ page: 1, query: "", genre: "", sort: "discovery", seed, pageSize: 20 }).catch(() => fallback),
         fallback,
-        6000,
+        7000,
       ),
       withTimeout(
-        browseAniListAnime({ page: 1, query: "", genre: "", sort: "rating", seed: seed + 13, pageSize: 16 }).catch(() => fallback),
+        browseAniListAnime({ page: 1, query: "", genre: "", sort: "rating", seed: seed + 13, pageSize: 20 }).catch(() => fallback),
         fallback,
-        6000,
+        7000,
       ),
       withTimeout(
-        browseAniListAnime({ page: 2, query: "", genre: "", sort: "discovery", seed: seed + 19, pageSize: 16 }).catch(() => fallback),
+        browseAniListAnime({ page: 2, query: "", genre: "", sort: "discovery", seed: seed + 19, pageSize: 20 }).catch(() => fallback),
         fallback,
-        6000,
+        7000,
       ),
     ]);
     const items = dedupeItems(attempts.flatMap((payload) => payload.items));
@@ -169,19 +168,19 @@ async function getBootstrapSource(source: BootstrapSource, seed: number) {
 
   const gameAttempts = await Promise.all([
     withTimeout(
-      browseIgdbGames({ page: 1, query: "", genre: "", sort: "trending", seed, pageSize: 16 }).catch(() => fallback),
+      browseIgdbGames({ page: 1, query: "", genre: "", sort: "trending", seed, pageSize: 20 }).catch(() => fallback),
       fallback,
-      4000,
+      8000,
     ),
     withTimeout(
-      browseIgdbGames({ page: 1, query: "", genre: "", sort: "rating", seed: seed + 17, pageSize: 16 }).catch(() => fallback),
+      browseIgdbGames({ page: 1, query: "", genre: "", sort: "rating", seed: seed + 17, pageSize: 20 }).catch(() => fallback),
       fallback,
-      4500,
+      8000,
     ),
     withTimeout(
-      browseIgdbGames({ page: 2, query: "", genre: "", sort: "trending", seed: seed + 23, pageSize: 16 }).catch(() => fallback),
+      browseIgdbGames({ page: 2, query: "", genre: "", sort: "trending", seed: seed + 23, pageSize: 20 }).catch(() => fallback),
       fallback,
-      4500,
+      8000,
     ),
   ]);
   const gameItems = dedupeItems(gameAttempts.flatMap((payload) => payload.items));

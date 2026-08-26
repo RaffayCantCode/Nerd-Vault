@@ -838,7 +838,10 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
             <div className="workspace-hero-grid">
               <div className="workspace-copy workspace-copy-browse">
                 <div className="hero-nav-row">
-                  <p className="eyebrow" style={{ margin: 0 }}>Now Surfing</p>
+                  <div className="hero-eyebrow-badge">
+                    <span className="hero-pulse-dot" />
+                    <span className="eyebrow" style={{ margin: 0 }}>Now Surfacing</span>
+                  </div>
                   {featuredDeck.length > 1 ? (
                     <div className="hero-nav-controls">
                       <button type="button" className="hero-nav-arrow" onClick={() => setHeroIndexWithReset(heroIndex - 1)} aria-label="Previous featured title">
@@ -863,13 +866,67 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
                   ) : null}
                 </div>
 
-                <div className="hero-content-transition" key={featured.id}>
-                  <h1 className="display browse-hero-title">{featured.title}</h1>
-                  <div className="hero-meta-strip">
-                    <span className="hero-stat">{formatSurfacingLabel(featured.type)}</span>
-                    <span className="hero-stat">{featured.year || "Unknown year"}</span>
-                    <span className="hero-stat">★ {featured.rating.toFixed(1)}</span>
+                {/* Mobile: Full 4-Card Surfacing Deck */}
+                {featuredDeck.length > 0 && (
+                  <div className="browse-mobile-surfacing-deck">
+                    {featuredDeck.map((item, index) => {
+                      const isActive = index === heroIndex;
+                      return (
+                        <div
+                          key={`${item.source}-${item.sourceId}`}
+                          className={`browse-mobile-surfacing-card ${isActive ? "is-active" : ""}`}
+                          onClick={() => setHeroIndexWithReset(index)}
+                        >
+                          <div className="bmsc-poster-wrap">
+                            <ResilientMediaImage
+                              item={item}
+                              className="bmsc-poster-img"
+                              displayIntent="cover"
+                              upgradeIntent="backdrop"
+                              loading="eager"
+                              decoding="async"
+                            />
+                            <div className="bmsc-type-badge">
+                              {formatSurfacingLabel(item.type)}
+                            </div>
+                            <div className="bmsc-rating-pill">
+                              ★ {item.rating ? item.rating.toFixed(1) : "—"}
+                            </div>
+                          </div>
+                          <div className="bmsc-info">
+                            <h4 className="bmsc-title">{item.title}</h4>
+                            <div className="bmsc-meta">
+                              <span>{item.year || "Unknown"}</span>
+                              <Link
+                                href={{
+                                  pathname: `/media/${item.slug}`,
+                                  query: { source: item.source, sourceId: item.sourceId, type: item.type },
+                                }}
+                                className="bmsc-details-link"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                Details &rarr;
+                              </Link>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
+                )}
+
+                <div className="hero-content-transition browse-desktop-hero-content" key={featured.id}>
+                  <div className="browse-hero-header-block">
+                    <div className="browse-hero-heading-group">
+                      <h1 className="display browse-hero-title">{featured.title}</h1>
+                      <div className="hero-meta-strip">
+                        <span className="hero-stat">{formatSurfacingLabel(featured.type)}</span>
+                        <span className="hero-stat">{featured.year || "Unknown year"}</span>
+                        <span className="hero-stat">★ {featured.rating.toFixed(1)}</span>
+                      </div>
+                    </div>
+                  </div>
+
                   {featured.overview ? (
                     <div className="workspace-hero-copy-wrap">
                       <p className={`copy workspace-hero-copy ${isHeroExpanded ? "is-expanded" : "is-clamped"}`}>
@@ -886,7 +943,8 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
                       ) : null}
                     </div>
                   ) : null}
-                  <div className="button-row" style={{ marginTop: 12 }}>
+
+                  <div className="button-row browse-desktop-cta-row" style={{ marginTop: 12 }}>
                     <Link
                       href={{
                         pathname: `/media/${featured.slug}`,
@@ -951,14 +1009,29 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
 
             <button
               type="button"
-              className="button button-secondary browse-filter-toggle"
+              className={`button button-secondary browse-filter-toggle ${isFilterOpen ? "is-open" : ""}`}
               onClick={() => setIsFilterOpen(!isFilterOpen)}
+              aria-expanded={isFilterOpen}
+              aria-controls="browse-filter-panel"
             >
-              {isFilterOpen ? "Hide Filters" : "Sort / Filter"}
+              <span>{isFilterOpen ? "Hide Filters" : "Sort / Filter"}</span>
+              <svg
+                className="browse-filter-chevron"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
             </button>
           </div>
 
-          <div className="browse-toolbar-expandable">
+          <div id="browse-filter-panel" className={`browse-toolbar-expandable ${isFilterOpen ? "is-open" : ""}`}>
             <div className="browse-toolbar-row">
               <div className="search-cluster">
                 <div className="sort-chip-block">

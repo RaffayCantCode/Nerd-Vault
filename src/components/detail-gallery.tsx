@@ -121,14 +121,15 @@ export function DetailGallery({
               let scale = 1 - (realIdx * 0.04);
 
               if (!isTop) {
+                const shiftStep = 14;
                 if (realIdx % 2 === 1) {
-                  translateX = -(realIdx * 50);
-                  translateY = realIdx * 4;
-                  rotate = -(realIdx * 3);
+                  translateX = -(realIdx * shiftStep);
+                  translateY = realIdx * 3;
+                  rotate = -(realIdx * 2.5);
                 } else {
-                  translateX = realIdx * 50;
-                  translateY = realIdx * 4;
-                  rotate = realIdx * 3;
+                  translateX = realIdx * shiftStep;
+                  translateY = realIdx * 3;
+                  rotate = realIdx * 2.5;
                 }
               } else {
                 translateY = 0;
@@ -140,7 +141,7 @@ export function DetailGallery({
                   type="button"
                   className={`nv-deck-card ${isTop ? 'is-top' : ''} ${isShuffling && isTop ? 'is-shuffling' : ''}`}
                   style={{
-                    transform: `translateX(${translateX}px) translateY(${translateY}px) scale(${scale}) rotate(${rotate}deg)`,
+                    transform: `translate3d(${translateX}px, ${translateY}px, 0) scale(${scale}) rotate(${rotate}deg)`,
                     zIndex: visibleCount - realIdx,
                   }}
                   onClick={() => {

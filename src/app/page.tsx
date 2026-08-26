@@ -3,18 +3,16 @@ import Link from "next/link";
 import {
   Film, Tv, Gamepad2, Search, Sparkles,
   Star, Users, ArrowRight, Compass, Flame,
-  Layers, CheckCircle2, Bookmark,
+  Layers, CheckCircle2, Bookmark, ArrowUpRight,
 } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { SiteHeader } from "@/components/site-header";
 import { BrandLogo } from "@/components/brand-logo";
 import { BrowseResetLink } from "@/components/browse-reset-link";
 import { getBrowseDiscoverySeed, getBrowseBootstrapCatalog } from "@/lib/browse-bootstrap";
-import { browseAniListAnime } from "@/lib/sources/anilist";
 import { isFamilyFriendlyMediaItem } from "@/lib/media-safety";
 import { MediaItem } from "@/lib/types";
 import { optimizeMediaImageUrl } from "@/lib/media-image";
-import { ResilientMediaImage } from "@/components/resilient-media-image";
 import { LandingMediaRail } from "@/components/landing-media-rail";
 import { LandingMarqueeStream } from "@/components/landing-marquee-stream";
 import { getPublicCommunityActivity } from "@/lib/vault-server";
@@ -46,96 +44,139 @@ export default async function HomePage() {
   const games = catalog.filter((i) => i.type === "game").slice(0, 16);
   const anime = catalog.filter((i) => i.type === "anime" || i.type === "anime_movie").slice(0, 16);
 
-  // Prepare moving marquee lanes (mixing types for rich variety)
-  const marqueeLane1 = [...movies.slice(0, 10), ...anime.slice(0, 10)];
-  const marqueeLane2 = [...shows.slice(0, 10), ...games.slice(0, 10)];
+  // Interleave trending media items across moving marquee lanes
+  const marqueeLane1 = [
+    ...movies.slice(0, 5),
+    ...anime.slice(0, 5),
+    ...shows.slice(0, 5),
+    ...games.slice(0, 5),
+  ];
+  const marqueeLane2 = [
+    ...games.slice(0, 5),
+    ...shows.slice(0, 5),
+    ...movies.slice(0, 5),
+    ...anime.slice(0, 5),
+  ];
+
+  const heroMovie = movies[0] || null;
+  const heroShow = shows[0] || null;
+  const heroAnime = anime[0] || null;
+  const heroGame = games[0] || null;
 
   return (
     <div className="nv-landing">
       <SiteHeader />
 
       <main className="nv-landing-main">
-        {/* CENTERPIECE HERO STAGE */}
-        <section className="nv-hero-centerpiece">
-          <div className="nv-hero-ambient-glow" aria-hidden="true" />
+        {/* CALM EDITORIAL STORYTELLING HERO (INSPIRED BY NORVALE) */}
+        <section className="nv-story-hero">
+          {/* Subtle warm atmospheric glow */}
+          <div className="nv-story-ambient-aura" aria-hidden="true" />
 
-          <div className="nv-hero-centerpiece-content">
-            {/* 1. Center 3D Floating Brand Logo Emblem */}
-            <div className="nv-hero-logo-stage">
-              <div className="nv-hero-3d-ambient" aria-hidden="true" />
-              <div className="nv-hero-3d-emblem">
-                <div className="nv-3d-sheen" />
-                <BrandLogo className="nv-hero-3d-logo-img" priority />
-              </div>
+          <div className="nv-story-container">
+            {/* 1. Quiet Top Navigation & Pretitle */}
+            <div className="nv-story-pretitle-row">
+              <span className="nv-story-eyebrow">A Timeless Personal Chronicle</span>
+              <span className="nv-story-dot">·</span>
+              <span className="nv-story-sublabel">Cinema × Series × Anime × Games</span>
             </div>
 
-            {/* 2. Site Name & Description / Tagline */}
-            <div className="nv-hero-title-group">
-              <span className="nv-hero-pill-badge">
-                <Sparkles size={13} />
-                <span>Cinema · Shows · Anime · Games</span>
-              </span>
-              <h1 className="nv-hero-main-title">
-                Nerd<span className="nv-accent-gradient">Vault</span>
+            {/* 2. Editorial Serif Title & Narrative Quote */}
+            <div className="nv-story-heading-group">
+              <h1 className="nv-story-display-title">
+                EVERY STORY<br />
+                <em>YOU’VE LIVED.</em>
               </h1>
-              <p className="nv-hero-tagline">
-                One unified vault for everything you watch &amp; play.
-              </p>
-              <p className="nv-hero-description">
-                The ultimate personal logbook. Rate titles, organize custom backlogs, discover trending media, and follow your friends without algorithmic clutter.
+              <p className="nv-story-manifesto">
+                “Films that kept you up at 2 AM. Anime arcs that gave you chills. 100-hour game worlds you lived inside. A quiet, personal sanctuary for everything you watch &amp; play.”
               </p>
             </div>
 
-            {/* 3. Primary Action Buttons */}
-            <div className="nv-hero-cta-buttons">
+            {/* 3. Restrained Editorial Actions */}
+            <div className="nv-story-actions">
               <Link
                 href={isSignedIn ? "/home" : "/sign-in"}
-                className="button button-primary nv-hero-cta-primary"
+                className="nv-story-btn-primary"
               >
-                <span>{isSignedIn ? "Open Your Vault" : "Start Your Vault — Free"}</span>
-                <ArrowRight size={17} />
+                <span>{isSignedIn ? "Open Your Vault" : "Begin Your Chronicle"}</span>
+                <ArrowRight size={16} />
               </Link>
-              <BrowseResetLink className="button button-secondary nv-hero-cta-secondary">
-                <span>Browse Full Catalog</span>
-                <Compass size={17} />
+              <BrowseResetLink className="nv-story-btn-secondary">
+                <span>Explore Catalog</span>
+                <Compass size={16} />
               </BrowseResetLink>
             </div>
 
-            {/* 4. Instant Live Search Bar */}
-            <form action="/browse" method="GET" className="nv-hero-search-wrapper glass">
+            {/* 4. The Editorial Folio Canvas (Layered Story Cards) */}
+            <div className="nv-story-folio-canvas">
+              <div className="nv-folio-paper-frame">
+                {/* Background Artwork */}
+                <div className="nv-folio-scrim" />
+                <div className="nv-folio-stars-layer" aria-hidden="true" />
+
+                {/* Floating Story Card 01: Journal Log Entry */}
+                <div className="nv-folio-artifact artifact-journal">
+                  <div className="nv-artifact-head">
+                    <span className="nv-artifact-tag">01 · RECENT LOG</span>
+                    <span className="nv-artifact-time">2:45 AM</span>
+                  </div>
+                  <h4 className="nv-artifact-title">Interstellar (2014)</h4>
+                  <div className="nv-artifact-stars">★★★★★</div>
+                  <p className="nv-artifact-quote">
+                    “We used to look up at the sky and wonder at our place in the stars.”
+                  </p>
+                </div>
+
+                {/* Floating Story Card 02: Vault Chronicle Stats */}
+                <div className="nv-folio-artifact artifact-stats">
+                  <div className="nv-stats-num">482</div>
+                  <div className="nv-stats-label">Stories Chronicled</div>
+                  <div className="nv-stats-pills">
+                    <span>94 Films</span>
+                    <span>168 Shows</span>
+                    <span>140 Anime</span>
+                    <span>80 Games</span>
+                  </div>
+                </div>
+
+                {/* Floating Story Card 03: Franchise Canon Thread */}
+                <div className="nv-folio-artifact artifact-thread">
+                  <div className="nv-thread-tag">SAGA THREAD · CANON ORDER</div>
+                  <h5 className="nv-thread-title">Fate Series Chronology</h5>
+                  <div className="nv-thread-steps">
+                    <span className="step-done">✓ Fate/Zero</span>
+                    <span className="step-arrow">→</span>
+                    <span className="step-done">✓ Unlimited Blade Works</span>
+                    <span className="step-arrow">→</span>
+                    <span className="step-active">● Heaven’s Feel</span>
+                  </div>
+                </div>
+
+                {/* Center Canvas Editorial Caption */}
+                <div className="nv-folio-center-caption">
+                  <p className="nv-caption-quote">
+                    “Progress rarely arrives loudly. Most of the time, it happens quietly while you’re busy exploring new worlds.”
+                  </p>
+                  <span className="nv-caption-author">— from the member journals</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 5. Minimalist Live Search */}
+            <form action="/browse" method="GET" className="nv-story-search-bar">
               <input type="hidden" name="focus" value="results" />
-              <Search size={18} className="nv-hero-search-icon" aria-hidden="true" />
+              <Search size={16} className="nv-story-search-icon" aria-hidden="true" />
               <input
                 type="search"
                 name="query"
-                className="nv-hero-search-field"
-                placeholder="Search across movies, anime, series, and video games..."
+                className="nv-story-search-input"
+                placeholder="Search across 500,000+ films, anime, series, and games..."
                 required
               />
-              <button type="submit" className="nv-hero-search-submit">
+              <button type="submit" className="nv-story-search-submit">
                 Search
               </button>
             </form>
-
-            {/* 5. Fast Category Navigation Pills */}
-            <div className="nv-hero-category-pills">
-              <Link href="/browse?focus=results&mediaType=movie" className="nv-category-chip chip-movie">
-                <Film size={15} />
-                <span>Movies</span>
-              </Link>
-              <Link href="/browse?focus=results&mediaType=show" className="nv-category-chip chip-show">
-                <Tv size={15} />
-                <span>TV Shows</span>
-              </Link>
-              <Link href="/browse?focus=results&mediaType=anime" className="nv-category-chip chip-anime">
-                <Sparkles size={15} />
-                <span>Anime</span>
-              </Link>
-              <Link href="/browse?focus=results&mediaType=game" className="nv-category-chip chip-game">
-                <Gamepad2 size={15} />
-                <span>Games</span>
-              </Link>
-            </div>
           </div>
         </section>
 

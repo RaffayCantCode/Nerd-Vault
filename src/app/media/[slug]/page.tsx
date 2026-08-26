@@ -1880,7 +1880,13 @@ function matchesIdentityCandidate(item: MediaItem, preferredSource?: string, pre
 }
 
 async function findRemoteMediaBySlug(slug: string, preferredSource?: string, preferredType?: string, preferredSourceId?: string) {
-  const slugWords = slug.replace(/-/g, " ").trim();
+  let decodedSlug = slug;
+  try {
+    decodedSlug = decodeURIComponent(slug).trim();
+  } catch {
+    decodedSlug = slug.trim();
+  }
+  const slugWords = decodedSlug.replace(/-/g, " ").trim();
 
   if (preferredSource === "igdb" && preferredSourceId && preferredType === "game") {
     try {
@@ -1895,14 +1901,14 @@ async function findRemoteMediaBySlug(slug: string, preferredSource?: string, pre
   if (preferredType === "game" && (preferredSource === "local" || preferredSource === "igdb" || !preferredSource)) {
     try {
       const igdbResult = await withTimeout(
-        browseIgdbGames({ page: 1, query: slugWords || slug, sort: "rating", seed: 3 }).catch(() => emptyBrowseResult()),
+        browseIgdbGames({ page: 1, query: slugWords || decodedSlug, sort: "rating", seed: 3 }).catch(() => emptyBrowseResult()),
         emptyBrowseResult(),
-        3000,
+        2400,
       );
       const igdbHit =
         (preferredSourceId && preferredSource === "igdb"
           ? igdbResult.items.find((item) => matchesIdentityCandidate(item, preferredSource, preferredSourceId, preferredType))
-          : undefined) ?? findBestSlugCandidate(igdbResult.items, slug);
+          : undefined) ?? findBestSlugCandidate(igdbResult.items, decodedSlug);
       if (igdbHit?.source === "igdb") {
         const media = await getIgdbGameDetails(Number(igdbHit.sourceId));
         return { media, animeFranchise: undefined };
@@ -1914,14 +1920,14 @@ async function findRemoteMediaBySlug(slug: string, preferredSource?: string, pre
 
   if ((preferredType === "anime" || preferredType === "anime_movie") && (!preferredSource || preferredSource === "anilist" || preferredSource === "jikan")) {
     const quickAnime = await withTimeout(
-      browseAniListAnime({ page: 1, query: slugWords || slug, sort: "rating", seed: 3 }).catch(() => emptyBrowseResult()),
+      browseAniListAnime({ page: 1, query: slugWords || decodedSlug, sort: "rating", seed: 3 }).catch(() => emptyBrowseResult()),
       emptyBrowseResult(),
-      2800,
+      2400,
     );
     const animeHit =
       (preferredSourceId
         ? quickAnime.items.find((item) => matchesIdentityCandidate(item, preferredSource, preferredSourceId, preferredType))
-        : undefined) ?? findBestSlugCandidate(quickAnime.items, slug);
+        : undefined) ?? findBestSlugCandidate(quickAnime.items, decodedSlug);
     if (animeHit?.source === "anilist") {
       try {
         const id = Number(animeHit.sourceId);
@@ -1937,14 +1943,14 @@ async function findRemoteMediaBySlug(slug: string, preferredSource?: string, pre
   if ((preferredType === "movie" || preferredType === "show" || preferredType === "anime" || preferredType === "anime_movie") && (!preferredSource || preferredSource === "tmdb")) {
     const tmdbType = getResolvedTmdbDetailType(preferredType) === "tv" ? "show" : "movie";
     const quickTmdb = await withTimeout(
-      browseTmdbCatalog({ type: tmdbType, page: 1, query: slugWords || slug, sort: "rating", seed: 3 }).catch(() => emptyBrowseResult()),
+      browseTmdbCatalog({ type: tmdbType, page: 1, query: slugWords || decodedSlug, sort: "rating", seed: 3 }).catch(() => emptyBrowseResult()),
       emptyBrowseResult(),
-      2800,
+      2400,
     );
     const tmdbHit =
       (preferredSourceId
         ? quickTmdb.items.find((item) => matchesIdentityCandidate(item, preferredSource, preferredSourceId, preferredType))
-        : undefined) ?? findBestSlugCandidate(quickTmdb.items, slug);
+        : undefined) ?? findBestSlugCandidate(quickTmdb.items, decodedSlug);
     if (tmdbHit && (tmdbHit.type === "movie" || tmdbHit.type === "show")) {
       try {
         const media = await getTmdbMediaDetails(Number(tmdbHit.sourceId), getResolvedTmdbDetailType(tmdbHit.type));
@@ -1955,8 +1961,8 @@ async function findRemoteMediaBySlug(slug: string, preferredSource?: string, pre
     }
   }
 
-  const queryVariants = buildQueryVariants(slugWords || slug);
-  const searchPages = [1, 2, 3];
+  const queryVariants = buildQueryVariants(slugWords || decodedSlug).slice(0, 2);
+  const searchPages = [1];
 
   for (const query of queryVariants) {
     for (const searchPage of searchPages) {
@@ -3149,13 +3155,19 @@ export default async function MediaDetailPage({
       ])
     : Promise.resolve([null, null] as const);
 
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  let slug = rawSlug;
+  try {
+    slug = decodeURIComponent(rawSlug).trim();
+  } catch {
+    slug = rawSlug.trim();
+  }
   const rawSearchParams = await searchParams;
   const source = rawSearchParams.source === "undefined" ? undefined : rawSearchParams.source;
   const sourceId = rawSearchParams.sourceId === "undefined" ? undefined : rawSearchParams.sourceId;
   const type = rawSearchParams.type === "undefined" ? undefined : rawSearchParams.type;
 
-  let media: MediaItem | undefined = getMediaBySlug(slug);
+  let media: MediaItem | undefined = getMediaBySlug(slug) || getMediaBySlug(rawSlug);
   let animeFranchise: AnimeFranchiseData | undefined;
 
   if (source === "tmdb" && sourceId) {
