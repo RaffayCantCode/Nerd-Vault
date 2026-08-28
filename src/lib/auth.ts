@@ -1,12 +1,11 @@
 import NextAuth, { type NextAuthConfig } from "next-auth";
-import { D1Adapter } from "@auth/d1-adapter";
 import { compare } from "bcryptjs";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 
+import { createNerdVaultAdapter } from "@/lib/auth-adapter";
 import { credentialsSignInSchema, normalizeEmail } from "@/lib/auth-credentials";
 import { getAuthSecret, getGoogleClientId, getGoogleClientSecret } from "@/lib/auth-env";
-import { getD1Database } from "@/lib/cloudflare-env";
 import { ensureDatabaseReady, queryOne } from "@/lib/d1";
 
 export const { handlers, signIn, signOut, auth } = NextAuth(async () => {
@@ -16,7 +15,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth(async () => {
   }
 
   await ensureDatabaseReady();
-  const database = await getD1Database();
 
   const googleClientId = getGoogleClientId();
   const googleClientSecret = getGoogleClientSecret();
@@ -80,7 +78,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth(async () => {
   return {
     secret: authSecret,
     trustHost: true,
-    adapter: D1Adapter(database as any),
+    adapter: createNerdVaultAdapter(),
     debug: process.env.AUTH_DEBUG === "true",
     session: {
       strategy: "jwt",

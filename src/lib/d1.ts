@@ -1,4 +1,3 @@
-import { up } from "@auth/d1-adapter";
 import { getD1Database } from "@/lib/cloudflare-env";
 
 type Row = Record<string, unknown>;
@@ -271,13 +270,14 @@ export async function ensureDatabaseReady() {
         const db = (await getD1Database()) as any;
         if (!db) return;
 
-        // Fast check: if users table already exists, schema is initialized
-        const exists = await db.prepare("SELECT 1 FROM users LIMIT 1").first().catch(() => null);
-        if (exists !== null && exists !== undefined) {
+        // Check if users table and password_hash column already exist
+        try {
+          await db.prepare("SELECT password_hash FROM users LIMIT 1").all();
           return;
+        } catch {
+          // Table or column is missing, run full schema initialization
         }
 
-        await up(db);
         await ensureAppSchema(db);
       } catch (error) {
         console.warn("[d1] Database schema check notice:", error);
