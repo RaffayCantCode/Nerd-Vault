@@ -495,6 +495,13 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
         const currentQueryKey = `${requestType}-${genre}-${requestSort}-${deferredQuery.trim()}-${activeSeed}`;
         const isAppending = requestPage > 1 && lastStableQueryKeyRef.current === currentQueryKey;
 
+        // Skip fetch if SSR bootstrap already provided the exact data for this view
+        if (hasBootstrapGrid && lastStableQueryKeyRef.current === currentQueryKey) {
+          writeBrowseClientCache(requestKey, payload);
+          setIsLoading(false);
+          return;
+        }
+
         const cachedPayload = readBrowseClientCache(requestKey);
         if (
           cachedPayload &&
@@ -712,29 +719,6 @@ export const BrowseWorkspace = memo(function BrowseWorkspace({
       }
     };
   }, [featuredDeck.length, heroIndex, isDocumentVisible, isHeroInView, isHeroPaused]);
-
-  useEffect(() => {
-    if (isLoading || deferredQuery.trim() || payload.page >= payload.totalPages) {
-      return;
-    }
-
-    const controller = new AbortController();
-    const params = new URLSearchParams({
-      type: filter,
-      page: String(payload.page + 1),
-      sort,
-      seed: String(activeSeed),
-      pageSize: String(pageSize),
-    });
-
-    if (genre !== "all") {
-      params.set("genre", genre);
-    }
-
-    void prefetchBrowsePayload(params, controller.signal).catch(() => undefined);
-
-    return () => controller.abort();
-  }, [deferredQuery, filter, genre, activeSeed, isLoading, pageSize, payload.page, payload.totalPages, sort]);
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();

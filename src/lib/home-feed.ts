@@ -244,7 +244,7 @@ function topSignals(seeds: SignalSeed[]) {
 }
 
 async function gatherRelatedCandidates(type: MediaType, seeds: SignalSeed[]) {
-  const focusSeeds = seeds.slice(0, 3);
+  const focusSeeds = seeds.slice(0, 2);
 
   if (type === "movie") {
     const results = await Promise.all(
@@ -517,7 +517,7 @@ async function buildUpcomingContinuations(library: LibraryState) {
 
   const watchedSeries = dedupeItems(library.watched)
     .filter((item) => item.type === "show" || item.type === "anime")
-    .slice(0, 8);
+    .slice(0, 3);
 
   const continuations = await Promise.all(
     watchedSeries.map((item) => (item.type === "anime" ? findUpcomingForAnime(item, ownedKeys) : findUpcomingForShow(item, ownedKeys))),
@@ -592,5 +592,5 @@ export async function buildHomeFeed(library: LibraryState): Promise<HomeFeed> {
     .sort()
     .join("|");
 
-  return withServerCache(`home-feed:${fingerprint}`, 5 * 60 * 1000, () => buildHomeFeedInner(library));
+  return withServerCache(`home-feed:${fingerprint}`, 15 * 60 * 1000, () => buildHomeFeedInner(library));
 }

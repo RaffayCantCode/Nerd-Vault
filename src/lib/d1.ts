@@ -245,6 +245,20 @@ async function ensureAppSchema(db: any) {
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE INDEX IF NOT EXISTS idx_media_type ON media(type);
+    CREATE INDEX IF NOT EXISTS idx_media_source ON media(source, source_id);
+    CREATE INDEX IF NOT EXISTS idx_media_slug ON media(slug);
+    CREATE INDEX IF NOT EXISTS idx_watched_items_user ON watched_items(user_id, watched_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_watched_items_media ON watched_items(media_id);
+    CREATE INDEX IF NOT EXISTS idx_wishlist_items_user ON wishlist_items(user_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_folders_user ON folders(user_id);
+    CREATE INDEX IF NOT EXISTS idx_folder_items_folder ON folder_items(folder_id);
+    CREATE INDEX IF NOT EXISTS idx_folder_items_media ON folder_items(media_id);
+    CREATE INDEX IF NOT EXISTS idx_friendships_user ON friendships(user_id);
+    CREATE INDEX IF NOT EXISTS idx_friendships_friend ON friendships(friend_id);
+    CREATE INDEX IF NOT EXISTS idx_friend_requests_to ON friend_requests(to_user_id, status);
+    CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, status, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
   `);
 
   await ensureUserColumns(db);
@@ -256,6 +270,13 @@ export async function ensureDatabaseReady() {
       try {
         const db = (await getD1Database()) as any;
         if (!db) return;
+
+        // Fast check: if users table already exists, schema is initialized
+        const exists = await db.prepare("SELECT 1 FROM users LIMIT 1").first().catch(() => null);
+        if (exists !== null && exists !== undefined) {
+          return;
+        }
+
         await up(db);
         await ensureAppSchema(db);
       } catch (error) {

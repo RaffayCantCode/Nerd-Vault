@@ -91,7 +91,7 @@ export const ResilientMediaImage = memo(function ResilientMediaImage({
   const srcSet = buildMediaImageSrcSet(rawPrimaryCover || rawSecondaryBackdrop, resolvedUpgradeIntent);
   const prevUrlsRef = useRef(`${item.coverUrl ?? ""}|${item.backdropUrl ?? ""}`);
 
-  // Combined orchestrator effect
+  // Simplified lifecycle without redundant background Image() allocations
   useEffect(() => {
     const currentUrls = `${item.coverUrl ?? ""}|${item.backdropUrl ?? ""}`;
     if (currentUrls !== prevUrlsRef.current) {
@@ -99,52 +99,15 @@ export const ResilientMediaImage = memo(function ResilientMediaImage({
       setRetryProxy(false);
     }
 
-    const nextPreview = shouldProgress ? previewSrc : upgradeSrc;
     setLoaded(false);
-    setIsUpgraded(!shouldProgress);
     onLoadStateChange?.(false);
-    setSrc(nextPreview);
+    setSrc(upgradeSrc || previewSrc);
 
-    if (shouldProgress) warmImageUrl(upgradeSrc);
-    if (loading === "eager" || fetchPriority === "high") {
-      warmImageUrl(upgradeSrc);
-      warmImageUrl(previewSrc);
-    }
-
-    let cancelled = false;
-
-    // Fast track upgrade if needed
-    if (shouldProgress && upgradeSrc) {
-      const fullImage = new Image();
-      fullImage.decoding = "async";
-      fullImage.onload = () => {
-        if (!cancelled) {
-          setSrc(upgradeSrc);
-          setIsUpgraded(true);
-        }
-      };
-      fullImage.src = upgradeSrc;
-    }
-
-    // Safety timeout for 'loaded' state
     if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
       setLoaded(true);
       onLoadStateChange?.(true);
-    } else {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      timeoutRef.current = setTimeout(() => {
-        if (!cancelled) {
-          setLoaded(true);
-          onLoadStateChange?.(true);
-        }
-      }, 2500);
     }
-
-    return () => {
-      cancelled = true;
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, [item.coverUrl, item.backdropUrl, onLoadStateChange, previewSrc, shouldProgress, upgradeSrc, loading, fetchPriority]);
+  }, [item.coverUrl, item.backdropUrl, onLoadStateChange, previewSrc, upgradeSrc]);
 
   const combinedClass = [
     className,

@@ -350,6 +350,69 @@ async function getFolderItems(folderId: string) {
   );
 }
 
+async function getFolderItemsForMultipleFolders(folderIds: string[]) {
+  if (!folderIds.length) return new Map<string, MediaItem[]>();
+
+  const rows = await queryAll<FolderItemRow>(
+    `
+      SELECT
+        fi.folder_id,
+        fi.media_id,
+        fi.created_at,
+        m.slug AS media_slug,
+        m.title AS media_title,
+        m.source AS media_source,
+        m.source_id AS media_source_id,
+        m.type AS media_type,
+        m.cover_url AS media_cover_url,
+        m.backdrop_url AS media_backdrop_url,
+        m.rating AS media_rating,
+        COALESCE(GROUP_CONCAT(g.name, '||'), '') AS media_genre_names
+      FROM folder_items fi
+      JOIN media m ON m.id = fi.media_id
+      LEFT JOIN media_genres mg ON mg.media_id = m.id
+      LEFT JOIN genres g ON g.id = mg.genre_id
+      WHERE fi.folder_id IN (${folderIds.map(() => "?").join(",")})
+      GROUP BY fi.folder_id, fi.media_id
+      ORDER BY fi.created_at DESC
+    `,
+    folderIds,
+  );
+
+  const map = new Map<string, MediaItem[]>();
+  folderIds.forEach((id) => map.set(id, []));
+
+  for (const row of rows) {
+    const item = toMediaItem({
+      id: row.media_id,
+      slug: row.media_slug,
+      title: row.media_title,
+      original_title: null,
+      overview: null,
+      type: row.media_type,
+      status: null,
+      release_year: null,
+      runtime: null,
+      rating: row.media_rating,
+      cover_url: row.media_cover_url,
+      backdrop_url: row.media_backdrop_url,
+      trailer_url: null,
+      language: "en",
+      source: row.media_source,
+      source_id: row.media_source_id,
+      genre_names: row.media_genre_names,
+    });
+    const list = map.get(row.folder_id);
+    if (list) {
+      list.push(item);
+    } else {
+      map.set(row.folder_id, [item]);
+    }
+  }
+
+  return map;
+}
+
 async function getMediaBySource(source: string, sourceId: string) {
   const row = await queryOne<MediaRow>(
     `
@@ -680,16 +743,114 @@ export const getLibraryStateForUser = cache(async (userId: string): Promise<Libr
 
 export const getListsForUser = cache(async (userId: string): Promise<StoredList[]> => {
   const rows = await loadFolderRows(userId, 100);
-  const folders = await Promise.all(
-    rows.map(async (folder) => ({
+  if (!rows.length) return [];
+  const folderIds = rows.map((r) => r.id);
+  const itemsMap = await getFolderItemsForMultipleFolders(folderIds);
+  return rows.map((folder) =>
+    serializeList({
       ...folder,
-      items: await getFolderItems(folder.id),
-    })),
+      items: itemsMap.get(folder.id) ?? [],
+    }),
   );
-  return folders.map(serializeList);
 });
 
 export const getFoldersForUser = getListsForUser;
+
+export type FriendMediaActivity = {
+  friendId: string;
+  friendName: string;
+  friendHandle: string;
+  friendAvatarUrl?: string;
+  rating?: number | null;
+  review?: string | null;
+  watchedAt?: number;
+};
+
+export async function getFriendsActivityForMedia(
+  mediaId: string,
+  friendIds: string[],
+  viewerId: string,
+): Promise<FriendMediaActivity[]> {
+  if (!friendIds.length || !mediaId) return [];
+
+  const rows = await queryAll<{
+    user_id: string;
+    rating: number | null;
+    notes: string | null;
+    watched_at: string;
+    user_name: string | null;
+    user_image: string | null;
+    user_email: string | null;
+    watched_visibility: PrivacyLevel | null;
+  }>(
+    `
+      SELECT
+        wi.user_id,
+        wi.rating,
+        wi.notes,
+        wi.watched_at,
+        u.name AS user_name,
+        u.image AS user_image,
+        u.email AS user_email,
+        u.watched_visibility
+      FROM watched_items wi
+      JOIN users u ON u.id = wi.user_id
+      WHERE wi.media_id = ? AND wi.user_id IN (${friendIds.map(() => "?").join(",")})
+      ORDER BY wi.watched_at DESC
+    `,
+    [mediaId, ...friendIds],
+  );
+
+  return rows
+    .filter((row) => canViewPrivacy(row.user_id, viewerId, row.watched_visibility || "public", friendIds))
+    .map((row) => ({
+      friendId: row.user_id,
+      friendName: row.user_name || "Friend",
+      friendHandle: buildHandle(row.user_name, row.user_email, row.user_id),
+      friendAvatarUrl: row.user_image || undefined,
+      rating: row.rating ?? null,
+      review: row.notes ?? null,
+      watchedAt: new Date(row.watched_at).getTime(),
+    }));
+}
+
+export async function getViewerHomePayload(viewerId: string, requestedUserId?: string) {
+  const targetUserId = requestedUserId || viewerId;
+  const isOwn = targetUserId === viewerId;
+
+  if (isOwn) {
+    const profile = await getVaultProfilePayload(viewerId, viewerId);
+    const library: LibraryState = {
+      watched: profile.watched,
+      wishlist: profile.wishlist,
+      lists: profile.lists,
+      folders: profile.folders,
+    };
+    const shellData = {
+      lists: profile.lists,
+      folders: profile.folders,
+      viewerProfile: profile.viewerProfile,
+      friends: profile.friends,
+    };
+    return {
+      shellData,
+      library,
+      profilePayload: profile,
+    };
+  }
+
+  const [shellData, library, profilePayload] = await Promise.all([
+    getViewerShellData(viewerId),
+    getLibraryStateForUser(viewerId),
+    getVaultProfilePayload(viewerId, targetUserId),
+  ]);
+
+  return {
+    shellData,
+    library,
+    profilePayload,
+  };
+}
 
 export async function getListById(listId: string, viewerId: string): Promise<StoredList | null> {
   const row = await loadFolderById(listId);

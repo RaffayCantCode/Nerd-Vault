@@ -211,8 +211,8 @@ async function fetchSourceCatalogUpTo(
   const minItemsNeeded = maxNativeIndex + 1;
   const perPage = SOURCE_PAGE_SIZES[source];
   const maxApiPages = genreActive
-    ? GENRE_MAX_API_PAGES
-    : Math.max(3, Math.ceil(minItemsNeeded / perPage) + 3);
+    ? Math.min(4, Math.max(1, Math.ceil(minItemsNeeded / perPage) + 1))
+    : Math.min(3, Math.max(1, Math.ceil(minItemsNeeded / perPage) + 1));
   const collected: MediaItem[] = [];
   let totalResults = 0;
   let lastApiTotalPages = 1;
@@ -377,10 +377,10 @@ async function buildInterleavedBrowsePage({
   const genreActive = hasActiveBrowseGenre(genre);
   const { slots, maxNativeBySource, globalEnd } = planInterleavedPage(pageSize, page);
 
-  const baseBuffer = Math.ceil(pageSize / SOURCE_ORDER.length) + 4;
-  const genreBufferBoost = genreActive ? Math.ceil(pageSize / 2) : 0;
+  const baseBuffer = Math.ceil(pageSize / SOURCE_ORDER.length) + 2;
+  const genreBufferBoost = genreActive ? Math.ceil(pageSize / 4) : 0;
   let extraDepth = 0;
-  const maxDepthRounds = genreActive ? MIXED_GENRE_MAX_DEPTH_ROUNDS : isServerlessDeploy ? 1 : 2;
+  const maxDepthRounds = 1;
 
   let bufferedMaxNative = SOURCE_ORDER.reduce(
     (acc, source) => {

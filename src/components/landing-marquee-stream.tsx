@@ -73,10 +73,27 @@ export function LandingMarqueeStream({
   lane2Items: MediaItem[];
 }) {
   const [isPaused, setIsPaused] = useState(false);
+  const [isInView, setIsInView] = useState(true);
+  const sectionRef = useRef<HTMLElement>(null);
   const lane1Ref = useRef<HTMLDivElement>(null);
   const lane2Ref = useRef<HTMLDivElement>(null);
   const pos1Ref = useRef(0);
   const pos2Ref = useRef(0);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !sectionRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        setIsInView(Boolean(entry?.isIntersecting));
+      },
+      { threshold: 0.05, rootMargin: "100px" },
+    );
+
+    observer.observe(sectionRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     let animId: number;
@@ -88,7 +105,7 @@ export function LandingMarqueeStream({
       const delta = (now - lastTime) / 1000;
       lastTime = now;
 
-      if (!isPaused) {
+      if (!isPaused && isInView && document.visibilityState !== "hidden") {
         // Update Lane 1 (moves left)
         if (lane1Ref.current) {
           const trackWidth = lane1Ref.current.scrollWidth / 2;
@@ -119,7 +136,7 @@ export function LandingMarqueeStream({
 
     animId = requestAnimationFrame(step);
     return () => cancelAnimationFrame(animId);
-  }, [isPaused]);
+  }, [isPaused, isInView]);
 
   // Duplicate items to make the track seamlessly infinite
   const duplicatedLane1 = [...lane1Items, ...lane1Items];
@@ -127,6 +144,7 @@ export function LandingMarqueeStream({
 
   return (
     <section
+      ref={sectionRef}
       className="nv-marquee-showcase-section"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}

@@ -6,7 +6,7 @@ import { HomeScrollReset } from "@/components/home-scroll-reset";
 import { VaultClientPrimer } from "@/components/vault-client-primer";
 import { auth } from "@/lib/auth";
 import { buildHomeFeed } from "@/lib/home-feed";
-import { ensureCurrentUserRecord, getLibraryStateForUser, getVaultProfilePayload, getViewerShellData } from "@/lib/vault-server";
+import { ensureCurrentUserRecord, getViewerHomePayload } from "@/lib/vault-server";
 
 export const dynamic = "force-dynamic";
 
@@ -51,12 +51,11 @@ export default async function HomeHubPage({
   const requestedUser = typeof resolvedSearchParams?.user === "string" ? resolvedSearchParams.user : undefined;
   const initialTab = resolvedSearchParams?.tab === "media" ? "your-media" : "for-you";
 
-  // Run all three data fetches in parallel — eliminates the sequential waterfall
-  const [shellData, library, profilePayload] = await Promise.all([
-    getViewerShellData(session.user.id).catch(() => ({ folders: [], lists: [], viewerProfile: null, friends: [] })),
-    getLibraryStateForUser(session.user.id).catch(() => ({ watched: [], wishlist: [], lists: [], folders: [] })),
-    getVaultProfilePayload(session.user.id, requestedUser ?? session.user.id).catch(() => undefined),
-  ]);
+  // Consolidated data loading — queries user, library, folders, and friends in a single coordinated pass
+  const homeData = await getViewerHomePayload(session.user.id, requestedUser).catch(() => null);
+  const shellData = homeData?.shellData ?? { folders: [], lists: [], viewerProfile: null, friends: [] };
+  const library = homeData?.library ?? { watched: [], wishlist: [], lists: [], folders: [] };
+  const profilePayload = homeData?.profilePayload ?? undefined;
 
   // Build feed after library resolves (needs library data), but cached so usually near-instant
   const feed = await buildHomeFeed(library).catch(() => ({ greeting: "Welcome back! Start building your collection.", sections: { movie: [], show: [], anime: [], anime_movie: [], game: [], all: [] }, upcoming: [], watchedCounts: { movie: 0, show: 0, anime: 0, anime_movie: 0, game: 0, all: 0 } }));
@@ -69,7 +68,7 @@ export default async function HomeHubPage({
           <HomeScrollReset />
           <VaultClientPrimer
             library={library}
-            profile={profilePayload ?? (shellData.viewerProfile ? { ...shellData, viewedProfile: shellData.viewerProfile, watched: library.watched, wishlist: library.wishlist, canSeeWatched: true, canSeeWishlist: true, viewingOwnProfile: true } : null)}
+            profile={profilePayload}
             profileUserId={requestedUser}
           />
           <AppTopBar

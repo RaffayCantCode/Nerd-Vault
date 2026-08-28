@@ -136,31 +136,6 @@ export const CatalogCard = memo(function CatalogCard({
   }, [isNavigating, onBeforeNavigate, browseCardId, routeHref, router, warmRoute]);
 
   useEffect(() => {
-    if (!priority) {
-      return;
-    }
-
-    const warm = () => warmRoute();
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    let idleId: number | undefined;
-
-    if ("requestIdleCallback" in window) {
-      idleId = window.requestIdleCallback(warm, { timeout: 1200 });
-    } else {
-      timeoutId = globalThis.setTimeout(warm, 220);
-    }
-
-    return () => {
-      if (typeof idleId === "number" && "cancelIdleCallback" in window) {
-        window.cancelIdleCallback(idleId);
-      }
-      if (timeoutId) {
-        globalThis.clearTimeout(timeoutId);
-      }
-    };
-  }, [priority, routeHref]);
-
-  useEffect(() => {
     if (isVisible) return;
     if (priority) {
       setIsVisible(true);
@@ -172,14 +147,10 @@ export const CatalogCard = memo(function CatalogCard({
 
     return observeCard(element, (intersecting) => {
       if (intersecting) {
-        const thumbUrl = optimizeMediaImageUrl(item.coverUrl, "thumb");
-        if (thumbUrl) {
-          warmImage(thumbUrl);
-        }
         setIsVisible(true);
       }
     });
-  }, [isVisible, priority, item.coverUrl]);
+  }, [isVisible, priority]);
 
   return (
     <Link

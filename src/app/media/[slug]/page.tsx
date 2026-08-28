@@ -15,7 +15,7 @@ import { SafeImg } from "@/components/safe-img";
 import { SeasonEpisodePanel } from "@/components/season-episode-panel";
 import { VaultClientPrimer } from "@/components/vault-client-primer";
 import { auth } from "@/lib/auth";
-import { getCommunityRatingSummary, getLibraryStateForUser, getVaultProfilePayload, getViewerShellData } from "@/lib/vault-server";
+import { getCommunityRatingSummary, getFriendsActivityForMedia, getLibraryStateForUser, getVaultProfilePayload, getViewerShellData } from "@/lib/vault-server";
 import { canonicalGenreLabels, sharedCanonicalGenreCount } from "@/lib/catalog-utils";
 import { dedupeGalleryImageUrls, canonicalGalleryImageKey } from "@/lib/gallery-image-key";
 import { optimizeMediaImageUrl } from "@/lib/media-image";
@@ -59,29 +59,8 @@ async function buildFriendsActivity(
   friends: Array<{ id: string; name: string; handle: string; avatarUrl?: string }>,
   media: MediaItem,
 ): Promise<FriendActivityEntry[]> {
-  const entries: Array<FriendActivityEntry | null> = await Promise.all(
-    friends.slice(0, 8).map(async (friend) => {
-      const payload = await getVaultProfilePayload(viewerId, friend.id).catch(() => null);
-      if (!payload?.canSeeWatched) return null;
-      const match = payload.watched.find(
-        (item) => item.source === media.source && item.sourceId === media.sourceId,
-      );
-      if (!match) return null;
-      return {
-        friendId: friend.id,
-        friendName: friend.name,
-        friendHandle: friend.handle,
-        friendAvatarUrl: friend.avatarUrl,
-        rating: match.userRating ?? null,
-        review: match.userReview ?? null,
-        watchedAt: match.watchedAt,
-      } satisfies FriendActivityEntry;
-    }),
-  );
-
-  return entries
-    .filter((entry): entry is FriendActivityEntry => entry !== null)
-    .sort((a, b) => (b.watchedAt ?? 0) - (a.watchedAt ?? 0));
+  const friendIds = friends.map((f) => f.id);
+  return getFriendsActivityForMedia(media.id, friendIds, viewerId).catch(() => []);
 }
 
 type AnimeFranchiseData =
