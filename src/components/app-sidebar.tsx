@@ -1,5 +1,7 @@
+"use client";
+
 import Link from "next/link";
-import { auth } from "@/lib/auth";
+import { useEffect, useState } from "react";
 import { signOutUser } from "@/app/sign-in/sign-out-action";
 import { BrandLogo } from "@/components/brand-logo";
 import { BrowseResetLink } from "@/components/browse-reset-link";
@@ -97,14 +99,27 @@ function IconLeave() {
 type AppSidebarProps = {
   active: "vault" | "browse" | "activity" | "friends";
   redirectTo?: string;
+  userName?: string | null;
 };
 
-export async function AppSidebar({ active, redirectTo = "/home" }: AppSidebarProps) {
-  const session = await auth().catch((error) => {
-    console.error("Auth session failed to load in app sidebar:", error);
-    return null;
-  });
-  const userName = session?.user?.name || null;
+export function AppSidebar({ active, redirectTo = "/home", userName: initialUserName }: AppSidebarProps) {
+  const [userName, setUserName] = useState<string | null>(initialUserName ?? null);
+
+  useEffect(() => {
+    if (initialUserName !== undefined) {
+      setUserName(initialUserName);
+      return;
+    }
+    fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.user?.name) {
+          setUserName(data.user.name);
+        }
+      })
+      .catch(() => undefined);
+  }, [initialUserName]);
+
   const shouldShowSignOut = Boolean(userName);
 
   return (

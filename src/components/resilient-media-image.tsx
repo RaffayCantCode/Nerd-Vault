@@ -72,8 +72,8 @@ export const ResilientMediaImage = memo(function ResilientMediaImage({
   const resolvedUpgradeIntent = chooseConnectionAwareIntent(upgradeIntent, connectionInfo);
 
   const rawFallback = getMediaFallbackImage(item);
-  const rawPrimaryCover = retryProxy ? proxiedImage(item.coverUrl) ?? item.coverUrl : item.coverUrl;
-  const rawSecondaryBackdrop = retryProxy ? proxiedImage(item.backdropUrl) ?? item.backdropUrl : item.backdropUrl;
+  const rawPrimaryCover = item.coverUrl;
+  const rawSecondaryBackdrop = item.backdropUrl;
 
   const fallback = optimizeMediaImageUrl(rawFallback, "cover");
   const previewSrc =
@@ -96,7 +96,6 @@ export const ResilientMediaImage = memo(function ResilientMediaImage({
     const currentUrls = `${item.coverUrl ?? ""}|${item.backdropUrl ?? ""}`;
     if (currentUrls !== prevUrlsRef.current) {
       prevUrlsRef.current = currentUrls;
-      setRetryProxy(false);
     }
 
     setLoaded(false);
@@ -135,10 +134,6 @@ export const ResilientMediaImage = memo(function ResilientMediaImage({
         draggable={false}
         onLoad={() => { setLoaded(true); onLoadStateChange?.(true); }}
         onError={() => {
-          if (!retryProxy && (item.coverUrl || item.backdropUrl)) {
-            setRetryProxy(true);
-            return;
-          }
           if (src !== secondaryBackdrop && secondaryBackdrop) {
             setSrc(secondaryBackdrop);
             return;

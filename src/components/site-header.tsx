@@ -1,15 +1,24 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { signOutUser } from "@/app/sign-in/sign-out-action";
-import { auth } from "@/lib/auth";
 import { BrandLogo } from "@/components/brand-logo";
 import { BrowseResetLink } from "@/components/browse-reset-link";
 
-export async function SiteHeader() {
-  const session = await auth().catch((error) => {
-    console.error("Auth session failed to load in site header:", error);
-    return null;
-  });
-  const isSignedIn = Boolean(session?.user?.id);
+export function SiteHeader({ initialSignedIn = false }: { initialSignedIn?: boolean }) {
+  const [isSignedIn, setIsSignedIn] = useState(initialSignedIn);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.user?.id) {
+          setIsSignedIn(true);
+        }
+      })
+      .catch(() => undefined);
+  }, []);
 
   return (
     <header className="topbar glass">

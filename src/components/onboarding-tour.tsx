@@ -32,18 +32,25 @@ const STEPS: Step[] = [
   },
 ];
 
-export function OnboardingTour({ hasSeenOnboarding }: { hasSeenOnboarding: boolean }) {
+export function OnboardingTour({ hasSeenOnboarding }: { hasSeenOnboarding?: boolean }) {
   const [currentStep, setCurrentStep] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    if (!hasSeenOnboarding) {
-      const timer = setTimeout(() => setIsVisible(true), 1000);
-      return () => clearTimeout(timer);
+    if (typeof window !== "undefined") {
+      const localSeen = localStorage.getItem("nv_onboarding_completed");
+      if (localSeen || hasSeenOnboarding === true) {
+        return;
+      }
+      // Only show for users who haven't completed onboarding
+      if (hasSeenOnboarding === false) {
+        const timer = setTimeout(() => setIsVisible(true), 1200);
+        return () => clearTimeout(timer);
+      }
     }
   }, [hasSeenOnboarding]);
 
-  if (!isVisible || hasSeenOnboarding) return null;
+  if (!isVisible) return null;
 
   const handleNext = async () => {
     if (currentStep < STEPS.length - 1) {
@@ -55,7 +62,10 @@ export function OnboardingTour({ hasSeenOnboarding }: { hasSeenOnboarding: boole
 
   const handleSkip = async () => {
     setIsVisible(false);
-    await completeOnboarding();
+    if (typeof window !== "undefined") {
+      localStorage.setItem("nv_onboarding_completed", "true");
+    }
+    await completeOnboarding().catch(() => undefined);
   };
 
   const step = STEPS[currentStep];

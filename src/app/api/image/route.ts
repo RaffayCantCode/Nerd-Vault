@@ -51,29 +51,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: false, message: "Image host not allowed" }, { status: 403 });
   }
 
-  try {
-    const upstream = await fetch(normalized.toString(), {
-      method: "HEAD",
-      headers: {
-        "User-Agent": "Mozilla/5.0 NerdVault/1.0",
-      },
-      next: { revalidate: 21600 },
-    });
-
-    if (!upstream.ok) {
-      return NextResponse.json(
-        { ok: false, message: `Upstream image failed: ${upstream.status}` },
-        { status: upstream.status },
-      );
-    }
-
-    return NextResponse.redirect(normalized.toString(), {
-      status: 307,
-      headers: {
-        "Cache-Control": "public, max-age=21600, s-maxage=21600, stale-while-revalidate=86400",
-      },
-    });
-  } catch {
-    return NextResponse.json({ ok: false, message: "Image proxy failed" }, { status: 502 });
-  }
+  return NextResponse.redirect(normalized.toString(), {
+    status: 308,
+    headers: {
+      "Cache-Control": "public, max-age=604800, s-maxage=604800, immutable",
+    },
+  });
 }

@@ -1,8 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { ClientRoot } from "./client-root";
-import { auth } from "@/lib/auth";
-import { queryOne } from "@/lib/d1";
-import { OnboardingTour } from "@/components/onboarding-tour";
 import "../styles/tokens.css";
 import "../styles/base.css";
 import "../styles/components.css";
@@ -10,8 +7,6 @@ import "../styles/admin.css";
 import "../styles/detail.css";
 import "../styles/landing.css";
 import "../styles/support.css";
-
-export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://nerdvault.site"),
@@ -92,28 +87,9 @@ export const viewport: Viewport = {
   colorScheme: "dark",
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const session = await auth().catch((error) => {
-    console.error("Auth session failed to load in root layout:", error);
-    return null;
-  });
-  let hasSeenOnboarding = true;
-
-  if (session?.user?.id) {
-    try {
-      const user = await queryOne<{ has_seen_onboarding: number | null }>(
-        `SELECT has_seen_onboarding FROM users WHERE id = ? LIMIT 1`,
-        [session.user.id],
-      );
-      hasSeenOnboarding = Boolean(user?.has_seen_onboarding);
-    } catch (e) {
-      console.error("User onboarding status could not be checked:", e);
-      hasSeenOnboarding = true;
-    }
-  }
-
   return (
     <html lang="en">
       {/* Preconnect to image CDNs to reduce first-image latency. */}
@@ -126,7 +102,6 @@ export default async function RootLayout({
         <link rel="dns-prefetch" href="https://images.igdb.com" />
       </head>
       <ClientRoot>
-        {session?.user && !hasSeenOnboarding && <OnboardingTour hasSeenOnboarding={hasSeenOnboarding} />}
         {children}
       </ClientRoot>
     </html>

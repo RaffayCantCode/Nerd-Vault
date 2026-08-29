@@ -4,8 +4,6 @@ import { AppTopBar } from "@/components/app-topbar";
 import { FriendsPage } from "@/components/friends-page";
 import { GuestVaultShell } from "@/components/guest-shell";
 
-export const dynamic = "force-dynamic";
-
 export default async function FriendsRoute() {
   const session = await auth();
   const viewerName = session?.user?.name || "Guest vault";

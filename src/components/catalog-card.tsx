@@ -90,8 +90,6 @@ export const CatalogCard = memo(function CatalogCard({
   );
 
   const warmRoute = useCallback(function warmRoute() {
-    router.prefetch(routeHref);
-
     if (warmedCardThumbs.has(item.coverUrl || "")) return;
     if (item.coverUrl) warmedCardThumbs.add(item.coverUrl);
 
@@ -99,7 +97,7 @@ export const CatalogCard = memo(function CatalogCard({
     if (coverUrl) warmImage(coverUrl);
     const backdropUrl = optimizeMediaImageUrl(item.backdropUrl, "cover");
     if (backdropUrl) warmImage(backdropUrl);
-  }, [item.coverUrl, item.backdropUrl, routeHref, router]);
+  }, [item.coverUrl, item.backdropUrl]);
 
   const handleNavigate = useCallback(function handleNavigate(event: React.MouseEvent) {
     if (isNavigating) {

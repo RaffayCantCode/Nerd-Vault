@@ -263,7 +263,10 @@ async function ensureAppSchema(db: any) {
   await ensureUserColumns(db);
 }
 
+let isSchemaReady = false;
+
 export async function ensureDatabaseReady() {
+  if (isSchemaReady) return;
   if (!globalForD1.__nerdvaultSchemaReady) {
     globalForD1.__nerdvaultSchemaReady = (async () => {
       try {
@@ -273,19 +276,22 @@ export async function ensureDatabaseReady() {
         // Check if users table and password_hash column already exist
         try {
           await db.prepare("SELECT password_hash FROM users LIMIT 1").all();
+          isSchemaReady = true;
           return;
         } catch {
           // Table or column is missing, run full schema initialization
         }
 
         await ensureAppSchema(db);
+        isSchemaReady = true;
       } catch (error) {
         console.warn("[d1] Database schema check notice:", error);
       }
     })();
   }
 
-  return globalForD1.__nerdvaultSchemaReady;
+  await globalForD1.__nerdvaultSchemaReady;
+  isSchemaReady = true;
 }
 
 export async function queryAll<T = Row>(sql: string, binds: unknown[] = []) {

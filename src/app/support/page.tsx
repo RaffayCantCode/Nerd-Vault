@@ -2,17 +2,11 @@ import Link from "next/link";
 import { Mail, Bug, Sparkles, ShieldCheck, CheckCircle2, Terminal, Clock, LifeBuoy, Zap } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopBar } from "@/components/app-topbar";
-import { auth } from "@/lib/auth";
-import { guestSignInHref } from "@/lib/guest";
+export const revalidate = 86400;
 
-export const dynamic = "force-dynamic";
-
-export default async function SupportPage() {
-  const session = await auth().catch(() => null);
-  const isSignedIn = Boolean(session?.user?.id);
-  const viewerName = session?.user?.name || "Guest vault";
-  const viewerId = session?.user?.id || "guest-vault";
-  const viewerAvatar = session?.user?.image || undefined;
+export default function SupportPage() {
+  const viewerName = "Guest vault";
+  const viewerId = "guest-vault";
 
   const content = (
     <section className="support-page">
@@ -134,18 +128,9 @@ Actual:`}</pre>
           <AppTopBar
             viewerId={viewerId}
             viewerName={viewerName}
-            viewerAvatar={viewerAvatar}
             initialProfile={null}
             initialFriends={[]}
           />
-          {!isSignedIn ? (
-            <div className="guest-support-banner glass">
-              <p className="copy">Browsing as a guest. Sign in to sync vault data and get faster support follow-up.</p>
-              <Link href={guestSignInHref("/support")} className="button button-primary">
-                Sign in
-              </Link>
-            </div>
-          ) : null}
           {content}
         </main>
       </div>

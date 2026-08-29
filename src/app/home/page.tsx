@@ -8,8 +8,6 @@ import { auth } from "@/lib/auth";
 import { buildHomeFeed } from "@/lib/home-feed";
 import { ensureCurrentUserRecord, getViewerHomePayload } from "@/lib/vault-server";
 
-export const dynamic = "force-dynamic";
-
 export default async function HomeHubPage({
   searchParams,
 }: {

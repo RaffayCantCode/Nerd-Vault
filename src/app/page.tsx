@@ -5,7 +5,6 @@ import {
   Star, Users, ArrowRight, Compass, Flame,
   Layers, CheckCircle2, Bookmark, ArrowUpRight,
 } from "lucide-react";
-import { auth } from "@/lib/auth";
 import { SiteHeader } from "@/components/site-header";
 import { BrandLogo } from "@/components/brand-logo";
 import { BrowseResetLink } from "@/components/browse-reset-link";
@@ -17,7 +16,7 @@ import { LandingMediaRail } from "@/components/landing-media-rail";
 import { LandingMarqueeStream } from "@/components/landing-marquee-stream";
 import { getPublicCommunityActivity } from "@/lib/vault-server";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 function formatMediaTypeLabel(type: string) {
   if (type === "anime_movie") return "Anime Movie";
@@ -30,13 +29,11 @@ function formatMediaTypeLabel(type: string) {
 export default async function HomePage() {
   const seed = getBrowseDiscoverySeed();
 
-  const [bootstrapResult, session, realActivity] = await Promise.all([
+  const [bootstrapResult, realActivity] = await Promise.all([
     getBrowseBootstrapCatalog(seed).catch(() => ({ catalog: [] as MediaItem[], surfacing: [] as MediaItem[] })),
-    auth().catch(() => null),
     getPublicCommunityActivity(8).catch(() => []),
   ]);
 
-  const isSignedIn = Boolean(session?.user?.id);
   const catalog = (bootstrapResult.catalog || []).filter(isFamilyFriendlyMediaItem);
 
   const movies = catalog.filter((i) => i.type === "movie").slice(0, 16);
@@ -95,10 +92,10 @@ export default async function HomePage() {
             {/* 3. Restrained Editorial Actions */}
             <div className="nv-story-actions">
               <Link
-                href={isSignedIn ? "/home" : "/sign-in"}
+                href="/home"
                 className="nv-story-btn-primary"
               >
-                <span>{isSignedIn ? "Open Your Vault" : "Begin Your Chronicle"}</span>
+                <span>Open Your Vault</span>
                 <ArrowRight size={16} />
               </Link>
               <BrowseResetLink className="nv-story-btn-secondary">
@@ -242,8 +239,8 @@ export default async function HomePage() {
                     <Users size={20} /> Recent Member Activity
                   </h2>
                 </div>
-                <Link href={isSignedIn ? "/activity" : "/sign-in"} className="nv-section-link">
-                  {isSignedIn ? "View full activity" : "Join community"} <ArrowRight size={14} />
+                <Link href="/activity" className="nv-section-link">
+                  View full activity <ArrowRight size={14} />
                 </Link>
               </div>
 
@@ -338,25 +335,17 @@ export default async function HomePage() {
                   <h4>Features</h4>
                   <BrowseResetLink>Browse Discovery</BrowseResetLink>
                   <Link href="/activity">Community Feed</Link>
-                  <Link href={isSignedIn ? "/vault" : "/sign-in"}>Custom Backlogs</Link>
-                  <Link href={isSignedIn ? "/friends" : "/sign-in"}>Friends &amp; Social</Link>
+                  <Link href="/home?tab=media">Custom Backlogs</Link>
+                  <Link href="/friends">Friends &amp; Social</Link>
                 </div>
 
                 <div className="nv-footer-nav-group">
                   <h4>Account</h4>
-                  {isSignedIn ? (
-                    <>
-                      <Link href="/profile">My Profile</Link>
-                      <Link href="/home">Personal Dashboard</Link>
-                      <Link href="/vault">Vault Shelves</Link>
-                    </>
-                  ) : (
-                    <>
-                      <Link href="/sign-in">Sign In</Link>
-                      <Link href="/sign-in?mode=register">Create Account</Link>
-                      <Link href="/support">Help &amp; FAQ</Link>
-                    </>
-                  )}
+                  <Link href="/home">Personal Dashboard</Link>
+                  <Link href="/profile">My Profile</Link>
+                  <Link href="/home?tab=media">Vault Shelves</Link>
+                  <Link href="/sign-in">Sign In</Link>
+                  <Link href="/support">Help &amp; FAQ</Link>
                 </div>
               </div>
             </div>

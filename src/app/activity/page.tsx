@@ -4,8 +4,6 @@ import { AppTopBar } from "@/components/app-topbar";
 import { ActivityFeed } from "@/components/activity-feed";
 import { GuestVaultShell } from "@/components/guest-shell";
 
-export const dynamic = "force-dynamic";
-
 export default async function ActivityPage() {
   const session = await auth();
   const viewerName = session?.user?.name || "Guest vault";

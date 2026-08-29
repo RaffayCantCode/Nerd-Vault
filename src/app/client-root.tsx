@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { ActionFeedbackContainer } from "@/components/action-feedback";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
+import { OnboardingTour } from "@/components/onboarding-tour";
 import { PerformanceOptimizer } from "@/components/performance-optimizer";
 import { RoutePrefetcher } from "@/components/route-prefetcher";
 import { ScrollManager } from "@/components/scroll-manager";
@@ -19,6 +20,7 @@ export function ClientRoot({
       </Suspense>
       <PerformanceOptimizer />
       <RoutePrefetcher />
+      <OnboardingTour />
       <Suspense fallback={null}>{children}</Suspense>
       <Suspense fallback={null}>
         <MobileBottomNav />

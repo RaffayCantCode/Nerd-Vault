@@ -1,5 +1,7 @@
 import { Suspense, cache } from "react";
 import Link from "next/link";
+
+export const revalidate = 3600;
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopBar } from "@/components/app-topbar";
 import { BrowseResetLink } from "@/components/browse-reset-link";

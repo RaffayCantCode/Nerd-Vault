@@ -7,7 +7,7 @@ import { getLibraryStateForUser, getViewerShellData } from "@/lib/vault-server";
 
 const INITIAL_BROWSE_TOTAL_PAGES = 120;
 
-export const dynamic = "force-dynamic";
+export const revalidate = 600;
 
 export default async function BrowsePage({
   searchParams,

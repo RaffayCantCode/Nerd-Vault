@@ -20,10 +20,6 @@ export function DetailBackButton({ className = "modern-btn-secondary" }: { class
   const targetHref = browseReturnContext?.href || returnTarget?.href || fallbackBrowseUrl;
   const targetLabel = returnTarget?.label || "Back to browse";
 
-  useEffect(() => {
-    router.prefetch(targetHref);
-  }, [router, targetHref]);
-
   return (
     <button
       type="button"

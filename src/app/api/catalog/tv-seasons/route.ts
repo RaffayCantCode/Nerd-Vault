@@ -224,7 +224,14 @@ export async function GET(request: NextRequest) {
   const cacheKey = `${source}:${sourceId}:${season}:${malId}`;
   const cached = getCached(cacheKey);
   if (cached) {
-    return NextResponse.json({ episodes: cached });
+    return NextResponse.json(
+      { episodes: cached },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=604800",
+        },
+      },
+    );
   }
 
   try {
@@ -263,7 +270,14 @@ export async function GET(request: NextRequest) {
     }
 
     setCached(cacheKey, episodes);
-    return NextResponse.json({ episodes });
+    return NextResponse.json(
+      { episodes },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=604800",
+        },
+      },
+    );
   } catch (error) {
     console.error("[tv-seasons] Failed to fetch episode data:", error);
     return NextResponse.json(
