@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS verificationTokens (
+CREATE TABLE IF NOT EXISTS verification_tokens (
   identifier TEXT NOT NULL,
   token TEXT NOT NULL UNIQUE,
   expires TEXT NOT NULL,

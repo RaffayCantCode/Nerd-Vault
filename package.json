@@ -7,6 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "tsc --noEmit",
+    "d1:migrate:local": "wrangler d1 migrations apply nerdvault-db --local",
+    "d1:migrate:remote": "wrangler d1 migrations apply nerdvault-db --remote",
+    "d1:execute:remote": "wrangler d1 execute nerdvault-db --remote --file=./migrations/0001_initial_schema.sql",
     "clean": "node -e \"const fs=require('fs');['.next','tsconfig.tsbuildinfo'].forEach((p)=>fs.rmSync(p,{recursive:true,force:true}));\"",
     "clean:deep": "node -e \"const fs=require('fs');['.next','tsconfig.tsbuildinfo','node_modules'].forEach((p)=>fs.rmSync(p,{recursive:true,force:true}));\""
   },
