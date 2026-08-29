@@ -47,7 +47,11 @@ export default async function ListDetailPage({ params }: Props) {
 
   return (
     <div className="app-shell">
-      <AppSidebar active="vault" />
+      <AppSidebar
+        active="vault"
+        userName={session?.user?.name || null}
+        isSignedIn={Boolean(session?.user?.id)}
+      />
       <div className="content-area">
         <ListDetailWorkspace initialList={list} viewerId={viewerId} isOwner={isOwner} />
       </div>

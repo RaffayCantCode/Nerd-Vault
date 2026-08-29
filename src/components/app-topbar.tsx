@@ -1,10 +1,12 @@
-﻿"use client";
+"use client";
 
 import { memo, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOutUser } from "@/app/sign-in/sign-out-action";
 import { MobileInstallButton } from "@/components/mobile-install-button";
+import { ChevronDown, LogOut, X } from "lucide-react";
 import {
   acceptFriend,
   declineFriend,
@@ -46,6 +48,7 @@ export const AppTopBar = memo(function AppTopBar({
   const [guestPromptCopy, setGuestPromptCopy] = useState({ title: "Sign in required", message: "Sign in to use this feature." });
   const [inboxOpen, setInboxOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [confirmSignOutOpen, setConfirmSignOutOpen] = useState(false);
   const [viewerProfile, setViewerProfile] = useState<SocialProfile | null>(initialProfile);
   const [friends, setFriends] = useState<SocialProfile[]>(initialFriends);
   const [userResults, setUserResults] = useState<Array<{ id: string; name: string; handle: string; avatarUrl?: string; relationship: string }>>([]);
@@ -316,15 +319,16 @@ export const AppTopBar = memo(function AppTopBar({
               )}
               <div className="topbar-user-copy">
                 <strong>{topbarName}</strong>
-                <span>{isGuest ? "Guest mode" : `${friends.length} friends`}</span>
+                <span>{isGuest ? "Guest" : `@${viewerProfile?.handle ? viewerProfile.handle.replace(/^@/, '') : 'vault'}`}</span>
               </div>
+              <ChevronDown size={14} style={{ color: "rgba(226, 232, 240, 0.6)", marginLeft: "0.2rem" }} />
             </button>
 
             {profileMenuOpen ? (
               <div className="topbar-panel glass profile-menu-panel">
                 <div className="topbar-user-results" style={{ display: 'grid', gap: 10 }}>
                   <Link href="/home?tab=media" className="button button-secondary" style={{ width: '100%' }} onClick={() => setProfileMenuOpen(false)}>
-                    Open vault
+                    Open Vault
                   </Link>
                   {isGuest ? (
                     <>
@@ -360,11 +364,17 @@ export const AppTopBar = memo(function AppTopBar({
                           ))}
                         </div>
                       ) : null}
-                      <form action={signOutUser} style={{ width: '100%', borderTop: suggestions.length > 0 ? "1px solid rgba(255,255,255,0.08)" : "none", paddingTop: suggestions.length > 0 ? 10 : 0 }}>
-                        <button type="submit" className="button button-primary topbar-menu-button" style={{ width: '100%' }}>
-                          Sign out
-                        </button>
-                      </form>
+                      <button
+                        type="button"
+                        className="button button-secondary"
+                        style={{ width: "100%", color: "#ef4444" }}
+                        onClick={() => {
+                          setProfileMenuOpen(false);
+                          setConfirmSignOutOpen(true);
+                        }}
+                      >
+                        Sign Out
+                      </button>
                     </>
                   )}
                 </div>
@@ -373,6 +383,46 @@ export const AppTopBar = memo(function AppTopBar({
           </div>
         </div>
       </div>
+      {confirmSignOutOpen && typeof document !== "undefined" && createPortal(
+        <div className="nv-confirm-modal-overlay" onClick={() => setConfirmSignOutOpen(false)} role="dialog" aria-modal="true">
+          <div className="nv-confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 className="nv-confirm-modal-title">Sign Out</h3>
+              <button
+                type="button"
+                className="taste-search-close"
+                onClick={() => setConfirmSignOutOpen(false)}
+                aria-label="Close"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <p className="nv-confirm-modal-copy">
+              Are you sure you want to sign out of your NerdVault account?
+            </p>
+            <div className="nv-confirm-modal-actions">
+              <button
+                type="button"
+                className="button button-secondary"
+                onClick={() => setConfirmSignOutOpen(false)}
+              >
+                Cancel
+              </button>
+              <form action={signOutUser} style={{ flex: 1 }}>
+                <button
+                  type="submit"
+                  className="button button-primary"
+                  style={{ width: "100%", background: "#ef4444", borderColor: "#ef4444" }}
+                >
+                  <LogOut size={15} />
+                  <span>Sign Out</span>
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
       <GuestAuthPrompt
         isOpen={guestPromptOpen}
         title={guestPromptCopy.title}

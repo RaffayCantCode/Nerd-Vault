@@ -7,10 +7,12 @@ export const revalidate = 0;
 export async function GET(request: NextRequest) {
   try {
     const sessionUser = await requireSessionUser();
-    await ensureCurrentUserRecord();
     const viewedUserId = request.nextUrl.searchParams.get("user") || sessionUser.id;
     const payload = await getVaultProfilePayload(sessionUser.id, viewedUserId);
-    return NextResponse.json({ ok: true, ...payload });
+    return NextResponse.json(
+      { ok: true, ...payload },
+      { headers: { "Cache-Control": "private, max-age=60" } },
+    );
   } catch (error) {
     return NextResponse.json({ ok: false, message: error instanceof Error ? error.message : "Profile load failed" }, { status: 401 });
   }

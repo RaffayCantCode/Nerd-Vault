@@ -9,12 +9,25 @@ export async function GET() {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    return NextResponse.json({
-      id: session.user.id,
-      name: session.user.name,
-      email: session.user.email,
-      image: session.user.image,
-    });
+    return NextResponse.json(
+      {
+        id: session.user.id,
+        name: session.user.name,
+        email: session.user.email,
+        image: session.user.image,
+        user: {
+          id: session.user.id,
+          name: session.user.name,
+          email: session.user.email,
+          image: session.user.image,
+        },
+      },
+      {
+        headers: {
+          "Cache-Control": "private, max-age=60",
+        },
+      },
+    );
   } catch (error) {
     console.error("Error checking auth:", error);
     return NextResponse.json(

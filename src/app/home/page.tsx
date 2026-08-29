@@ -61,7 +61,7 @@ export default async function HomeHubPage({
   return (
     <div className="page-shell home-page">
       <div className="app-shell-layout home-layout">
-        <AppSidebar active="vault" />
+        <AppSidebar active="vault" userName={viewerName} isSignedIn={true} />
         <main className="workspace home-workspace">
           <HomeScrollReset />
           <VaultClientPrimer

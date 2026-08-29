@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { signOutUser } from "@/app/sign-in/sign-out-action";
 import { BrandLogo } from "@/components/brand-logo";
 import { BrowseResetLink } from "@/components/browse-reset-link";
 import { SidebarShell } from "@/components/sidebar-shell";
+import { LogOut, X } from "lucide-react";
 
 function IconHome() {
   return (
@@ -68,14 +70,6 @@ function IconPeople() {
   );
 }
 
-function IconList() {
-  return (
-    <svg className="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M4 6h16M4 10h16M4 14h10M4 18h7" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 function IconDoor() {
   return (
     <svg className="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -100,14 +94,22 @@ type AppSidebarProps = {
   active: "vault" | "browse" | "activity" | "friends";
   redirectTo?: string;
   userName?: string | null;
+  isSignedIn?: boolean;
 };
 
-export function AppSidebar({ active, redirectTo = "/home", userName: initialUserName }: AppSidebarProps) {
+export function AppSidebar({ active, redirectTo = "/home", userName: initialUserName, isSignedIn: initialSignedIn }: AppSidebarProps) {
   const [userName, setUserName] = useState<string | null>(initialUserName ?? null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     if (initialUserName !== undefined) {
       setUserName(initialUserName);
+      return;
+    }
+    if (initialSignedIn) {
+      setUserName("User");
       return;
     }
     fetch("/api/auth/me")
@@ -118,86 +120,131 @@ export function AppSidebar({ active, redirectTo = "/home", userName: initialUser
         }
       })
       .catch(() => undefined);
-  }, [initialUserName]);
+  }, [initialSignedIn, initialUserName]);
 
-  const shouldShowSignOut = Boolean(userName);
+  const shouldShowSignOut = Boolean(userName) || Boolean(initialSignedIn);
 
-  return (
-    <SidebarShell>
-      <aside className="sidebar sidebar-rail nv-sidebar-panel glass">
-        <Link href="/" className="brand brand-rail" aria-label="NerdVault home" title="NerdVault">
-          <BrandLogo className="brand-mark brand-mark-logo" />
-        </Link>
-
-        <nav className="sidebar-rail-nav" aria-label="Primary navigation">
-          <Link href="/" className="sidebar-nav-button" aria-label="Landing page" title="Landing page">
-            <IconLanding />
-            <span className="sidebar-nav-label">Landing</span>
-          </Link>
-          <Link
-            href="/home"
-            className={`sidebar-nav-button ${active === "vault" ? "is-active" : ""}`}
-            aria-label="Vault"
-            title="Vault"
+  const confirmModal = confirmOpen && mounted && typeof document !== "undefined" ? createPortal(
+    <div className="nv-confirm-modal-overlay" onClick={() => setConfirmOpen(false)} role="dialog" aria-modal="true">
+      <div className="nv-confirm-modal" onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h3 className="nv-confirm-modal-title">Sign Out</h3>
+          <button
+            type="button"
+            className="taste-search-close"
+            onClick={() => setConfirmOpen(false)}
+            aria-label="Close"
           >
-            <IconHome />
-            <span className="sidebar-nav-label">Vault</span>
-          </Link>
-          <BrowseResetLink
-            className={`sidebar-nav-button ${active === "browse" ? "is-active" : ""}`}
-            aria-label="Browse catalog"
-            title="Browse catalog"
-          >
-            <IconCompass />
-            <span className="sidebar-nav-label">Browse</span>
-          </BrowseResetLink>
-          <Link
-            href="/activity"
-            className={`sidebar-nav-button ${active === "activity" ? "is-active" : ""}`}
-            aria-label="Friend Activity"
-            title="Friend Activity"
-          >
-            <IconActivity />
-            <span className="sidebar-nav-label">Activity</span>
-          </Link>
-          <Link
-            href="/friends"
-            className={`sidebar-nav-button ${active === "friends" ? "is-active" : ""}`}
-            aria-label="Friends"
-            title="Friends"
-          >
-            <IconPeople />
-            <span className="sidebar-nav-label">Friends</span>
-          </Link>
-
-        </nav>
-
-        <div className="sidebar-rail-divider" />
-
-        <div className="sidebar-rail-stack" aria-label="Sign in">
-          {!shouldShowSignOut ? (
-            <Link
-              href={`/sign-in?redirectTo=${encodeURIComponent(redirectTo)}`}
-              className="sidebar-nav-button"
-              aria-label="Sign in to save"
-              title="Sign in to save"
-              style={{ cursor: 'pointer', zIndex: 10 }}
-            >
-              <IconDoor />
-              <span className="sidebar-nav-label">Sign in</span>
-            </Link>
-          ) : null}
+            <X size={16} />
+          </button>
         </div>
-
-        {shouldShowSignOut ? (
-          <form action={signOutUser} className="sidebar-signout-form">
-            <button className="sidebar-nav-button sidebar-signout-button" type="submit" aria-label="Sign out" title="Sign out">
-              <IconLeave />
-              <span className="sidebar-nav-label">Sign out</span>
+        <p className="nv-confirm-modal-copy">
+          Are you sure you want to sign out of your NerdVault account?
+        </p>
+        <div className="nv-confirm-modal-actions">
+          <button
+            type="button"
+            className="button button-secondary"
+            onClick={() => setConfirmOpen(false)}
+          >
+            Cancel
+          </button>
+          <form action={signOutUser} style={{ flex: 1 }}>
+            <button
+              type="submit"
+              className="button button-primary"
+              style={{ width: "100%", background: "#ef4444", borderColor: "#ef4444" }}
+            >
+              <LogOut size={15} />
+              <span>Sign Out</span>
             </button>
           </form>
-        ) : null}
-      </aside>
-    </SidebarShell>
+        </div>
+      </div>
+    </div>,
+    document.body
+  ) : null;
+
+  return (
+    <>
+      <SidebarShell>
+        <aside className="sidebar sidebar-rail nv-sidebar-panel glass">
+          <Link href="/" className="brand brand-rail" aria-label="NerdVault home" title="NerdVault">
+            <BrandLogo className="brand-mark brand-mark-logo" />
+          </Link>
+
+          <nav className="sidebar-rail-nav" aria-label="Primary navigation">
+            <Link href="/" className="sidebar-nav-button" aria-label="Landing page" title="Landing page">
+              <IconLanding />
+              <span className="sidebar-nav-label">Landing</span>
+            </Link>
+            <Link
+              href="/home"
+              className={`sidebar-nav-button ${active === "vault" ? "is-active" : ""}`}
+              aria-label="Vault"
+              title="Vault"
+            >
+              <IconHome />
+              <span className="sidebar-nav-label">Vault</span>
+            </Link>
+            <BrowseResetLink
+              className={`sidebar-nav-button ${active === "browse" ? "is-active" : ""}`}
+              aria-label="Browse catalog"
+              title="Browse catalog"
+            >
+              <IconCompass />
+              <span className="sidebar-nav-label">Browse</span>
+            </BrowseResetLink>
+            <Link
+              href="/activity"
+              className={`sidebar-nav-button ${active === "activity" ? "is-active" : ""}`}
+              aria-label="Friend Activity"
+              title="Friend Activity"
+            >
+              <IconActivity />
+              <span className="sidebar-nav-label">Activity</span>
+            </Link>
+            <Link
+              href="/friends"
+              className={`sidebar-nav-button ${active === "friends" ? "is-active" : ""}`}
+              aria-label="Friends"
+              title="Friends"
+            >
+              <IconPeople />
+              <span className="sidebar-nav-label">Friends</span>
+            </Link>
+          </nav>
+
+          <div className="sidebar-rail-divider" />
+
+          <div className="sidebar-rail-stack">
+            {!shouldShowSignOut ? (
+              <Link
+                href={`/sign-in?redirectTo=${encodeURIComponent(redirectTo)}`}
+                className="sidebar-nav-button"
+                aria-label="Sign in"
+                title="Sign in"
+                style={{ cursor: "pointer", zIndex: 10 }}
+              >
+                <IconDoor />
+                <span className="sidebar-nav-label">Sign in</span>
+              </Link>
+            ) : (
+              <button
+                type="button"
+                className="sidebar-nav-button sidebar-signout-button"
+                onClick={() => setConfirmOpen(true)}
+                aria-label="Sign out"
+                title="Sign out"
+              >
+                <IconLeave />
+                <span className="sidebar-nav-label">Sign out</span>
+              </button>
+            )}
+          </div>
+        </aside>
+      </SidebarShell>
+      {confirmModal}
+    </>
   );
 }

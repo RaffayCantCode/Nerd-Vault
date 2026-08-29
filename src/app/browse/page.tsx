@@ -35,7 +35,11 @@ export default async function BrowsePage({
   return (
     <div className="page-shell browse-page">
       <div className="app-shell-layout browse-layout">
-        <AppSidebar active="browse" />
+        <AppSidebar
+          active="browse"
+          userName={session?.user?.name || null}
+          isSignedIn={Boolean(session?.user?.id)}
+        />
         <main className="workspace browse-workspace">
           <VaultClientPrimer
             library={library}

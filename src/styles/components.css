@@ -57,9 +57,30 @@
 }
 
 .nav-link {
-  min-height: 42px;
-  padding: 0.68rem 0.95rem;
-  font-size: 0.92rem;
+  min-height: 40px;
+  padding: 0.55rem 1.1rem;
+  font-size: 0.9rem;
+  font-weight: 750;
+  color: #ffffff;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  backdrop-filter: blur(14px);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  transition: all 180ms ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-link:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(94, 234, 212, 0.6);
+  color: #5eead4;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), 0 0 14px rgba(21, 158, 154, 0.35);
+  transform: translateY(-1px);
 }
 
 .nav-link-button {
@@ -3451,5 +3472,321 @@
   width: 100%;
   height: 200px;
   border-radius: 26px;
+}
+
+/* =========================================================
+   TASTE CARD POP-UP SEARCH MODAL (LETTERBOXD STYLE)
+   ========================================================= */
+.taste-search-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(3, 7, 18, 0.85);
+  backdrop-filter: blur(20px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  animation: fadeInModal 200ms ease;
+}
+
+@keyframes fadeInModal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.taste-search-modal {
+  position: relative;
+  background: #090e17;
+  border: 1.5px solid rgba(255, 255, 255, 0.14);
+  border-radius: 22px;
+  width: 100%;
+  max-width: 580px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 25px 65px rgba(0, 0, 0, 0.8), 0 0 30px rgba(94, 234, 212, 0.15);
+  animation: scaleInModal 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes scaleInModal {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.taste-search-header {
+  padding: 1.5rem 1.5rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.taste-search-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.taste-search-header-top h2 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.taste-search-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(226, 232, 240, 0.8);
+  display: grid;
+  place-items: center;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 180ms ease;
+}
+
+.taste-search-close:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  transform: scale(1.05);
+}
+
+.taste-search-input {
+  width: 100%;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1.5px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  color: #ffffff;
+  outline: 0;
+  transition: all 180ms ease;
+}
+
+.taste-search-input:focus {
+  border-color: #5eead4;
+  box-shadow: 0 0 16px rgba(94, 234, 212, 0.3);
+}
+
+.taste-search-results {
+  padding: 0.75rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 52vh;
+}
+
+.taste-result-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #ffffff;
+  text-align: left;
+  cursor: pointer;
+  transition: all 180ms ease;
+  width: 100%;
+}
+
+.taste-result-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(94, 234, 212, 0.35);
+  transform: translateX(4px);
+}
+
+.taste-result-poster {
+  width: 44px;
+  aspect-ratio: 2 / 3;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #0d1522;
+  flex-shrink: 0;
+}
+
+.taste-result-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.taste-result-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.taste-result-title {
+  font-size: 0.92rem;
+  font-weight: 750;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.taste-result-meta {
+  font-size: 0.76rem;
+  color: rgba(226, 232, 240, 0.55);
+}
+
+.taste-search-empty,
+.taste-search-spinner {
+  padding: 3rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(226, 232, 240, 0.5);
+  font-size: 0.9rem;
+}
+
+/* =========================================================
+   GENERIC CONFIRMATION MODAL POPUP
+   ========================================================= */
+.nv-confirm-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(3, 7, 18, 0.85);
+  backdrop-filter: blur(20px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  animation: fadeInModal 180ms ease;
+}
+
+.nv-confirm-modal {
+  background: #090e17;
+  border: 1.5px solid rgba(255, 255, 255, 0.14);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 420px;
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  box-shadow: 0 25px 65px rgba(0, 0, 0, 0.85);
+  animation: scaleInModal 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: center;
+}
+
+.nv-confirm-modal-title {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0;
+}
+
+.nv-confirm-modal-copy {
+  font-size: 0.88rem;
+  color: rgba(226, 232, 240, 0.7);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.nv-confirm-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.nv-confirm-modal-actions button,
+.nv-confirm-modal-actions a {
+  flex: 1;
+  min-height: 42px;
+  font-size: 0.88rem;
+  justify-content: center;
+}
+
+/* =========================================================
+   TOPBAR PROFILE PILL & NAVIGATION TEXT ENHANCEMENTS
+   ========================================================= */
+.topbar .nav-link {
+  font-weight: 750 !important;
+  font-size: 0.94rem !important;
+  color: #ffffff !important;
+  background: rgba(15, 23, 42, 0.65) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  backdrop-filter: blur(14px) !important;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+.topbar .nav-link:hover {
+  background: rgba(255, 255, 255, 0.14) !important;
+  border-color: rgba(94, 234, 212, 0.6) !important;
+  color: #5eead4 !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), 0 0 14px rgba(21, 158, 154, 0.35) !important;
+}
+
+.topbar-user.topbar-user-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.3rem 0.95rem 0.3rem 0.35rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1.5px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  transition: all 180ms ease;
+}
+
+.topbar-user.topbar-user-button:hover {
+  border-color: rgba(94, 234, 212, 0.5);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.5), 0 0 14px rgba(21, 158, 154, 0.25);
+  transform: translateY(-1px);
+}
+
+.topbar-user-avatar,
+.topbar-user-avatar-fallback {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1.5px solid #5eead4;
+}
+
+.topbar-user-avatar-fallback {
+  display: grid;
+  place-items: center;
+  font-size: 0.84rem;
+  font-weight: 850;
+  color: #5eead4;
+  background: rgba(21, 158, 154, 0.25);
+}
+
+.topbar-user-copy {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  gap: 0.05rem;
+}
+
+.topbar-user-copy strong {
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.topbar-user-copy span {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: rgba(226, 232, 240, 0.6);
+  line-height: 1;
 }
 

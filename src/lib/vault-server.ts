@@ -287,18 +287,18 @@ function canViewPrivacy(ownerId: string, viewerId: string, visibility: PrivacyLe
   return ownerFriendIds.includes(viewerId);
 }
 
-async function getUserById(userId: string) {
+const getUserById = cache(async (userId: string) => {
   return queryOne<UserRow>(`SELECT * FROM users WHERE id = ? LIMIT 1`, [userId]);
-}
+});
 
-async function getUserByEmail(email: string) {
+const getUserByEmail = cache(async (email: string) => {
   return queryOne<UserRow>(`SELECT * FROM users WHERE email = ? LIMIT 1`, [email]);
-}
+});
 
-async function getFriendIds(userId: string) {
+const getFriendIds = cache(async (userId: string) => {
   const rows = await queryAll<{ friend_id: string }>(`SELECT friend_id FROM friendships WHERE user_id = ?`, [userId]);
   return rows.map((row) => row.friend_id);
-}
+});
 
 async function getFolderItems(folderId: string) {
   const rows = await queryAll<FolderItemRow>(
@@ -673,20 +673,11 @@ export async function persistMediaItem(item: MediaItem, _txArg?: unknown) {
 }
 
 export const getLibraryStateForUser = cache(async (userId: string): Promise<LibraryState> => {
-  const [watchedRows, wishlistRows, folderRows] = await Promise.all([
+  const [watchedRows, wishlistRows, lists] = await Promise.all([
     loadWatchedRows(userId, 500),
     loadWishlistRows(userId, 500),
-    loadFolderRows(userId, 100),
+    getListsForUser(userId),
   ]);
-
-  const folders = await Promise.all(
-    folderRows.map(async (folder) => ({
-      ...folder,
-      items: await getFolderItems(folder.id),
-    })),
-  );
-
-  const lists = folders.map(serializeList);
 
   return {
     watched: watchedRows.map((row) =>

@@ -13,7 +13,12 @@ export default async function ActivityPage() {
   return (
     <div className="page-shell activity-page">
       <div className="app-shell-layout activity-layout">
-        <AppSidebar active="activity" redirectTo="/activity" />
+        <AppSidebar
+          active="activity"
+          redirectTo="/activity"
+          userName={session?.user?.name || null}
+          isSignedIn={Boolean(session?.user?.id)}
+        />
         <main className="workspace activity-workspace">
           <AppTopBar viewerId={viewerId} viewerName={viewerName} viewerAvatar={viewerAvatar} redirectTo="/activity" />
           {!session?.user?.id ? (

@@ -263,12 +263,15 @@ async function ensureAppSchema(db: any) {
   await ensureUserColumns(db);
 }
 
-let isSchemaReady = false;
+const globalD1Flags = globalThis as typeof globalThis & {
+  __nerdvaultSchemaReady?: Promise<void>;
+  __nerdvaultSchemaDone?: boolean;
+};
 
 export async function ensureDatabaseReady() {
-  if (isSchemaReady) return;
-  if (!globalForD1.__nerdvaultSchemaReady) {
-    globalForD1.__nerdvaultSchemaReady = (async () => {
+  if (globalD1Flags.__nerdvaultSchemaDone) return;
+  if (!globalD1Flags.__nerdvaultSchemaReady) {
+    globalD1Flags.__nerdvaultSchemaReady = (async () => {
       try {
         const db = (await getD1Database()) as any;
         if (!db) return;
@@ -276,22 +279,22 @@ export async function ensureDatabaseReady() {
         // Check if users table and password_hash column already exist
         try {
           await db.prepare("SELECT password_hash FROM users LIMIT 1").all();
-          isSchemaReady = true;
+          globalD1Flags.__nerdvaultSchemaDone = true;
           return;
         } catch {
           // Table or column is missing, run full schema initialization
         }
 
         await ensureAppSchema(db);
-        isSchemaReady = true;
+        globalD1Flags.__nerdvaultSchemaDone = true;
       } catch (error) {
         console.warn("[d1] Database schema check notice:", error);
       }
     })();
   }
 
-  await globalForD1.__nerdvaultSchemaReady;
-  isSchemaReady = true;
+  await globalD1Flags.__nerdvaultSchemaReady;
+  globalD1Flags.__nerdvaultSchemaDone = true;
 }
 
 export async function queryAll<T = Row>(sql: string, binds: unknown[] = []) {

@@ -3256,7 +3256,11 @@ export default async function MediaDetailPage({
     return (
       <div className="page-shell">
         <div className="app-shell-layout">
-          <AppSidebar active="browse" />
+          <AppSidebar
+            active="browse"
+            userName={viewerName !== "Guest vault" ? viewerName : null}
+            isSignedIn={viewerId !== "guest-vault"}
+          />
           <main className="workspace">
             <section className="feature-block">
               <p className="eyebrow">Missing</p>
@@ -3367,7 +3371,11 @@ export default async function MediaDetailPage({
   return (
     <div className="page-shell">
       <div className="app-shell-layout">
-        <AppSidebar active="browse" />
+        <AppSidebar
+          active="browse"
+          userName={viewerName !== "Guest vault" ? viewerName : null}
+          isSignedIn={viewerId !== "guest-vault"}
+        />
 
         <main className={`workspace detail-layout ${easterEgg?.className ?? ""}`} style={detailPaletteStyle}>
           <DetailViewEffects />

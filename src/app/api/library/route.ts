@@ -8,7 +8,10 @@ export async function GET() {
   try {
     const sessionUser = await requireSessionUser();
     const library = await getLibraryStateForUser(sessionUser.id);
-    return NextResponse.json({ ok: true, ...library });
+    return NextResponse.json(
+      { ok: true, ...library },
+      { headers: { "Cache-Control": "private, max-age=60" } },
+    );
   } catch (error) {
     return NextResponse.json({ ok: false, message: error instanceof Error ? error.message : "Library load failed" }, { status: 401 });
   }

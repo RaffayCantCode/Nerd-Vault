@@ -13,7 +13,12 @@ export default async function FriendsRoute() {
   return (
     <div className="page-shell friends-page-shell">
       <div className="app-shell-layout friends-layout">
-        <AppSidebar active="friends" redirectTo="/friends" />
+        <AppSidebar
+          active="friends"
+          redirectTo="/friends"
+          userName={session?.user?.name || null}
+          isSignedIn={Boolean(session?.user?.id)}
+        />
         <main className="workspace friends-workspace">
           <AppTopBar viewerId={viewerId} viewerName={viewerName} viewerAvatar={viewerAvatar} redirectTo="/friends" />
           {!session?.user?.id ? (

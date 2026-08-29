@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ImageAdjusterModal } from "@/components/image-adjuster-modal";
 import { createUserList } from "@/lib/vault-client";
 import { PrivacyLevel, StoredList } from "@/lib/vault-types";
+import { Plus, Search, Layers, Lock, Globe, Users } from "lucide-react";
 
 function getListArtStyle(coverUrl?: string, items?: { coverUrl?: string }[]) {
   if (coverUrl) {
@@ -15,7 +16,6 @@ function getListArtStyle(coverUrl?: string, items?: { coverUrl?: string }[]) {
     };
   }
 
-  // Generate a gradient mosaic if no cover but has items
   if (items?.length) {
     const hues = [220, 260, 290, 310, 340, 20, 45];
     const hue = hues[(items[0].coverUrl?.charCodeAt(12) ?? 0) % hues.length];
@@ -30,8 +30,10 @@ function getListArtStyle(coverUrl?: string, items?: { coverUrl?: string }[]) {
   };
 }
 
-function privacyLabel(v: PrivacyLevel) {
-  return v === "public" ? "Public" : v === "friends" ? "Friends" : "Private";
+function privacyIcon(v: PrivacyLevel) {
+  if (v === "public") return <Globe size={11} />;
+  if (v === "friends") return <Users size={11} />;
+  return <Lock size={11} />;
 }
 
 export function ListsWorkspace({
@@ -87,51 +89,51 @@ export function ListsWorkspace({
   }
 
   return (
-    <div className="lists-workspace">
-      {/* Toolbar */}
-      <div className="lists-toolbar glass">
-        <div className="lists-toolbar-copy">
-          <p className="eyebrow">Discovery</p>
-          <p className="copy">{lists.length} {lists.length === 1 ? "list" : "lists"} curated by {viewingOwnProfile ? "you" : "this user"}.</p>
-        </div>
-        <div className="lists-toolbar-controls">
+    <div className="lists-workspace" style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+      {/* Action header bar */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+        <div style={{ position: "relative", flex: 1, minWidth: 240, maxWidth: 400 }}>
+          <Search
+            size={16}
+            style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "rgba(226, 232, 240, 0.45)" }}
+          />
           <input
             className="search-input library-search-input"
+            style={{ paddingLeft: "2.5rem", width: "100%" }}
             type="search"
-            placeholder="Search lists…"
+            placeholder="Filter lists..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          {viewingOwnProfile ? (
-            <button
-              type="button"
-              id="create-list-btn"
-              className={`button ${isCreating ? "button-primary" : "button-secondary"} lists-create-btn`}
-              onClick={() => setIsCreating((v) => !v)}
-            >
-              {isCreating ? "Cancel" : "+ New list"}
-            </button>
-          ) : null}
         </div>
+
+        {viewingOwnProfile && (
+          <button
+            type="button"
+            className={`button ${isCreating ? "button-secondary" : "button-primary"}`}
+            style={{ fontSize: "0.85rem", padding: "0.5rem 1.25rem" }}
+            onClick={() => setIsCreating((v) => !v)}
+          >
+            <Plus size={15} />
+            <span>{isCreating ? "Cancel" : "New List"}</span>
+          </button>
+        )}
       </div>
 
-      {/* Create list panel */}
-      {isCreating ? (
-        <div className="list-create-panel glass">
-          <div className="list-create-header">
-            <div>
-              <strong>New list</strong>
-              <p className="copy">Give it a name, a vibe, and pick who can see it.</p>
-            </div>
+      {/* Create list modal / form panel */}
+      {isCreating && (
+        <div className="list-create-panel glass" style={{ padding: "1.5rem", borderRadius: "18px" }}>
+          <div style={{ marginBottom: "1rem" }}>
+            <h3 style={{ fontSize: "1.1rem", fontWeight: 750, color: "#fff", margin: 0 }}>Create Curated List</h3>
           </div>
           <div className="list-edit-fields">
             <div className="list-edit-field-group">
-              <label className="list-edit-label">List name *</label>
+              <label className="list-edit-label">List name</label>
               <input
                 id="new-list-name"
                 className="search-input list-edit-input"
                 type="text"
-                placeholder="e.g. Rainy night picks, Comfort rewatches…"
+                placeholder="e.g. Atmospheric Sci-Fi, Summer Rewatches"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") void handleCreate(); }}
@@ -165,7 +167,7 @@ export function ListsWorkspace({
               <label className="upload-field list-cover-upload">
                 <span className="list-edit-label">Cover (optional)</span>
                 <div className="folder-upload-control">
-                  <span className="button button-secondary folder-upload-button">Choose image</span>
+                  <span className="button button-secondary folder-upload-button" style={{ fontSize: "0.8rem" }}>Choose image</span>
                   <span className="folder-upload-name">{newCover ? "Selected" : "PNG, JPG, WEBP"}</span>
                 </div>
                 <input
@@ -179,7 +181,7 @@ export function ListsWorkspace({
               </label>
             </div>
           </div>
-          <div className="button-row">
+          <div className="button-row" style={{ marginTop: "1rem" }}>
             <button
               type="button"
               id="create-list-submit-btn"
@@ -187,7 +189,7 @@ export function ListsWorkspace({
               onClick={() => void handleCreate()}
               disabled={creating || !newName.trim()}
             >
-              {creating ? "Creating…" : "Create list"}
+              {creating ? "Creating…" : "Save List"}
             </button>
             <button type="button" className="button button-secondary" onClick={() => setIsCreating(false)}>
               Cancel
@@ -195,9 +197,7 @@ export function ListsWorkspace({
           </div>
           {createMsg ? <p className="media-action-message">{createMsg}</p> : null}
         </div>
-      ) : null}
-
-      {createMsg && !isCreating ? <p className="media-action-message" style={{ margin: "0 0 12px" }}>{createMsg}</p> : null}
+      )}
 
       {/* Lists grid */}
       {filtered.length ? (
@@ -210,7 +210,6 @@ export function ListsWorkspace({
               className="list-card glass"
               prefetch={false}
             >
-              {/* Mosaic cover */}
               <div className="list-card-art" style={getListArtStyle(list.coverUrl, list.items)}>
                 {!list.coverUrl && list.items.length >= 4 ? (
                   <div className="list-card-mosaic">
@@ -231,38 +230,44 @@ export function ListsWorkspace({
                 ) : null}
               </div>
 
-              {/* Info */}
               <div className="list-card-body">
                 <div className="list-card-meta">
-                  <span className={`list-card-visibility list-visibility-${list.visibility}`}>
-                    {privacyLabel(list.visibility)}
+                  <span className={`list-card-visibility list-visibility-${list.visibility}`} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    {privacyIcon(list.visibility)}
+                    {list.visibility}
                   </span>
-                  <span className="list-card-count">{list.items.length} {list.items.length === 1 ? "title" : "titles"}</span>
+                  <span className="list-card-count">{list.items.length} titles</span>
                 </div>
                 <strong className="list-card-name">{list.name}</strong>
-                <p className="list-card-desc">
-                  {list.description?.trim()
-                    ? list.description
-                    : list.items.length
-                      ? `${list.items.slice(0, 3).map((i) => i.title).join(", ")}${list.items.length > 3 ? " and more." : "."}`
-                      : "An empty list waiting for its first picks."}
-                </p>
+                {list.description && (
+                  <p className="list-card-desc">{list.description}</p>
+                )}
               </div>
             </Link>
           ))}
         </div>
       ) : (
-        <div className="folder-empty glass">
-          <p className="headline">
-            {lists.length ? "No lists match that search." : viewingOwnProfile ? "No lists yet." : "No visible lists."}
-          </p>
-          <p className="copy">
+        <div className="nv-lb-empty-box" style={{ padding: "3rem 1.5rem" }}>
+          <Layers size={28} style={{ color: "#5eead4" }} />
+          <h4 style={{ fontSize: "1.05rem", fontWeight: 750, color: "#fff", margin: 0 }}>
+            {lists.length ? "No matching lists" : "No curated lists yet"}
+          </h4>
+          <p className="nv-lb-empty-text" style={{ maxWidth: "38ch" }}>
             {lists.length
-              ? "Try a different search term."
-              : viewingOwnProfile
-                ? "Create your first list with the button above, then add media from any detail page."
-                : "This user hasn't made any public lists yet."}
+              ? "Try adjusting your search filter."
+              : "Group your favorite movies, series, anime, and games into curated thematic shelves."}
           </p>
+          {viewingOwnProfile && !lists.length && (
+            <button
+              type="button"
+              className="button button-primary"
+              style={{ fontSize: "0.85rem", padding: "0.5rem 1.5rem" }}
+              onClick={() => setIsCreating(true)}
+            >
+              <Plus size={15} />
+              <span>Create First List</span>
+            </button>
+          )}
         </div>
       )}
 

@@ -1,11 +1,10 @@
 "use client";
+
 import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { NVLoader } from "@/components/nv-loader";
 import { MediaItem } from "@/lib/types";
-
-/* ------------------------------------------------------------------ */
-/*  Types                                                              */
-/* ------------------------------------------------------------------ */
+import { Search, X, Star } from "lucide-react";
 
 type Slot = "movie" | "show" | "anime" | "game";
 
@@ -15,22 +14,18 @@ interface TasteCardSearchModalProps {
   onClose: () => void;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
-
 const SLOT_TITLES: Record<Slot, string> = {
-  movie: "Pick your favorite movie",
-  show: "Pick your favorite show",
-  anime: "Pick your favorite anime",
-  game: "Pick your favorite game",
+  movie: "Pick Favorite Film",
+  show: "Pick Favorite Series",
+  anime: "Pick Favorite Anime",
+  game: "Pick Favorite Game",
 };
 
 const SLOT_PLACEHOLDERS: Record<Slot, string> = {
-  movie: "Search movies...",
-  show: "Search shows...",
-  anime: "Search anime...",
-  game: "Search games...",
+  movie: "Search films (e.g. Interstellar, Dune)...",
+  show: "Search TV shows (e.g. Arcane, Severance)...",
+  anime: "Search anime (e.g. Frieren, Attack on Titan)...",
+  game: "Search games (e.g. Elden Ring, Zelda)...",
 };
 
 interface BrowseResponse {
@@ -41,10 +36,6 @@ interface BrowseResponse {
   totalResults: number;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
-
 export const TasteCardSearchModal = memo(function TasteCardSearchModal({
   slot,
   onSelect,
@@ -54,12 +45,13 @@ export const TasteCardSearchModal = memo(function TasteCardSearchModal({
   const [results, setResults] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  /* Auto-focus the input on mount */
   useEffect(() => {
+    setMounted(true);
     inputRef.current?.focus();
   }, []);
 
@@ -86,7 +78,6 @@ export const TasteCardSearchModal = memo(function TasteCardSearchModal({
     setLoading(true);
 
     const timer = setTimeout(async () => {
-      /* Abort any in-flight request */
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
@@ -109,7 +100,7 @@ export const TasteCardSearchModal = memo(function TasteCardSearchModal({
       } finally {
         setLoading(false);
       }
-    }, 300);
+    }, 280);
 
     return () => {
       clearTimeout(timer);
@@ -117,7 +108,6 @@ export const TasteCardSearchModal = memo(function TasteCardSearchModal({
     };
   }, [query, slot]);
 
-  /* Handlers */
   const handleOverlayClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       if (e.target === e.currentTarget) onClose();
@@ -133,75 +123,8 @@ export const TasteCardSearchModal = memo(function TasteCardSearchModal({
     [onSelect, onClose],
   );
 
-  /* ---- Render helpers ---- */
-
-  const renderMeta = (item: MediaItem): string => {
-    const parts: string[] = [];
-    if (item.year) parts.push(String(item.year));
-    if (item.rating) parts.push(`★ ${item.rating}`);
-    if (item.genres?.length) parts.push(item.genres.slice(0, 3).join(", "));
-    return parts.join(" · ");
-  };
-
-  /* ---- Empty / loading states ---- */
-
-  let body: React.ReactNode;
-
-  if (loading) {
-    body = (
-      <div className="taste-search-spinner">
-        <NVLoader />
-      </div>
-    );
-  } else if (!query.trim()) {
-    body = (
-      <div className="taste-search-empty">
-        <p>Start typing to search...</p>
-      </div>
-    );
-  } else if (searched && results.length === 0) {
-    body = (
-      <div className="taste-search-empty">
-        <p>No results found</p>
-      </div>
-    );
-  } else {
-    body = (
-      <div className="taste-search-results">
-        {results.map((item) => (
-          <button
-            key={item.id ?? `${item.source}-${item.sourceId}`}
-            className="taste-result-card"
-            type="button"
-            onClick={() => handleSelect(item)}
-          >
-            <div className="taste-result-poster">
-              {item.coverUrl ? (
-                <img
-                  src={item.coverUrl}
-                  alt={item.title}
-                  width={48}
-                  loading="lazy"
-                />
-              ) : (
-                <div style={{ width: 48, aspectRatio: "2/3", background: "var(--surface-2, #1a1a2e)", borderRadius: 4 }} />
-              )}
-            </div>
-
-            <div className="taste-result-info">
-              <span className="taste-result-title">{item.title}</span>
-              <span className="taste-result-meta">{renderMeta(item)}</span>
-            </div>
-          </button>
-        ))}
-      </div>
-    );
-  }
-
-  /* ---- Main render ---- */
-
-  return (
-    <div className="taste-search-overlay" onClick={handleOverlayClick}>
+  const modalContent = (
+    <div className="taste-search-overlay" onClick={handleOverlayClick} role="dialog" aria-modal="true">
       <div className="taste-search-modal">
         <div className="taste-search-header">
           <div className="taste-search-header-top">
@@ -210,24 +133,86 @@ export const TasteCardSearchModal = memo(function TasteCardSearchModal({
               className="taste-search-close"
               type="button"
               onClick={onClose}
-              aria-label="Close"
+              aria-label="Close modal"
             >
-              ×
+              <X size={18} />
             </button>
           </div>
 
-          <input
-            ref={inputRef}
-            className="taste-search-input"
-            type="text"
-            placeholder={SLOT_PLACEHOLDERS[slot]}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
+          <div style={{ position: "relative", width: "100%" }}>
+            <Search
+              size={17}
+              style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "rgba(226, 232, 240, 0.5)" }}
+            />
+            <input
+              ref={inputRef}
+              className="taste-search-input"
+              style={{ paddingLeft: "2.6rem" }}
+              type="search"
+              placeholder={SLOT_PLACEHOLDERS[slot]}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
         </div>
 
-        {body}
+        {loading ? (
+          <div className="taste-search-spinner">
+            <NVLoader />
+          </div>
+        ) : !query.trim() ? (
+          <div className="taste-search-empty">
+            <p>Start typing title name to search...</p>
+          </div>
+        ) : searched && results.length === 0 ? (
+          <div className="taste-search-empty">
+            <p>No results found for “{query}”</p>
+          </div>
+        ) : (
+          <div className="taste-search-results">
+            {results.map((item) => (
+              <button
+                key={item.id ?? `${item.source}-${item.sourceId}`}
+                className="taste-result-card"
+                type="button"
+                onClick={() => handleSelect(item)}
+              >
+                <div className="taste-result-poster">
+                  {item.coverUrl || item.backdropUrl ? (
+                    <img
+                      src={item.coverUrl || item.backdropUrl}
+                      alt={item.title}
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div style={{ width: "100%", height: "100%", background: "#0d1522" }} />
+                  )}
+                </div>
+
+                <div className="taste-result-info">
+                  <span className="taste-result-title">{item.title}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <span className="taste-result-meta">{item.year || "—"}</span>
+                    {item.rating ? (
+                      <span style={{ fontSize: "0.74rem", color: "#fbbf24", display: "inline-flex", alignItems: "center", gap: "0.2rem" }}>
+                        <Star size={11} fill="#fbbf24" stroke="#fbbf24" />
+                        {item.rating.toFixed(1)}
+                      </span>
+                    ) : null}
+                    {item.genres?.length ? (
+                      <span className="taste-result-meta">· {item.genres.slice(0, 2).join(", ")}</span>
+                    ) : null}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
+
+  if (!mounted || typeof document === "undefined") return null;
+
+  return createPortal(modalContent, document.body);
 });

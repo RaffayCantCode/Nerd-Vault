@@ -174,8 +174,8 @@ export async function GET(request: NextRequest) {
       {
         headers: {
           "Cache-Control": query.trim()
-            ? "private, no-store, max-age=0, must-revalidate"
-            : "public, s-maxage=300, stale-while-revalidate=600",
+            ? "public, s-maxage=180, max-age=60, stale-while-revalidate=300"
+            : "public, s-maxage=600, stale-while-revalidate=1200",
         },
       },
     );
