@@ -1312,90 +1312,471 @@
   font-size: 0.82rem;
 }
 
+/* =========================================================
+   LETTERBOXD-STYLE CENTRED VAULT REDESIGN
+   ========================================================= */
+.nv-letterboxd-vault {
+  max-width: 1060px;
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  padding: 0.5rem 0.5rem 3rem;
+}
+
+/* 1. Header Profile Banner */
+.nv-lb-header {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.75rem 2rem;
+  border-radius: 20px;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.4);
+  flex-wrap: wrap;
+}
+
+.nv-lb-profile-info {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.nv-lb-avatar-wrap {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2.5px solid rgba(105, 197, 172, 0.5);
+  box-shadow: 0 0 20px rgba(105, 197, 172, 0.2);
+  flex-shrink: 0;
+  background: #0f172a;
+}
+
+.nv-lb-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.nv-lb-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #5eead4;
+  background: radial-gradient(circle, rgba(21, 158, 154, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%);
+}
+
+.nv-lb-avatar-edit-btn {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  opacity: 0;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  cursor: pointer;
+  transition: opacity 200ms ease;
+  border: 0;
+}
+
+.nv-lb-avatar-wrap:hover .nv-lb-avatar-edit-btn {
+  opacity: 1;
+}
+
+.nv-lb-names {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.nv-lb-display-name {
+  font-size: 1.65rem;
+  font-weight: 850;
+  letter-spacing: -0.025em;
+  color: #ffffff;
+  margin: 0;
+}
+
+.nv-lb-handle {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(226, 232, 240, 0.6);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* 2. Letterboxd Stat Row */
+.nv-lb-stats-row {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.nv-lb-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 180ms ease;
+}
+
+.nv-lb-stat-item:hover {
+  transform: translateY(-2px);
+}
+
+.nv-lb-stat-num {
+  font-size: 1.45rem;
+  font-weight: 850;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.nv-lb-stat-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(226, 232, 240, 0.55);
+}
+
+/* 3. Horizontal Navigation Pill Bar */
+.nv-lb-tab-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.35rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  width: fit-content;
+  margin: 0 auto;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.nv-lb-tab-btn {
+  padding: 0.5rem 1.15rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 650;
+  color: rgba(226, 232, 240, 0.65);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 180ms ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  white-space: nowrap;
+}
+
+.nv-lb-tab-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.nv-lb-tab-btn.is-active {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(94, 234, 212, 0.6);
+  box-shadow: 0 0 14px rgba(21, 158, 154, 0.25);
+}
+
+/* 4. Section Headings (Minimalist, Letterboxd-grade) */
+.nv-lb-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 1rem;
+}
+
+.nv-lb-section-title {
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(226, 232, 240, 0.8);
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.nv-lb-section-link {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #5eead4;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 160ms ease;
+  background: transparent;
+  border: 0;
+}
+
+.nv-lb-section-link:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+/* 5. 4 Featured Favorite Posters (Letterboxd Style) */
+.nv-lb-favorites-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+}
+
+@media (max-width: 800px) {
+  .nv-lb-favorites-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.85rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .nv-lb-favorites-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.nv-lb-favorite-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  transition: all 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.nv-lb-favorite-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(94, 234, 212, 0.5);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.55), 0 0 18px rgba(21, 158, 154, 0.25);
+}
+
+.nv-lb-fav-poster {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  background: #090e17;
+}
+
+.nv-lb-fav-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 300ms ease;
+}
+
+.nv-lb-favorite-card:hover .nv-lb-fav-poster img {
+  transform: scale(1.05);
+}
+
+.nv-lb-fav-tag {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid currentColor;
+  backdrop-filter: blur(8px);
+}
+
+.nv-lb-fav-edit-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.nv-lb-favorite-card:hover .nv-lb-fav-edit-btn {
+  opacity: 1;
+}
+
+.nv-lb-fav-info {
+  padding: 0.75rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.nv-lb-fav-title {
+  font-size: 0.88rem;
+  font-weight: 750;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+
+.nv-lb-fav-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.74rem;
+  color: rgba(226, 232, 240, 0.55);
+}
+
+/* Empty Favorite Slot */
+.nv-lb-favorite-empty {
+  border: 1.5px dashed rgba(255, 255, 255, 0.15);
+  background: rgba(15, 23, 42, 0.4);
+  aspect-ratio: 2 / 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  text-align: center;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 200ms ease;
+}
+
+.nv-lb-favorite-empty:hover {
+  border-color: #5eead4;
+  background: rgba(21, 158, 154, 0.08);
+  transform: translateY(-3px);
+}
+
+.nv-lb-fav-empty-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: grid;
+  place-items: center;
+  color: #5eead4;
+}
+
+.nv-lb-fav-empty-label {
+  font-size: 0.78rem;
+  font-weight: 750;
+  color: rgba(226, 232, 240, 0.7);
+}
+
+/* 6. Clean Minimalist Empty State Banner */
+.nv-lb-empty-box {
+  padding: 2.25rem 1.5rem;
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.45);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem;
+  text-align: center;
+}
+
+.nv-lb-empty-text {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: rgba(226, 232, 240, 0.6);
+  margin: 0;
+}
+
+/* 7. Poster Rail for Recent Activity & Wishlist */
+.nv-lb-poster-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 0.85rem;
+}
+
+.nv-lb-mini-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  text-decoration: none;
+  color: #ffffff;
+  transition: transform 180ms ease;
+}
+
+.nv-lb-mini-card:hover {
+  transform: translateY(-3px);
+}
+
+.nv-lb-mini-poster {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #090e17;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+
+.nv-lb-mini-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.nv-lb-mini-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+
+.nv-lb-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  color: #fbbf24;
+  font-size: 0.72rem;
+}
+
 .vault-unified-shell {
   display: grid;
   gap: 1rem;
-}
-
-.vault-profile-bar {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  align-items: center;
-  padding: 1.1rem;
-  border-radius: 18px;
-}
-
-.vault-profile-bar-main {
-  display: flex;
-  align-items: center;
-  gap: 0.9rem;
-  min-width: 0;
-}
-
-.vault-profile-avatar,
-.vault-profile-avatar-fallback {
-  width: 58px;
-  height: 58px;
-  border-radius: 14px;
-}
-
-.vault-profile-avatar-fallback {
-  display: grid;
-  place-items: center;
-  background: rgba(105, 197, 172, 0.14);
-  color: var(--accent);
-  font-weight: 800;
-}
-
-.vault-profile-copy {
-  min-width: 0;
-  display: grid;
-  gap: 0.12rem;
-}
-
-.vault-profile-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-}
-
-.vault-tab-row {
-  display: inline-flex;
-  gap: 0.4rem;
-  padding: 0.45rem;
-  border-radius: 18px;
-  width: fit-content;
-}
-
-.vault-tab-panels {
-  display: grid;
-  gap: 1rem;
-}
-
-.vault-tab-panel {
-  display: none;
-}
-
-.vault-tab-panel.is-active {
-  display: block;
-}
-
-.vault-tab-panel.is-animating {
-  opacity: 0.92;
-}
-
-.vault-shortcuts-container {
-  display: grid;
-}
-
-.vault-shortcuts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-  padding: 0.45rem;
-  width: fit-content;
-  border-radius: 18px;
 }
 
 .workspace > .section-stack,

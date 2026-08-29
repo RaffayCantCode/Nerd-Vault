@@ -1,7 +1,7 @@
-import { signInWithCredentials, signUpWithCredentials } from "@/app/sign-in/actions";
 import { headers } from "next/headers";
 import { SiteHeader } from "@/components/site-header";
 import { GoogleSignInForm } from "@/components/google-sign-in-form";
+import { AuthCredentialsForm } from "@/components/auth-credentials-form";
 import { getAuthSecret, getGoogleClientId, getGoogleClientSecret } from "@/lib/auth-env";
 
 type SignInPageProps = {
@@ -110,52 +110,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
 
             {feedback ? <p className={`auth-feedback auth-feedback-${feedback.tone}`}>{feedback.text}</p> : null}
 
-            {mode === "signup" ? (
-              <form action={signUpWithCredentials} className="auth-form">
-                <input type="hidden" name="redirectTo" value={redirectTo} />
-                <div className="auth-field">
-                  <label htmlFor="name">Display name</label>
-                  <input id="name" name="name" type="text" placeholder="e.g. Alex Rivera" required minLength={2} />
-                </div>
-                <div className="auth-field">
-                  <label htmlFor="signup-email">Email</label>
-                  <input id="signup-email" name="email" type="email" placeholder="you@example.com" required />
-                </div>
-                <div className="auth-field">
-                  <label htmlFor="signup-password">Password</label>
-                  <input id="signup-password" name="password" type="password" placeholder="At least 8 characters" required minLength={8} />
-                </div>
-                <div className="auth-field">
-                  <label htmlFor="signup-confirm-password">Confirm password</label>
-                  <input
-                    id="signup-confirm-password"
-                    name="confirmPassword"
-                    type="password"
-                    placeholder="Re-enter your password"
-                    required
-                    minLength={8}
-                  />
-                </div>
-                <button type="submit" className="button button-primary auth-submit-button">
-                  Create account
-                </button>
-              </form>
-            ) : (
-              <form action={signInWithCredentials} className="auth-form">
-                <input type="hidden" name="redirectTo" value={redirectTo} />
-                <div className="auth-field">
-                  <label htmlFor="login-email">Email</label>
-                  <input id="login-email" name="email" type="email" placeholder="you@example.com" required />
-                </div>
-                <div className="auth-field">
-                  <label htmlFor="login-password">Password</label>
-                  <input id="login-password" name="password" type="password" placeholder="Your password" required minLength={8} />
-                </div>
-                <button type="submit" className="button button-primary auth-submit-button">
-                  Log in
-                </button>
-              </form>
-            )}
+            <AuthCredentialsForm mode={mode} redirectTo={redirectTo} />
 
             <div className="auth-divider">
               <span>or</span>

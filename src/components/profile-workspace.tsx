@@ -6,25 +6,36 @@ import { ChangeEvent, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import { CatalogCard } from "@/components/catalog-card";
 import { ImageAdjusterModal } from "@/components/image-adjuster-modal";
 import { ListsWorkspace } from "@/components/lists-workspace";
+import { HomeWorkspace } from "@/components/home-workspace";
 import { NVLoader } from "@/components/nv-loader";
 import { TasteCardSearchModal } from "@/components/taste-card-search-modal";
 import { MediaItem } from "@/lib/types";
-import { deleteUserList, fetchProfilePayload, loadPinnedFavorites, PinnedFavorites, primeProfilePayload, removeFriend, saveUserList, savePinnedFavorites, saveProfileSettings, subscribeVaultChanges } from "@/lib/vault-client";
-import { PrivacyLevel, SocialProfile, StoredList, VaultProfilePayload } from "@/lib/vault-types";
+import {
+  fetchProfilePayload,
+  loadPinnedFavorites,
+  PinnedFavorites,
+  primeProfilePayload,
+  removeFriend,
+  savePinnedFavorites,
+  saveProfileSettings,
+  subscribeVaultChanges,
+} from "@/lib/vault-client";
+import { PrivacyLevel, SocialProfile, VaultProfilePayload } from "@/lib/vault-types";
+import { HomeFeed } from "@/lib/home-feed";
+import {
+  Camera, Edit3, Plus, Star, Sparkles, Film, Tv, Gamepad2,
+  Layers, Bookmark, Users, Compass, CheckCircle2,
+} from "lucide-react";
+
+export type VaultSubTab = "overview" | "watched" | "wishlist" | "lists" | "friends" | "for-you";
 
 type LibrarySortMode = "recent" | "title" | "rating";
 type MediaFilterMode = "all" | "movie" | "show" | "anime" | "game";
-const PROFILE_FOLDER_PAGE_SIZE = 8;
 
 function readGridColumnCount(element: HTMLElement | null) {
-  if (!element || typeof window === "undefined") {
-    return 0;
-  }
-
+  if (!element || typeof window === "undefined") return 0;
   const value = window.getComputedStyle(element).gridTemplateColumns;
   if (!value) return 0;
-  // `grid-template-columns` can be a list of tracks like: "1fr 1fr 1fr"
-  // or can include functions/spaces. Split on whitespace and keep non-empty tokens.
   return value.split(/\s+/).filter(Boolean).length;
 }
 
@@ -45,39 +56,10 @@ function sortMediaItems(items: MediaItem[], mode: LibrarySortMode) {
 function filterMediaItems(items: MediaItem[], mode: MediaFilterMode, search: string) {
   const normalizedSearch = search.trim().toLowerCase();
   return items.filter((item) => {
-    if (mode !== "all" && item.type !== mode) {
-      return false;
-    }
-
-    if (!normalizedSearch) {
-      return true;
-    }
-
+    if (mode !== "all" && item.type !== mode) return false;
+    if (!normalizedSearch) return true;
     return `${item.title} ${item.originalTitle ?? ""} ${item.genres.join(" ")} ${item.overview}`.toLowerCase().includes(normalizedSearch);
   });
-}
-
-function getFolderBackdropStyle(coverUrl?: string) {
-  if (!coverUrl) {
-    return {
-      background:
-        "radial-gradient(circle at 18% 20%, rgba(157, 184, 255, 0.26), transparent 34%), radial-gradient(circle at 78% 18%, rgba(216, 192, 142, 0.18), transparent 26%), linear-gradient(135deg, rgba(18, 24, 36, 0.96), rgba(7, 10, 17, 0.92))",
-    };
-  }
-
-  return {
-    backgroundImage: `linear-gradient(135deg, rgba(12, 16, 26, 0.28), rgba(12, 16, 26, 0.82)), radial-gradient(circle at top left, rgba(255, 255, 255, 0.12), transparent 35%), url(${coverUrl})`,
-    backgroundSize: "cover",
-    backgroundPosition: "center",
-  };
-}
-
-function privacyOptions() {
-  return [
-    { value: "public", label: "Public" },
-    { value: "friends", label: "Friends only" },
-    { value: "private", label: "Private" },
-  ] as Array<{ value: PrivacyLevel; label: string }>;
 }
 
 function mediaFilterOptions() {
@@ -92,12 +74,12 @@ function mediaFilterOptions() {
 
 type TasteSlotKey = "movie" | "show" | "anime" | "game";
 
-const TASTE_SLOT_LABELS: Record<TasteSlotKey, string> = {
-  movie: "Favorite Movie",
-  show: "Favorite TV Show",
-  anime: "Favorite Anime",
-  game: "Favorite Game",
-};
+const TASTE_SLOTS: Array<{ key: TasteSlotKey; label: string; icon: React.ReactNode; color: string }> = [
+  { key: "movie", label: "Favorite Film", icon: <Film size={13} />, color: "#f59e0b" },
+  { key: "show", label: "Favorite Series", icon: <Tv size={13} />, color: "#a855f7" },
+  { key: "anime", label: "Favorite Anime", icon: <Sparkles size={13} />, color: "#ec4899" },
+  { key: "game", label: "Favorite Game", icon: <Gamepad2 size={13} />, color: "#10b981" },
+];
 
 function favoriteSlots(items: MediaItem[], pinned: PinnedFavorites) {
   const ranked = sortMediaItems(items.filter((item) => item.userRating || item.rating), "rating");
@@ -106,11 +88,10 @@ function favoriteSlots(items: MediaItem[], pinned: PinnedFavorites) {
       ? ranked.find((item) => item.type === "anime" || item.type === "anime_movie")
       : ranked.find((item) => item.type === type);
 
-  return (["movie", "show", "anime", "game"] as TasteSlotKey[]).map((key) => ({
-    key,
-    label: TASTE_SLOT_LABELS[key],
-    item: pinned[key] ?? autoPick(key),
-    isPinned: Boolean(pinned[key]),
+  return TASTE_SLOTS.map((slot) => ({
+    ...slot,
+    item: pinned[slot.key] ?? autoPick(slot.key),
+    isPinned: Boolean(pinned[slot.key]),
   }));
 }
 
@@ -156,16 +137,20 @@ export function ProfileWorkspace({
   viewerAvatar,
   isDemo,
   initialPayload,
+  initialTab = "overview",
+  feed,
 }: {
   userName: string;
   viewerId: string;
   viewerAvatar?: string;
   isDemo: boolean;
   initialPayload?: VaultProfilePayload;
+  initialTab?: VaultSubTab;
+  feed?: HomeFeed;
 }) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const viewedUserId = searchParams.get("user") || viewerId;
+  const [activeTab, setActiveTab] = useState<VaultSubTab>(initialTab);
   const [payload, setPayload] = useState<VaultProfilePayload>(initialPayload ?? emptyPayload(viewerId, userName, viewerAvatar));
   const [loading, setLoading] = useState(!initialPayload);
   const [draftAvatar, setDraftAvatar] = useState(initialPayload?.viewerProfile.avatarUrl ?? "");
@@ -179,11 +164,12 @@ export function ProfileWorkspace({
   const [wishlistSearch, setWishlistSearch] = useState("");
   const [watchedPage, setWatchedPage] = useState(1);
   const [wishlistPage, setWishlistPage] = useState(1);
-  const [watchedPageSize, setWatchedPageSize] = useState(9);
-  const [wishlistPageSize, setWishlistPageSize] = useState(9);
+  const [watchedPageSize, setWatchedPageSize] = useState(12);
+  const [wishlistPageSize, setWishlistPageSize] = useState(12);
   const [pinnedFavorites, setPinnedFavorites] = useState<PinnedFavorites>({ movie: null, show: null, anime: null, game: null });
   const [editingTasteSlot, setEditingTasteSlot] = useState<TasteSlotKey | null>(null);
-  const profileAvatarActionsRef = useRef<HTMLDivElement | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const watchedGridRef = useRef<HTMLDivElement | null>(null);
   const wishlistGridRef = useRef<HTMLDivElement | null>(null);
 
@@ -220,20 +206,14 @@ export function ProfileWorkspace({
     return subscribeVaultChanges(sync);
   }, [initialPayload, isDemo, viewedUserId, viewerAvatar, viewerId, userName]);
 
-  const { viewerProfile, viewedProfile, friends, watched, wishlist, canSeeWatched, canSeeWishlist, viewingOwnProfile } = payload;
+  const { viewedProfile, friends, watched, wishlist, canSeeWatched, canSeeWishlist, viewingOwnProfile } = payload;
   const lists = payload.lists ?? payload.folders ?? [];
 
   useEffect(() => {
     if (!profileMessage) return;
-    const timeout = window.setTimeout(() => setProfileMessage(""), 2200);
+    const timeout = window.setTimeout(() => setProfileMessage(""), 2400);
     return () => window.clearTimeout(timeout);
   }, [profileMessage]);
-
-  const headlineCopy = viewingOwnProfile
-    ? isDemo
-      ? "Guest mode is browse-first now. Sign in when you want lists, friends, inbox, and saved library data to stay attached to your real account."
-      : "Your profile, lists, and social activity now stay saved between visits."
-    : viewedProfile.bio || "A friend profile inside NerdVault.";
 
   useEffect(() => {
     setWatchedPage(1);
@@ -249,8 +229,8 @@ export function ProfileWorkspace({
       const watchedCols = readGridColumnCount(watchedGridRef.current);
       const wishlistCols = readGridColumnCount(wishlistGridRef.current);
 
-      const nextWatchedPageSize = watchedCols ? Math.max(1, watchedCols * rows) : 9;
-      const nextWishlistPageSize = wishlistCols ? Math.max(1, wishlistCols * rows) : 9;
+      const nextWatchedPageSize = watchedCols ? Math.max(1, watchedCols * rows) : 12;
+      const nextWishlistPageSize = wishlistCols ? Math.max(1, wishlistCols * rows) : 12;
 
       setWatchedPageSize(nextWatchedPageSize);
       setWishlistPageSize(nextWishlistPageSize);
@@ -269,21 +249,8 @@ export function ProfileWorkspace({
 
   async function handleApplyAvatar(dataUrl: string) {
     setDraftAvatar(dataUrl);
-    await saveProfileSettings({
-      avatarUrl: dataUrl,
-    });
-    setProfileMessage("Profile image applied.");
-    window.setTimeout(() => {
-      profileAvatarActionsRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 120);
-  }
-
-  async function handleRemoveAvatar() {
-    setDraftAvatar("");
-    await saveProfileSettings({
-      avatarUrl: "",
-    });
-    setProfileMessage("Profile image removed.");
+    await saveProfileSettings({ avatarUrl: dataUrl });
+    setProfileMessage("Profile image updated.");
   }
 
   const deferredWatchedSearch = useDeferredValue(watchedSearch);
@@ -297,8 +264,10 @@ export function ProfileWorkspace({
     () => sortMediaItems(filterMediaItems(wishlist, wishlistMediaFilter, deferredWishlistSearch), wishlistSort),
     [deferredWishlistSearch, wishlist, wishlistMediaFilter, wishlistSort],
   );
+
   const watchedTotalPages = Math.max(1, Math.ceil(sortedWatched.length / watchedPageSize));
   const wishlistTotalPages = Math.max(1, Math.ceil(sortedWishlist.length / wishlistPageSize));
+  
   const pagedWatched = useMemo(
     () => sortedWatched.slice((watchedPage - 1) * watchedPageSize, watchedPage * watchedPageSize),
     [sortedWatched, watchedPage, watchedPageSize],
@@ -307,17 +276,13 @@ export function ProfileWorkspace({
     () => sortedWishlist.slice((wishlistPage - 1) * wishlistPageSize, wishlistPage * wishlistPageSize),
     [sortedWishlist, wishlistPage, wishlistPageSize],
   );
-  const profileStats = useMemo(() => {
-    const currentYear = new Date().getFullYear();
-    const thisYearCount = watched.filter((item) => item.year === currentYear).length;
 
-    return [
-      { label: "Logged", value: watched.length },
-      { label: "This year", value: thisYearCount },
-      { label: "Lists", value: lists.length },
-      { label: "Network", value: friends.length },
-    ];
-  }, [lists.length, friends.length, watched]);
+  const currentYear = new Date().getFullYear();
+  const thisYearCount = useMemo(
+    () => watched.filter((item) => item.year === currentYear).length,
+    [watched, currentYear],
+  );
+
   const featuredFavorites = useMemo(() => favoriteSlots(watched, pinnedFavorites), [watched, pinnedFavorites]);
 
   function handlePinFavorite(slot: TasteSlotKey, item: MediaItem) {
@@ -333,6 +298,18 @@ export function ProfileWorkspace({
     savePinnedFavorites(viewerId, next);
   }
 
+  function renderRatingStars(rating?: number | null, userRating?: number | null) {
+    const score = userRating ? userRating : (rating ? Math.round(rating / 2) : 4);
+    const clamped = Math.max(1, Math.min(5, Math.round(score)));
+    return (
+      <span className="nv-lb-stars" title={`${userRating ? `${userRating}/5 personal rating` : `${rating?.toFixed(1) || 8.0} score`}`}>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Star key={i} size={11} fill={i < clamped ? "#fbbf24" : "none"} stroke="#fbbf24" />
+        ))}
+      </span>
+    );
+  }
+
   if (isDemo) {
     return (
       <main className="workspace">
@@ -340,460 +317,637 @@ export function ProfileWorkspace({
           <div className="workspace-hero-grid profile-stage-grid">
             <div className="workspace-copy profile-stage-copy">
               <p className="eyebrow">Guest mode</p>
-              <h1 className="display profile-display">Profile is available after sign in.</h1>
-              <p className="copy">
-                You can keep browsing as a guest, but profile, lists, and social features need an account session.
-              </p>
+              <h1 className="display profile-display">Your vault is available after sign in.</h1>
+              <p className="copy">Sign in to track your library, save custom lists, and pin your favorite four titles.</p>
               <div className="button-row">
-                <Link href="/sign-in?redirectTo=/profile" className="button button-primary">Sign in</Link>
-                <Link href="/browse" className="button button-secondary">Continue browsing</Link>
+                <Link href="/sign-in?redirectTo=/home" className="button button-primary">Sign in</Link>
+                <Link href="/browse" className="button button-secondary">Browse catalog</Link>
               </div>
             </div>
           </div>
         </section>
-      </main>
-    );
-  }
-
-  function renderMediaPager(currentPage: number, totalPages: number, onChange: (nextPage: number) => void, label: string) {
-    if (totalPages <= 1) {
-      return null;
-    }
-
-    return (
-      <div className="bottom-pager glass profile-section-pager">
-        <div className="pager-copy">
-          <p className="eyebrow">Page flow</p>
-          <p className="copy">
-            {label} page {currentPage} of {totalPages}.
-          </p>
-        </div>
-        <div className="pager-actions">
-          <button type="button" className="chip" disabled={currentPage <= 1} onClick={() => onChange(Math.max(1, currentPage - 1))}>
-            Previous page
-          </button>
-          <div className="page-indicator">
-            <span>{currentPage}</span>
-            <span>/</span>
-            <span>{totalPages}</span>
-          </div>
-          <button type="button" className="chip is-active" disabled={currentPage >= totalPages} onClick={() => onChange(Math.min(totalPages, currentPage + 1))}>
-            Next page
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Folder detail via URL: redirect to dedicated list page instead
-  const selectedFolderFromQuery = searchParams.get("folder");
-  if (selectedFolderFromQuery) {
-    // Redirect legacy ?folder=id URLs to the new /lists/[id] page
-    return (
-      <main className="workspace">
-        <section className="workspace-hero glass folder-hero folder-opening-shell">
-          <div className="folder-opening-loader">
-            <NVLoader label="Opening list…" />
-          </div>
-        </section>
-      </main>
-    );
-  }
-
-  if (loading) {
-    return (
-      <main className="workspace">
-        <div className="profile-loading-shell">
-          <div className="profile-loading-hero">
-            <div className="profile-loading-identity">
-              <div className="skeleton" style={{ width: 72, height: 72, borderRadius: 16 }} />
-              <div style={{ display: "grid", gap: 8, flex: 1 }}>
-                <div className="skeleton" style={{ width: 100, height: 14, borderRadius: 6 }} />
-                <div className="skeleton" style={{ width: 180, height: 28, borderRadius: 8 }} />
-                <div className="skeleton" style={{ width: 240, height: 14, borderRadius: 6 }} />
-              </div>
-            </div>
-            <div className="skeleton" style={{ width: "100%", height: 48, borderRadius: 12 }} />
-          </div>
-
-          <div style={{ display: "grid", gap: 12 }}>
-            <div style={{ display: "flex", gap: 8 }}>
-              <div className="skeleton" style={{ width: 100, height: 16, borderRadius: 6 }} />
-              <div className="skeleton" style={{ width: 140, height: 26, borderRadius: 8 }} />
-            </div>
-            <div className="featured-favorites-grid">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="skeleton" style={{ aspectRatio: "3/2", borderRadius: 12 }} />
-              ))}
-            </div>
-          </div>
-
-          <div style={{ display: "grid", gap: 12 }}>
-            <div style={{ display: "flex", gap: 8 }}>
-              <div className="skeleton" style={{ width: 80, height: 16, borderRadius: 6 }} />
-              <div className="skeleton" style={{ width: 160, height: 26, borderRadius: 8 }} />
-            </div>
-            <div className="profile-loading-grid">
-              {Array.from({ length: 12 }).map((_, i) => (
-                <div key={i} className="skeleton" style={{ aspectRatio: "2/3", borderRadius: 10 }} />
-              ))}
-            </div>
-          </div>
-        </div>
       </main>
     );
   }
 
   return (
-    <main className="workspace">
-      <section className="workspace-hero glass folder-hero profile-stage">
-        <div className="folder-hero-media" style={getFolderBackdropStyle(viewedProfile.avatarUrl)} />
-          <div className="workspace-hero-grid profile-stage-grid">
-            <div className="workspace-copy profile-stage-copy">
-              <div className="profile-hero-topbar">
-                <div className="profile-identity">
-                {viewingOwnProfile ? (
-                  <div className="profile-avatar-stack">
-                    <label className="profile-avatar-edit" title="Change profile image">
-                      {draftAvatar ? (
-                        <img src={draftAvatar} alt={viewedProfile.name} className="profile-avatar" />
-                      ) : (
-                        <span className="profile-avatar profile-avatar-fallback">{(viewedProfile.name || userName).charAt(0).toUpperCase()}</span>
-                      )}
-                      <input type="file" accept="image/*" onChange={handleAvatarFileChange} />
-                    </label>
-                    <div className="profile-avatar-actions" ref={profileAvatarActionsRef}>
-                      <label className="button button-secondary profile-avatar-action-button">
-                        {draftAvatar ? "Change image" : "Set profile image"}
-                        <input type="file" accept="image/*" onChange={handleAvatarFileChange} />
-                      </label>
-                      {draftAvatar ? (
-                        <button type="button" className="button button-secondary" onClick={() => void handleRemoveAvatar()}>
-                          Remove image
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
-                ) : viewedProfile.avatarUrl ? (
-                  <img src={viewedProfile.avatarUrl} alt={viewedProfile.name} className="profile-avatar" />
-                ) : (
-                  <span className="profile-avatar profile-avatar-fallback">{(viewedProfile.name || userName).charAt(0).toUpperCase()}</span>
-                )}
-                <div className="profile-identity-copy">
-                  <p className="eyebrow">{viewingOwnProfile ? (isDemo ? "Local vault" : "Your vault") : "Friend profile"}</p>
-                  <h1 className="display profile-display">{viewedProfile.name || userName}</h1>
-                  <div className="profile-hero-meta-row">
-                    <span className="detail-pill">{viewedProfile.handle}</span>
-                    <span className="detail-pill">{lists.length} lists</span>
-                    <span className="detail-pill">{watched.length} logged</span>
-                    <span className="detail-pill">{wishlist.length} wishlisted</span>
-                  </div>
-                  {viewingOwnProfile ? (
-                    <div className="profile-stage-actions">
-                      <a href="#profile-watched" className="button button-primary">Watched</a>
-                      <a href="#profile-wishlist" className="button button-secondary">Wishlist</a>
-                      <a href="#profile-lists" className="button button-secondary">Lists</a>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-            <div className="profile-hero-description glass">
-              <p className="copy">{loading ? "Loading your saved profile..." : headlineCopy}</p>
-            </div>
-            {profileMessage ? <p className="media-action-message">{profileMessage}</p> : null}
-          </div>
-          <aside className="info-panel glass profile-stage-stats">
-            <div className="profile-stage-stats-head">
-              <p className="eyebrow">At a glance</p>
-              <p className="copy">A cleaner read of your activity and saved shelves.</p>
-            </div>
-            <div className="profile-stage-stats-grid">
-              {profileStats.map((stat) => (
-                <div key={stat.label} className="profile-stage-stat">
-                  <strong>{stat.value}</strong>
-                  <span>{stat.label}</span>
-                </div>
-              ))}
-            </div>
-          </aside>
-        </div>
-      </section>
+    <div className="nv-letterboxd-vault">
+      {/* Hidden file input triggered by avatar button */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        accept="image/*"
+        style={{ display: "none" }}
+        onChange={handleAvatarFileChange}
+      />
 
-      <section id="profile-favorites" className="section-stack" style={{ paddingTop: 0 }}>
-        <div className="section-header">
-          <div>
-            <p className="eyebrow">Featured Favorites</p>
-            <h2 className="headline">{viewingOwnProfile ? "Your taste card" : `${viewedProfile.name}'s taste card`}</h2>
+      {/* 1. Letterboxd-style Header Profile Banner */}
+      <header className="nv-lb-header">
+        <div className="nv-lb-profile-info">
+          <div className="nv-lb-avatar-wrap">
+            {draftAvatar || viewedProfile.avatarUrl ? (
+              <img
+                src={draftAvatar || viewedProfile.avatarUrl}
+                alt={viewedProfile.name}
+                className="nv-lb-avatar-img"
+              />
+            ) : (
+              <span className="nv-lb-avatar-fallback">
+                {(viewedProfile.name || userName).charAt(0).toUpperCase()}
+              </span>
+            )}
+            {viewingOwnProfile && (
+              <button
+                type="button"
+                className="nv-lb-avatar-edit-btn"
+                title="Change profile avatar"
+                onClick={() => fileInputRef.current?.click()}
+                aria-label="Change profile avatar"
+              >
+                <Camera size={18} />
+              </button>
+            )}
+          </div>
+
+          <div className="nv-lb-names">
+            <h1 className="nv-lb-display-name">{viewedProfile.name || userName}</h1>
+            <span className="nv-lb-handle">{viewedProfile.handle}</span>
           </div>
         </div>
-        <div className="featured-favorites-grid">
-          {featuredFavorites.map((slot) => (
-            slot.item ? (
-              <div
-                key={slot.key}
-                className="featured-favorite-card glass"
-                onClick={() => {
-                  if (!viewingOwnProfile) return;
-                  setEditingTasteSlot(slot.key as TasteSlotKey);
-                }}
-              >
-                <img src={slot.item.coverUrl} alt={slot.item.title} />
-                {viewingOwnProfile ? (
-                  <>
-                    <button
-                      type="button"
-                      className="taste-edit-btn"
-                      title="Change favorite"
-                      onClick={(e) => { e.stopPropagation(); setEditingTasteSlot(slot.key as TasteSlotKey); }}
-                      aria-label={`Edit ${slot.label}`}
+
+        {/* 2. Letterboxd-style Stat Counters */}
+        <div className="nv-lb-stats-row">
+          <button type="button" className="nv-lb-stat-item" onClick={() => setActiveTab("watched")}>
+            <span className="nv-lb-stat-num">{watched.length}</span>
+            <span className="nv-lb-stat-label">Logged</span>
+          </button>
+          <button type="button" className="nv-lb-stat-item" onClick={() => setActiveTab("watched")}>
+            <span className="nv-lb-stat-num">{thisYearCount}</span>
+            <span className="nv-lb-stat-label">This Year</span>
+          </button>
+          <button type="button" className="nv-lb-stat-item" onClick={() => setActiveTab("lists")}>
+            <span className="nv-lb-stat-num">{lists.length}</span>
+            <span className="nv-lb-stat-label">Lists</span>
+          </button>
+          <button type="button" className="nv-lb-stat-item" onClick={() => setActiveTab("wishlist")}>
+            <span className="nv-lb-stat-num">{wishlist.length}</span>
+            <span className="nv-lb-stat-label">Wishlist</span>
+          </button>
+          <button type="button" className="nv-lb-stat-item" onClick={() => setActiveTab("friends")}>
+            <span className="nv-lb-stat-num">{friends.length}</span>
+            <span className="nv-lb-stat-label">Friends</span>
+          </button>
+        </div>
+      </header>
+
+      {profileMessage && (
+        <div className="auth-feedback auth-feedback-success" role="status">
+          <CheckCircle2 size={16} />
+          <span>{profileMessage}</span>
+        </div>
+      )}
+
+      {/* 3. Centered Letterboxd Sub-Navigation Pill Bar */}
+      <nav className="nv-lb-tab-nav" aria-label="Vault sections">
+        <button
+          type="button"
+          className={`nv-lb-tab-btn ${activeTab === "overview" ? "is-active" : ""}`}
+          onClick={() => setActiveTab("overview")}
+        >
+          <Layers size={14} />
+          <span>Overview</span>
+        </button>
+        <button
+          type="button"
+          className={`nv-lb-tab-btn ${activeTab === "watched" ? "is-active" : ""}`}
+          onClick={() => setActiveTab("watched")}
+        >
+          <Film size={14} />
+          <span>Watched ({watched.length})</span>
+        </button>
+        <button
+          type="button"
+          className={`nv-lb-tab-btn ${activeTab === "wishlist" ? "is-active" : ""}`}
+          onClick={() => setActiveTab("wishlist")}
+        >
+          <Bookmark size={14} />
+          <span>Wishlist ({wishlist.length})</span>
+        </button>
+        <button
+          type="button"
+          className={`nv-lb-tab-btn ${activeTab === "lists" ? "is-active" : ""}`}
+          onClick={() => setActiveTab("lists")}
+        >
+          <span>Lists ({lists.length})</span>
+        </button>
+        <button
+          type="button"
+          className={`nv-lb-tab-btn ${activeTab === "friends" ? "is-active" : ""}`}
+          onClick={() => setActiveTab("friends")}
+        >
+          <Users size={14} />
+          <span>Friends ({friends.length})</span>
+        </button>
+        {feed && (
+          <button
+            type="button"
+            className={`nv-lb-tab-btn ${activeTab === "for-you" ? "is-active" : ""}`}
+            onClick={() => setActiveTab("for-you")}
+          >
+            <Sparkles size={14} />
+            <span>For You</span>
+          </button>
+        )}
+      </nav>
+
+      {/* 4. OVERVIEW TAB (Letterboxd Favorites + Recent Activity) */}
+      {activeTab === "overview" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "2.25rem" }}>
+          {/* A. 4 FAVORITE SLOTS (TASTE CARD) */}
+          <section>
+            <div className="nv-lb-section-head">
+              <h2 className="nv-lb-section-title">
+                <Sparkles size={15} style={{ color: "#5eead4" }} />
+                <span>Favorite Titles</span>
+              </h2>
+            </div>
+
+            <div className="nv-lb-favorites-grid">
+              {featuredFavorites.map((slot) => {
+                const item = slot.item;
+                if (!item) {
+                  return (
+                    <div
+                      key={slot.key}
+                      className="nv-lb-favorite-empty"
+                      onClick={() => viewingOwnProfile && setEditingTasteSlot(slot.key as TasteSlotKey)}
+                      title={`Add ${slot.label}`}
                     >
-                      ✎
-                    </button>
-                    {slot.isPinned ? (
-                      <button
-                        type="button"
-                        className="taste-remove-btn"
-                        title="Remove pinned favorite"
-                        onClick={(e) => { e.stopPropagation(); handleUnpinFavorite(slot.key as TasteSlotKey); }}
-                        aria-label={`Remove ${slot.label}`}
-                      >
-                        ✕
-                      </button>
-                    ) : null}
-                  </>
-                ) : null}
-                <div>
-                  <span>{slot.label}</span>
-                  <strong>{slot.item.title}</strong>
-                  <small>{slot.item.year || "Unknown year"} · {slot.item.userRating ? `${slot.item.userRating}/5 from you` : `${slot.item.rating.toFixed(1)} score`}</small>
-                </div>
+                      <div className="nv-lb-fav-empty-icon">
+                        <Plus size={18} />
+                      </div>
+                      <span className="nv-lb-fav-empty-label">{slot.label}</span>
+                      <small style={{ color: "rgba(226, 232, 240, 0.45)", fontSize: "0.72rem" }}>
+                        {viewingOwnProfile ? "+ Choose title" : "Empty"}
+                      </small>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div
+                    key={slot.key}
+                    className="nv-lb-favorite-card"
+                    onClick={() => viewingOwnProfile && setEditingTasteSlot(slot.key as TasteSlotKey)}
+                  >
+                    <div className="nv-lb-fav-poster">
+                      <img src={item.coverUrl || item.backdropUrl} alt={item.title} />
+                      <span className="nv-lb-fav-tag" style={{ color: slot.color, borderColor: slot.color }}>
+                        {slot.label}
+                      </span>
+                      {viewingOwnProfile && (
+                        <button
+                          type="button"
+                          className="nv-lb-fav-edit-btn"
+                          title="Change favorite"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingTasteSlot(slot.key as TasteSlotKey);
+                          }}
+                          aria-label={`Change ${slot.label}`}
+                        >
+                          <Edit3 size={13} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="nv-lb-fav-info">
+                      <h3 className="nv-lb-fav-title" title={item.title}>{item.title}</h3>
+                      <div className="nv-lb-fav-meta">
+                        <span>{item.year || "—"}</span>
+                        <span style={{ color: "#fbbf24", fontWeight: 700 }}>
+                          ★ {(item.userRating ? item.userRating * 2 : item.rating || 8.0).toFixed(1)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* B. RECENT ACTIVITY (WATCHED REEL) */}
+          <section>
+            <div className="nv-lb-section-head">
+              <h2 className="nv-lb-section-title">
+                <Film size={15} style={{ color: "#f59e0b" }} />
+                <span>Recent Activity</span>
+              </h2>
+              {watched.length > 0 && (
+                <button type="button" className="nv-lb-section-link" onClick={() => setActiveTab("watched")}>
+                  View all ({watched.length})
+                </button>
+              )}
+            </div>
+
+            {watched.length > 0 ? (
+              <div className="nv-lb-poster-row">
+                {watched.slice(0, 7).map((item) => (
+                  <Link
+                    key={item.id}
+                    href={`/media/${item.slug}?source=${item.source}&sourceId=${item.sourceId}&type=${item.type}`}
+                    className="nv-lb-mini-card"
+                  >
+                    <div className="nv-lb-mini-poster">
+                      <img src={item.coverUrl || item.backdropUrl} alt={item.title} loading="lazy" />
+                    </div>
+                    <h4 className="nv-lb-mini-title" title={item.title}>{item.title}</h4>
+                    {renderRatingStars(item.rating, item.userRating)}
+                  </Link>
+                ))}
               </div>
             ) : (
-              <div
-                key={slot.key}
-                className="featured-favorite-card featured-favorite-empty glass"
-                onClick={() => viewingOwnProfile && setEditingTasteSlot(slot.key as TasteSlotKey)}
-              >
-                <div className="taste-empty-inner">
-                  <div className="taste-empty-icon">+</div>
-                  <span>{slot.label}</span>
-                  <strong>{viewingOwnProfile ? "Add a favorite" : "Not set yet"}</strong>
+              <div className="nv-lb-empty-box">
+                <p className="nv-lb-empty-text">No logged media in your vault yet.</p>
+                <Link href="/browse" className="button button-primary" style={{ fontSize: "0.82rem", padding: "0.45rem 1.25rem" }}>
+                  <Compass size={15} />
+                  <span>Browse Catalog</span>
+                </Link>
+              </div>
+            )}
+          </section>
+
+          {/* C. CURATED LISTS PREVIEW */}
+          <section>
+            <div className="nv-lb-section-head">
+              <h2 className="nv-lb-section-title">
+                <Bookmark size={15} style={{ color: "#a855f7" }} />
+                <span>Lists &amp; Shelves</span>
+              </h2>
+              <button type="button" className="nv-lb-section-link" onClick={() => setActiveTab("lists")}>
+                View all ({lists.length})
+              </button>
+            </div>
+
+            {lists.length > 0 ? (
+              <div className="folder-list">
+                {lists.slice(0, 3).map((list) => (
+                  <Link key={list.id} href={`/lists/${list.id}`} className="folder-row glass">
+                    <div className="folder-row-main">
+                      <div className="folder-row-copy">
+                        <strong>{list.name || (list as any).title}</strong>
+                        <span className="muted">{list.itemCount ?? list.items?.length ?? 0} items</span>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="nv-lb-empty-box">
+                <p className="nv-lb-empty-text">No custom lists created yet.</p>
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  style={{ fontSize: "0.82rem", padding: "0.45rem 1.25rem" }}
+                  onClick={() => setActiveTab("lists")}
+                >
+                  <Plus size={15} />
+                  <span>Create a List</span>
+                </button>
+              </div>
+            )}
+          </section>
+
+          {/* D. WISHLIST PREVIEW */}
+          <section>
+            <div className="nv-lb-section-head">
+              <h2 className="nv-lb-section-title">
+                <Bookmark size={15} style={{ color: "#ec4899" }} />
+                <span>Wishlist</span>
+              </h2>
+              {wishlist.length > 0 && (
+                <button type="button" className="nv-lb-section-link" onClick={() => setActiveTab("wishlist")}>
+                  View all ({wishlist.length})
+                </button>
+              )}
+            </div>
+
+            {wishlist.length > 0 ? (
+              <div className="nv-lb-poster-row">
+                {wishlist.slice(0, 7).map((item) => (
+                  <Link
+                    key={item.id}
+                    href={`/media/${item.slug}?source=${item.source}&sourceId=${item.sourceId}&type=${item.type}`}
+                    className="nv-lb-mini-card"
+                  >
+                    <div className="nv-lb-mini-poster">
+                      <img src={item.coverUrl || item.backdropUrl} alt={item.title} loading="lazy" />
+                    </div>
+                    <h4 className="nv-lb-mini-title" title={item.title}>{item.title}</h4>
+                    <span style={{ fontSize: "0.72rem", color: "rgba(226, 232, 240, 0.55)" }}>{item.year || "—"}</span>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="nv-lb-empty-box">
+                <p className="nv-lb-empty-text">Your wishlist is currently empty.</p>
+                <Link href="/browse" className="button button-secondary" style={{ fontSize: "0.82rem", padding: "0.45rem 1.25rem" }}>
+                  <Compass size={15} />
+                  <span>Explore Titles</span>
+                </Link>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+
+      {/* 5. WATCHED TAB */}
+      {activeTab === "watched" && (
+        <section className="section-stack" style={{ paddingTop: 0 }}>
+          <div className="section-header">
+            <div>
+              <p className="eyebrow">Watched / Played</p>
+              <h2 className="headline">{viewingOwnProfile ? "Your Logged Library" : "Visible Library"}</h2>
+            </div>
+            <div className="library-controls profile-library-controls">
+              <div className="library-control-block">
+                <div className="chip-row library-chip-row">
+                  {mediaFilterOptions().map((option) => (
+                    <button
+                      key={`watched-media-${option.value}`}
+                      type="button"
+                      className={`picker-chip ${watchedMediaFilter === option.value ? "is-active" : ""}`}
+                      onClick={() => setWatchedMediaFilter(option.value)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
                 </div>
               </div>
-            )
-          ))}
-        </div>
-        {editingTasteSlot ? (
-          <TasteCardSearchModal
-            slot={editingTasteSlot}
-            onSelect={(item) => handlePinFavorite(editingTasteSlot, item)}
-            onClose={() => setEditingTasteSlot(null)}
-          />
-        ) : null}
-      </section>
-
-      <section id="profile-friends" className="section-stack" style={{ paddingTop: 0 }}>
-        <div className="section-header">
-          <div>
-            <p className="eyebrow">Friends</p>
-            <h2 className="headline">{viewingOwnProfile ? "Your people" : `${viewedProfile.name}'s friends`}</h2>
-          </div>
-        </div>
-        <div className="folder-list profile-friends-list">
-          {friends.length ? (
-            friends.map((friend) => (
-              <div key={friend.id} className="folder-row glass">
-                <Link href={`/profile?user=${friend.id}`} className="folder-row-main" style={{ flex: 1 }}>
-                  {friend.avatarUrl ? (
-                    <img src={friend.avatarUrl} alt={friend.name} className="folder-row-avatar" />
-                  ) : (
-                    <span className="folder-row-avatar folder-row-avatar-fallback">{friend.name.charAt(0).toUpperCase()}</span>
-                  )}
-                  <div className="folder-row-copy">
-                    <strong>{friend.name}</strong>
-                    <span className="muted">{friend.handle}</span>
-                  </div>
-                </Link>
-                {viewingOwnProfile ? (
-                  <button
-                    type="button"
-                    className="button button-secondary"
-                    style={{ padding: "4px 12px", fontSize: "0.8rem", flexShrink: 0 }}
-                    onClick={() => { if (confirm(`Remove ${friend.name} as a friend?`)) { void removeFriend(friend.id); } }}
-                  >
-                    Unfriend
-                  </button>
-                ) : null}
+              <div className="library-control-block">
+                <div className="chip-row library-chip-row">
+                  {sortOptions().map((option) => (
+                    <button
+                      key={`watched-sort-${option.value}`}
+                      type="button"
+                      className={`picker-chip ${watchedSort === option.value ? "is-active" : ""}`}
+                      onClick={() => setWatchedSort(option.value)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            ))
+              <input
+                className="search-input library-search-input"
+                type="search"
+                placeholder="Search watched..."
+                value={watchedSearch}
+                onChange={(event) => setWatchedSearch(event.target.value)}
+              />
+            </div>
+          </div>
+
+          {canSeeWatched || viewingOwnProfile ? (
+            sortedWatched.length ? (
+              <>
+                <div className="catalog-grid profile-media-grid" ref={watchedGridRef}>
+                  {pagedWatched.map((item, index) => (
+                    <CatalogCard key={item.id} item={item} priority={index < 8} />
+                  ))}
+                </div>
+                {watchedTotalPages > 1 && (
+                  <div className="bottom-pager glass profile-section-pager">
+                    <div className="pager-copy">
+                      <p className="copy">Page {watchedPage} of {watchedTotalPages}</p>
+                    </div>
+                    <div className="pager-actions">
+                      <button
+                        type="button"
+                        className="chip"
+                        disabled={watchedPage <= 1}
+                        onClick={() => setWatchedPage((p) => Math.max(1, p - 1))}
+                      >
+                        Previous
+                      </button>
+                      <button
+                        type="button"
+                        className="chip is-active"
+                        disabled={watchedPage >= watchedTotalPages}
+                        onClick={() => setWatchedPage((p) => Math.min(watchedTotalPages, p + 1))}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="nv-lb-empty-box">
+                <p className="nv-lb-empty-text">No watched media found in this view.</p>
+                <Link href="/browse" className="button button-primary" style={{ fontSize: "0.82rem" }}>
+                  <span>Browse Catalog</span>
+                </Link>
+              </div>
+            )
           ) : (
-            <div className="folder-empty glass">
-              <p className="headline">No friends yet.</p>
-              <p className="copy">Use the centered search to find people and send requests.</p>
+            <div className="nv-lb-empty-box">
+              <p className="nv-lb-empty-text">This watched library is private.</p>
             </div>
           )}
-        </div>
-      </section>
+        </section>
+      )}
 
-      <section id="profile-watched" className="section-stack" style={{ paddingTop: 0 }}>
-        <div className="section-header">
-          <div>
-            <p className="eyebrow">Watched / Played</p>
-            <h2 className="headline">{viewingOwnProfile ? "Your Media Library" : "Visible media library"}</h2>
-          </div>
-          <div className="library-controls profile-library-controls">
-            <div className="library-control-block">
-              <p className="eyebrow">Media</p>
-              <div className="chip-row library-chip-row">
-                {mediaFilterOptions().map((option) => (
-                  <button
-                    key={`watched-media-${option.value}`}
-                    type="button"
-                    className={`picker-chip ${watchedMediaFilter === option.value ? "is-active" : ""}`}
-                    onClick={() => setWatchedMediaFilter(option.value)}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
+      {/* 6. WISHLIST TAB */}
+      {activeTab === "wishlist" && (
+        <section className="section-stack" style={{ paddingTop: 0 }}>
+          <div className="section-header">
+            <div>
+              <p className="eyebrow">Wishlist</p>
+              <h2 className="headline">{viewingOwnProfile ? "Saved to Watch" : "Visible Wishlist"}</h2>
             </div>
-            <div className="library-control-block">
-              <p className="eyebrow">Sort</p>
-              <div className="chip-row library-chip-row">
-                {sortOptions().map((option) => (
-                  <button
-                    key={`watched-sort-${option.value}`}
-                    type="button"
-                    className={`picker-chip ${watchedSort === option.value ? "is-active" : ""}`}
-                    onClick={() => setWatchedSort(option.value)}
-                  >
-                    {option.label}
-                  </button>
-                ))}
+            <div className="library-controls profile-library-controls">
+              <div className="library-control-block">
+                <div className="chip-row library-chip-row">
+                  {mediaFilterOptions().map((option) => (
+                    <button
+                      key={`wishlist-media-${option.value}`}
+                      type="button"
+                      className={`picker-chip ${wishlistMediaFilter === option.value ? "is-active" : ""}`}
+                      onClick={() => setWishlistMediaFilter(option.value)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
               </div>
+              <div className="library-control-block">
+                <div className="chip-row library-chip-row">
+                  {sortOptions().map((option) => (
+                    <button
+                      key={`wishlist-sort-${option.value}`}
+                      type="button"
+                      className={`picker-chip ${wishlistSort === option.value ? "is-active" : ""}`}
+                      onClick={() => setWishlistSort(option.value)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <input
+                className="search-input library-search-input"
+                type="search"
+                placeholder="Search wishlist..."
+                value={wishlistSearch}
+                onChange={(event) => setWishlistSearch(event.target.value)}
+              />
             </div>
-            <input
-              className="search-input library-search-input"
-              type="search"
-              placeholder="Search watched..."
-              value={watchedSearch}
-              onChange={(event) => setWatchedSearch(event.target.value)}
-            />
           </div>
-        </div>
-        {canSeeWatched || viewingOwnProfile ? (
-          sortedWatched.length ? (
-            <>
-              <div className="catalog-grid profile-media-grid" ref={watchedGridRef}>
-                {pagedWatched.map((item, index) => (
-                  <CatalogCard key={item.id} item={item} priority={index < 8} showUserRatingBelow />
-                ))}
+
+          {canSeeWishlist || viewingOwnProfile ? (
+            sortedWishlist.length ? (
+              <>
+                <div className="catalog-grid profile-media-grid" ref={wishlistGridRef}>
+                  {pagedWishlist.map((item, index) => (
+                    <CatalogCard key={item.id} item={item} priority={index < 8} />
+                  ))}
+                </div>
+                {wishlistTotalPages > 1 && (
+                  <div className="bottom-pager glass profile-section-pager">
+                    <div className="pager-copy">
+                      <p className="copy">Page {wishlistPage} of {wishlistTotalPages}</p>
+                    </div>
+                    <div className="pager-actions">
+                      <button
+                        type="button"
+                        className="chip"
+                        disabled={wishlistPage <= 1}
+                        onClick={() => setWishlistPage((p) => Math.max(1, p - 1))}
+                      >
+                        Previous
+                      </button>
+                      <button
+                        type="button"
+                        className="chip is-active"
+                        disabled={wishlistPage >= wishlistTotalPages}
+                        onClick={() => setWishlistPage((p) => Math.min(wishlistTotalPages, p + 1))}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="nv-lb-empty-box">
+                <p className="nv-lb-empty-text">No items in wishlist.</p>
+                <Link href="/browse" className="button button-secondary" style={{ fontSize: "0.82rem" }}>
+                  <span>Explore Titles</span>
+                </Link>
               </div>
-              {renderMediaPager(watchedPage, watchedTotalPages, setWatchedPage, "Watched")}
-            </>
+            )
           ) : (
-            <div className="folder-empty glass">
-              <p className="headline">Nothing logged in this view yet.</p>
+            <div className="nv-lb-empty-box">
+              <p className="nv-lb-empty-text">This wishlist is private.</p>
             </div>
-          )
-        ) : (
-          <div className="folder-empty glass">
-            <p className="headline">Private shelf.</p>
-            <p className="copy">This watched library is not visible to you.</p>
-          </div>
-        )}
-      </section>
+          )}
+        </section>
+      )}
 
-      <section id="profile-wishlist" className="section-stack" style={{ paddingTop: 0 }}>
-        <div className="section-header">
-          <div>
-            <p className="eyebrow">Wishlist</p>
-            <h2 className="headline">{viewingOwnProfile ? "Waiting for the right night" : "Visible wishlist"}</h2>
-          </div>
-          <div className="library-controls profile-library-controls">
-            <div className="library-control-block">
-              <p className="eyebrow">Media</p>
-              <div className="chip-row library-chip-row">
-                {mediaFilterOptions().map((option) => (
-                  <button
-                    key={`wishlist-media-${option.value}`}
-                    type="button"
-                    className={`picker-chip ${wishlistMediaFilter === option.value ? "is-active" : ""}`}
-                    onClick={() => setWishlistMediaFilter(option.value)}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
+      {/* 7. LISTS TAB */}
+      {activeTab === "lists" && (
+        <section className="section-stack" style={{ paddingTop: 0 }}>
+          <div className="section-header">
+            <div>
+              <p className="eyebrow">Lists &amp; Folders</p>
+              <h2 className="headline">{viewingOwnProfile ? "Your Curated Lists" : `${viewedProfile.name}'s Lists`}</h2>
             </div>
-            <div className="library-control-block">
-              <p className="eyebrow">Sort</p>
-              <div className="chip-row library-chip-row">
-                {sortOptions().map((option) => (
-                  <button
-                    key={`wishlist-sort-${option.value}`}
-                    type="button"
-                    className={`picker-chip ${wishlistSort === option.value ? "is-active" : ""}`}
-                    onClick={() => setWishlistSort(option.value)}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <input
-              className="search-input library-search-input"
-              type="search"
-              placeholder="Search wishlist..."
-              value={wishlistSearch}
-              onChange={(event) => setWishlistSearch(event.target.value)}
-            />
           </div>
-        </div>
-        {canSeeWishlist || viewingOwnProfile ? (
-          sortedWishlist.length ? (
-            <>
-              <div className="catalog-grid profile-media-grid" ref={wishlistGridRef}>
-                {pagedWishlist.map((item, index) => (
-                  <CatalogCard key={item.id} item={item} priority={index < 8} />
-                ))}
-              </div>
-              {renderMediaPager(wishlistPage, wishlistTotalPages, setWishlistPage, "Wishlist")}
-            </>
-          ) : (
-            <div className="folder-empty glass">
-              <p className="headline">Nothing in wishlist for this view.</p>
-            </div>
-          )
-        ) : (
-          <div className="folder-empty glass">
-            <p className="headline">Private shelf.</p>
-            <p className="copy">This wishlist is hidden right now.</p>
-          </div>
-        )}
-      </section>
+          <ListsWorkspace
+            lists={lists}
+            viewingOwnProfile={viewingOwnProfile}
+            viewedUserId={viewedUserId}
+          />
+        </section>
+      )}
 
-      <section id="profile-lists" className="section-stack" style={{ paddingTop: 0 }}>
-        <div className="section-header">
-          <div>
-            <p className="eyebrow">Lists</p>
-            <h2 className="headline">{viewingOwnProfile ? "Your curated lists" : `${viewedProfile.name}'s lists`}</h2>
+      {/* 8. FRIENDS TAB */}
+      {activeTab === "friends" && (
+        <section className="section-stack" style={{ paddingTop: 0 }}>
+          <div className="section-header">
+            <div>
+              <p className="eyebrow">Network</p>
+              <h2 className="headline">{viewingOwnProfile ? "Your Friends" : `${viewedProfile.name}'s Network`}</h2>
+            </div>
           </div>
-        </div>
-        <ListsWorkspace
-          lists={lists}
-          viewingOwnProfile={viewingOwnProfile}
-          viewedUserId={viewedUserId}
+          <div className="folder-list profile-friends-list">
+            {friends.length ? (
+              friends.map((friend) => (
+                <div key={friend.id} className="folder-row glass">
+                  <Link href={`/profile?user=${friend.id}`} className="folder-row-main" style={{ flex: 1 }}>
+                    {friend.avatarUrl ? (
+                      <img src={friend.avatarUrl} alt={friend.name} className="folder-row-avatar" />
+                    ) : (
+                      <span className="folder-row-avatar folder-row-avatar-fallback">
+                        {friend.name.charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                    <div className="folder-row-copy">
+                      <strong>{friend.name}</strong>
+                      <span className="muted">{friend.handle}</span>
+                    </div>
+                  </Link>
+                  {viewingOwnProfile && (
+                    <button
+                      type="button"
+                      className="button button-secondary"
+                      style={{ padding: "4px 12px", fontSize: "0.8rem", flexShrink: 0 }}
+                      onClick={() => {
+                        if (confirm(`Remove ${friend.name} as a friend?`)) {
+                          void removeFriend(friend.id);
+                        }
+                      }}
+                    >
+                      Unfriend
+                    </button>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="nv-lb-empty-box">
+                <p className="nv-lb-empty-text">No friends connected yet.</p>
+                <Link href="/friends" className="button button-secondary" style={{ fontSize: "0.82rem" }}>
+                  <span>Find Friends</span>
+                </Link>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* 9. FOR YOU TAB */}
+      {activeTab === "for-you" && feed && (
+        <section className="section-stack" style={{ paddingTop: 0 }}>
+          <HomeWorkspace viewerName={userName} feed={feed} />
+        </section>
+      )}
+
+      {/* Taste Card Search Picker Modal */}
+      {editingTasteSlot && (
+        <TasteCardSearchModal
+          slot={editingTasteSlot}
+          onSelect={(item) => handlePinFavorite(editingTasteSlot, item)}
+          onClose={() => setEditingTasteSlot(null)}
         />
-      </section>
+      )}
 
+      {/* Profile Image Adjuster Modal */}
       <ImageAdjusterModal
         file={avatarFile}
         title="Adjust profile image"
         onClose={() => setAvatarFile(null)}
         onApply={(dataUrl) => void handleApplyAvatar(dataUrl)}
       />
-    </main>
+    </div>
   );
 }
