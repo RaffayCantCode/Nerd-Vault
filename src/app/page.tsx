@@ -14,6 +14,7 @@ import { MediaItem } from "@/lib/types";
 import { optimizeMediaImageUrl } from "@/lib/media-image";
 import { LandingMediaRail } from "@/components/landing-media-rail";
 import { LandingMarqueeStream } from "@/components/landing-marquee-stream";
+import { LandingCelestialHero } from "@/components/landing-celestial-hero";
 import { getPublicCommunityActivity } from "@/lib/vault-server";
 
 export const revalidate = 3600;
@@ -55,127 +56,23 @@ export default async function HomePage() {
     ...anime.slice(0, 5),
   ];
 
-  const heroMovie = movies[0] || null;
-  const heroShow = shows[0] || null;
-  const heroAnime = anime[0] || null;
-  const heroGame = games[0] || null;
+  const heroMovie = movies.find((m) => Boolean(m.backdropUrl || m.coverUrl) && Boolean(m.overview && m.overview.length > 20)) || movies[0] || null;
+  const heroShow = shows.find((s) => Boolean(s.backdropUrl || s.coverUrl) && Boolean(s.overview && s.overview.length > 20)) || shows[0] || null;
+  const heroAnime = anime.find((a) => Boolean(a.backdropUrl || a.coverUrl) && Boolean(a.overview && a.overview.length > 20)) || anime[0] || null;
+  const heroGame = games.find((g) => Boolean(g.backdropUrl || g.coverUrl) && Boolean(g.overview && g.overview.length > 20)) || games[0] || null;
 
   return (
     <div className="nv-landing">
       <SiteHeader />
 
       <main className="nv-landing-main">
-        {/* CALM EDITORIAL STORYTELLING HERO (INSPIRED BY NORVALE) */}
-        <section className="nv-story-hero">
-          {/* Subtle warm atmospheric glow */}
-          <div className="nv-story-ambient-aura" aria-hidden="true" />
-
-          <div className="nv-story-container">
-            {/* 1. Quiet Top Navigation & Pretitle */}
-            <div className="nv-story-pretitle-row">
-              <span className="nv-story-eyebrow">A Timeless Personal Chronicle</span>
-              <span className="nv-story-dot">·</span>
-              <span className="nv-story-sublabel">Cinema × Series × Anime × Games</span>
-            </div>
-
-            {/* 2. Editorial Serif Title & Narrative Quote */}
-            <div className="nv-story-heading-group">
-              <h1 className="nv-story-display-title">
-                EVERY STORY<br />
-                <em>YOU’VE LIVED.</em>
-              </h1>
-              <p className="nv-story-manifesto">
-                “Films that kept you up at 2 AM. Anime arcs that gave you chills. 100-hour game worlds you lived inside. A quiet, personal sanctuary for everything you watch &amp; play.”
-              </p>
-            </div>
-
-            {/* 3. Restrained Editorial Actions */}
-            <div className="nv-story-actions">
-              <Link
-                href="/home"
-                className="nv-story-btn-primary"
-              >
-                <span>Open Your Vault</span>
-                <ArrowRight size={16} />
-              </Link>
-              <BrowseResetLink className="nv-story-btn-secondary">
-                <span>Explore Catalog</span>
-                <Compass size={16} />
-              </BrowseResetLink>
-            </div>
-
-            {/* 4. The Editorial Folio Canvas (Layered Story Cards) */}
-            <div className="nv-story-folio-canvas">
-              <div className="nv-folio-paper-frame">
-                {/* Background Artwork */}
-                <div className="nv-folio-scrim" />
-                <div className="nv-folio-stars-layer" aria-hidden="true" />
-
-                {/* Floating Story Card 01: Journal Log Entry */}
-                <div className="nv-folio-artifact artifact-journal">
-                  <div className="nv-artifact-head">
-                    <span className="nv-artifact-tag">01 · RECENT LOG</span>
-                    <span className="nv-artifact-time">2:45 AM</span>
-                  </div>
-                  <h4 className="nv-artifact-title">Interstellar (2014)</h4>
-                  <div className="nv-artifact-stars">★★★★★</div>
-                  <p className="nv-artifact-quote">
-                    “We used to look up at the sky and wonder at our place in the stars.”
-                  </p>
-                </div>
-
-                {/* Floating Story Card 02: Vault Chronicle Stats */}
-                <div className="nv-folio-artifact artifact-stats">
-                  <div className="nv-stats-num">482</div>
-                  <div className="nv-stats-label">Stories Chronicled</div>
-                  <div className="nv-stats-pills">
-                    <span>94 Films</span>
-                    <span>168 Shows</span>
-                    <span>140 Anime</span>
-                    <span>80 Games</span>
-                  </div>
-                </div>
-
-                {/* Floating Story Card 03: Franchise Canon Thread */}
-                <div className="nv-folio-artifact artifact-thread">
-                  <div className="nv-thread-tag">SAGA THREAD · CANON ORDER</div>
-                  <h5 className="nv-thread-title">Fate Series Chronology</h5>
-                  <div className="nv-thread-steps">
-                    <span className="step-done">✓ Fate/Zero</span>
-                    <span className="step-arrow">→</span>
-                    <span className="step-done">✓ Unlimited Blade Works</span>
-                    <span className="step-arrow">→</span>
-                    <span className="step-active">● Heaven’s Feel</span>
-                  </div>
-                </div>
-
-                {/* Center Canvas Editorial Caption */}
-                <div className="nv-folio-center-caption">
-                  <p className="nv-caption-quote">
-                    “Progress rarely arrives loudly. Most of the time, it happens quietly while you’re busy exploring new worlds.”
-                  </p>
-                  <span className="nv-caption-author">— from the member journals</span>
-                </div>
-              </div>
-            </div>
-
-            {/* 5. Minimalist Live Search */}
-            <form action="/browse" method="GET" className="nv-story-search-bar">
-              <input type="hidden" name="focus" value="results" />
-              <Search size={16} className="nv-story-search-icon" aria-hidden="true" />
-              <input
-                type="search"
-                name="query"
-                className="nv-story-search-input"
-                placeholder="Search across 500,000+ films, anime, series, and games..."
-                required
-              />
-              <button type="submit" className="nv-story-search-submit">
-                Search
-              </button>
-            </form>
-          </div>
-        </section>
+        {/* 3D CELESTIAL & COSMIC UNIVERSE HERO (POWERED BY THREE.JS) */}
+        <LandingCelestialHero
+          heroMovie={heroMovie}
+          heroShow={heroShow}
+          heroAnime={heroAnime}
+          heroGame={heroGame}
+        />
 
         {/* CONTINUOUS MOVING MEDIA STREAMS (MARQUEES) */}
         <LandingMarqueeStream

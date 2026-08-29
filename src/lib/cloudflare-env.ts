@@ -277,7 +277,7 @@ export async function getD1Database(): Promise<D1DatabaseLike> {
 
   // 2. Cloudflare D1 Remote HTTP REST API
   const accountId = (process.env.CLOUDFLARE_ACCOUNT_ID || env.CLOUDFLARE_ACCOUNT_ID) as string | undefined;
-  const databaseId = (process.env.CLOUDFLARE_D1_DATABASE_ID || env.CLOUDFLARE_D1_DATABASE_ID) as string | undefined;
+  const databaseId = (process.env.CLOUDFLARE_D1_DATABASE_ID || env.CLOUDFLARE_D1_DATABASE_ID || "c7431d01-8a49-4655-8e8b-ea8ef044fd41") as string;
   const apiToken = (process.env.CLOUDFLARE_API_TOKEN || env.CLOUDFLARE_API_TOKEN) as string | undefined;
 
   if (accountId && databaseId && apiToken) {

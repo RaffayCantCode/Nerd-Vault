@@ -1,28 +1,42 @@
 import { NextResponse } from "next/server";
 
-import { getAuthEnvDiagnostics } from "@/lib/auth-env";
-import { getRuntimeEnv } from "@/lib/cloudflare-env";
+import { getAuthEnvDiagnostics, getAuthSecret, getGoogleClientId, getGoogleClientSecret } from "@/lib/auth-env";
+import { getD1Database, getRuntimeEnv } from "@/lib/cloudflare-env";
+import { queryOne } from "@/lib/d1";
 
 /**
- * Runtime auth env check - only when AUTH_DEBUG=true.
- * Visit /api/auth/diag after deploy to verify Cloudflare secrets and bindings.
+ * Runtime auth & database connectivity check endpoint.
  */
 export async function GET() {
-  if (process.env.AUTH_DEBUG !== "true") {
-    return NextResponse.json({ ok: false, message: "Set AUTH_DEBUG=true to use this endpoint." }, { status: 404 });
+  const env = getRuntimeEnv();
+  const diagnostics = getAuthEnvDiagnostics();
+
+  let dbMode = "local_sqlite_fallback";
+  if (env.DB) {
+    dbMode = "native_cloudflare_d1_binding";
+  } else if (process.env.CLOUDFLARE_ACCOUNT_ID && process.env.CLOUDFLARE_API_TOKEN) {
+    dbMode = "remote_cloudflare_d1_http_api";
   }
 
-  const diagnostics = getAuthEnvDiagnostics();
-  const env = getRuntimeEnv();
+  let dbTestResult: { ok: boolean; userCount?: number; error?: string } = { ok: false };
+  try {
+    const row = await queryOne<{ count: number }>("SELECT count(*) as count FROM users");
+    dbTestResult = { ok: true, userCount: row?.count ?? 0 };
+  } catch (err) {
+    dbTestResult = { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
 
   return NextResponse.json({
-    ok: diagnostics.resolvedSecret && diagnostics.hasGoogleId && diagnostics.hasGoogleSecret,
-    diagnostics,
-    cloudflare: {
-      hasDbBinding: Boolean(env.DB),
-      hasAuthUrl: Boolean(env.AUTH_URL?.trim()),
-      hasAuthSecret: Boolean(env.AUTH_SECRET?.trim()),
-      hasMailFrom: Boolean(env.MAIL_FROM?.trim()),
+    status: dbTestResult.ok ? "healthy" : "degraded",
+    database: {
+      mode: dbMode,
+      targetDatabaseId: "c7431d01-8a49-4655-8e8b-ea8ef044fd41",
+      testQueryResult: dbTestResult,
+    },
+    auth: {
+      hasSecret: Boolean(getAuthSecret()),
+      googleConfigured: Boolean(getGoogleClientId() && getGoogleClientSecret()),
+      hasAuthUrl: Boolean(env.AUTH_URL),
     },
   });
 }

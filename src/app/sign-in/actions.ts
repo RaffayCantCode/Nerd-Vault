@@ -79,7 +79,7 @@ export async function signUpWithCredentials(formData: FormData) {
 
   await ensureDatabaseReady();
   const email = normalizeEmail(parsed.data.email);
-  const existingUser = await queryOne<{ id: string }>(`SELECT id FROM users WHERE email = ? LIMIT 1`, [email]);
+  const existingUser = await queryOne<{ id: string }>(`SELECT id FROM users WHERE LOWER(email) = LOWER(?) LIMIT 1`, [email]);
 
   if (existingUser) {
     redirect(
@@ -90,7 +90,7 @@ export async function signUpWithCredentials(formData: FormData) {
   const passwordHash = await hash(parsed.data.password, 12);
   const newUserId = uuid();
 
-  await execute(
+  const insertResult = await execute(
     `
       INSERT INTO users (
         id,
@@ -109,6 +109,13 @@ export async function signUpWithCredentials(formData: FormData) {
     `,
     [newUserId, parsed.data.name.trim(), email, passwordHash],
   );
+
+  if (insertResult.success === false && (insertResult as any).error) {
+    console.error("[auth] Failed to insert new user into database:", (insertResult as any).error);
+    redirect(
+      `/sign-in?mode=signup&error=${encodeURIComponent(`Failed to create account: ${(insertResult as any).error}`)}&redirectTo=${encodeURIComponent(redirectTo)}`,
+    );
+  }
 
   // Automatically sign in the newly registered user seamlessly
   try {

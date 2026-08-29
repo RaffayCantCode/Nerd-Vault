@@ -301,7 +301,7 @@ export async function queryAll<T = Row>(sql: string, binds: unknown[] = []) {
     const result = await db.prepare(sql).bind(...binds).all();
     return (result.results ?? []) as T[];
   } catch (error) {
-    console.warn("[d1] queryAll non-fatal error:", error);
+    console.error("[d1] queryAll error:", error);
     return [] as T[];
   }
 }
@@ -313,7 +313,7 @@ export async function queryOne<T = Row>(sql: string, binds: unknown[] = []) {
     const result = await db.prepare(sql).bind(...binds).first();
     return (result ?? null) as T | null;
   } catch (error) {
-    console.warn("[d1] queryOne non-fatal error:", error);
+    console.error("[d1] queryOne error:", error);
     return null as T | null;
   }
 }
@@ -324,8 +324,8 @@ export async function execute(sql: string, binds: unknown[] = []) {
     const db = (await getD1Database()) as any;
     return await db.prepare(sql).bind(...binds).run();
   } catch (error) {
-    console.warn("[d1] execute non-fatal error:", error);
-    return { results: [], success: false, meta: {} };
+    console.error("[d1] execute error:", error);
+    return { results: [], success: false, meta: {}, error: error instanceof Error ? error.message : String(error) };
   }
 }
 
@@ -335,8 +335,8 @@ export async function exec(sql: string) {
     const db = (await getD1Database()) as any;
     return await db.exec(sql);
   } catch (error) {
-    console.warn("[d1] exec non-fatal error:", error);
-    return { count: 0, duration: 0 };
+    console.error("[d1] exec error:", error);
+    return { count: 0, duration: 0, error: error instanceof Error ? error.message : String(error) };
   }
 }
 

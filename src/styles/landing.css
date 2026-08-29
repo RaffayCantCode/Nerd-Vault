@@ -17,442 +17,564 @@
 }
 
 /* =========================================================
-   1. CALM EDITORIAL STORYTELLING HERO
+   1. 3D CELESTIAL & COSMIC HERO (POWERED BY THREE.JS)
    ========================================================= */
-.nv-story-hero {
+.nv-celestial-hero {
   position: relative;
-  min-height: 88vh;
+  min-height: 94vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4.5rem 1.5rem 3rem;
-  text-align: center;
+  padding: 5.5rem 1.5rem 4.5rem;
   overflow: hidden;
-  background: 
-    radial-gradient(ellipse 90% 60% at 50% 0%, rgba(35, 120, 105, 0.18) 0%, rgba(10, 20, 26, 0.8) 60%, #080d12 100%),
-    linear-gradient(180deg, #09131a 0%, #080d12 100%);
+  background: #050811;
+  color: #f8fafc;
 }
 
-.nv-story-ambient-aura {
+/* Three.js WebGL Mount Canvas */
+.nv-universe-canvas-mount {
   position: absolute;
-  top: 10%;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Atmospheric Celestial Aurora Layer */
+.nv-celestial-aurora {
+  position: absolute;
+  top: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: min(800px, 90vw);
-  height: 450px;
+  width: min(1200px, 95vw);
+  height: 600px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(126, 200, 184, 0.12) 0%, rgba(35, 120, 105, 0.05) 50%, transparent 70%);
-  filter: blur(90px);
+  background: radial-gradient(circle at 50% 30%, rgba(105, 197, 172, 0.14) 0%, rgba(168, 85, 247, 0.1) 40%, rgba(14, 165, 233, 0.05) 65%, transparent 80%);
+  filter: blur(100px);
   pointer-events: none;
+  transition: background 600ms ease;
+  z-index: 1;
 }
 
-.nv-story-container {
-  position: relative;
+/* Dynamic Aurora Shift by Active Realm */
+.nv-celestial-hero.realm-movie .nv-celestial-aurora {
+  background: radial-gradient(circle at 50% 30%, rgba(245, 158, 11, 0.18) 0%, rgba(239, 68, 68, 0.12) 40%, transparent 80%);
+}
+
+.nv-celestial-hero.realm-show .nv-celestial-aurora {
+  background: radial-gradient(circle at 50% 30%, rgba(168, 85, 247, 0.18) 0%, rgba(59, 130, 246, 0.12) 40%, transparent 80%);
+}
+
+.nv-celestial-hero.realm-anime .nv-celestial-aurora {
+  background: radial-gradient(circle at 50% 30%, rgba(236, 72, 153, 0.18) 0%, rgba(6, 182, 212, 0.14) 40%, transparent 80%);
+}
+
+.nv-celestial-hero.realm-game .nv-celestial-aurora {
+  background: radial-gradient(circle at 50% 30%, rgba(16, 185, 129, 0.18) 0%, rgba(99, 102, 241, 0.14) 40%, transparent 80%);
+}
+
+.nv-celestial-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 90% 70% at 50% 50%, transparent 35%, #050811 100%),
+              linear-gradient(180deg, transparent 65%, #080d12 100%);
+  pointer-events: none;
   z-index: 1;
+}
+
+.nv-celestial-container {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  max-width: 960px;
+  text-align: center;
+  max-width: 1200px;
   width: 100%;
+  gap: 1.75rem;
 }
 
-/* 1. Quiet Pretitle Row */
-.nv-story-pretitle-row {
+/* 1. Luminous Pill Badge */
+.nv-celestial-pill-group {
   display: inline-flex;
   align-items: center;
   gap: 0.65rem;
-  padding: 0.35rem 1rem;
+  padding: 0.4rem 1.15rem;
   border-radius: 999px;
-  background: rgba(245, 242, 235, 0.05);
-  border: 1px solid rgba(245, 242, 235, 0.12);
-  color: rgba(245, 242, 235, 0.7);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
   font-size: 0.76rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  margin-bottom: 1.5rem;
-}
-
-.nv-story-eyebrow {
-  color: #7ec8b8;
   font-weight: 700;
-}
-
-.nv-story-dot {
-  opacity: 0.4;
-}
-
-.nv-story-sublabel {
-  color: rgba(245, 242, 235, 0.6);
-}
-
-/* 2. Editorial Typography */
-.nv-story-heading-group {
-  margin-bottom: 1.75rem;
-}
-
-.nv-story-display-title {
-  font-family: var(--font-serif, "Playfair Display", "Cormorant Garamond", Georgia, serif);
-  font-size: clamp(2.4rem, 5.8vw, 4.4rem);
-  font-weight: 400;
-  line-height: 1.08;
-  letter-spacing: -0.015em;
-  margin: 0;
-  color: #f5f2eb;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.nv-story-display-title em {
-  font-style: italic;
-  font-weight: 400;
-  background: linear-gradient(135deg, #a7f3d0 0%, #7ec8b8 50%, #469a88 100%);
+.nv-pill-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #34d399;
+  box-shadow: 0 0 12px #34d399;
+  animation: pulseDot 2.2s infinite ease-in-out;
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.35); box-shadow: 0 0 16px #34d399; }
+}
+
+.nv-pill-tag {
+  color: #f1f5f9;
+}
+
+.nv-pill-sep {
+  opacity: 0.3;
+}
+
+.nv-pill-counter {
+  color: #38bdf8;
+}
+
+/* 2. Hero Headline & Subtitle */
+.nv-celestial-title-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.nv-celestial-display-title {
+  font-family: var(--font-sans, "Inter", -apple-system, BlinkMacSystemFont, sans-serif);
+  font-size: clamp(2.4rem, 5.8vw, 4.8rem);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+  text-transform: uppercase;
+  color: #ffffff;
+  margin: 0;
+  text-wrap: balance;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.8);
+}
+
+.nv-celestial-gradient-text {
+  display: inline-block;
+  background: linear-gradient(135deg, #a7f3d0 0%, #38bdf8 35%, #c084fc 70%, #f472b6 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 35px rgba(56, 189, 248, 0.4));
 }
 
-.nv-story-manifesto {
-  font-family: var(--font-serif, "Cormorant Garamond", Georgia, serif);
-  font-size: clamp(1.02rem, 2vw, 1.2rem);
-  font-style: italic;
-  line-height: 1.65;
-  color: rgba(245, 242, 235, 0.72);
-  max-width: 56ch;
-  margin: 1.25rem auto 0;
+.nv-celestial-subtext {
+  font-size: clamp(0.98rem, 1.8vw, 1.15rem);
+  line-height: 1.6;
+  color: rgba(226, 232, 240, 0.75);
+  max-width: 58ch;
+  margin: 0;
   text-wrap: balance;
 }
 
-/* 3. Restrained Actions */
-.nv-story-actions {
+/* 3. Realm Selector Tabs */
+.nv-realm-tabs-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.nv-realm-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 1.1rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: rgba(226, 232, 240, 0.7);
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.nv-realm-tab-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.nv-realm-tab-btn.is-active {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border-color: var(--realm-accent, #69c5ac);
+  box-shadow: 0 0 16px rgba(105, 197, 172, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.nv-realm-tab-btn.is-active .nv-realm-icon {
+  color: var(--realm-accent, #69c5ac);
+}
+
+/* 4. Cosmic Action & Search Row */
+.nv-celestial-action-row {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1rem;
-  margin-bottom: 2.75rem;
+  gap: 1.25rem;
+  width: 100%;
+  max-width: 920px;
   flex-wrap: wrap;
 }
 
-.nv-story-btn-primary {
-  min-height: 46px;
-  padding: 0 1.75rem;
-  border-radius: 999px;
-  font-weight: 700;
-  font-size: 0.92rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55rem;
-  background: #f5f2eb;
-  color: #080d12;
-  border: 1px solid #ffffff;
-  cursor: pointer;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
-  transition: all 200ms ease;
-  text-decoration: none;
-}
-
-.nv-story-btn-primary:hover {
-  transform: translateY(-2px);
-  background: #ffffff;
-  box-shadow: 0 10px 28px rgba(126, 200, 184, 0.3);
-}
-
-.nv-story-btn-secondary {
-  min-height: 46px;
-  padding: 0 1.5rem;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 0.9rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55rem;
-  background: rgba(245, 242, 235, 0.06);
-  color: #f5f2eb;
-  border: 1px solid rgba(245, 242, 235, 0.16);
-  backdrop-filter: blur(10px);
-  transition: all 180ms ease;
-  text-decoration: none;
-}
-
-.nv-story-btn-secondary:hover {
-  background: rgba(245, 242, 235, 0.12);
-  border-color: rgba(245, 242, 235, 0.3);
-}
-
-/* 4. The Editorial Folio Canvas */
-.nv-story-folio-canvas {
-  width: 100%;
-  max-width: 860px;
-  margin-bottom: 2.25rem;
-}
-
-.nv-folio-paper-frame {
-  position: relative;
-  min-height: 380px;
-  border-radius: 24px;
-  background: 
-    radial-gradient(ellipse 100% 80% at 50% 20%, rgba(35, 100, 90, 0.22) 0%, rgba(10, 20, 28, 0.95) 75%),
-    linear-gradient(180deg, #0f1c24 0%, #0a131a 100%);
-  border: 1px solid rgba(245, 242, 235, 0.12);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  overflow: hidden;
-  padding: 2.25rem;
-  display: grid;
-  grid-template-columns: repeat(12, 1fr);
-  gap: 1.25rem;
-  align-items: center;
-}
-
-.nv-folio-scrim {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 50% 100%, transparent 40%, rgba(8, 13, 18, 0.7) 100%);
-  pointer-events: none;
-}
-
-.nv-folio-stars-layer {
-  position: absolute;
-  inset: 0;
-  opacity: 0.35;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.4) 1px, transparent 1px);
-  background-size: 28px 28px;
-  pointer-events: none;
-}
-
-/* Folio Artifacts */
-.nv-folio-artifact {
-  position: relative;
-  z-index: 2;
-  border-radius: 16px;
-  background: rgba(12, 22, 30, 0.82);
-  border: 1px solid rgba(245, 242, 235, 0.14);
-  backdrop-filter: blur(16px);
-  padding: 1.15rem;
-  text-align: left;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
-  transition: transform 240ms ease, border-color 240ms ease;
-}
-
-.nv-folio-artifact:hover {
-  transform: translateY(-3px);
-  border-color: rgba(126, 200, 184, 0.4);
-}
-
-.artifact-journal {
-  grid-column: span 5;
-}
-
-.nv-artifact-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.45rem;
-}
-
-.nv-artifact-tag {
-  font-size: 0.68rem;
-  font-weight: 750;
-  letter-spacing: 0.05em;
-  color: #7ec8b8;
-  text-transform: uppercase;
-}
-
-.nv-artifact-time {
-  font-size: 0.68rem;
-  color: rgba(245, 242, 235, 0.4);
-}
-
-.nv-artifact-title {
-  font-family: var(--font-serif, "Playfair Display", Georgia, serif);
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: #f5f2eb;
-  margin: 0 0 0.25rem;
-}
-
-.nv-artifact-stars {
-  color: #fbbf24;
-  font-size: 0.82rem;
-  letter-spacing: 0.12em;
-  margin-bottom: 0.4rem;
-}
-
-.nv-artifact-quote {
-  font-family: var(--font-serif, "Cormorant Garamond", Georgia, serif);
-  font-size: 0.86rem;
-  font-style: italic;
-  color: rgba(245, 242, 235, 0.68);
-  line-height: 1.45;
-  margin: 0;
-}
-
-.artifact-stats {
-  grid-column: span 3;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.nv-stats-num {
-  font-family: var(--font-serif, "Playfair Display", Georgia, serif);
-  font-size: 2.2rem;
-  font-weight: 500;
-  color: #f5f2eb;
-  line-height: 1;
-}
-
-.nv-stats-label {
-  font-size: 0.72rem;
-  font-weight: 650;
-  color: rgba(245, 242, 235, 0.6);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin: 0.3rem 0 0.6rem;
-}
-
-.nv-stats-pills {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.68rem;
-  color: rgba(245, 242, 235, 0.5);
-}
-
-.artifact-thread {
-  grid-column: span 4;
-}
-
-.nv-thread-tag {
-  font-size: 0.65rem;
-  font-weight: 750;
-  letter-spacing: 0.06em;
-  color: #7ec8b8;
-  text-transform: uppercase;
-  margin-bottom: 0.35rem;
-}
-
-.nv-thread-title {
-  font-family: var(--font-serif, "Playfair Display", Georgia, serif);
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #f5f2eb;
-  margin: 0 0 0.65rem;
-}
-
-.nv-thread-steps {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.72rem;
-}
-
-.step-done {
-  color: #a7f3d0;
-}
-
-.step-arrow {
-  color: rgba(245, 242, 235, 0.3);
-  font-size: 0.65rem;
-}
-
-.step-active {
-  color: #fbbf24;
-  font-weight: 700;
-}
-
-.nv-folio-center-caption {
-  grid-column: span 12;
-  position: relative;
-  z-index: 2;
-  text-align: center;
-  padding-top: 0.75rem;
-  border-top: 1px solid rgba(245, 242, 235, 0.08);
-  margin-top: 0.5rem;
-}
-
-.nv-caption-quote {
-  font-family: var(--font-serif, "Cormorant Garamond", Georgia, serif);
-  font-size: 0.95rem;
-  font-style: italic;
-  color: rgba(245, 242, 235, 0.75);
-  margin: 0;
-}
-
-.nv-caption-author {
-  display: block;
-  font-size: 0.7rem;
-  color: rgba(245, 242, 235, 0.4);
-  margin-top: 0.25rem;
-  letter-spacing: 0.04em;
-}
-
-/* 5. Minimalist Search Bar */
-.nv-story-search-bar {
-  width: min(100%, 540px);
+.nv-celestial-search-box {
+  flex: 1;
+  min-width: 320px;
+  max-width: 540px;
   display: flex;
   align-items: center;
   gap: 0.65rem;
-  padding: 0.35rem 0.35rem 0.35rem 1.15rem;
+  padding: 0.35rem 0.35rem 0.35rem 1.2rem;
   border-radius: 999px;
-  border: 1px solid rgba(245, 242, 235, 0.12);
-  background: rgba(12, 20, 26, 0.85);
-  backdrop-filter: blur(16px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-  transition: all 200ms ease;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.45);
+  transition: all 220ms ease;
 }
 
-.nv-story-search-bar:focus-within {
-  border-color: #7ec8b8;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6), 0 0 20px rgba(126, 200, 184, 0.2);
+.nv-celestial-search-box:focus-within {
+  border-color: #38bdf8;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), 0 0 25px rgba(56, 189, 248, 0.3);
 }
 
-.nv-story-search-icon {
-  color: #7ec8b8;
+.nv-search-icon {
+  color: #38bdf8;
   flex-shrink: 0;
 }
 
-.nv-story-search-input {
+.nv-celestial-search-input {
   flex: 1;
   background: transparent;
   border: 0;
   outline: 0;
-  color: #f5f2eb;
+  color: #ffffff;
   font-size: 0.92rem;
-  padding: 0.35rem 0;
+  padding: 0.4rem 0;
 }
 
-.nv-story-search-input::placeholder {
-  color: rgba(245, 242, 235, 0.45);
+.nv-celestial-search-input::placeholder {
+  color: rgba(226, 232, 240, 0.45);
 }
 
-.nv-story-search-submit {
-  min-height: 38px;
+.nv-celestial-search-btn {
+  padding: 0.45rem 1.2rem;
+  border-radius: 999px;
+  border: 0;
+  background: linear-gradient(135deg, #38bdf8 0%, #2563eb 100%);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 180ms ease;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+}
+
+.nv-celestial-search-btn:hover {
+  transform: scale(1.03);
+  box-shadow: 0 6px 20px rgba(56, 189, 248, 0.5);
+}
+
+.nv-celestial-cta-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.nv-celestial-primary-cta {
+  min-height: 44px;
+  padding: 0 1.5rem;
+  border-radius: 999px;
+  font-weight: 750;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #ffffff;
+  color: #050811;
+  border: 1px solid #ffffff;
+  box-shadow: 0 6px 24px rgba(255, 255, 255, 0.2);
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 200ms ease;
+}
+
+.nv-celestial-primary-cta:hover {
+  transform: translateY(-2px);
+  background: #f8fafc;
+  box-shadow: 0 10px 30px rgba(56, 189, 248, 0.4);
+}
+
+.nv-celestial-secondary-cta {
+  min-height: 44px;
   padding: 0 1.25rem;
   border-radius: 999px;
-  background: rgba(245, 242, 235, 0.1);
-  color: #f5f2eb;
-  font-weight: 700;
-  font-size: 0.86rem;
-  border: 1px solid rgba(245, 242, 235, 0.15);
+  font-weight: 600;
+  font-size: 0.88rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: rgba(255, 255, 255, 0.05);
+  color: #f8fafc;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(14px);
+  text-decoration: none;
   cursor: pointer;
   transition: all 180ms ease;
 }
 
-.nv-story-search-submit:hover {
-  background: #f5f2eb;
-  color: #080d12;
+.nv-celestial-secondary-cta:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.25);
 }
 
-/* Responsive adjustments for story folio */
-@media (max-width: 768px) {
-  .nv-folio-paper-frame {
+/* 5. 3D Holographic Constellation Cards Showcase */
+.nv-celestial-showcase-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+  width: 100%;
+  max-width: 1160px;
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 980px) {
+  .nv-celestial-showcase-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 580px) {
+  .nv-celestial-showcase-grid {
     grid-template-columns: 1fr;
-    padding: 1.25rem;
+  }
+}
+
+.nv-celestial-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(16px);
+  overflow: hidden;
+  text-decoration: none;
+  color: #f8fafc;
+  text-align: left;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.4);
+  transition: all 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.nv-celestial-card.is-spotlight {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.nv-celestial-card.is-dimmed {
+  opacity: 0.45;
+  filter: grayscale(0.25);
+}
+
+.nv-celestial-card:hover {
+  opacity: 1 !important;
+  filter: none !important;
+  transform: translateY(-6px) scale(1.015);
+  border-color: var(--card-accent, #38bdf8);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.6), 0 0 24px var(--card-accent, rgba(56, 189, 248, 0.3));
+}
+
+.nv-celestial-card-poster {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  width: 100%;
+  overflow: hidden;
+  background: #090e17;
+}
+
+.nv-celestial-card-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 350ms ease;
+}
+
+.nv-celestial-card:hover .nv-celestial-card-poster img {
+  transform: scale(1.06);
+}
+
+.nv-card-poster-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.2) 0%, rgba(15, 23, 42, 0.95) 100%);
+}
+
+.nv-card-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid currentColor;
+  backdrop-filter: blur(8px);
+}
+
+.nv-celestial-card-body {
+  padding: 1rem 1.15rem 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.nv-card-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.nv-card-title {
+  font-size: 1rem;
+  font-weight: 750;
+  color: #ffffff;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nv-card-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #fbbf24;
+}
+
+.nv-card-year {
+  font-size: 0.76rem;
+  color: rgba(226, 232, 240, 0.5);
+}
+
+.nv-card-quote {
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: rgba(226, 232, 240, 0.75);
+  font-style: italic;
+  margin: 0.25rem 0 0;
+}
+
+/* Mobile & Tablet Responsive Optimizations for 3D Celestial Hero */
+@media (max-width: 980px) {
+  .nv-celestial-hero {
+    padding: 4.5rem 1.25rem 3.5rem;
+  }
+  .nv-celestial-showcase-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .nv-celestial-hero {
+    min-height: auto;
+    padding: 3.5rem 1rem 2.5rem;
+  }
+
+  .nv-celestial-container {
+    gap: 1.25rem;
+  }
+
+  .nv-celestial-pill-group {
+    font-size: 0.68rem;
+    padding: 0.35rem 0.8rem;
+    max-width: 95vw;
+  }
+
+  .nv-celestial-display-title {
+    font-size: clamp(1.9rem, 8.2vw, 2.75rem);
+    letter-spacing: -0.025em;
+  }
+
+  .nv-celestial-subtext {
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+
+  .nv-realm-tabs-bar {
+    width: 100%;
+    max-width: 100%;
+    justify-content: flex-start;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding: 0.3rem 0.4rem;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .nv-realm-tabs-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nv-realm-tab-btn {
+    padding: 0.45rem 0.85rem;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .nv-celestial-action-row {
+    flex-direction: column;
+    width: 100%;
     gap: 0.85rem;
   }
-  .artifact-journal,
-  .artifact-stats,
-  .artifact-thread {
-    grid-column: span 1;
+
+  .nv-celestial-search-box {
+    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
+  }
+
+  .nv-celestial-cta-group {
+    width: 100%;
+    display: flex;
+    gap: 0.65rem;
+  }
+
+  .nv-celestial-primary-cta,
+  .nv-celestial-secondary-cta {
+    flex: 1;
+    justify-content: center;
+    font-size: 0.84rem;
+    padding: 0 1rem;
+    min-height: 42px;
+  }
+
+  .nv-celestial-showcase-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
   }
 }
 

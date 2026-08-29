@@ -42,7 +42,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth(async () => {
           image: string | null;
           password_hash: string | null;
         }>(
-          `SELECT id, name, email, image, password_hash FROM users WHERE email = ? LIMIT 1`,
+          `SELECT id, name, email, image, password_hash FROM users WHERE LOWER(email) = LOWER(?) LIMIT 1`,
           [email],
         );
 
