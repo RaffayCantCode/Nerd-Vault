@@ -26,12 +26,13 @@ router.get("/home", async (req, res) => {
  */
 router.get("/discover", async (req, res) => {
   try {
-    const { type, genre, sort, q, page } = req.query;
+    const { type, genre, sort, q, search, mood, page } = req.query;
     const result = await catalogAggregator.discover({
       type: type as string,
       genre: genre as string,
       sort: sort as any,
-      query: q as string,
+      query: ((q || search) as string) || undefined,
+      mood: mood as string,
       page: page ? parseInt(page as string, 10) : 1,
     });
     res.json(result);
@@ -45,7 +46,7 @@ router.get("/discover", async (req, res) => {
  */
 router.get("/search", async (req, res) => {
   try {
-    const query = (req.query.q as string) || "";
+    const query = ((req.query.q || req.query.search) as string) || "";
     const items = await catalogAggregator.search(query);
     res.json({ items, results: items });
   } catch (error: any) {
@@ -58,12 +59,11 @@ router.get("/search", async (req, res) => {
  */
 router.get("/media/:id", async (req, res) => {
   try {
-    const media = await catalogAggregator.getMediaDetails(req.params.id);
-    if (!media) {
-      res.status(404).json({ error: "Media item not found" });
-      return;
+    const item = await catalogAggregator.getMediaDetails(req.params.id);
+    if (!item) {
+      return res.status(404).json({ error: "Media not found" });
     }
-    res.json({ item: media });
+    res.json({ item });
   } catch (error: any) {
     res.status(500).json({ error: error.message || "Failed to fetch media details" });
   }
@@ -78,7 +78,7 @@ router.get("/media/:id/reviews", async (req, res) => {
     const reviews = await getMediaReviews(req.params.id, currentUserId);
     res.json({ reviews });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || "Failed to load reviews" });
+    res.status(500).json({ error: error.message || "Failed to fetch media reviews" });
   }
 });
 

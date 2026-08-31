@@ -3,44 +3,75 @@ import { tmdbService } from "./tmdb";
 import { anilistService } from "./anilist";
 import { igdbService } from "./igdb";
 
+function shuffleArray<T>(array: T[]): T[] {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 export const catalogAggregator = {
   async getHomeFeed(): Promise<HomeFeedData> {
-    const [trendingMovies, trendingShows, topAnime, popularGames] = await Promise.all([
-      tmdbService.getTrendingMovies(1).catch(() => []),
-      tmdbService.getTrendingShows(1).catch(() => []),
-      anilistService.getTrendingAnime(1).catch(() => []),
-      igdbService.getPopularGames(undefined, 1).catch(() => []),
+    // Randomize page offsets (1-3) on each visit for fresh drops
+    const pageOffset = Math.floor(Math.random() * 3) + 1;
+
+    const [
+      trendingMovies,
+      topRatedMovies,
+      trendingShows,
+      topRatedShows,
+      topAnime,
+      popularAnime,
+      popularGames,
+    ] = await Promise.all([
+      tmdbService.getTrendingMovies(pageOffset).catch(() => []),
+      tmdbService.getTopRatedMovies(pageOffset).catch(() => []),
+      tmdbService.getTrendingShows(pageOffset).catch(() => []),
+      tmdbService.getTopRatedShows(pageOffset).catch(() => []),
+      anilistService.getTrendingAnime(pageOffset).catch(() => []),
+      anilistService.getPopularAnime(undefined, pageOffset).catch(() => []),
+      igdbService.getPopularGames(undefined, pageOffset).catch(() => []),
     ]);
 
-    // 4 Real Live Featured Hero Slides: 1 Movie, 1 Series, 1 Anime, 1 Game
+    // Combine and shuffle for a dynamic, non-stale experience on every visit
+    const allMovies = shuffleArray([...trendingMovies, ...topRatedMovies]);
+    const allShows = shuffleArray([...trendingShows, ...topRatedShows]);
+    const allAnime = shuffleArray([...topAnime, ...popularAnime]);
+    const allGames = shuffleArray(popularGames);
+
+    // Dynamic 4 Real Live Featured Hero Slides: 1 Movie, 1 Series, 1 Anime, 1 Game
     const featuredSlides: UnifiedMedia[] = [
-      trendingMovies[0],
-      trendingShows[0],
-      topAnime[0],
-      popularGames[0],
+      allMovies[0] || trendingMovies[0],
+      allShows[0] || trendingShows[0],
+      allAnime[0] || topAnime[0],
+      allGames[0] || popularGames[0],
     ].filter(Boolean);
 
-    const weeklyDrop: UnifiedMedia[] = [
-      ...trendingMovies.slice(1, 4),
-      ...trendingShows.slice(1, 4),
-      ...topAnime.slice(1, 4),
-      ...popularGames.slice(1, 4),
-    ].filter(Boolean);
+    // Multi-media weekly drop with fresh variety
+    const weeklyDrop: UnifiedMedia[] = shuffleArray([
+      ...allMovies.slice(1, 5),
+      ...allShows.slice(1, 5),
+      ...allAnime.slice(1, 5),
+      ...allGames.slice(1, 5),
+    ]);
 
     return {
       featured: featuredSlides[0] || null,
       featuredSlides,
-      trendingMovies,
-      trendingShows,
-      topAnime,
-      popularGames,
-      weeklyDrop,
+      trendingMovies: allMovies.slice(0, 16),
+      trendingShows: allShows.slice(0, 16),
+      topAnime: allAnime.slice(0, 16),
+      popularGames: allGames.slice(0, 16),
+      weeklyDrop: weeklyDrop.slice(0, 16),
     };
   },
 
   async discover(options: DiscoverOptions): Promise<{ items: UnifiedMedia[]; total: number; hasMore: boolean }> {
-    if (options.search) {
-      const results = await this.search(options.search);
+    const searchQuery = options.search || options.query;
+    if (searchQuery && searchQuery.trim()) {
+      const results = await this.search(searchQuery.trim());
       return { items: results, total: results.length, hasMore: false };
     }
 
@@ -53,13 +84,27 @@ export const catalogAggregator = {
 
     if (isSingleType) {
       if (type === "Movie") {
-        items = await tmdbService.discover({ type: "Movie", page });
+        const [trending, topRated, niche] = await Promise.all([
+          tmdbService.discover({ type: "Movie", page }).catch(() => []),
+          tmdbService.getTopRatedMovies(page).catch(() => []),
+          tmdbService.getCultAndNiche("Movie", page).catch(() => []),
+        ]);
+        items = shuffleArray([...trending, ...topRated, ...niche]);
       } else if (type === "Series") {
-        items = await tmdbService.discover({ type: "Series", page });
+        const [trending, topRated, niche] = await Promise.all([
+          tmdbService.discover({ type: "Series", page }).catch(() => []),
+          tmdbService.getTopRatedShows(page).catch(() => []),
+          tmdbService.getCultAndNiche("Series", page).catch(() => []),
+        ]);
+        items = shuffleArray([...trending, ...topRated, ...niche]);
       } else if (type === "Anime") {
-        items = await anilistService.getPopularAnime(genre !== "All genres" ? genre : undefined, page);
+        const [trending, popular] = await Promise.all([
+          anilistService.getTrendingAnime(page).catch(() => []),
+          anilistService.getPopularAnime(genre !== "All genres" ? genre : undefined, page).catch(() => []),
+        ]);
+        items = shuffleArray([...trending, ...popular]);
       } else if (type === "Game") {
-        items = await igdbService.getPopularGames(genre !== "All genres" ? genre : undefined, page);
+        items = shuffleArray(await igdbService.getPopularGames(genre !== "All genres" ? genre : undefined, page).catch(() => []));
       }
 
       if (genre && genre !== "All genres") {
@@ -69,43 +114,54 @@ export const catalogAggregator = {
         );
       }
     } else {
-      // STRICT EQUAL REAL-TIME INTERLEAVING: 1 Movie, 1 TV Show, 1 Anime, 1 Game
-      const [movies, shows, anime, games] = await Promise.all([
+      // 100% REAL LIVE MULTI-SOURCE NERD HAVEN (Trending + Top-Rated + Cult/Niche + Underrated)
+      const [
+        trendingMovies,
+        nicheMovies,
+        trendingShows,
+        nicheShows,
+        trendingAnime,
+        popularAnime,
+        games,
+      ] = await Promise.all([
         tmdbService.getTrendingMovies(page).catch(() => []),
+        tmdbService.getCultAndNiche("Movie", page).catch(() => []),
         tmdbService.getTrendingShows(page).catch(() => []),
+        tmdbService.getCultAndNiche("Series", page).catch(() => []),
         anilistService.getTrendingAnime(page).catch(() => []),
+        anilistService.getPopularAnime(undefined, page).catch(() => []),
         igdbService.getPopularGames(undefined, page).catch(() => []),
       ]);
 
-      let filteredMovies = movies;
-      let filteredShows = shows;
-      let filteredAnime = anime;
-      let filteredGames = games;
+      let poolMovies = shuffleArray([...trendingMovies, ...nicheMovies]);
+      let poolShows = shuffleArray([...trendingShows, ...nicheShows]);
+      let poolAnime = shuffleArray([...trendingAnime, ...popularAnime]);
+      let poolGames = shuffleArray(games);
 
       if (genre && genre !== "All genres") {
         const matchGenre = (i: UnifiedMedia) =>
           i.genre.toLowerCase() === genre.toLowerCase() ||
           i.genres.some((g) => g.toLowerCase() === genre.toLowerCase());
 
-        filteredMovies = movies.filter(matchGenre);
-        filteredShows = shows.filter(matchGenre);
-        filteredAnime = anime.filter(matchGenre);
-        filteredGames = games.filter(matchGenre);
+        poolMovies = poolMovies.filter(matchGenre);
+        poolShows = poolShows.filter(matchGenre);
+        poolAnime = poolAnime.filter(matchGenre);
+        poolGames = poolGames.filter(matchGenre);
       }
 
       const count = Math.max(
-        filteredMovies.length,
-        filteredShows.length,
-        filteredAnime.length,
-        filteredGames.length
+        poolMovies.length,
+        poolShows.length,
+        poolAnime.length,
+        poolGames.length
       );
 
-      // Interleave in strict pattern: Movie -> Series -> Anime -> Game
+      // Strict Equal Interleaving: 1 Movie -> 1 Series -> 1 Anime -> 1 Game
       for (let i = 0; i < count; i++) {
-        if (filteredMovies[i]) items.push(filteredMovies[i]);
-        if (filteredShows[i]) items.push(filteredShows[i]);
-        if (filteredAnime[i]) items.push(filteredAnime[i]);
-        if (filteredGames[i]) items.push(filteredGames[i]);
+        if (poolMovies[i]) items.push(poolMovies[i]);
+        if (poolShows[i]) items.push(poolShows[i]);
+        if (poolAnime[i]) items.push(poolAnime[i]);
+        if (poolGames[i]) items.push(poolGames[i]);
       }
     }
 
@@ -139,47 +195,34 @@ export const catalogAggregator = {
       igdbService.search(query).catch(() => []),
     ]);
 
+    const combined: UnifiedMedia[] = [];
     const maxLen = Math.max(tmdbResults.length, anilistResults.length, igdbResults.length);
-    const interleaved: UnifiedMedia[] = [];
+
     for (let i = 0; i < maxLen; i++) {
-      if (tmdbResults[i]) interleaved.push(tmdbResults[i]);
-      if (anilistResults[i]) interleaved.push(anilistResults[i]);
-      if (igdbResults[i]) interleaved.push(igdbResults[i]);
+      if (tmdbResults[i]) combined.push(tmdbResults[i]);
+      if (anilistResults[i]) combined.push(anilistResults[i]);
+      if (igdbResults[i]) combined.push(igdbResults[i]);
     }
 
-    return interleaved;
+    return combined;
   },
 
   async getMediaDetails(id: string): Promise<UnifiedMedia | null> {
-    if (id.startsWith("tmdb-movie-")) {
-      const sourceId = id.replace("tmdb-movie-", "");
-      return tmdbService.getDetails(sourceId, "Movie");
-    }
-    if (id.startsWith("tmdb-series-") || id.startsWith("tmdb-tv-")) {
-      const sourceId = id.replace(/tmdb-(series|tv)-/, "");
-      return tmdbService.getDetails(sourceId, "Series");
-    }
-    if (id.startsWith("anilist-")) {
-      const sourceId = id.replace("anilist-", "");
-      return anilistService.getDetails(sourceId);
+    if (id.startsWith("anilist-") || id.startsWith("tmdb-anime-")) {
+      return await anilistService.getDetails(id);
     }
     if (id.startsWith("igdb-")) {
-      const sourceId = id.replace("igdb-", "");
-      return igdbService.getDetails(sourceId);
+      const rawId = id.replace("igdb-", "");
+      return await igdbService.getDetails(rawId);
     }
-
-    const movie = await tmdbService.getDetails(id, "Movie").catch(() => null);
-    if (movie) return movie;
-
-    const show = await tmdbService.getDetails(id, "Series").catch(() => null);
-    if (show) return show;
-
-    const anime = await anilistService.getDetails(id).catch(() => null);
-    if (anime) return anime;
-
-    const game = await igdbService.getDetails(id).catch(() => null);
-    if (game) return game;
-
+    if (id.startsWith("tmdb-tv-") || id.startsWith("tmdb-series-")) {
+      const rawId = id.replace(/^(tmdb-tv-|tmdb-series-)/, "");
+      return await tmdbService.getDetails(rawId, "Series");
+    }
+    if (id.startsWith("tmdb-movie-") || id.startsWith("tmdb-")) {
+      const rawId = id.replace(/^(tmdb-movie-|tmdb-)/, "");
+      return await tmdbService.getDetails(rawId, "Movie");
+    }
     return null;
   },
 };

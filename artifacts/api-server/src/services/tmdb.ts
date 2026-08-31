@@ -15,26 +15,43 @@ const GENRE_MAP: Record<number, string> = {
   10765: "Sci-Fi & Fantasy", 10766: "Soap", 10767: "Talk", 10768: "War & Politics",
 };
 
-function formatMedia(item: any, type: "Movie" | "Series"): UnifiedMedia {
-  const isMovie = type === "Movie";
+/**
+ * Identify if a TMDB media item is actually Japanese Animation / Anime
+ */
+export function isAnimeItem(item: any): boolean {
+  const genreIds: number[] = item.genre_ids || (item.genres ? item.genres.map((g: any) => g.id) : []);
+  const hasAnimation = genreIds.includes(16) || item.genres?.some((g: any) => g.name === "Animation" || g.name === "Anime");
+  const isJapanese = item.original_language === "ja" || item.origin_country?.includes("JP");
+  return hasAnimation && isJapanese;
+}
+
+function formatMedia(item: any, defaultType: "Movie" | "Series"): UnifiedMedia {
+  const isMovie = defaultType === "Movie";
+  const itemIsAnime = isAnimeItem(item);
+  const finalType: "Movie" | "Series" | "Anime" = itemIsAnime ? "Anime" : defaultType;
+
   const title = isMovie ? item.title || item.original_title : item.name || item.original_name;
   const year = (isMovie ? item.release_date : item.first_air_date || "")?.slice(0, 4) || "2024";
-  const genres = item.genres
+  let genres = item.genres
     ? item.genres.map((g: any) => g.name)
     : (item.genre_ids || []).map((id: number) => GENRE_MAP[id] || "Drama").filter(Boolean);
+
+  if (itemIsAnime) {
+    genres = ["Anime", ...genres.filter((g: string) => g !== "Animation")];
+  }
 
   const rawRating = item.vote_average || 8.0;
 
   return {
-    id: `tmdb-${type.toLowerCase()}-${item.id}`,
+    id: `tmdb-${finalType.toLowerCase()}-${item.id}`,
     slug: slugify(title || `media-${item.id}`),
     title: title || "Untitled",
     originalTitle: isMovie ? item.original_title : item.original_name,
-    type,
+    type: finalType,
     year,
     rating: toFiveStarRating(rawRating),
-    genre: genres[0] || "Drama",
-    genres: genres.length > 0 ? genres : ["Drama"],
+    genre: itemIsAnime ? "Anime" : (genres[0] || "Drama"),
+    genres: genres.length > 0 ? genres : [itemIsAnime ? "Anime" : "Drama"],
     poster: item.poster_path ? `${IMG_BASE}${item.poster_path}` : "https://image.tmdb.org/t/p/w500/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg",
     backdrop: item.backdrop_path ? `${BACKDROP_BASE}${item.backdrop_path}` : undefined,
     overview: item.overview || "No synopsis available.",
@@ -46,31 +63,63 @@ function formatMedia(item: any, type: "Movie" | "Series"): UnifiedMedia {
 export const tmdbService = {
   async getTrendingMovies(page: number = 1): Promise<UnifiedMedia[]> {
     const url = `${BASE_URL}/trending/movie/week?api_key=${TMDB_API_KEY}&page=${page}`;
-    const data = await fetchWithCache(url, 1000 * 60 * 30);
-    return (data.results || []).map((m: any) => formatMedia(m, "Movie"));
+    const data = await fetchWithCache(url, 1000 * 60 * 15);
+    return (data.results || [])
+      .filter((m: any) => !isAnimeItem(m))
+      .map((m: any) => formatMedia(m, "Movie"));
   },
 
   async getTrendingShows(page: number = 1): Promise<UnifiedMedia[]> {
     const url = `${BASE_URL}/trending/tv/week?api_key=${TMDB_API_KEY}&page=${page}`;
+    const data = await fetchWithCache(url, 1000 * 60 * 15);
+    return (data.results || [])
+      .filter((m: any) => !isAnimeItem(m))
+      .map((m: any) => formatMedia(m, "Series"));
+  },
+
+  async getTopRatedMovies(page: number = 1): Promise<UnifiedMedia[]> {
+    const url = `${BASE_URL}/movie/top_rated?api_key=${TMDB_API_KEY}&page=${page}&language=en-US`;
     const data = await fetchWithCache(url, 1000 * 60 * 30);
-    return (data.results || []).map((m: any) => formatMedia(m, "Series"));
+    return (data.results || [])
+      .filter((m: any) => !isAnimeItem(m))
+      .map((m: any) => formatMedia(m, "Movie"));
+  },
+
+  async getTopRatedShows(page: number = 1): Promise<UnifiedMedia[]> {
+    const url = `${BASE_URL}/tv/top_rated?api_key=${TMDB_API_KEY}&page=${page}&language=en-US`;
+    const data = await fetchWithCache(url, 1000 * 60 * 30);
+    return (data.results || [])
+      .filter((m: any) => !isAnimeItem(m))
+      .map((m: any) => formatMedia(m, "Series"));
+  },
+
+  async getCultAndNiche(type: "Movie" | "Series", page: number = 1): Promise<UnifiedMedia[]> {
+    const endpoint = type === "Series" ? "tv" : "movie";
+    const genreIds = type === "Series" ? "10765,9648,18" : "878,14,9648,53";
+    const url = `${BASE_URL}/discover/${endpoint}?api_key=${TMDB_API_KEY}&with_genres=${genreIds}&sort_by=vote_average.desc&vote_count.gte=250&page=${page}`;
+    const data = await fetchWithCache(url, 1000 * 60 * 30);
+    return (data.results || [])
+      .filter((m: any) => !isAnimeItem(m))
+      .map((m: any) => formatMedia(m, type));
   },
 
   async discover(params: { type?: "Movie" | "Series"; genreId?: number; sort?: string; page?: number }): Promise<UnifiedMedia[]> {
     const type = params.type === "Series" ? "tv" : "movie";
     const page = params.page || 1;
-    let url = `${BASE_URL}/discover/${type}?api_key=${TMDB_API_KEY}&language=en-US&sort_by=popularity.desc&vote_count.gte=80&page=${page}`;
+    let url = `${BASE_URL}/discover/${type}?api_key=${TMDB_API_KEY}&language=en-US&sort_by=popularity.desc&vote_count.gte=60&page=${page}`;
     if (params.genreId) {
       url += `&with_genres=${params.genreId}`;
     }
-    const data = await fetchWithCache(url, 1000 * 60 * 30);
-    return (data.results || []).map((m: any) => formatMedia(m, params.type === "Series" ? "Series" : "Movie"));
+    const data = await fetchWithCache(url, 1000 * 60 * 20);
+    return (data.results || [])
+      .filter((m: any) => !isAnimeItem(m))
+      .map((m: any) => formatMedia(m, params.type === "Series" ? "Series" : "Movie"));
   },
 
   async search(query: string): Promise<UnifiedMedia[]> {
     if (!query.trim()) return [];
     const url = `${BASE_URL}/search/multi?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&include_adult=false`;
-    const data = await fetchWithCache(url, 1000 * 60 * 15);
+    const data = await fetchWithCache(url, 1000 * 60 * 10);
     return (data.results || [])
       .filter((item: any) => item.media_type === "movie" || item.media_type === "tv")
       .map((item: any) => formatMedia(item, item.media_type === "movie" ? "Movie" : "Series"));
@@ -143,7 +192,7 @@ export const tmdbService = {
         if (!seen.has(item.id)) {
           seen.add(item.id);
           similarItems.push(formatMedia(item, type));
-          if (similarItems.length >= 16) break;
+          if (similarItems.length >= 12) break;
         }
       }
 

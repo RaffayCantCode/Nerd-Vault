@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { Search, ListFilter, Clock3, Sparkles, CircleDot, Gamepad2, ArrowUp, Loader2, Plus, Check } from "lucide-react";
+import { Search, ListFilter, Clock3, Sparkles, CircleDot, Gamepad2, ArrowUp, Loader2, X } from "lucide-react";
 import { MediaCard } from "../components/media/MediaCard";
 import { SectionHeading } from "../components/common/SectionHeading";
 import { CustomSelect } from "../components/common/CustomSelect";
@@ -14,6 +14,7 @@ export default function DiscoverPage() {
   const initialType = queryParams.get("type") || "All types";
 
   const [query, setQuery] = useState(initialSearch);
+  const [debouncedQuery, setDebouncedQuery] = useState(initialSearch);
   const [genre, setGenre] = useState("All genres");
   const [type, setType] = useState(initialType);
   const [sort, setSort] = useState("Recommended");
@@ -47,6 +48,14 @@ export default function DiscoverPage() {
   const types = ["All types", "Movie", "Series", "Anime", "Game"];
   const sortOptions = ["Recommended", "Highest rated", "Newest"];
 
+  // Debounce search query
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 250);
+    return () => clearTimeout(handler);
+  }, [query]);
+
   // Scroll listener for scroll-to-top button
   useEffect(() => {
     const handleScroll = () => {
@@ -68,13 +77,13 @@ export default function DiscoverPage() {
       genre: genre !== "All genres" ? genre : undefined,
       mood: mood || undefined,
       sort,
-      search: query || undefined,
+      search: debouncedQuery.trim() || undefined,
       page: 1,
     })
       .then((data) => {
         const fetched = data?.items || [];
         setItems(fetched);
-        setHasMore(fetched.length >= 8 && !query);
+        setHasMore(fetched.length >= 8 && !debouncedQuery.trim());
 
         // Restore scroll position if returning from detail page
         const savedScrollY = sessionStorage.getItem("nv_discover_scroll_y");
@@ -93,11 +102,11 @@ export default function DiscoverPage() {
         setLoading(false);
         isFetchingRef.current = false;
       });
-  }, [type, genre, mood, sort, query]);
+  }, [type, genre, mood, sort, debouncedQuery]);
 
   // Load next batch
   const loadNextPage = useCallback(() => {
-    if (isFetchingRef.current || !hasMore || query || loading) return;
+    if (isFetchingRef.current || !hasMore || debouncedQuery.trim() || loading) return;
     isFetchingRef.current = true;
     setLoadingMore(true);
 
@@ -108,7 +117,7 @@ export default function DiscoverPage() {
       genre: genre !== "All genres" ? genre : undefined,
       mood: mood || undefined,
       sort,
-      search: query || undefined,
+      search: debouncedQuery.trim() || undefined,
       page: nextPage,
     })
       .then((data) => {
@@ -138,12 +147,12 @@ export default function DiscoverPage() {
           isFetchingRef.current = false;
         }, 500);
       });
-  }, [hasMore, query, page, type, genre, mood, sort, loading]);
+  }, [hasMore, debouncedQuery, page, type, genre, mood, sort, loading]);
 
   // Robust Infinite Scroll Observer on separate sentinel
   useEffect(() => {
     const sentinel = sentinelRef.current;
-    if (!sentinel || !hasMore || query || loading) return;
+    if (!sentinel || !hasMore || debouncedQuery.trim() || loading) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -156,7 +165,7 @@ export default function DiscoverPage() {
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [loadNextPage, hasMore, query, loading]);
+  }, [loadNextPage, hasMore, debouncedQuery, loading]);
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -198,7 +207,7 @@ export default function DiscoverPage() {
       {/* Filter Bar with z-index elevation and solid backdrop */}
       <div className="nv-card nv-reveal nv-reveal-2 relative z-30 rounded-3xl p-4 sm:p-5 border border-white/[.1] shadow-2xl bg-[#10161b]">
         <div className="flex flex-col gap-3.5 lg:flex-row">
-          <label className="relative flex-1">
+          <div className="relative flex-1">
             <Search
               size={18}
               className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
@@ -208,9 +217,18 @@ export default function DiscoverPage() {
               onChange={(e) => setQuery(e.target.value)}
               data-testid="input-discover-search"
               placeholder="Search live titles, anime, games, movies, series..."
-              className="h-12 w-full rounded-2xl border border-white/[.1] bg-black/40 pl-11 pr-4 text-[13px] text-slate-100 outline-none placeholder:text-slate-500 focus:border-[rgba(55,218,178,.55)] shadow-inner"
+              className="h-12 w-full rounded-2xl border border-white/[.1] bg-black/40 pl-11 pr-10 text-[13px] text-slate-100 outline-none placeholder:text-slate-500 focus:border-[rgba(55,218,178,.55)] shadow-inner"
             />
-          </label>
+            {query && (
+              <button
+                onClick={() => setQuery("")}
+                aria-label="Clear search"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
 
           <div className="flex gap-2.5 flex-wrap sm:flex-nowrap relative z-40">
             <CustomSelect
@@ -248,140 +266,129 @@ export default function DiscoverPage() {
         <div className="flex items-center gap-2 text-[12px] text-slate-400">
           <ListFilter size={15} className="text-[hsl(var(--primary))]" />
           Showing <strong className="text-slate-100">{items.length} titles</strong>
-          {mood && (
-            <span className="rounded-lg bg-[hsl(var(--primary))]/20 px-2.5 py-0.5 text-[10px] font-bold text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/30">
-              Mood: {mood}
-            </span>
+          {debouncedQuery.trim() && (
+            <span className="text-[hsl(var(--primary))] font-medium">for "{debouncedQuery}"</span>
           )}
         </div>
-        <button
-          onClick={() => {
-            setQuery("");
-            setGenre("All genres");
-            setType("All types");
-            setSort("Recommended");
-            setMood(null);
-            notify("Filters cleared");
-          }}
-          data-testid="button-clear-filters"
-          className="nv-button text-[12px] font-bold text-slate-500 hover:text-slate-200"
-        >
-          Clear filters
-        </button>
+
+        {(genre !== "All genres" || type !== "All types" || mood || query) && (
+          <button
+            onClick={() => {
+              setGenre("All genres");
+              setType("All types");
+              setMood(null);
+              setQuery("");
+            }}
+            data-testid="button-clear-filters"
+            className="text-[12px] font-semibold text-[hsl(var(--primary))] hover:underline"
+          >
+            Clear filters
+          </button>
+        )}
       </div>
 
       {/* Media Grid */}
       {loading ? (
-        <div className="grid grid-cols-2 gap-x-3.5 gap-y-8 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((i) => (
-            <div key={i} className="aspect-[2/3] animate-pulse rounded-2xl bg-white/[.04] border border-white/[.06]" />
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 sm:gap-5">
+          {Array.from({ length: 18 }).map((_, i) => (
+            <div
+              key={i}
+              className="aspect-[2/3] animate-pulse rounded-2xl border border-white/[.08] bg-white/[.03]"
+            />
           ))}
         </div>
       ) : items.length > 0 ? (
-        <div className="grid grid-cols-2 gap-x-3.5 gap-y-8 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-          {items.map((item) => (
-            <MediaCard item={item} key={item.id} />
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 sm:gap-5">
+          {items.map((item, idx) => (
+            <MediaCard
+              key={`${item.id}-${idx}`}
+              item={item}
+            />
           ))}
         </div>
       ) : (
-        <div className="nv-card flex min-h-[260px] flex-col items-center justify-center rounded-3xl p-8 text-center border border-dashed border-white/[.1]">
-          <p className="text-[14px] font-bold text-slate-200">
-            No live titles match that search
+        <div className="rounded-3xl border border-white/[.08] bg-white/[.02] p-12 text-center">
+          <p className="text-[14px] font-bold text-white">No live titles match that search</p>
+          <p className="mt-1 text-[12px] text-slate-500">
+            Try adjusting your search terms or clearing your category filters.
           </p>
-          <p className="mt-1 text-[12px] text-slate-500">Try adjusting your search terms or clearing your category filters.</p>
           <button
             onClick={() => {
-              setQuery("");
               setGenre("All genres");
               setType("All types");
               setMood(null);
+              setQuery("");
             }}
-            className="nv-button mt-4 rounded-xl bg-white/[.08] px-4 py-2 text-[11px] font-bold text-slate-200 hover:bg-white/[.14]"
+            className="nv-button mt-4 rounded-xl bg-white/[.06] px-4 py-2 text-[12px] font-bold text-white hover:bg-white/[.12]"
           >
             Reset search
           </button>
         </div>
       )}
 
-      {/* Loading More Spinner & Status */}
-      {loadingMore && (
-        <div className="flex items-center justify-center py-6">
-          <div className="flex items-center gap-2 text-[12px] font-bold text-[hsl(var(--primary))] bg-black/60 px-5 py-2.5 rounded-2xl border border-white/[.1] shadow-2xl backdrop-blur-md">
-            <Loader2 size={16} className="animate-spin" />
-            <span>Loading more titles...</span>
-          </div>
+      {/* Infinite Scroll Loading Spinner & Sentinel */}
+      {hasMore && !query && (
+        <div className="py-8 flex justify-center items-center">
+          {loadingMore && (
+            <div className="flex items-center gap-2 text-slate-400 font-mono-ui text-[12px]">
+              <Loader2 className="animate-spin text-[hsl(var(--primary))]" size={18} />
+              <span>Loading next multi-media batch...</span>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Separate Invisible Sentinel for Observer */}
-      {hasMore && !query && <div ref={sentinelRef} className="h-6 w-full" />}
-
-      {/* End of Feed Indicator */}
-      {!hasMore && items.length > 0 && !query && (
-        <div className="flex flex-col items-center justify-center py-6 text-slate-500 text-[12px]">
-          <span>You've explored all currently loaded titles</span>
-          <button
-            onClick={scrollToTop}
-            className="nv-button mt-2 text-[11px] text-[hsl(var(--primary))] hover:underline"
-          >
-            Back to top ↑
-          </button>
-        </div>
-      )}
+      {/* Target sentinel for IntersectionObserver */}
+      <div ref={sentinelRef} className="h-10 w-full" />
 
       {/* Browse by Mood */}
-      <div className="pt-6 border-t border-white/[.08]">
+      <div className="pt-8 border-t border-white/[.06]">
         <SectionHeading
           eyebrow="Browse by mood"
           title="What are you in the mood for?"
           action="Shuffle"
           onAction={() => {
-            const random = moods[Math.floor(Math.random() * moods.length)];
-            setMood(random.id);
-            notify(`Browsing ${random.title} titles`);
+            const nextIdx = Math.floor(Math.random() * moods.length);
+            setMood(moods[nextIdx].id);
           }}
         />
-        <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-4">
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {moods.map((m) => {
             const Icon = m.icon;
-            const active = mood === m.id;
+            const isSelected = mood === m.id;
             return (
               <button
                 key={m.id}
-                onClick={() => {
-                  setMood(active ? null : m.id);
-                  notify(`Mood set to ${m.title}`);
-                }}
-                data-testid={`button-mood-${m.id}`}
-                className={`nv-button flex min-h-[120px] flex-col justify-between rounded-2xl bg-gradient-to-br ${
-                  moodTones[m.tone]
-                } p-4 text-left hover:-translate-y-1 transition duration-300 ${
-                  active ? "ring-2 ring-[hsl(var(--primary))] shadow-[0_0_24px_rgba(55,218,178,.3)]" : ""
+                onClick={() => setMood(isSelected ? null : m.id)}
+                className={`group flex flex-col justify-between rounded-2xl border p-5 text-left transition-all duration-300 ${
+                  isSelected
+                    ? "border-[hsl(var(--primary))] bg-[rgba(55,218,178,.08)] shadow-[0_0_24px_rgba(55,218,178,.15)] scale-[1.02]"
+                    : "border-white/[.08] bg-gradient-to-br " + moodTones[m.tone] + " opacity-85 hover:opacity-100 hover:scale-[1.02]"
                 }`}
               >
-                <Icon size={20} />
-                <span>
-                  <span className="block text-[13px] font-bold text-slate-100">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-black/40 backdrop-blur-md">
+                  <Icon size={18} />
+                </div>
+                <div className="mt-8">
+                  <h4 className="font-display text-[15px] font-bold text-white group-hover:text-[hsl(var(--primary))] transition">
                     {m.title}
-                  </span>
-                  <span className="mt-1 block text-[11px] leading-4 text-slate-300/80">
-                    {m.meta}
-                  </span>
-                </span>
+                  </h4>
+                  <p className="mt-1 text-[11px] text-slate-400">{m.meta}</p>
+                </div>
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* Floating Scroll To Top Button */}
+      {/* Scroll to Top Floating Button */}
       {showScrollTop && (
         <button
           onClick={scrollToTop}
           aria-label="Scroll to top"
-          className="fixed bottom-20 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-2xl border border-[rgba(55,218,178,.4)] bg-[#10181d]/90 text-[hsl(var(--primary))] shadow-2xl backdrop-blur-xl transition duration-300 hover:scale-110 hover:bg-[hsl(var(--primary))] hover:text-[#08211c]"
+          className="fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-2xl bg-[hsl(var(--primary))] text-[#08211c] shadow-[0_0_24px_rgba(55,218,178,.4)] transition hover:bg-[#73e4c7] hover:scale-105 active:scale-95 animate-bounce-short"
         >
-          <ArrowUp size={20} />
+          <ArrowUp size={20} strokeWidth={2.5} />
         </button>
       )}
     </div>

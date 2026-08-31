@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Play, BookmarkPlus, Check, Sparkles, CircleDot, ChevronLeft, ChevronRight } from "lucide-react";
+import { Play, BookmarkPlus, Check, CircleDot, ChevronLeft, ChevronRight } from "lucide-react";
 import { api, HomeFeedData, UnifiedMedia } from "../lib/api";
 import { MediaRail } from "../components/media/MediaRail";
 import { useVault } from "../context/VaultContext";
@@ -8,7 +8,7 @@ import { useAuth } from "../context/AuthContext";
 
 export default function HomePage() {
   const { user, openAuthModal } = useAuth();
-  const { trackMedia, isInVault, notify } = useVault();
+  const { trackMedia, isInVault } = useVault();
   const [feed, setFeed] = useState<HomeFeedData | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -38,6 +38,16 @@ export default function HomePage() {
   if (slides.length === 0 && feed?.featured) {
     slides.push(feed.featured);
   }
+
+  const handlePrevSlide = () => {
+    if (slides.length <= 1) return;
+    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
+  };
+
+  const handleNextSlide = () => {
+    if (slides.length <= 1) return;
+    setCurrentSlide((prev) => (prev + 1) % slides.length);
+  };
 
   // Auto-advance hero carousel every 6.5s unless hovered
   useEffect(() => {
@@ -109,7 +119,7 @@ export default function HomePage() {
               {activeMedia.overview}
             </p>
 
-            {/* Bottom Controls Row: Action Buttons + Responsive Carousel Dots */}
+            {/* Bottom Controls Row: Action Buttons + Responsive Carousel Arrows & Dots */}
             <div className="mt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex flex-wrap items-center gap-2.5">
                 <Link
@@ -130,9 +140,19 @@ export default function HomePage() {
                 </button>
               </div>
 
-              {/* Carousel Slide Indicators */}
-              <div className="flex items-center gap-3 self-start sm:self-auto">
-                <div className="flex items-center gap-1.5">
+              {/* Carousel Arrows + Slide Indicators */}
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                {/* Back / Prev Button */}
+                <button
+                  onClick={handlePrevSlide}
+                  aria-label="Previous slide"
+                  className="nv-button flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl border border-white/[.15] bg-black/50 text-white backdrop-blur-md transition hover:bg-white/20 hover:border-white/30 active:scale-95 shadow-md"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+
+                {/* Dots */}
+                <div className="flex items-center gap-1.5 px-1">
                   {slides.map((s, idx) => (
                     <button
                       key={s.id || idx}
@@ -147,10 +167,20 @@ export default function HomePage() {
                   ))}
                 </div>
 
-                <div className="flex items-center gap-1 text-[10px] font-mono-ui font-bold text-slate-300 bg-black/60 px-2.5 py-1 rounded-xl border border-white/[.1] backdrop-blur-md">
+                {/* Slide Counter */}
+                <div className="flex items-center gap-1 text-[10px] font-mono-ui font-bold text-slate-300 bg-black/60 px-2.5 py-1.5 rounded-xl border border-white/[.1] backdrop-blur-md">
                   <CircleDot size={11} className="text-[hsl(var(--primary))]" />
                   <span>0{currentSlide + 1} / 0{slides.length || 4}</span>
                 </div>
+
+                {/* Front / Next Button */}
+                <button
+                  onClick={handleNextSlide}
+                  aria-label="Next slide"
+                  className="nv-button flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl border border-white/[.15] bg-black/50 text-white backdrop-blur-md transition hover:bg-white/20 hover:border-white/30 active:scale-95 shadow-md"
+                >
+                  <ChevronRight size={16} />
+                </button>
               </div>
             </div>
           </div>
