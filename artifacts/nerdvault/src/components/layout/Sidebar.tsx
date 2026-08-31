@@ -59,9 +59,6 @@ export function Sidebar({ onCreateShelf }: { onCreateShelf: () => void }) {
               >
                 <Icon size={17} strokeWidth={active ? 2.2 : 1.8} />
                 <span>{item.label}</span>
-                {item.label === "Friends" && (
-                  <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[hsl(var(--accent))]" />
-                )}
               </Link>
             );
           })}

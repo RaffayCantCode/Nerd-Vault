@@ -7,6 +7,12 @@ export type D1Config = {
   apiToken?: string;
 };
 
+let nativeD1Binding: any = null;
+
+export function setD1Binding(d1: any) {
+  nativeD1Binding = d1;
+}
+
 function getD1Config(): D1Config {
   return {
     accountId: process.env.CLOUDFLARE_ACCOUNT_ID || "",
@@ -27,17 +33,27 @@ export type D1Response<T = Record<string, unknown>> = {
 };
 
 /**
- * Execute a SQL query directly against Cloudflare D1 via the Cloudflare REST API.
+ * Execute a SQL query directly against Cloudflare D1 via native binding or REST API fallback.
  */
 export async function queryD1<T = Record<string, unknown>>(
   sql: string,
   params: unknown[] = [],
   config: D1Config = getD1Config()
 ): Promise<T[]> {
+  if (nativeD1Binding) {
+    try {
+      const stmt = nativeD1Binding.prepare(sql).bind(...params);
+      const res = await stmt.all();
+      return (res.results || []) as T[];
+    } catch (err) {
+      console.error("Native D1 Query error:", err, "SQL was:", sql);
+      return [];
+    }
+  }
+
   const { accountId, databaseId, apiToken } = config;
 
   if (!accountId || !databaseId || !apiToken) {
-    console.warn("Cloudflare D1 credentials missing. Using local empty query result.");
     return [];
   }
 
@@ -68,7 +84,7 @@ export async function queryD1<T = Record<string, unknown>>(
     return payload.result?.[0]?.results ?? [];
   } catch (error) {
     console.error("D1 Query execution error:", error, "SQL was:", sql);
-    throw error;
+    return [];
   }
 }
 
