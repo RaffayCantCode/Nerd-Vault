@@ -118,10 +118,39 @@ export const onRequest: any = async (context: any) => {
     }
 
     if (path.startsWith("/api/catalog/media/") && method === "GET") {
-      const mediaId = path.replace("/api/catalog/media/", "");
-      const item = await catalogAggregator.getMediaDetails(decodeURIComponent(mediaId));
+      const rawMediaId = path.replace("/api/catalog/media/", "");
+      const mediaId = decodeURIComponent(rawMediaId);
+      let item = await catalogAggregator.getMediaDetails(mediaId);
+
+      if (!item) {
+        // Fallback to database stored media record
+        const dbMedia = await findMediaById(mediaId);
+        if (dbMedia) {
+          item = {
+            id: dbMedia.id,
+            slug: dbMedia.slug || dbMedia.id,
+            title: dbMedia.title,
+            originalTitle: dbMedia.originalTitle || undefined,
+            type: (dbMedia.type as any) || "Movie",
+            year: dbMedia.releaseYear ? String(dbMedia.releaseYear) : "2024",
+            rating: dbMedia.rating ? String(dbMedia.rating) : "4.0",
+            genre: "Featured",
+            genres: [],
+            poster: dbMedia.coverUrl || "",
+            backdrop: dbMedia.backdropUrl || undefined,
+            overview: dbMedia.overview || "",
+            runtime: dbMedia.runtime ? `${dbMedia.runtime}m` : undefined,
+            trailerUrl: dbMedia.trailerUrl || undefined,
+            source: (dbMedia.source as any) || "tmdb",
+            sourceId: dbMedia.sourceId || dbMedia.id,
+          };
+        }
+      }
+
       if (!item) return jsonResponse({ error: "Not found" }, 404);
-      return jsonResponse({ item });
+      return jsonResponse({ item }, 200, {
+        "Cache-Control": "public, max-age=120, s-maxage=600, stale-while-revalidate=1800",
+      });
     }
 
     // -------------------------------------------------------------
