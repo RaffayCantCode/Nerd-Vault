@@ -1,0 +1,77 @@
+.friends-page {
+  animation: friends-enter 520ms cubic-bezier(.22, .8, .22, 1) both;
+}
+
+.friends-card {
+  border: 1px solid rgba(205, 255, 242, .09);
+  background:
+    linear-gradient(135deg, rgba(30, 49, 47, .56), rgba(14, 19, 21, .72) 58%),
+    rgba(17, 21, 24, .72);
+  box-shadow: 0 22px 70px rgba(0, 0, 0, .18);
+  backdrop-filter: blur(22px);
+}
+
+.friends-card:hover {
+  border-color: rgba(85, 229, 192, .22);
+}
+
+.activity-card {
+  transition: transform 220ms ease, opacity 220ms ease;
+}
+
+.activity-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(85, 229, 192, .18);
+  background-color: rgba(22, 31, 31, .78);
+}
+
+.friends-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(85, 229, 192, .22) transparent;
+}
+
+.friends-scroll::-webkit-scrollbar {
+  height: 5px;
+}
+
+.friends-scroll::-webkit-scrollbar-thumb {
+  background: rgba(85, 229, 192, .22);
+  border-radius: 999px;
+}
+
+.friend-avatar {
+  box-shadow: 0 0 0 2px #111719, 0 0 0 3px rgba(85, 229, 192, .16);
+}
+
+.friend-avatar-stack > * + * {
+  margin-left: -9px;
+}
+
+.reaction-button svg,
+.save-button svg {
+  transition: transform 180ms ease;
+}
+
+.reaction-button:hover svg,
+.save-button:hover svg {
+  transform: scale(1.13);
+}
+
+.pulse-dot {
+  animation: pulse-dot 2.4s ease-in-out infinite;
+}
+
+@keyframes friends-enter {
+  from { opacity: 0; transform: translateY(9px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: .55; transform: scale(.9); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .friends-page, .pulse-dot { animation: none; }
+  .activity-card { transition: none; }
+}

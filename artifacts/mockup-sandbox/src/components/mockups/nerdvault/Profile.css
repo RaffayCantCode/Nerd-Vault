@@ -1,0 +1,109 @@
+.vault-profile {
+  --profile-ink: #f1f7f4;
+  --profile-muted: #8d9b98;
+  --profile-teal: #55e5c0;
+  --profile-green: #b7ef7d;
+  --profile-coral: #ff846d;
+}
+
+.vault-profile .profile-hero {
+  background:
+    radial-gradient(circle at 84% 10%, rgba(85, 229, 192, 0.18), transparent 22rem),
+    linear-gradient(120deg, rgba(18, 29, 29, 0.98), rgba(13, 18, 20, 0.9) 56%, rgba(18, 32, 29, 0.8));
+}
+
+.vault-profile .profile-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.75fr);
+  gap: 20px;
+}
+
+.vault-profile .profile-grid-wide {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  gap: 20px;
+}
+
+.vault-profile .profile-scroll {
+  scrollbar-width: none;
+}
+
+.vault-profile .profile-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.vault-profile .profile-tab {
+  position: relative;
+}
+
+.vault-profile .profile-tab::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -13px;
+  left: 0;
+  height: 2px;
+  transform: scaleX(0);
+  background: var(--profile-teal);
+  transition: transform 220ms ease;
+}
+
+.vault-profile .profile-tab[data-active="true"]::after {
+  transform: scaleX(1);
+}
+
+.vault-profile .media-rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 134px;
+  gap: 12px;
+  overflow-x: auto;
+}
+
+.vault-profile .media-rail::-webkit-scrollbar {
+  height: 0;
+}
+
+.vault-profile .poster-lift {
+  transition: transform 220ms ease, box-shadow 220ms ease;
+}
+
+.vault-profile .poster-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.34);
+}
+
+.vault-profile .activity-line {
+  position: relative;
+}
+
+.vault-profile .activity-line::before {
+  content: "";
+  position: absolute;
+  top: 29px;
+  bottom: -24px;
+  left: 15px;
+  width: 1px;
+  background: rgba(205, 255, 242, 0.11);
+}
+
+.vault-profile .activity-line:last-child::before {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .vault-profile .profile-grid,
+  .vault-profile .profile-grid-wide {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 639px) {
+  .vault-profile .profile-hero {
+    margin-inline: -4px;
+  }
+
+  .vault-profile .profile-grid {
+    gap: 14px;
+  }
+}

@@ -1,0 +1,51 @@
+.discover-page {
+  position: relative;
+}
+
+.discover-page .discover-hero {
+  background:
+    linear-gradient(90deg, rgba(6, 11, 12, 0.96) 0%, rgba(6, 11, 12, 0.76) 42%, rgba(6, 11, 12, 0.18) 78%, rgba(6, 11, 12, 0.34) 100%),
+    linear-gradient(0deg, rgba(6, 11, 12, 0.88) 0%, rgba(6, 11, 12, 0.04) 58%),
+    url("https://image.tmdb.org/t/p/w780/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg") 72% 28% / cover;
+}
+
+.discover-page .discover-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 76% 18%, rgba(85, 229, 192, 0.13), transparent 30%);
+  pointer-events: none;
+}
+
+.discover-page .poster-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.discover-page .poster-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 25%, rgba(255, 255, 255, 0.14) 48%, transparent 68%);
+  transform: translateX(-125%);
+  transition: transform 700ms ease;
+  pointer-events: none;
+}
+
+.discover-page .poster-shine:hover::after {
+  transform: translateX(125%);
+}
+
+.discover-page .hide-scrollbar {
+  scrollbar-width: none;
+}
+
+.discover-page .hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .discover-page .discover-hero {
+    background-position: 62% center;
+  }
+}

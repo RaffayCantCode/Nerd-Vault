@@ -1,0 +1,51 @@
+# Environment and Secrets (CRITICAL)
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+*.env
+*.env.local
+
+# Cloudflare Wrangler & D1 Local State
+.wrangler/
+.mf/
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Compiled Output & Build Artifacts
+dist/
+dist-*/
+build/
+out/
+tmp/
+out-tsc/
+*.tsbuildinfo
+.cache/
+.local/
+
+# Test & Scratch Scripts
+test-*.mjs
+test-*.js
+scratch/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDEs & OS Files
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.sublime-workspace
+.DS_Store
+Thumbs.db

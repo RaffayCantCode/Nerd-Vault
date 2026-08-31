@@ -1,0 +1,334 @@
+.vault-inline-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #81908c;
+  font-size: 0.68rem;
+  font-weight: 700;
+  transition: color 180ms ease, transform 180ms ease;
+}
+
+.vault-inline-action:hover {
+  color: #55e5c0;
+  transform: translateX(2px);
+}
+
+.vault-primary-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid rgba(85, 229, 192, 0.28);
+  border-radius: 0.75rem;
+  background: #55e5c0;
+  padding: 0.7rem 0.9rem;
+  color: #071311;
+  font-size: 0.7rem;
+  font-weight: 800;
+  box-shadow: 0 12px 30px rgba(85, 229, 192, 0.12);
+  transition: transform 180ms ease, background 180ms ease;
+}
+
+.vault-primary-action:hover {
+  background: #83f0d2;
+  transform: translateY(-2px);
+}
+
+.vault-toast {
+  position: fixed;
+  right: 1.25rem;
+  top: 1.25rem;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  border: 1px solid rgba(85, 229, 192, 0.2);
+  border-radius: 0.8rem;
+  background: rgba(18, 29, 28, 0.92);
+  padding: 0.75rem 0.75rem 0.75rem 0.9rem;
+  color: #dae9e4;
+  font-size: 0.7rem;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(18px);
+}
+
+.vault-toast button {
+  margin-left: 0.35rem;
+  color: #74847f;
+}
+
+.vault-overview-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.vault-overview-hero,
+.vault-breakdown {
+  min-height: 310px;
+  border-radius: 1.5rem;
+}
+
+.vault-overview-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid rgba(85, 229, 192, 0.14);
+  background: linear-gradient(115deg, #152b29 0%, #10211f 46%, #12201f 100%);
+  padding: 2rem;
+}
+
+.vault-overview-hero::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(circle at 17% 35%, rgba(85, 229, 192, 0.2), transparent 27rem);
+  content: "";
+}
+
+.vault-overview-art {
+  position: absolute;
+  inset: 0 0 0 auto;
+  z-index: -1;
+  width: 53%;
+  overflow: hidden;
+  opacity: 0.82;
+}
+
+.vault-overview-art img {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  object-position: 62% center;
+  mix-blend-mode: screen;
+  opacity: 0.5;
+}
+
+.vault-overview-art-wash {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #152b29 0%, rgba(21, 43, 41, 0.74) 25%, rgba(21, 43, 41, 0.12) 100%);
+}
+
+.vault-art-caption {
+  position: absolute;
+  bottom: 1.3rem;
+  right: 1.5rem;
+  display: flex;
+  gap: 0.5rem;
+  color: rgba(220, 242, 234, 0.58);
+  font-family: var(--vault-mono);
+  font-size: 0.48rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.vault-art-caption span:first-child {
+  color: #55e5c0;
+}
+
+.vault-pulse-dot {
+  height: 0.45rem;
+  width: 0.45rem;
+  border-radius: 999px;
+  background: #b7ef7d;
+  box-shadow: 0 0 0 4px rgba(183, 239, 125, 0.1);
+}
+
+.vault-breakdown {
+  padding: 1.6rem;
+}
+
+.vault-donut {
+  display: flex;
+  height: 132px;
+  width: 132px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: conic-gradient(#55e5c0 0deg 119deg, #b7ef7d 119deg 209deg, #8cc8ff 209deg 292deg, #ff846d 292deg 360deg);
+}
+
+.vault-donut-center {
+  display: flex;
+  height: 94px;
+  width: 94px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #131b1b;
+}
+
+.vault-donut-center strong {
+  color: #edf5f1;
+  font-size: 1.35rem;
+  letter-spacing: -0.06em;
+}
+
+.vault-donut-center span {
+  margin-top: 0.2rem;
+  color: #75837f;
+  font-family: var(--vault-mono);
+  font-size: 0.48rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.vault-filter-pill {
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 999px;
+  padding: 0.45rem 0.75rem;
+  color: #74827e;
+  font-size: 0.65rem;
+  font-weight: 700;
+  transition: border 180ms ease, background 180ms ease, color 180ms ease;
+}
+
+.vault-filter-pill:hover,
+.vault-filter-pill.is-active {
+  border-color: rgba(85, 229, 192, 0.32);
+  background: rgba(85, 229, 192, 0.09);
+  color: #55e5c0;
+}
+
+.vault-favorite-card,
+.vault-folder-card,
+.vault-recommendation-card {
+  min-width: 0;
+  text-align: left;
+}
+
+.vault-continue-card {
+  display: flex;
+  gap: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 1rem;
+  background: rgba(17, 23, 24, 0.7);
+  padding: 0.75rem;
+  transition: border 180ms ease, background 180ms ease, transform 180ms ease;
+}
+
+.vault-continue-card:hover {
+  border-color: rgba(85, 229, 192, 0.2);
+  background: rgba(26, 38, 37, 0.8);
+  transform: translateY(-2px);
+}
+
+.vault-glass {
+  border-radius: 1rem;
+}
+
+.vault-completed-list {
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 1rem;
+  background: rgba(17, 23, 24, 0.58);
+  padding: 0 0.9rem;
+}
+
+.vault-completed-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0.75rem 0;
+  transition: transform 180ms ease;
+}
+
+.vault-completed-row:last-child {
+  border-bottom: 0;
+}
+
+.vault-completed-row:hover {
+  transform: translateX(3px);
+}
+
+.vault-folder-card {
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(17, 23, 24, 0.58);
+  padding: 0.6rem;
+  transition: border 180ms ease, transform 180ms ease;
+}
+
+.vault-folder-card:hover {
+  border-color: rgba(85, 229, 192, 0.24);
+  transform: translateY(-3px);
+}
+
+.vault-recommendation-card {
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(17, 23, 24, 0.58);
+  padding: 0.65rem;
+  transition: border 180ms ease, transform 180ms ease;
+}
+
+.vault-recommendation-card:hover {
+  border-color: rgba(85, 229, 192, 0.25);
+  transform: translateY(-3px);
+}
+
+.vault-upcoming-strip {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.vault-upcoming-card {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 1rem;
+  background: rgba(17, 23, 24, 0.64);
+  padding: 0.75rem;
+  transition: border 180ms ease, transform 180ms ease;
+}
+
+.vault-upcoming-card:hover {
+  border-color: rgba(183, 239, 125, 0.25);
+  transform: translateY(-2px);
+}
+
+@media (min-width: 768px) {
+  .vault-overview-grid {
+    grid-template-columns: minmax(0, 1.25fr) minmax(330px, 0.75fr);
+  }
+
+  .vault-overview-hero,
+  .vault-breakdown {
+    min-height: 336px;
+  }
+
+  .vault-upcoming-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .vault-overview-hero {
+    padding: 1.4rem;
+  }
+
+  .vault-overview-art {
+    width: 80%;
+    opacity: 0.55;
+  }
+
+  .vault-breakdown {
+    padding: 1.25rem;
+  }
+
+  .vault-donut {
+    height: 112px;
+    width: 112px;
+  }
+
+  .vault-donut-center {
+    height: 80px;
+    width: 80px;
+  }
+}

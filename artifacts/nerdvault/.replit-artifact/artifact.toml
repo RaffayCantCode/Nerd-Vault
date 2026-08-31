@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "NerdVault"
+description = "A premium entertainment tracking and discovery website for movies, TV shows, anime, and games, with a personal vault and social discovery experience."
+version = "1.0.0"
+id = "artifacts/nerdvault"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19028
+
+[services.development]
+run = "pnpm --filter @workspace/nerdvault run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/nerdvault", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/nerdvault/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19028"
+BASE_PATH = "/"

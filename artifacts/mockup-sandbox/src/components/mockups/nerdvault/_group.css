@@ -1,0 +1,65 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap");
+
+:root {
+  --vault-bg: #090b0d;
+  --vault-surface: #111518;
+  --vault-surface-2: #171d1f;
+  --vault-line: rgba(205, 255, 242, 0.1);
+  --vault-text: #f3f7f5;
+  --vault-muted: #8a9795;
+  --vault-teal: #55e5c0;
+  --vault-green: #b7ef7d;
+  --vault-coral: #ff846d;
+  --vault-blue: #8cc8ff;
+  --vault-font: "Manrope", sans-serif;
+  --vault-mono: "DM Mono", monospace;
+}
+
+.vault-app {
+  font-family: var(--vault-font);
+  background:
+    radial-gradient(circle at 76% -4%, rgba(71, 199, 166, 0.14), transparent 34rem),
+    radial-gradient(circle at 8% 38%, rgba(26, 58, 56, 0.2), transparent 28rem),
+    var(--vault-bg);
+  color: var(--vault-text);
+}
+
+.vault-app ::selection {
+  background: rgba(85, 229, 192, 0.25);
+  color: white;
+}
+
+.vault-app ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.vault-app ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+}
+
+.vault-mono {
+  font-family: var(--vault-mono);
+}
+
+.vault-glass {
+  background: rgba(17, 21, 24, 0.72);
+  border: 1px solid var(--vault-line);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.26);
+  backdrop-filter: blur(22px);
+}
+
+.vault-noise {
+  position: relative;
+}
+
+.vault-noise::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  opacity: 0.035;
+  mix-blend-mode: screen;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+}

@@ -1,0 +1,183 @@
+.nerdvault-detail-page {
+  position: relative;
+}
+
+.nerdvault-detail-page::before {
+  content: "";
+  position: absolute;
+  top: -40px;
+  right: -170px;
+  width: 560px;
+  height: 560px;
+  border-radius: 50%;
+  background: rgba(46, 132, 112, 0.1);
+  filter: blur(80px);
+  pointer-events: none;
+}
+
+.detail-hero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(220, 255, 246, 0.11);
+  border-radius: 25px;
+  background: #121a1b;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.42);
+}
+
+.detail-hero-art {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(90deg, rgba(10, 15, 16, 0.98) 0%, rgba(10, 15, 16, 0.88) 27%, rgba(10, 15, 16, 0.45) 61%, rgba(10, 15, 16, 0.76) 100%),
+    linear-gradient(180deg, rgba(10, 15, 16, 0.08) 0%, rgba(10, 15, 16, 0.88) 100%),
+    url("/__mockup/images/nerdvault-dune-backdrop.jpg");
+  background-position: center;
+  background-size: cover;
+  opacity: 0.88;
+  transform: scale(1.02);
+}
+
+.detail-hero-art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 45%, rgba(90, 220, 180, 0.08), transparent 72%);
+}
+
+.detail-hero-content {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 34px;
+  min-height: 490px;
+  align-items: end;
+  padding: 42px 42px 38px;
+}
+
+.detail-poster {
+  position: relative;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 16px;
+  box-shadow: 15px 24px 48px rgba(0, 0, 0, 0.48);
+}
+
+.detail-poster::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+  pointer-events: none;
+}
+
+.detail-copy {
+  max-width: 750px;
+}
+
+.detail-action-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.detail-pill {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(220, 255, 246, 0.13);
+  border-radius: 999px;
+  padding: 7px 11px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #c9d5d1;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.detail-info-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  gap: 22px;
+  margin-top: 24px;
+}
+
+.detail-panel {
+  border: 1px solid rgba(220, 255, 246, 0.1);
+  border-radius: 20px;
+  background: rgba(17, 24, 25, 0.78);
+  box-shadow: 0 16px 46px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(18px);
+}
+
+.detail-panel-soft {
+  border-color: rgba(183, 239, 125, 0.12);
+  background: rgba(183, 239, 125, 0.045);
+}
+
+.review-quote {
+  position: relative;
+}
+
+.review-quote::before {
+  content: "“";
+  position: absolute;
+  top: -9px;
+  left: -2px;
+  color: rgba(85, 229, 192, 0.36);
+  font-family: Georgia, serif;
+  font-size: 50px;
+  line-height: 1;
+}
+
+.episode-card {
+  position: relative;
+  overflow: hidden;
+  min-width: 104px;
+  border: 1px solid rgba(220, 255, 246, 0.1);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.045);
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.episode-card:hover {
+  border-color: rgba(85, 229, 192, 0.46);
+  background: rgba(85, 229, 192, 0.08);
+  transform: translateY(-2px);
+}
+
+.nerdvault-detail-page button,
+.nerdvault-detail-page select {
+  font-family: inherit;
+}
+
+@media (max-width: 900px) {
+  .detail-hero-content {
+    grid-template-columns: 165px minmax(0, 1fr);
+    gap: 24px;
+    padding: 28px;
+  }
+
+  .detail-info-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .detail-hero-content {
+    grid-template-columns: 1fr;
+    align-items: start;
+    min-height: 0;
+    padding: 22px;
+  }
+
+  .detail-poster {
+    width: 148px;
+  }
+
+  .detail-hero-art {
+    background-image:
+      linear-gradient(180deg, rgba(10, 15, 16, 0.35) 0%, rgba(10, 15, 16, 0.96) 56%),
+      url("/__mockup/images/nerdvault-dune-backdrop.jpg");
+  }
+}
