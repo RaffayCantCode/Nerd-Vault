@@ -5,6 +5,21 @@ const ANILIST_GRAPHQL_URL = "https://graphql.anilist.co";
 const JIKAN_BASE_URL = "https://api.jikan.moe/v4";
 const TMDB_API_KEY = process.env.TMDB_API_KEY || "e992852c2a6404df9d6218982f12c36e";
 
+const ADULT_KEYWORDS = ["hentai", "erotica", "ecchi", "18+", "nsfw"];
+
+function isAdultContent(item: any): boolean {
+  if (item.isAdult === true) return true;
+  const genres = item.genres || [];
+  for (const g of genres) {
+    if (typeof g === "string" && ADULT_KEYWORDS.includes(g.toLowerCase())) {
+      return true;
+    }
+  }
+  const title = (item.title?.english || item.title?.romaji || item.title || "").toLowerCase();
+  if (title.includes("overflow") || title.includes("hentai")) return true;
+  return false;
+}
+
 function formatAniList(item: any): UnifiedMedia {
   const title = item.title?.english || item.title?.romaji || item.title?.userPreferred || "Untitled Anime";
   const year = String(item.seasonYear || item.startDate?.year || "2024");
@@ -60,10 +75,10 @@ async function runGraphQLQuery(query: string, variables: any = {}) {
   const cacheKey = `anilist:${JSON.stringify({ query, variables })}`;
   return fetchWithCache(
     cacheKey,
-    1000 * 60 * 15,
+    1000 * 60 * 30,
     async () => {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6000);
+      const timeoutId = setTimeout(() => controller.abort(), 4500);
       try {
         const res = await fetch(ANILIST_GRAPHQL_URL, {
           method: "POST",
@@ -87,45 +102,53 @@ async function runGraphQLQuery(query: string, variables: any = {}) {
   );
 }
 
-// Live Jikan Fallback
+// Live Jikan Fallback (SFW enforced)
 async function fetchJikanTop(page: number = 1): Promise<UnifiedMedia[]> {
-  try {
-    const url = `${JIKAN_BASE_URL}/top/anime?page=${page}&limit=20&filter=bypopularity`;
-    const res = await fetch(url, { headers: { "User-Agent": "NerdVault/2.0" } });
-    if (!res.ok) return [];
-    const data: any = await res.json();
-    return (data.data || []).map(formatJikan);
-  } catch {
-    return [];
-  }
+  const cacheKey = `jikan:top:${page}`;
+  return fetchWithCache(cacheKey, 1000 * 60 * 30, async () => {
+    try {
+      const url = `${JIKAN_BASE_URL}/top/anime?page=${page}&limit=20&filter=bypopularity&sfw=true`;
+      const res = await fetch(url, { headers: { "User-Agent": "NerdVault/2.0" } });
+      if (!res.ok) return [];
+      const data: any = await res.json();
+      return (data.data || [])
+        .filter((item: any) => !isAdultContent(item))
+        .map(formatJikan);
+    } catch {
+      return [];
+    }
+  });
 }
 
 // Live TMDB Animation Fallback
 async function fetchTmdbAnimation(page: number = 1): Promise<UnifiedMedia[]> {
-  try {
-    const url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_genres=16&with_original_language=ja&sort_by=popularity.desc&page=${page}`;
-    const res = await fetch(url, { headers: { "User-Agent": "NerdVault/2.0" } });
-    if (!res.ok) return [];
-    const data: any = await res.json();
-    return (data.results || []).map((m: any) => ({
-      id: `tmdb-anime-${m.id}`,
-      slug: slugify(m.name || m.original_name || `anime-${m.id}`),
-      title: m.name || m.original_name || "Anime",
-      originalTitle: m.original_name,
-      type: "Anime" as const,
-      year: (m.first_air_date || "").slice(0, 4) || "2024",
-      rating: toFiveStarRating(m.vote_average || 8.0),
-      genre: "Anime",
-      genres: ["Anime", "Action", "Fantasy"],
-      poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://image.tmdb.org/t/p/w500/dqzenchTd7lp5zht7BdlqM7RBhD.jpg",
-      backdrop: m.backdrop_path ? `https://image.tmdb.org/t/p/w1280${m.backdrop_path}` : undefined,
-      overview: m.overview || "Popular Japanese anime series.",
-      source: "tmdb" as const,
-      sourceId: String(m.id),
-    }));
-  } catch {
-    return [];
-  }
+  const cacheKey = `tmdb:anime:${page}`;
+  return fetchWithCache(cacheKey, 1000 * 60 * 30, async () => {
+    try {
+      const url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_genres=16&with_original_language=ja&sort_by=popularity.desc&include_adult=false&page=${page}`;
+      const res = await fetch(url, { headers: { "User-Agent": "NerdVault/2.0" } });
+      if (!res.ok) return [];
+      const data: any = await res.json();
+      return (data.results || []).map((m: any) => ({
+        id: `tmdb-anime-${m.id}`,
+        slug: slugify(m.name || m.original_name || `anime-${m.id}`),
+        title: m.name || m.original_name || "Anime",
+        originalTitle: m.original_name,
+        type: "Anime" as const,
+        year: (m.first_air_date || "").slice(0, 4) || "2024",
+        rating: toFiveStarRating(m.vote_average || 8.0),
+        genre: "Anime",
+        genres: ["Anime", "Action", "Fantasy"],
+        poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://image.tmdb.org/t/p/w500/dqzenchTd7lp5zht7BdlqM7RBhD.jpg",
+        backdrop: m.backdrop_path ? `https://image.tmdb.org/t/p/w1280${m.backdrop_path}` : undefined,
+        overview: m.overview || "Popular Japanese anime series.",
+        source: "tmdb" as const,
+        sourceId: String(m.id),
+      }));
+    } catch {
+      return [];
+    }
+  });
 }
 
 export const anilistService = {
@@ -133,8 +156,9 @@ export const anilistService = {
     const query = `
       query ($page: Int) {
         Page(page: $page, perPage: 24) {
-          media(type: ANIME, sort: [TRENDING_DESC, POPULARITY_DESC]) {
+          media(type: ANIME, isAdult: false, sort: [TRENDING_DESC, POPULARITY_DESC]) {
             id
+            isAdult
             title { romaji english native }
             seasonYear
             startDate { year }
@@ -152,17 +176,19 @@ export const anilistService = {
 
     try {
       const data = await runGraphQLQuery(query, { page });
-      const items = (data?.Page?.media || []).map(formatAniList);
+      const items = (data?.Page?.media || [])
+        .filter((item: any) => !isAdultContent(item))
+        .map(formatAniList);
       if (items.length > 0) return items;
     } catch (err) {
-      console.warn("AniList primary trending live query failed, trying live Jikan fallback:", err);
+      console.warn("AniList trending live query failed, trying live Jikan SFW fallback:", err);
     }
 
-    // Live Fallback Tier 1: Jikan / MyAnimeList API
+    // Live SFW Fallback Tier 1: Jikan API
     const jikanItems = await fetchJikanTop(page);
     if (jikanItems.length > 0) return jikanItems;
 
-    // Live Fallback Tier 2: TMDB Animation API
+    // Live SFW Fallback Tier 2: TMDB Animation API
     return await fetchTmdbAnimation(page);
   },
 
@@ -170,8 +196,9 @@ export const anilistService = {
     const query = `
       query ($genre: String, $page: Int) {
         Page(page: $page, perPage: 24) {
-          media(type: ANIME, sort: [SCORE_DESC, POPULARITY_DESC], genre: $genre) {
+          media(type: ANIME, isAdult: false, sort: [SCORE_DESC, POPULARITY_DESC], genre: $genre) {
             id
+            isAdult
             title { romaji english native }
             seasonYear
             startDate { year }
@@ -189,7 +216,9 @@ export const anilistService = {
 
     try {
       const data = await runGraphQLQuery(query, { genre: genre || undefined, page });
-      const items = (data?.Page?.media || []).map(formatAniList);
+      const items = (data?.Page?.media || [])
+        .filter((item: any) => !isAdultContent(item))
+        .map(formatAniList);
       if (items.length > 0) return items;
     } catch (err) {
       console.warn("AniList popular live query failed, trying live Jikan fallback:", err);
@@ -206,8 +235,9 @@ export const anilistService = {
     const query = `
       query ($search: String) {
         Page(page: 1, perPage: 20) {
-          media(type: ANIME, search: $search, sort: SEARCH_MATCH) {
+          media(type: ANIME, isAdult: false, search: $search, sort: SEARCH_MATCH) {
             id
+            isAdult
             title { romaji english native }
             seasonYear
             startDate { year }
@@ -225,18 +255,22 @@ export const anilistService = {
 
     try {
       const data = await runGraphQLQuery(query, { search });
-      const items = (data?.Page?.media || []).map(formatAniList);
+      const items = (data?.Page?.media || [])
+        .filter((item: any) => !isAdultContent(item))
+        .map(formatAniList);
       if (items.length > 0) return items;
     } catch (err) {
       console.warn("AniList search live query failed, trying live Jikan search:", err);
     }
 
     try {
-      const url = `${JIKAN_BASE_URL}/anime?q=${encodeURIComponent(search)}&limit=15`;
+      const url = `${JIKAN_BASE_URL}/anime?q=${encodeURIComponent(search)}&limit=15&sfw=true`;
       const res = await fetch(url, { headers: { "User-Agent": "NerdVault/2.0" } });
       if (res.ok) {
         const data: any = await res.json();
-        return (data.data || []).map(formatJikan);
+        return (data.data || [])
+          .filter((item: any) => !isAdultContent(item))
+          .map(formatJikan);
       }
     } catch {}
 
@@ -248,8 +282,9 @@ export const anilistService = {
 
     const query = `
       query ($id: Int) {
-        Media(id: $id, type: ANIME) {
+        Media(id: $id, type: ANIME, isAdult: false) {
           id
+          isAdult
           title { romaji english native }
           seasonYear
           startDate { year }
@@ -265,6 +300,7 @@ export const anilistService = {
               relationType
               node {
                 id
+                isAdult
                 title { romaji english native }
                 type
                 format
@@ -280,6 +316,7 @@ export const anilistService = {
             nodes {
               mediaRecommendation {
                 id
+                isAdult
                 title { romaji english native }
                 type
                 seasonYear
@@ -298,14 +335,14 @@ export const anilistService = {
     try {
       const data = await runGraphQLQuery(query, { id: Number(rawId) });
       const item = data?.Media;
-      if (!item) throw new Error("No AniList item");
+      if (!item || isAdultContent(item)) throw new Error("No AniList item");
 
       const media = formatAniList(item);
 
       const relationEdges = item.relations?.edges || [];
       const franchiseTypes = ["PREQUEL", "SEQUEL", "PARENT", "SIDE_STORY", "SPIN_OFF", "ALTERNATIVE"];
       const franchiseNodes = relationEdges
-        .filter((e: any) => e.node?.type === "ANIME" && franchiseTypes.includes(e.relationType))
+        .filter((e: any) => e.node?.type === "ANIME" && !isAdultContent(e.node) && franchiseTypes.includes(e.relationType))
         .map((e: any) => formatAniList(e.node));
 
       if (franchiseNodes.length > 0) {
@@ -318,7 +355,7 @@ export const anilistService = {
 
       const recNodes = (item.recommendations?.nodes || [])
         .map((n: any) => n.mediaRecommendation)
-        .filter((r: any) => r && r.id !== item.id)
+        .filter((r: any) => r && r.id !== item.id && !isAdultContent(r))
         .map(formatAniList);
 
       media.similar = recNodes;
@@ -330,7 +367,7 @@ export const anilistService = {
         const res = await fetch(url, { headers: { "User-Agent": "NerdVault/2.0" } });
         if (res.ok) {
           const data: any = await res.json();
-          if (data.data) return formatJikan(data.data);
+          if (data.data && !isAdultContent(data.data)) return formatJikan(data.data);
         }
       } catch {}
       return null;

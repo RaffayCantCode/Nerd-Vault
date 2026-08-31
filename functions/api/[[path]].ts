@@ -130,12 +130,19 @@ export const onRequest: any = async (context: any) => {
     if (path === "/api/auth/login" && method === "POST") {
       const body = await request.json().catch(() => ({}));
       const { email, password } = body;
+      if (!email || !password) {
+        return jsonResponse({ error: "Email and password are required" }, 400);
+      }
       const user = await findUserByEmail(email);
-      if (!user || user.password !== password) {
-        return jsonResponse({ error: "Invalid credentials" }, 401);
+      if (!user) {
+        return jsonResponse({ error: "Invalid email or password" }, 401);
+      }
+      const stored = (user as any).password_hash || (user as any).passwordHash || (user as any).password;
+      if (stored && stored !== password) {
+        return jsonResponse({ error: "Invalid email or password" }, 401);
       }
       return jsonResponse(
-        { user: { id: user.id, name: user.name, email: user.email, image: user.image, bio: user.bio } },
+        { user: { id: user.id, name: user.name, email: user.email, image: user.image, bio: user.bio }, token: user.id },
         200,
         { "Set-Cookie": `nv_user_id=${user.id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000` }
       );
@@ -144,13 +151,23 @@ export const onRequest: any = async (context: any) => {
     if (path === "/api/auth/register" && method === "POST") {
       const body = await request.json().catch(() => ({}));
       const { name, email, password } = body;
+      if (!email || !password) {
+        return jsonResponse({ error: "Email and password are required" }, 400);
+      }
       const existing = await findUserByEmail(email);
       if (existing) {
-        return jsonResponse({ error: "Email already registered" }, 400);
+        return jsonResponse({ error: "A user with this email already exists" }, 400);
       }
-      const user = await createUser({ name, email, password });
+      const userId = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `user_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+      const user = await createUser({
+        id: userId,
+        name: name || email.split("@")[0],
+        email,
+        password,
+        passwordHash: password,
+      });
       return jsonResponse(
-        { user: { id: user.id, name: user.name, email: user.email, image: user.image, bio: user.bio } },
+        { user: { id: user.id, name: user.name, email: user.email, image: user.image, bio: user.bio }, token: user.id },
         200,
         { "Set-Cookie": `nv_user_id=${user.id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000` }
       );

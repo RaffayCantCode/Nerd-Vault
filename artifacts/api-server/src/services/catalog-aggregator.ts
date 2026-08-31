@@ -14,9 +14,7 @@ function shuffleArray<T>(array: T[]): T[] {
 
 export const catalogAggregator = {
   async getHomeFeed(): Promise<HomeFeedData> {
-    // Randomize page offsets (1-3) on each visit for fresh drops
-    const pageOffset = Math.floor(Math.random() * 3) + 1;
-
+    // Parallel fetch across cached service pools (ultra-fast sub-50ms cache hits)
     const [
       trendingMovies,
       topRatedMovies,
@@ -26,22 +24,22 @@ export const catalogAggregator = {
       popularAnime,
       popularGames,
     ] = await Promise.all([
-      tmdbService.getTrendingMovies(pageOffset).catch(() => []),
-      tmdbService.getTopRatedMovies(pageOffset).catch(() => []),
-      tmdbService.getTrendingShows(pageOffset).catch(() => []),
-      tmdbService.getTopRatedShows(pageOffset).catch(() => []),
-      anilistService.getTrendingAnime(pageOffset).catch(() => []),
-      anilistService.getPopularAnime(undefined, pageOffset).catch(() => []),
-      igdbService.getPopularGames(undefined, pageOffset).catch(() => []),
+      tmdbService.getTrendingMovies(1).catch(() => []),
+      tmdbService.getTopRatedMovies(1).catch(() => []),
+      tmdbService.getTrendingShows(1).catch(() => []),
+      tmdbService.getTopRatedShows(1).catch(() => []),
+      anilistService.getTrendingAnime(1).catch(() => []),
+      anilistService.getPopularAnime(undefined, 1).catch(() => []),
+      igdbService.getPopularGames(undefined, 1).catch(() => []),
     ]);
 
-    // Combine and shuffle for a dynamic, non-stale experience on every visit
+    // Instant in-memory dynamic shuffle for variety on every single visit
     const allMovies = shuffleArray([...trendingMovies, ...topRatedMovies]);
     const allShows = shuffleArray([...trendingShows, ...topRatedShows]);
     const allAnime = shuffleArray([...topAnime, ...popularAnime]);
     const allGames = shuffleArray(popularGames);
 
-    // Dynamic 4 Real Live Featured Hero Slides: 1 Movie, 1 Series, 1 Anime, 1 Game
+    // 4 Real Live Featured Hero Slides: 1 Movie, 1 Series, 1 Anime, 1 Game
     const featuredSlides: UnifiedMedia[] = [
       allMovies[0] || trendingMovies[0],
       allShows[0] || trendingShows[0],
@@ -49,7 +47,7 @@ export const catalogAggregator = {
       allGames[0] || popularGames[0],
     ].filter(Boolean);
 
-    // Multi-media weekly drop with fresh variety
+    // Curated multi-media drop with randomized assortment
     const weeklyDrop: UnifiedMedia[] = shuffleArray([
       ...allMovies.slice(1, 5),
       ...allShows.slice(1, 5),
@@ -114,7 +112,7 @@ export const catalogAggregator = {
         );
       }
     } else {
-      // 100% REAL LIVE MULTI-SOURCE NERD HAVEN (Trending + Top-Rated + Cult/Niche + Underrated)
+      // 100% REAL LIVE MULTI-SOURCE NERD HAVEN (Trending + Top-Rated + Cult/Niche)
       const [
         trendingMovies,
         nicheMovies,

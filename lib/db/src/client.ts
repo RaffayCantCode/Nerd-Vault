@@ -8,9 +8,132 @@ export type D1Config = {
 };
 
 let nativeD1Binding: any = null;
+let schemaInitialized = false;
+
+export async function ensureD1Schema(d1: any): Promise<void> {
+  if (schemaInitialized || !d1) return;
+  try {
+    const tableStatements = [
+      `CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        name TEXT,
+        email TEXT UNIQUE,
+        emailVerified TEXT,
+        image TEXT,
+        bio TEXT,
+        password_hash TEXT,
+        role TEXT DEFAULT 'USER',
+        has_seen_onboarding INTEGER DEFAULT 0,
+        watched_visibility TEXT DEFAULT 'public',
+        wishlist_visibility TEXT DEFAULT 'friends',
+        folders_default_visibility TEXT DEFAULT 'public',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )`,
+      `CREATE TABLE IF NOT EXISTS media (
+        id TEXT PRIMARY KEY,
+        source TEXT NOT NULL,
+        source_id TEXT NOT NULL,
+        type TEXT NOT NULL,
+        title TEXT NOT NULL,
+        original_title TEXT,
+        overview TEXT,
+        release_year INTEGER,
+        runtime INTEGER,
+        rating REAL,
+        cover_url TEXT,
+        backdrop_url TEXT,
+        trailer_url TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(source, source_id)
+      )`,
+      `CREATE TABLE IF NOT EXISTS user_vault_items (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        media_id TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'Watching',
+        user_rating REAL,
+        notes TEXT,
+        progress INTEGER DEFAULT 0,
+        is_private INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, media_id)
+      )`,
+      `CREATE TABLE IF NOT EXISTS folders (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        cover_url TEXT,
+        visibility TEXT NOT NULL DEFAULT 'public',
+        is_smart INTEGER DEFAULT 0,
+        smart_rules TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )`,
+      `CREATE TABLE IF NOT EXISTS folder_items (
+        id TEXT PRIMARY KEY,
+        folder_id TEXT NOT NULL,
+        media_id TEXT NOT NULL,
+        sort_order INTEGER DEFAULT 0,
+        added_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(folder_id, media_id)
+      )`,
+      `CREATE TABLE IF NOT EXISTS friendships (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        friend_id TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'ACCEPTED',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, friend_id)
+      )`,
+      `CREATE TABLE IF NOT EXISTS media_reviews (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        media_id TEXT NOT NULL,
+        rating REAL,
+        content TEXT,
+        is_private INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )`,
+      `CREATE TABLE IF NOT EXISTS friend_recommendations (
+        id TEXT PRIMARY KEY,
+        from_user_id TEXT NOT NULL,
+        to_user_id TEXT NOT NULL,
+        media_id TEXT NOT NULL,
+        note TEXT,
+        status TEXT DEFAULT 'PENDING',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )`,
+      `CREATE TABLE IF NOT EXISTS notifications (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        type TEXT NOT NULL,
+        title TEXT NOT NULL,
+        body TEXT NOT NULL,
+        data TEXT,
+        read INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )`,
+    ];
+
+    for (const stmt of tableStatements) {
+      await d1.prepare(stmt).run().catch(() => {});
+    }
+    schemaInitialized = true;
+  } catch (err) {
+    console.warn("Auto D1 schema initialization notice:", err);
+  }
+}
 
 export function setD1Binding(d1: any) {
   nativeD1Binding = d1;
+  if (d1 && !schemaInitialized) {
+    ensureD1Schema(d1);
+  }
 }
 
 function getD1Config(): D1Config {
@@ -42,6 +165,9 @@ export async function queryD1<T = Record<string, unknown>>(
 ): Promise<T[]> {
   if (nativeD1Binding) {
     try {
+      if (!schemaInitialized) {
+        await ensureD1Schema(nativeD1Binding);
+      }
       const stmt = nativeD1Binding.prepare(sql).bind(...params);
       const res = await stmt.all();
       return (res.results || []) as T[];

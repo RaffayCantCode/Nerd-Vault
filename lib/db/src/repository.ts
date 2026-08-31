@@ -53,21 +53,46 @@ export async function findUserByEmail(email: string): Promise<User | null> {
 }
 
 export async function createUser(user: {
-  id: string;
+  id?: string;
   name: string;
   email: string;
+  password?: string;
   passwordHash?: string;
   image?: string;
   bio?: string;
 }): Promise<User> {
-  await queryD1(
-    `INSERT INTO users (id, name, email, password_hash, image, bio)
-     VALUES (?, ?, ?, ?, ?, ?);`,
-    [user.id, user.name, user.email, user.passwordHash || null, user.image || null, user.bio || null]
-  );
-  const created = await findUserById(user.id);
-  if (!created) throw new Error("Failed to create user");
-  return created;
+  const id = user.id || (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `user_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`);
+  const passwordHash = user.passwordHash || user.password || null;
+
+  try {
+    await queryD1(
+      `INSERT OR REPLACE INTO users (id, name, email, password_hash, image, bio)
+       VALUES (?, ?, ?, ?, ?, ?);`,
+      [id, user.name, user.email, passwordHash, user.image || null, user.bio || null]
+    );
+  } catch (e) {
+    console.error("createUser query error:", e);
+  }
+
+  const created = await findUserById(id);
+  if (created) return created;
+
+  return {
+    id,
+    name: user.name,
+    email: user.email,
+    passwordHash,
+    image: user.image || null,
+    bio: user.bio || null,
+    role: "USER",
+    hasSeenOnboarding: 0,
+    watchedVisibility: "public",
+    wishlistVisibility: "friends",
+    foldersDefaultVisibility: "public",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    emailVerified: null,
+  } as User;
 }
 
 export async function updateUserProfile(

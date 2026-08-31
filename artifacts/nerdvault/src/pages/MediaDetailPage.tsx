@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useParams, Link } from "wouter";
 import {
   Star, Film, Users, CheckCircle2, BookmarkPlus, Send, ChevronDown,
-  ChevronRight, MessageCircle, Layers, ArrowLeft, Heart, Lock, Eye, Edit3, Plus
+  ChevronRight, ChevronLeft, MessageCircle, Layers, ArrowLeft, Heart, Lock, Eye, Edit3, Plus
 } from "lucide-react";
 import { api, UnifiedMedia, MediaReview } from "../lib/api";
 import { useVault } from "../context/VaultContext";
@@ -17,6 +17,9 @@ export default function MediaDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const { user, openAuthModal } = useAuth();
   const { isInVault, getItemStatus, trackMedia, notify } = useVault();
+
+  const franchiseRef = useRef<HTMLDivElement>(null);
+  const similarRef = useRef<HTMLDivElement>(null);
 
   const [media, setMedia] = useState<UnifiedMedia | null>(null);
   const [reviews, setReviews] = useState<MediaReview[]>([]);
@@ -484,19 +487,50 @@ export default function MediaDetailPage() {
       {/* --- FRANCHISE / UNIVERSE SECTION (If Part of Franchise) --- */}
       {franchiseItems.length > 0 && (
         <section className="nv-reveal space-y-4 pt-6 border-t border-white/[.08]">
-          <div className="flex items-center gap-2">
-            <Layers size={18} className="text-[hsl(var(--primary))]" />
-            <div>
-              <p className="font-mono-ui text-[10px] uppercase font-bold tracking-[.18em] text-[hsl(var(--primary))]">
-                Universe & Timeline
-              </p>
-              <h3 className="font-display text-2xl font-bold tracking-[-.05em] text-slate-100">
-                {media.franchise?.name || `${media.title} Franchise`}
-              </h3>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <Layers size={20} className="text-[hsl(var(--primary))]" />
+              <div>
+                <p className="font-mono-ui text-[10px] uppercase font-bold tracking-[.18em] text-[hsl(var(--primary))]">
+                  Universe & Timeline
+                </p>
+                <h3 className="font-display text-2xl font-bold tracking-[-.05em] text-slate-100">
+                  {media.franchise?.name || `${media.title} Franchise`}
+                </h3>
+              </div>
+            </div>
+
+            {/* Franchise Scroll Arrow Buttons */}
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => {
+                  if (franchiseRef.current) {
+                    franchiseRef.current.scrollBy({ left: -480, behavior: "smooth" });
+                  }
+                }}
+                aria-label="Scroll previous franchise entries"
+                className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/[.12] bg-[#12181d]/80 text-slate-400 hover:text-white hover:border-[hsl(var(--primary))]/50 hover:bg-white/[.08] active:scale-95 transition shadow-sm"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                onClick={() => {
+                  if (franchiseRef.current) {
+                    franchiseRef.current.scrollBy({ left: 480, behavior: "smooth" });
+                  }
+                }}
+                aria-label="Scroll next franchise entries"
+                className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/[.12] bg-[#12181d]/80 text-slate-400 hover:text-white hover:border-[hsl(var(--primary))]/50 hover:bg-white/[.08] active:scale-95 transition shadow-sm"
+              >
+                <ChevronRight size={16} />
+              </button>
             </div>
           </div>
 
-          <div className="flex gap-4 overflow-x-auto pb-4 pt-2 [scrollbar-width:none]">
+          <div
+            ref={franchiseRef}
+            className="flex gap-4 overflow-x-auto pb-4 pt-2 scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
             {franchiseItems.map((item) => (
               <div key={item.id} className="w-[140px] shrink-0 sm:w-[160px]">
                 <MediaCard item={item} compact />
@@ -518,8 +552,8 @@ export default function MediaDetailPage() {
                 More like this
               </h3>
             </div>
-            <span className="text-[11px] text-slate-500">
-              {similarItems.length} similar titles
+            <span className="text-[11px] text-slate-500 font-mono-ui">
+              {similarItems.length} titles
             </span>
           </div>
 

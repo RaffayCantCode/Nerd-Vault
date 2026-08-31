@@ -123,14 +123,27 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     headers.set("Content-Type", "application/json");
   }
 
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("nv_user_id");
+    if (token && !headers.has("Authorization")) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
+  }
+
   const res = await fetch(path, {
     ...options,
     headers,
+    credentials: "include",
   });
 
   if (!res.ok) {
     const errorText = await res.text();
-    throw new Error(errorText || `Request failed with status ${res.status}`);
+    let message = errorText;
+    try {
+      const parsed = JSON.parse(errorText);
+      if (parsed.error) message = parsed.error;
+    } catch {}
+    throw new Error(message || `Request failed with status ${res.status}`);
   }
 
   return (await res.json()) as T;

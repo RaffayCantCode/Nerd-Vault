@@ -11,7 +11,9 @@ export function AuthModal() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -20,6 +22,18 @@ export function AuthModal() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (mode === "register") {
+      if (password.length < 6) {
+        setError("Password must be at least 6 characters long.");
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError("Passwords do not match. Please ensure both passwords match.");
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -36,6 +50,13 @@ export function AuthModal() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const switchMode = (newMode: "login" | "register") => {
+    setMode(newMode);
+    setError(null);
+    setPassword("");
+    setConfirmPassword("");
   };
 
   return (
@@ -132,6 +153,33 @@ export function AuthModal() {
             </div>
           </div>
 
+          {mode === "register" && (
+            <div>
+              <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                Confirm Password
+              </label>
+              <div className="relative">
+                <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  className="w-full rounded-xl border border-white/[.08] bg-white/[.03] pl-10 pr-10 py-2.5 text-[12px] text-slate-200 placeholder:text-slate-600 outline-none focus:border-[rgba(55,218,178,.4)]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-200 p-1"
+                >
+                  {showConfirmPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={loading}
@@ -145,10 +193,7 @@ export function AuthModal() {
         <div className="mt-6 border-t border-white/[.08] pt-4 text-center">
           <button
             type="button"
-            onClick={() => {
-              setMode(mode === "login" ? "register" : "login");
-              setError(null);
-            }}
+            onClick={() => switchMode(mode === "login" ? "register" : "login")}
             className="text-[12px] font-semibold text-slate-400 hover:text-[hsl(var(--primary))]"
           >
             {mode === "login" ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}

@@ -289,7 +289,7 @@ export default function DiscoverPage() {
 
       {/* Media Grid */}
       {loading ? (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 sm:gap-5">
+        <div className="grid grid-cols-2 min-[440px]:grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-4 md:gap-5">
           {Array.from({ length: 18 }).map((_, i) => (
             <div
               key={i}
@@ -298,7 +298,7 @@ export default function DiscoverPage() {
           ))}
         </div>
       ) : items.length > 0 ? (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 sm:gap-5">
+        <div className="grid grid-cols-2 min-[440px]:grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-4 md:gap-5">
           {items.map((item, idx) => (
             <MediaCard
               key={`${item.id}-${idx}`}
@@ -381,12 +381,12 @@ export default function DiscoverPage() {
         </div>
       </div>
 
-      {/* Scroll to Top Floating Button */}
+      {/* Scroll to Top Floating Button (Centered above bottom nav on mobile, corner on desktop) */}
       {showScrollTop && (
         <button
           onClick={scrollToTop}
           aria-label="Scroll to top"
-          className="fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-2xl bg-[hsl(var(--primary))] text-[#08211c] shadow-[0_0_24px_rgba(55,218,178,.4)] transition hover:bg-[#73e4c7] hover:scale-105 active:scale-95 animate-bounce-short"
+          className="fixed bottom-[82px] left-1/2 -translate-x-1/2 sm:bottom-6 sm:right-6 sm:left-auto sm:translate-x-0 z-50 flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full sm:rounded-2xl bg-[hsl(var(--primary))] text-[#08211c] shadow-[0_0_24px_rgba(55,218,178,.45)] transition hover:bg-[#73e4c7] hover:scale-105 active:scale-95 animate-bounce-short"
         >
           <ArrowUp size={20} strokeWidth={2.5} />
         </button>
