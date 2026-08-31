@@ -5,20 +5,95 @@ const ANILIST_GRAPHQL_URL = "https://graphql.anilist.co";
 const JIKAN_BASE_URL = "https://api.jikan.moe/v4";
 const TMDB_API_KEY = process.env.TMDB_API_KEY || "e992852c2a6404df9d6218982f12c36e";
 
-const ADULT_KEYWORDS = ["hentai", "erotica", "ecchi", "18+", "nsfw"];
+const HENTAI_BLACKLIST = [
+  "hentai",
+  "overflow",
+  "erotica",
+  "porn",
+  "xxx",
+  "18+",
+  "r18",
+  "r-18",
+  "rx",
+  "adult animation",
+  "boku no pico",
+  "aki sora",
+  "euphoria",
+  "discipline",
+  "shoujo ramune",
+  "resort boin",
+  "itadaki seieki",
+  "mankitsu happening",
+  "nozoki ana",
+  "tsunlise",
+  "kuroinu",
+];
 
-function isAdultContent(item: any): boolean {
+export function isHentaiOrAdult(item: any): boolean {
+  if (!item) return false;
   if (item.isAdult === true) return true;
-  const genres = item.genres || [];
-  for (const g of genres) {
-    if (typeof g === "string" && ADULT_KEYWORDS.includes(g.toLowerCase())) {
+
+  // Check Jikan rating (e.g. "Rx - Hentai", "Rx")
+  if (item.rating && typeof item.rating === "string") {
+    const r = item.rating.toLowerCase();
+    if (r.includes("rx") || r.includes("hentai") || r.includes("explicit") || r.includes("erotica")) {
       return true;
     }
   }
-  const title = (item.title?.english || item.title?.romaji || item.title || "").toLowerCase();
-  if (title.includes("overflow") || title.includes("hentai")) return true;
+
+  // Check Jikan explicit_genres
+  if (Array.isArray(item.explicit_genres) && item.explicit_genres.length > 0) {
+    return true;
+  }
+
+  // Check genres
+  const genres = Array.isArray(item.genres) ? item.genres : [];
+  for (const g of genres) {
+    const genreStr = typeof g === "string" ? g : g?.name || "";
+    const lower = genreStr.toLowerCase();
+    if (lower === "hentai" || lower === "erotica" || lower === "explicit") {
+      return true;
+    }
+  }
+
+  // Check titles (English, Romaji, Native, Japanese, UserPreferred, etc.)
+  const titles = [
+    item.title?.english,
+    item.title?.romaji,
+    item.title?.native,
+    item.title?.userPreferred,
+    item.title,
+    item.originalTitle,
+    item.original_title,
+    item.title_english,
+    item.title_japanese,
+    item.name,
+    item.slug,
+  ]
+    .filter(Boolean)
+    .map((t) => String(t).toLowerCase());
+
+  for (const t of titles) {
+    for (const kw of HENTAI_BLACKLIST) {
+      if (t.includes(kw)) return true;
+    }
+  }
+
+  // Check synopsis/overview for explicit hentai tags
+  const desc = (item.description || item.overview || item.synopsis || "").toLowerCase();
+  if (
+    desc.includes("hentai") ||
+    desc.includes("uncensored hentai") ||
+    desc.includes("erotic animation") ||
+    desc.includes("adult anime")
+  ) {
+    return true;
+  }
+
   return false;
 }
+
+const isAdultContent = isHentaiOrAdult;
 
 function formatAniList(item: any): UnifiedMedia {
   const title = item.title?.english || item.title?.romaji || item.title?.userPreferred || "Untitled Anime";

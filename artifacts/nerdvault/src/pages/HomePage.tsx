@@ -9,21 +9,47 @@ import { useAuth } from "../context/AuthContext";
 export default function HomePage() {
   const { user, openAuthModal } = useAuth();
   const { trackMedia, isInVault } = useVault();
-  const [feed, setFeed] = useState<HomeFeedData | null>(null);
-  const [loading, setLoading] = useState(true);
+
+  // Instant hydration from cache for sub-10ms initial paint
+  const [feed, setFeed] = useState<HomeFeedData | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = sessionStorage.getItem("nv_home_feed_v2");
+        return cached ? JSON.parse(cached) : null;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
+
+  const [loading, setLoading] = useState(!feed);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 
   useEffect(() => {
-    setLoading(true);
+    let isMounted = true;
     api.getHomeFeed()
       .then((data) => {
-        if (data) setFeed(data);
+        if (data && isMounted) {
+          setFeed(data);
+          if (typeof window !== "undefined") {
+            try {
+              sessionStorage.setItem("nv_home_feed_v2", JSON.stringify(data));
+            } catch {}
+          }
+        }
       })
       .catch((err) => {
         console.error("Failed to load home feed:", err);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Build the 4 slides: 1 Movie, 1 Show, 1 Anime, 1 Game
@@ -58,16 +84,6 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, [slides.length, isPaused]);
 
-  if (loading) {
-    return (
-      <div className="space-y-8 pb-12 animate-pulse">
-        <div className="min-h-[440px] rounded-3xl bg-white/[.04] border border-white/[.08]" />
-        <div className="h-64 rounded-2xl bg-white/[.03]" />
-        <div className="h-64 rounded-2xl bg-white/[.03]" />
-      </div>
-    );
-  }
-
   const activeMedia = slides[currentSlide] || feed?.featured;
   const isSaved = activeMedia ? isInVault(activeMedia.id) : false;
 
@@ -83,8 +99,8 @@ export default function HomePage() {
 
   return (
     <div className="space-y-12 pb-16">
-      {/* 4-Slide Hero Spotlight Banner */}
-      {activeMedia && (
+      {/* 4-Slide Hero Spotlight Banner — Modular instant load */}
+      {activeMedia ? (
         <section
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
@@ -185,48 +201,92 @@ export default function HomePage() {
             </div>
           </div>
         </section>
+      ) : (
+        /* Modular Hero Skeleton */
+        <div className="min-h-[460px] sm:min-h-[500px] rounded-3xl bg-white/[.03] border border-white/[.08] animate-pulse flex flex-col justify-end p-8 sm:p-12">
+          <div className="h-6 w-36 rounded-md bg-white/[.06] mb-4" />
+          <div className="h-12 w-3/4 max-w-[480px] rounded-xl bg-white/[.06] mb-3" />
+          <div className="h-4 w-full max-w-[560px] rounded-md bg-white/[.04] mb-6" />
+          <div className="h-10 w-48 rounded-xl bg-white/[.08]" />
+        </div>
       )}
 
-      {/* Main Rails with Live APIs */}
-      {feed?.trendingMovies && feed.trendingMovies.length > 0 && (
+      {/* Main Rails with Modular Loading */}
+      {feed?.trendingMovies && feed.trendingMovies.length > 0 ? (
         <MediaRail
           title="Trending movies this week"
           eyebrow="Cinema spotlight"
           items={feed.trendingMovies}
         />
-      )}
+      ) : loading ? (
+        <div className="space-y-3">
+          <div className="h-5 w-48 rounded-md bg-white/[.04] animate-pulse" />
+          <div className="flex gap-4 overflow-hidden">
+            {[1, 2, 3, 4, 5, 6].map((n) => (
+              <div key={n} className="h-56 w-36 shrink-0 rounded-2xl bg-white/[.03] animate-pulse" />
+            ))}
+          </div>
+        </div>
+      ) : null}
 
-      {feed?.trendingShows && feed.trendingShows.length > 0 && (
+      {feed?.trendingShows && feed.trendingShows.length > 0 ? (
         <MediaRail
           title="Trending television series"
           eyebrow="Small screen drops"
           items={feed.trendingShows}
         />
-      )}
+      ) : loading ? (
+        <div className="space-y-3">
+          <div className="h-5 w-48 rounded-md bg-white/[.04] animate-pulse" />
+          <div className="flex gap-4 overflow-hidden">
+            {[1, 2, 3, 4, 5, 6].map((n) => (
+              <div key={n} className="h-56 w-36 shrink-0 rounded-2xl bg-white/[.03] animate-pulse" />
+            ))}
+          </div>
+        </div>
+      ) : null}
 
-      {feed?.topAnime && feed.topAnime.length > 0 && (
+      {feed?.topAnime && feed.topAnime.length > 0 ? (
         <MediaRail
           title="Top anime this season"
           eyebrow="AniList charts"
           items={feed.topAnime}
         />
-      )}
+      ) : loading ? (
+        <div className="space-y-3">
+          <div className="h-5 w-48 rounded-md bg-white/[.04] animate-pulse" />
+          <div className="flex gap-4 overflow-hidden">
+            {[1, 2, 3, 4, 5, 6].map((n) => (
+              <div key={n} className="h-56 w-36 shrink-0 rounded-2xl bg-white/[.03] animate-pulse" />
+            ))}
+          </div>
+        </div>
+      ) : null}
 
-      {feed?.popularGames && feed.popularGames.length > 0 && (
+      {feed?.popularGames && feed.popularGames.length > 0 ? (
         <MediaRail
           title="Popular video games"
           eyebrow="IGDB rankings"
           items={feed.popularGames}
         />
-      )}
+      ) : loading ? (
+        <div className="space-y-3">
+          <div className="h-5 w-48 rounded-md bg-white/[.04] animate-pulse" />
+          <div className="flex gap-4 overflow-hidden">
+            {[1, 2, 3, 4, 5, 6].map((n) => (
+              <div key={n} className="h-56 w-36 shrink-0 rounded-2xl bg-white/[.03] animate-pulse" />
+            ))}
+          </div>
+        </div>
+      ) : null}
 
-      {feed?.weeklyDrop && feed.weeklyDrop.length > 0 && (
+      {feed?.weeklyDrop && feed.weeklyDrop.length > 0 ? (
         <MediaRail
           title="Curated multi-media drop"
           eyebrow="The weekly batch"
           items={feed.weeklyDrop}
         />
-      )}
+      ) : null}
     </div>
   );
 }

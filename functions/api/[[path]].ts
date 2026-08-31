@@ -84,7 +84,9 @@ export const onRequest: any = async (context: any) => {
     // -------------------------------------------------------------
     if (path === "/api/catalog/home" && method === "GET") {
       const feed = await catalogAggregator.getHomeFeed();
-      return jsonResponse(feed);
+      return jsonResponse(feed, 200, {
+        "Cache-Control": "public, max-age=30, s-maxage=120, stale-while-revalidate=300",
+      });
     }
 
     if (path === "/api/catalog/discover" && method === "GET") {

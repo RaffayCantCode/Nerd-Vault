@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "wouter";
-import { Star, ImageOff } from "lucide-react";
+import { Star, ImageOff, X } from "lucide-react";
 import { UnifiedMedia } from "../../lib/api";
 import { useVault } from "../../context/VaultContext";
 import { MediaTrackModal } from "./MediaTrackModal";
@@ -12,7 +12,7 @@ export function MediaCard({
   item: UnifiedMedia;
   compact?: boolean;
 }) {
-  const { isInVault, getItemStatus } = useVault();
+  const { isInVault, getItemStatus, removeMedia } = useVault();
   const [modalOpen, setModalOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
 
@@ -63,10 +63,26 @@ export function MediaCard({
               {item.type}
             </span>
 
+            {/* Status Badge + One-Click Remove Cross (X) */}
             {inVault && (
-              <span className="absolute right-2 top-2 sm:right-2.5 sm:top-2.5 rounded-md sm:rounded-lg bg-[hsl(var(--primary))] px-2 py-0.5 sm:px-2.5 sm:py-1 font-mono-ui text-[9px] sm:text-[10px] font-extrabold text-[#09201c] shadow-xl backdrop-blur-md">
-                {status || "Vault"}
-              </span>
+              <div className="absolute right-2 top-2 sm:right-2.5 sm:top-2.5 z-20 flex items-center gap-1.5">
+                <span className="rounded-md sm:rounded-lg bg-[hsl(var(--primary))] px-2 py-0.5 sm:px-2.5 sm:py-1 font-mono-ui text-[9px] sm:text-[10px] font-extrabold text-[#09201c] shadow-xl backdrop-blur-md">
+                  {status || "Vault"}
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    removeMedia(item.id);
+                  }}
+                  aria-label={`Remove ${item.title} from vault`}
+                  title="Remove from vault"
+                  className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-md sm:rounded-lg bg-black/80 text-slate-300 hover:bg-red-500 hover:text-white border border-white/[.2] shadow-lg transition active:scale-95"
+                >
+                  <X size={11} className="sm:w-3 sm:h-3" />
+                </button>
+              </div>
             )}
 
             <div className="absolute inset-x-2.5 bottom-2.5 sm:inset-x-3 sm:bottom-3">

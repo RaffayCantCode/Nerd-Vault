@@ -61,6 +61,22 @@ export async function ensureD1Schema(d1: any): Promise<void> {
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(user_id, media_id)
       )`,
+      `CREATE TABLE IF NOT EXISTS watched_items (
+        user_id TEXT NOT NULL,
+        media_id TEXT NOT NULL,
+        watched_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        rating REAL,
+        notes TEXT,
+        status TEXT DEFAULT 'Watching',
+        PRIMARY KEY (user_id, media_id)
+      )`,
+      `CREATE TABLE IF NOT EXISTS wishlist_items (
+        user_id TEXT NOT NULL,
+        media_id TEXT NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        priority INTEGER DEFAULT 0,
+        PRIMARY KEY (user_id, media_id)
+      )`,
       `CREATE TABLE IF NOT EXISTS folders (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,

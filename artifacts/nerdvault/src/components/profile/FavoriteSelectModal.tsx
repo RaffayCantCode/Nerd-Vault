@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, Search, Star, Check, Loader2, Sparkles, Film, Tv, Gamepad2 } from "lucide-react";
 import { api, UnifiedMedia } from "../../lib/api";
 import { useVault } from "../../context/VaultContext";
+import { useAuth } from "../../context/AuthContext";
 
 export function FavoriteSelectModal({
   isOpen,
@@ -56,10 +57,15 @@ export function FavoriteSelectModal({
     return () => clearTimeout(timeout);
   }, [query, targetType]);
 
-  if (!isOpen) return null;
+  const { user } = useAuth();
 
   const handleSelect = async (item: UnifiedMedia) => {
-    await trackMedia(item, "Favorite", 5);
+    if (typeof window !== "undefined" && user?.id) {
+      try {
+        localStorage.setItem(`nv_profile_fav_${targetType}_${user.id}`, JSON.stringify({ ...item, status: "Favorite", userRating: 5 }));
+      } catch {}
+    }
+    await trackMedia(item, "Favorite", 5, `#favorite ${targetType}`);
     onSelected(item);
     notify(`Set ${item.title} as your Favorite ${targetType}!`);
     onClose();

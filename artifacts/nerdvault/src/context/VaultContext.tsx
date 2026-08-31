@@ -18,7 +18,19 @@ type VaultContextType = {
 const VaultContext = createContext<VaultContextType | undefined>(undefined);
 
 export function VaultProvider({ children }: { children: React.ReactNode }) {
-  const [vaultItems, setVaultItems] = useState<UnifiedMedia[]>([]);
+  // Hydrate instantly from cache so zero flicker occurs
+  const [vaultItems, setVaultItems] = useState<UnifiedMedia[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("nv_cached_vault_items");
+        return cached ? JSON.parse(cached) : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  });
+
   const [stats, setStats] = useState<VaultStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -33,7 +45,14 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   const refreshVault = async () => {
     try {
       const res = await api.getVault();
-      if (res?.items) setVaultItems(res.items);
+      if (res?.items && Array.isArray(res.items)) {
+        setVaultItems(res.items);
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.setItem("nv_cached_vault_items", JSON.stringify(res.items));
+          } catch {}
+        }
+      }
       if (res?.stats) setStats(res.stats);
     } catch (err) {
       console.warn("Could not load initial vault:", err);
@@ -47,13 +66,23 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const trackMedia = async (item: UnifiedMedia, status: string, rating?: number, notes?: string) => {
-    // Optimistic UI update
+    const updatedItem = { ...item, status: status as any, userRating: rating ?? (status === "Favorite" ? 5 : item.userRating), notes: notes ?? item.notes };
+
+    // Optimistic UI update with persistence
     setVaultItems((prev) => {
       const existing = prev.find((i) => i.id === item.id || i.slug === item.slug);
+      let updated: UnifiedMedia[];
       if (existing) {
-        return prev.map((i) => (i.id === item.id ? { ...i, status: status as any, userRating: rating ?? i.userRating, notes: notes ?? i.notes } : i));
+        updated = prev.map((i) => (i.id === item.id ? { ...i, ...updatedItem } : i));
+      } else {
+        updated = [updatedItem, ...prev];
       }
-      return [{ ...item, status: status as any, userRating: rating, notes }, ...prev];
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("nv_cached_vault_items", JSON.stringify(updated));
+        } catch {}
+      }
+      return updated;
     });
 
     notify(`${item.title} ${status === "Wishlist" ? "added to Wishlist" : status === "Favorite" ? "added to Favorites" : `marked as ${status}`}`);
@@ -62,11 +91,18 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       const res = await api.trackMedia({
         mediaId: item.id,
         status,
-        rating,
-        notes,
+        rating: rating ?? (status === "Favorite" ? 5 : undefined),
+        notes: notes ?? (status === "Favorite" ? "#favorite" : undefined),
         media: item,
       });
-      if (res?.items) setVaultItems(res.items);
+      if (res?.items && Array.isArray(res.items) && res.items.length > 0) {
+        setVaultItems(res.items);
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.setItem("nv_cached_vault_items", JSON.stringify(res.items));
+          } catch {}
+        }
+      }
       if (res?.stats) setStats(res.stats);
     } catch (err) {
       console.error("Failed to persist media tracking:", err);
@@ -74,11 +110,18 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   };
 
   const removeMedia = async (mediaId: string) => {
-    setVaultItems((prev) => prev.filter((i) => i.id !== mediaId));
+    setVaultItems((prev) => {
+      const updated = prev.filter((i) => i.id !== mediaId);
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("nv_cached_vault_items", JSON.stringify(updated));
+        } catch {}
+      }
+      return updated;
+    });
     notify("Removed from your vault");
     try {
       await api.removeMedia(mediaId);
-      refreshVault();
     } catch (err) {
       console.error("Failed to remove media:", err);
     }

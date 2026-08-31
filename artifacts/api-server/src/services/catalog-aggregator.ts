@@ -1,6 +1,6 @@
 import { UnifiedMedia, HomeFeedData, DiscoverOptions } from "./types";
 import { tmdbService } from "./tmdb";
-import { anilistService } from "./anilist";
+import { anilistService, isHentaiOrAdult } from "./anilist";
 import { igdbService } from "./igdb";
 
 function shuffleArray<T>(array: T[]): T[] {
@@ -12,9 +12,16 @@ function shuffleArray<T>(array: T[]): T[] {
   return arr;
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ]);
+}
+
 export const catalogAggregator = {
   async getHomeFeed(): Promise<HomeFeedData> {
-    // Parallel fetch across cached service pools (ultra-fast sub-50ms cache hits)
+    // Parallel fetch with fast 2.5s timeouts so slow external APIs never delay the home feed
     const [
       trendingMovies,
       topRatedMovies,
@@ -24,20 +31,20 @@ export const catalogAggregator = {
       popularAnime,
       popularGames,
     ] = await Promise.all([
-      tmdbService.getTrendingMovies(1).catch(() => []),
-      tmdbService.getTopRatedMovies(1).catch(() => []),
-      tmdbService.getTrendingShows(1).catch(() => []),
-      tmdbService.getTopRatedShows(1).catch(() => []),
-      anilistService.getTrendingAnime(1).catch(() => []),
-      anilistService.getPopularAnime(undefined, 1).catch(() => []),
-      igdbService.getPopularGames(undefined, 1).catch(() => []),
+      withTimeout(tmdbService.getTrendingMovies(1).catch(() => []), 2500, []),
+      withTimeout(tmdbService.getTopRatedMovies(1).catch(() => []), 2500, []),
+      withTimeout(tmdbService.getTrendingShows(1).catch(() => []), 2500, []),
+      withTimeout(tmdbService.getTopRatedShows(1).catch(() => []), 2500, []),
+      withTimeout(anilistService.getTrendingAnime(1).catch(() => []), 2500, []),
+      withTimeout(anilistService.getPopularAnime(undefined, 1).catch(() => []), 2500, []),
+      withTimeout(igdbService.getPopularGames(undefined, 1).catch(() => []), 2500, []),
     ]);
 
-    // Instant in-memory dynamic shuffle for variety on every single visit
-    const allMovies = shuffleArray([...trendingMovies, ...topRatedMovies]);
-    const allShows = shuffleArray([...trendingShows, ...topRatedShows]);
-    const allAnime = shuffleArray([...topAnime, ...popularAnime]);
-    const allGames = shuffleArray(popularGames);
+    // Instant in-memory dynamic shuffle for variety on every single visit with strict hentai filter
+    const allMovies = shuffleArray([...trendingMovies, ...topRatedMovies]).filter((i) => !isHentaiOrAdult(i));
+    const allShows = shuffleArray([...trendingShows, ...topRatedShows]).filter((i) => !isHentaiOrAdult(i));
+    const allAnime = shuffleArray([...topAnime, ...popularAnime]).filter((i) => !isHentaiOrAdult(i));
+    const allGames = shuffleArray(popularGames).filter((i) => !isHentaiOrAdult(i));
 
     // 4 Real Live Featured Hero Slides: 1 Movie, 1 Series, 1 Anime, 1 Game
     const featuredSlides: UnifiedMedia[] = [
@@ -45,7 +52,7 @@ export const catalogAggregator = {
       allShows[0] || trendingShows[0],
       allAnime[0] || topAnime[0],
       allGames[0] || popularGames[0],
-    ].filter(Boolean);
+    ].filter((i) => Boolean(i) && !isHentaiOrAdult(i));
 
     // Curated multi-media drop with randomized assortment
     const weeklyDrop: UnifiedMedia[] = shuffleArray([
@@ -53,7 +60,7 @@ export const catalogAggregator = {
       ...allShows.slice(1, 5),
       ...allAnime.slice(1, 5),
       ...allGames.slice(1, 5),
-    ]);
+    ]).filter((i) => !isHentaiOrAdult(i));
 
     return {
       featured: featuredSlides[0] || null,

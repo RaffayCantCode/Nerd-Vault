@@ -192,16 +192,18 @@ export async function upsertMedia(media: {
 }
 
 // -------------------------------------------------------------
+// -------------------------------------------------------------
 // USER VAULT TRACKING
 // -------------------------------------------------------------
 
 export async function getUserVaultItems(userId: string): Promise<VaultItemWithMedia[]> {
-  const watchedRows = await queryD1<{
+  const unifiedRows = await queryD1<{
     user_id: string;
     media_id: string;
-    watched_at: string;
-    rating?: number;
+    status: string;
+    user_rating?: number;
     notes?: string;
+    updated_at: string;
     title: string;
     original_title?: string;
     overview?: string;
@@ -215,7 +217,37 @@ export async function getUserVaultItems(userId: string): Promise<VaultItemWithMe
     source: string;
     source_id: string;
   }>(
-    `SELECT w.user_id, w.media_id, w.watched_at, w.rating, w.notes,
+    `SELECT v.user_id, v.media_id, v.status, v.user_rating, v.notes, v.updated_at,
+            m.title, m.original_title, m.overview, m.type, m.release_year, m.runtime,
+            m.rating as media_rating, m.cover_url, m.backdrop_url, m.trailer_url, m.source, m.source_id
+     FROM user_vault_items v
+     JOIN media m ON v.media_id = m.id
+     WHERE v.user_id = ?
+     ORDER BY v.updated_at DESC;`,
+    [userId]
+  );
+
+  const watchedRows = await queryD1<{
+    user_id: string;
+    media_id: string;
+    watched_at: string;
+    rating?: number;
+    notes?: string;
+    status?: string;
+    title: string;
+    original_title?: string;
+    overview?: string;
+    type: string;
+    release_year?: number;
+    runtime?: number;
+    media_rating?: number;
+    cover_url?: string;
+    backdrop_url?: string;
+    trailer_url?: string;
+    source: string;
+    source_id: string;
+  }>(
+    `SELECT w.user_id, w.media_id, w.watched_at, w.rating, w.notes, w.status,
             m.title, m.original_title, m.overview, m.type, m.release_year, m.runtime,
             m.rating as media_rating, m.cover_url, m.backdrop_url, m.trailer_url, m.source, m.source_id
      FROM watched_items w
@@ -253,19 +285,18 @@ export async function getUserVaultItems(userId: string): Promise<VaultItemWithMe
     [userId]
   );
 
-  const items: VaultItemWithMedia[] = [];
+  const itemMap = new Map<string, VaultItemWithMedia>();
 
-  for (const r of watchedRows) {
-    const rawRating = r.rating ? (r.rating > 5 ? r.rating / 2 : r.rating) : undefined;
-    const isFavorite = (rawRating && rawRating >= 4.5) || r.notes?.toLowerCase().includes("#favorite");
-    items.push({
+  for (const r of unifiedRows) {
+    const rawRating = r.user_rating ? (r.user_rating > 5 ? r.user_rating / 2 : r.user_rating) : undefined;
+    itemMap.set(r.media_id, {
       id: `${r.user_id}_${r.media_id}`,
       mediaId: r.media_id,
       title: r.title,
       originalTitle: r.original_title,
       overview: r.overview,
       type: r.type,
-      status: isFavorite ? "Favorite" : "Completed",
+      status: (r.status as any) || "Watching",
       releaseYear: r.release_year,
       runtime: r.runtime,
       rating: r.media_rating ? (r.media_rating > 5 ? r.media_rating / 2 : r.media_rating) : undefined,
@@ -276,14 +307,40 @@ export async function getUserVaultItems(userId: string): Promise<VaultItemWithMe
       trailerUrl: r.trailer_url,
       source: r.source,
       sourceId: r.source_id,
-      updatedAt: r.watched_at,
+      updatedAt: r.updated_at,
     });
   }
 
+  for (const r of watchedRows) {
+    if (!itemMap.has(r.media_id)) {
+      const rawRating = r.rating ? (r.rating > 5 ? r.rating / 2 : r.rating) : undefined;
+      const isFavorite = r.status === "Favorite" || (rawRating && rawRating >= 4.5) || r.notes?.toLowerCase().includes("#favorite");
+      itemMap.set(r.media_id, {
+        id: `${r.user_id}_${r.media_id}`,
+        mediaId: r.media_id,
+        title: r.title,
+        originalTitle: r.original_title,
+        overview: r.overview,
+        type: r.type,
+        status: isFavorite ? "Favorite" : ((r.status as any) || "Completed"),
+        releaseYear: r.release_year,
+        runtime: r.runtime,
+        rating: r.media_rating ? (r.media_rating > 5 ? r.media_rating / 2 : r.media_rating) : undefined,
+        userRating: rawRating,
+        notes: r.notes,
+        coverUrl: r.cover_url,
+        backdropUrl: r.backdrop_url,
+        trailerUrl: r.trailer_url,
+        source: r.source,
+        sourceId: r.source_id,
+        updatedAt: r.watched_at,
+      });
+    }
+  }
+
   for (const r of wishlistRows) {
-    // only add if not already in watched
-    if (!items.some((i) => i.mediaId === r.media_id)) {
-      items.push({
+    if (!itemMap.has(r.media_id)) {
+      itemMap.set(r.media_id, {
         id: `${r.user_id}_${r.media_id}`,
         mediaId: r.media_id,
         title: r.title,
@@ -304,13 +361,13 @@ export async function getUserVaultItems(userId: string): Promise<VaultItemWithMe
     }
   }
 
-  return items;
+  return Array.from(itemMap.values());
 }
 
 export async function trackMediaInVault(params: {
   userId: string;
   mediaId: string;
-  status: "Watching" | "Completed" | "Wishlist" | "Favorite" | "Dropped" | "Paused";
+  status: "Watching" | "Completed" | "Wishlist" | "Favorite" | "Dropped" | "Paused" | string;
   rating?: number;
   notes?: string;
   mediaData?: any;
@@ -322,10 +379,10 @@ export async function trackMediaInVault(params: {
     await upsertMedia({
       id: mediaId,
       slug: mediaData.slug || mediaId,
-      title: mediaData.title,
+      title: mediaData.title || "Untitled",
       originalTitle: mediaData.originalTitle,
       overview: mediaData.overview,
-      type: mediaData.type || "movie",
+      type: mediaData.type || "Movie",
       releaseYear: mediaData.releaseYear || mediaData.year ? Number(mediaData.releaseYear || mediaData.year) : undefined,
       runtime: mediaData.runtime,
       rating: mediaData.rating ? Number(mediaData.rating) : undefined,
@@ -337,9 +394,21 @@ export async function trackMediaInVault(params: {
     });
   }
 
-  // 2. Update tracking state based on status
+  // 2. Insert into unified user_vault_items table
+  const vaultItemId = `${userId}_${mediaId}`;
+  await queryD1(
+    `INSERT INTO user_vault_items (id, user_id, media_id, status, user_rating, notes, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+     ON CONFLICT(user_id, media_id) DO UPDATE SET
+       status = excluded.status,
+       user_rating = coalesce(excluded.user_rating, user_vault_items.user_rating),
+       notes = coalesce(excluded.notes, user_vault_items.notes),
+       updated_at = CURRENT_TIMESTAMP;`,
+    [vaultItemId, userId, mediaId, status, rating ?? (status === "Favorite" ? 5 : null), notes ?? (status === "Favorite" ? "#favorite" : null)]
+  );
+
+  // 3. Update legacy watched/wishlist tables for compatibility
   if (status === "Wishlist") {
-    // Delete from watched, add to wishlist
     await queryD1(`DELETE FROM watched_items WHERE user_id = ? AND media_id = ?;`, [userId, mediaId]);
     await queryD1(
       `INSERT INTO wishlist_items (user_id, media_id, created_at)
@@ -348,20 +417,20 @@ export async function trackMediaInVault(params: {
       [userId, mediaId]
     );
   } else {
-    // Delete from wishlist, add to watched
     await queryD1(`DELETE FROM wishlist_items WHERE user_id = ? AND media_id = ?;`, [userId, mediaId]);
     await queryD1(
-      `INSERT INTO watched_items (user_id, media_id, watched_at, rating, notes)
-       VALUES (?, ?, CURRENT_TIMESTAMP, ?, ?)
+      `INSERT INTO watched_items (user_id, media_id, watched_at, rating, notes, status)
+       VALUES (?, ?, CURRENT_TIMESTAMP, ?, ?, ?)
        ON CONFLICT(user_id, media_id) DO UPDATE SET
          watched_at = CURRENT_TIMESTAMP,
          rating = coalesce(excluded.rating, watched_items.rating),
-         notes = coalesce(excluded.notes, watched_items.notes);`,
-      [userId, mediaId, rating ?? null, notes ?? null]
+         notes = coalesce(excluded.notes, watched_items.notes),
+         status = excluded.status;`,
+      [userId, mediaId, rating ?? (status === "Favorite" ? 5 : null), notes ?? (status === "Favorite" ? "#favorite" : null), status]
     );
   }
 
-  // 3. Create social notification/activity event
+  // 4. Create social notification/activity event
   const user = await findUserById(userId);
   const media = await findMediaById(mediaId);
   if (user && media) {
@@ -383,6 +452,7 @@ export async function trackMediaInVault(params: {
 export async function removeMediaFromVault(userId: string, mediaId: string): Promise<void> {
   await queryD1(`DELETE FROM watched_items WHERE user_id = ? AND media_id = ?;`, [userId, mediaId]);
   await queryD1(`DELETE FROM wishlist_items WHERE user_id = ? AND media_id = ?;`, [userId, mediaId]);
+  await queryD1(`DELETE FROM user_vault_items WHERE user_id = ? AND media_id = ?;`, [userId, mediaId]);
 }
 
 export const trackMediaItem = trackMediaInVault;

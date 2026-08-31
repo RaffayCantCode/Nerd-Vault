@@ -100,17 +100,31 @@ export default function ProfilePage() {
   const activityPrivate = !isOwner && privacySettings.activity === "private";
   const logsPrivate = !isOwner && privacySettings.logs === "private";
 
+  const getStoredFavorite = (slotType: string): UnifiedMedia | undefined => {
+    if (typeof window === "undefined" || !currentUser?.id) return undefined;
+    try {
+      const stored = localStorage.getItem(`nv_profile_fav_${slotType}_${currentUser.id}`);
+      return stored ? JSON.parse(stored) : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+
   // Derive Top 4 Favorites (1 Movie, 1 Series, 1 Anime, 1 Game)
   const favMovie = favorites.find((i) => i.type?.toLowerCase() === "movie") ||
+    getStoredFavorite("Movie") ||
     allItems.find((i) => i.type?.toLowerCase() === "movie" && (i.status === "Favorite" || (i.userRating && i.userRating >= 4.5)));
 
   const favSeries = favorites.find((i) => i.type?.toLowerCase() === "series" || i.type?.toLowerCase() === "show") ||
+    getStoredFavorite("Series") ||
     allItems.find((i) => (i.type?.toLowerCase() === "series" || i.type?.toLowerCase() === "show") && (i.status === "Favorite" || (i.userRating && i.userRating >= 4.5)));
 
   const favAnime = favorites.find((i) => i.type?.toLowerCase() === "anime") ||
+    getStoredFavorite("Anime") ||
     allItems.find((i) => i.type?.toLowerCase() === "anime" && (i.status === "Favorite" || (i.userRating && i.userRating >= 4.5)));
 
   const favGame = favorites.find((i) => i.type?.toLowerCase() === "game") ||
+    getStoredFavorite("Game") ||
     allItems.find((i) => i.type?.toLowerCase() === "game" && (i.status === "Favorite" || (i.userRating && i.userRating >= 4.5)));
 
   const top4Slots = [
@@ -126,6 +140,28 @@ export default function ProfilePage() {
       return;
     }
     setFavoriteModalType(slotType);
+  };
+
+  const handleFavoriteSelected = (item: UnifiedMedia, slotType: "Movie" | "Series" | "Anime" | "Game") => {
+    const favItem = { ...item, status: "Favorite" as const, userRating: 5 };
+    if (typeof window !== "undefined" && (currentUser?.id || user?.id)) {
+      const uid = currentUser?.id || user?.id;
+      try {
+        localStorage.setItem(`nv_profile_fav_${slotType}_${uid}`, JSON.stringify(favItem));
+      } catch {}
+    }
+    setFavorites((prev) => {
+      const filtered = prev.filter(
+        (i) => i.type?.toLowerCase() !== slotType.toLowerCase() &&
+               !(slotType === "Series" && i.type?.toLowerCase() === "show")
+      );
+      return [favItem, ...filtered];
+    });
+    setLogs((prev) => {
+      const filtered = prev.filter((i) => i.id !== item.id);
+      return [favItem, ...filtered];
+    });
+    loadProfile();
   };
 
   const handleShareProfile = () => {
@@ -620,8 +656,8 @@ export default function ProfilePage() {
           isOpen={true}
           onClose={() => setFavoriteModalType(null)}
           targetType={favoriteModalType}
-          onSelected={() => {
-            loadProfile();
+          onSelected={(item) => {
+            handleFavoriteSelected(item, favoriteModalType);
           }}
         />
       )}
