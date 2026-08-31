@@ -1,0 +1,15 @@
+name = "nerdvault"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "artifacts/nerdvault/dist/public"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "nerdvault-prod"
+database_id = "c7431d01-8a49-4655-8e8b-ea8ef044fd41"
+
+[vars]
+NODE_ENV = "production"
+CLOUDFLARE_ACCOUNT_ID = "5ea76185cd49f72a0c7ce10c15a19c5b"
+CLOUDFLARE_DATABASE_ID = "c7431d01-8a49-4655-8e8b-ea8ef044fd41"
+TMDB_API_KEY = "e992852c2a6404df9d6218982f12c36e"

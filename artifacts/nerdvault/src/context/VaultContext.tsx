@@ -5,6 +5,7 @@ type VaultContextType = {
   vaultItems: UnifiedMedia[];
   stats: VaultStats | null;
   isLoading: boolean;
+  loading: boolean;
   trackMedia: (item: UnifiedMedia, status: string, rating?: number, notes?: string) => Promise<void>;
   removeMedia: (mediaId: string) => Promise<void>;
   isInVault: (mediaId: string) => boolean;
@@ -63,7 +64,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         status,
         rating,
         notes,
-        mediaData: item,
+        media: item,
       });
       if (res?.items) setVaultItems(res.items);
       if (res?.stats) setStats(res.stats);
@@ -98,6 +99,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         vaultItems,
         stats,
         isLoading,
+        loading: isLoading,
         trackMedia,
         removeMedia,
         isInVault,

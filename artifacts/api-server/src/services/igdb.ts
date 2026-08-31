@@ -17,10 +17,10 @@ async function getAccessToken(): Promise<string> {
   if (!res.ok) {
     throw new Error(`Failed to get IGDB OAuth token: ${res.statusText}`);
   }
-  const data = await res.json();
+  const data: any = await res.json();
   oauthToken = {
     token: data.access_token,
-    expiresAt: Date.now() + (data.expires_in * 1000),
+    expiresAt: Date.now() + ((data.expires_in || 3600) * 1000),
   };
   return oauthToken.token;
 }

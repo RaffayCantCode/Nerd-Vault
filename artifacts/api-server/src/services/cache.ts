@@ -47,7 +47,7 @@ class MemoryCache {
         throw err;
       });
 
-    this.inFlight.set(key, promise);
+    this.inFlight.set(key, promise as Promise<unknown>);
     return promise;
   }
 
@@ -64,12 +64,12 @@ export async function fetchWithCache<T = any>(
   ttlMs: number = 1000 * 60 * 15,
   fetcher?: () => Promise<T>
 ): Promise<T> {
-  return mediaCache.getOrFetch(
+  return mediaCache.getOrFetch<T>(
     urlOrKey,
     fetcher || (async () => {
       const res = await fetch(urlOrKey);
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-      return res.json();
+      return (await res.json()) as T;
     }),
     ttlMs
   );

@@ -8,6 +8,7 @@ import { api, UnifiedMedia, MediaReview } from "../lib/api";
 import { useVault } from "../context/VaultContext";
 import { useAuth } from "../context/AuthContext";
 import { SectionHeading } from "../components/common/SectionHeading";
+import { Avatar } from "../components/common/Avatar";
 import { MediaCard } from "../components/media/MediaCard";
 import { FriendRecModal } from "../components/media/FriendRecModal";
 import { MediaTrackModal } from "../components/media/MediaTrackModal";
@@ -314,8 +315,8 @@ export default function MediaDetailPage() {
               <div className="space-y-4">
                 {reviews.map((rev) => {
                   const isLiked = likedReviews[rev.id];
-                  const totalLikes = rev.likesCount + (isLiked ? 1 : 0);
-                  const initials = rev.userName.slice(0, 2).toUpperCase();
+                  const totalLikes = (rev.likesCount ?? rev.likes ?? 0) + (isLiked ? 1 : 0);
+                  const initials = (rev.userName || "Collector").slice(0, 2).toUpperCase();
 
                   return (
                     <div
@@ -328,34 +329,30 @@ export default function MediaDetailPage() {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3">
-                          <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-[#3b9f8b] to-[#1e585b] text-[12px] font-bold text-[#09201c]">
-                            {initials}
-                          </div>
+                          <Avatar
+                            initials={initials}
+                            tone={rev.isOwner ? "green" : "teal"}
+                            image={rev.userImage}
+                          />
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className="text-[13px] font-bold text-slate-100">
-                                Review by <strong className="text-white">{rev.userName}</strong>
+                              <span className="text-[13px] font-bold text-white">
+                                {rev.userName || "Collector"}
                               </span>
                               {rev.isOwner && (
-                                <span className="rounded-md bg-[hsl(var(--primary))]/20 px-2 py-0.5 font-mono-ui text-[9px] font-extrabold text-[hsl(var(--primary))]">
+                                <span className="font-mono-ui text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-[hsl(var(--primary))]/15 text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/30">
                                   You
                                 </span>
                               )}
-                              {rev.isPrivate && rev.isOwner && (
-                                <span className="flex items-center gap-1 rounded-md bg-amber-500/15 px-2 py-0.5 text-[9px] font-bold text-amber-300 border border-amber-500/30">
+                              {rev.isPrivate && (
+                                <span className="font-mono-ui text-[9px] uppercase font-semibold text-slate-500 flex items-center gap-1">
                                   <Lock size={10} /> Private
                                 </span>
                               )}
                             </div>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              {rev.rating && (
-                                <div className="flex items-center gap-1 text-[11px] font-bold text-[#acd986]">
-                                  <Star size={11} fill="currentColor" />
-                                  <span>{rev.rating} / 5</span>
-                                </div>
-                              )}
-                              <span className="text-[10px] text-slate-500">· {rev.createdAt ? new Date(rev.createdAt).toLocaleDateString() : "Recent"}</span>
-                            </div>
+                            <span className="text-[10px] text-slate-500 font-mono-ui">
+                              {rev.createdAt ? new Date(rev.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Recent"}
+                            </span>
                           </div>
                         </div>
 
@@ -371,7 +368,7 @@ export default function MediaDetailPage() {
 
                       {/* Review Content Text */}
                       <p className="mt-3 text-[13px] leading-6 text-slate-200/90 whitespace-pre-line">
-                        {rev.content}
+                        {rev.content || rev.reviewText || "No review content provided."}
                       </p>
 
                       {/* Like Button & Like Counter */}

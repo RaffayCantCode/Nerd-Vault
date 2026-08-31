@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { catalogAggregator } from "../services/catalog-aggregator";
 import { getMediaReviews } from "@workspace/db";
-import { DEMO_USER } from "./auth";
 
 const router = Router();
 
@@ -18,7 +17,7 @@ router.get("/home", async (req, res) => {
     const feed = await catalogAggregator.getHomeFeed();
     res.json(feed);
   } catch (error: any) {
-    res.status(500).json({ error: error.message || "Failed to load home feed" });
+    res.status(500).json({ error: error.message || "Failed to fetch home feed" });
   }
 });
 
@@ -27,16 +26,15 @@ router.get("/home", async (req, res) => {
  */
 router.get("/discover", async (req, res) => {
   try {
-    const { type, genre, mood, sort, search, page } = req.query;
-    const results = await catalogAggregator.discover({
-      type: type as any,
+    const { type, genre, sort, q, page } = req.query;
+    const result = await catalogAggregator.discover({
+      type: type as string,
       genre: genre as string,
-      mood: mood as string,
       sort: sort as any,
-      search: search as string,
-      page: page ? Number(page) : 1,
+      query: q as string,
+      page: page ? parseInt(page as string, 10) : 1,
     });
-    res.json(results);
+    res.json(result);
   } catch (error: any) {
     res.status(500).json({ error: error.message || "Failed to discover media" });
   }
@@ -62,7 +60,8 @@ router.get("/media/:id", async (req, res) => {
   try {
     const media = await catalogAggregator.getMediaDetails(req.params.id);
     if (!media) {
-      return res.status(404).json({ error: "Media item not found" });
+      res.status(404).json({ error: "Media item not found" });
+      return;
     }
     res.json({ item: media });
   } catch (error: any) {

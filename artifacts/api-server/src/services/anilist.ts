@@ -43,7 +43,7 @@ async function runGraphQLQuery(query: string, variables: any = {}) {
         body: JSON.stringify({ query, variables }),
       });
       if (!res.ok) throw new Error(`AniList returned ${res.status}`);
-      const json = await res.json();
+      const json: any = await res.json();
       return json.data;
     }
   );

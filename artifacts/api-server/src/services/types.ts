@@ -31,6 +31,26 @@ export type UnifiedMedia = {
   similar?: UnifiedMedia[];
 };
 
+export type HomeFeedData = {
+  featured: UnifiedMedia;
+  featuredSlides?: UnifiedMedia[];
+  trendingMovies: UnifiedMedia[];
+  trendingShows: UnifiedMedia[];
+  topAnime: UnifiedMedia[];
+  popularGames: UnifiedMedia[];
+  weeklyDrop: UnifiedMedia[];
+};
+
+export type DiscoverOptions = {
+  type?: string;
+  genre?: string;
+  sort?: string;
+  query?: string;
+  search?: string;
+  mood?: string;
+  page?: number;
+};
+
 export function toFiveStarRating(val: number | string | undefined | null): string {
   if (val === undefined || val === null || val === "") return "4.0";
   const num = Number(val);

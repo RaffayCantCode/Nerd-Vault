@@ -1,11 +1,13 @@
+export type MediaType = "Movie" | "Series" | "Anime" | "Game";
+
 export type UnifiedMedia = {
   id: string;
   slug: string;
   title: string;
   originalTitle?: string;
-  type: "Movie" | "Series" | "Anime" | "Game";
+  type: MediaType;
   year: string;
-  rating: string; // Out of 5 (e.g. "4.3")
+  rating: string;
   genre: string;
   genres: string[];
   poster: string;
@@ -20,7 +22,7 @@ export type UnifiedMedia = {
   audio?: string;
   status?: "Watching" | "Completed" | "Wishlist" | "Favorite" | "Dropped" | "Paused";
   progress?: number;
-  userRating?: number; // 1 to 5
+  userRating?: number;
   notes?: string;
   source: "tmdb" | "anilist" | "igdb" | "local";
   sourceId: string;
@@ -31,13 +33,23 @@ export type UnifiedMedia = {
   similar?: UnifiedMedia[];
 };
 
+export type HomeFeedData = {
+  featured: UnifiedMedia;
+  featuredSlides?: UnifiedMedia[];
+  trendingMovies: UnifiedMedia[];
+  trendingShows: UnifiedMedia[];
+  topAnime: UnifiedMedia[];
+  popularGames: UnifiedMedia[];
+  weeklyDrop: UnifiedMedia[];
+};
+
 export type VaultStats = {
   totalCollected: number;
   hoursWatched: number;
   topGenre: string;
   topGenreCount: number;
-  averageRating: number; // Out of 5
-  tasteScore: number; // Out of 5
+  averageRating: number;
+  tasteScore: number;
   genresBreakdown: Array<{ name: string; count: number; percentage: number; color: string }>;
 };
 
@@ -45,24 +57,8 @@ export type UserProfile = {
   id: string;
   name: string;
   email: string;
-  bio?: string;
   image?: string;
-  role?: string;
-};
-
-export type HomeFeedData = {
-  featured: UnifiedMedia;
-  continueWatching: UnifiedMedia[];
-  curatedForYou: UnifiedMedia[];
-  trendingMovies: UnifiedMedia[];
-  trendingShows: UnifiedMedia[];
-  topAnime: UnifiedMedia[];
-  popularGames: UnifiedMedia[];
-  weeklyDrop: {
-    title: string;
-    description: string;
-    items: UnifiedMedia[];
-  };
+  bio?: string;
 };
 
 export type Shelf = {
@@ -70,10 +66,11 @@ export type Shelf = {
   name: string;
   slug: string;
   description?: string;
-  itemCount: number;
-  isPublic: boolean;
-  color?: string;
-  coverImage?: string;
+  coverUrl?: string;
+  visibility?: string;
+  isPublic?: boolean;
+  itemCount?: number;
+  items?: UnifiedMedia[];
 };
 
 export type ActivityItem = {
@@ -84,9 +81,10 @@ export type ActivityItem = {
   mediaId: string;
   mediaTitle: string;
   mediaPoster?: string;
-  mediaType?: string;
+  mediaType: string;
   action: string;
   detail?: string;
+  rating?: number;
   createdAt: string;
 };
 
@@ -94,65 +92,67 @@ export type FriendRecommendation = {
   id: string;
   fromUserId: string;
   fromUserName: string;
+  fromUserAvatar?: string;
   mediaId: string;
   mediaTitle: string;
   mediaPoster?: string;
-  mediaType?: string;
-  note?: string;
+  mediaType: string;
+  note: string;
   createdAt: string;
 };
-
-const BASE_URL = "";
-
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem("nv_user_id");
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...((options.headers as Record<string, string>) || {}),
-  };
-
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers,
-    credentials: "same-origin",
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(errorData.error || `HTTP error! status: ${res.status}`);
-  }
-
-  return res.json();
-}
 
 export type MediaReview = {
   id: string;
   userId: string;
   userName: string;
   userImage?: string;
-  mediaId: string;
   rating?: number;
-  content: string;
-  isPrivate: boolean;
-  isOwner: boolean;
-  likesCount: number;
-  createdAt: string;
+  reviewText?: string;
+  content?: string;
+  isPrivate?: boolean;
+  isOwner?: boolean;
+  likesCount?: number;
+  likes?: number;
+  isLiked?: boolean;
+  createdAt?: string;
 };
+
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const headers = new Headers(options.headers || {});
+  if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  const res = await fetch(path, {
+    ...options,
+    headers,
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(errorText || `Request failed with status ${res.status}`);
+  }
+
+  return (await res.json()) as T;
+}
 
 export const api = {
   // Auth
   getMe: () => request<{ user: UserProfile | null }>("/api/auth/me"),
-  login: (email: string, pass: string) =>
-    request<{ user: UserProfile }>("/api/auth/login", {
+  login: (data: { email: string; password: string } | string, pass?: string) => {
+    const payload = typeof data === "string" ? { email: data, password: pass } : data;
+    return request<{ user: UserProfile }>("/api/auth/login", {
       method: "POST",
-      body: JSON.stringify({ email, password: pass }),
-    }),
-  register: (name: string, email: string, pass: string) =>
-    request<{ user: UserProfile }>("/api/auth/register", {
+      body: JSON.stringify(payload),
+    });
+  },
+  register: (data: { name: string; email: string; password: string } | string, email?: string, pass?: string) => {
+    const payload = typeof data === "string" ? { name: data, email, password: pass } : data;
+    return request<{ user: UserProfile }>("/api/auth/register", {
       method: "POST",
-      body: JSON.stringify({ name, email, password: pass }),
-    }),
+      body: JSON.stringify(payload),
+    });
+  },
   logout: () => request<{ success: boolean }>("/api/auth/logout", { method: "POST" }),
 
   // Catalog
@@ -175,17 +175,26 @@ export const api = {
   getVault: () => request<{ items: UnifiedMedia[]; stats: VaultStats }>("/api/vault"),
   trackMedia: (data: {
     mediaId: string;
-    media: Partial<UnifiedMedia>;
+    media?: Partial<UnifiedMedia>;
+    mediaData?: Partial<UnifiedMedia>;
     status: string;
     rating?: number;
     notes?: string;
     progress?: number;
   }) =>
-    request<{ success: boolean; item: any }>("/api/vault/track", {
+    request<{ success: boolean; item?: any; items?: UnifiedMedia[]; stats?: VaultStats }>("/api/vault/track", {
       method: "POST",
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        ...data,
+        media: data.media || data.mediaData,
+      }),
     }),
   removeFromVault: (mediaId: string) =>
+    request<{ success: boolean }>("/api/vault/remove", {
+      method: "POST",
+      body: JSON.stringify({ mediaId }),
+    }),
+  removeMedia: (mediaId: string) =>
     request<{ success: boolean }>("/api/vault/remove", {
       method: "POST",
       body: JSON.stringify({ mediaId }),
@@ -193,7 +202,7 @@ export const api = {
 
   // Shelves
   getShelves: () => request<{ shelves: Shelf[] }>("/api/shelves"),
-  createShelf: (data: { name: string; description?: string; isPublic?: boolean; color?: string }) =>
+  createShelf: (data: { name: string; description?: string; isPublic?: boolean; visibility?: string; color?: string }) =>
     request<{ shelf: Shelf }>("/api/shelves", {
       method: "POST",
       body: JSON.stringify(data),
@@ -206,7 +215,8 @@ export const api = {
     }),
 
   // Social
-  getSocialActivity: () => request<{ activity: any[] }>("/api/social/activity"),
+  getActivity: () => request<{ activity: ActivityItem[] }>("/api/social/activity"),
+  getSocialActivity: () => request<{ activity: ActivityItem[] }>("/api/social/activity"),
   getFriends: () => request<{ friends: UserProfile[]; suggested: UserProfile[] }>("/api/social/friends"),
   sendFriendRequest: (toUserId: string) =>
     request<{ success: boolean }>("/api/social/request", {
@@ -228,17 +238,30 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ notificationId }),
     }),
-  getRecommendations: () => request<{ recommendations: any[] }>("/api/social/recommendations"),
-  recommendMedia: (toUserId: string, mediaId: string, note?: string) =>
-    request<{ success: boolean }>("/api/social/recommend", {
+  getRecommendations: () => request<{ recommendations: FriendRecommendation[] }>("/api/social/recommendations"),
+  sendRecommendation: (dataOrToUser: { toUserId: string; mediaId: string; note?: string } | string, mediaId?: string, note?: string) => {
+    const payload = typeof dataOrToUser === "string"
+      ? { toUserId: dataOrToUser, mediaId, note }
+      : dataOrToUser;
+    return request<{ success: boolean }>("/api/social/recommend", {
       method: "POST",
-      body: JSON.stringify({ toUserId, mediaId, note }),
-    }),
+      body: JSON.stringify(payload),
+    });
+  },
+  recommendMedia: (dataOrToUser: { toUserId: string; mediaId: string; note?: string } | string, mediaId?: string, note?: string) => {
+    const payload = typeof dataOrToUser === "string"
+      ? { toUserId: dataOrToUser, mediaId, note }
+      : dataOrToUser;
+    return request<{ success: boolean }>("/api/social/recommend", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
   dismissRecommendation: (id: string) =>
     request<{ success: boolean }>(`/api/social/recommendations/${id}/dismiss`, { method: "POST" }),
 
   // Profile
-  getProfile: (id?: string) => request<{ user: UserProfile; stats: VaultStats; favorites: UnifiedMedia[]; recentActivity: any[] }>(id ? `/api/profile/${id}` : "/api/profile"),
+  getProfile: (id?: string) => request<{ user: UserProfile; stats: VaultStats; favorites: UnifiedMedia[]; logs?: UnifiedMedia[]; recentActivity: any[]; isOwner?: boolean }>(id ? `/api/profile/${id}` : "/api/profile"),
   updateProfile: (data: { name?: string; bio?: string; image?: string }) =>
     request<{ user: UserProfile }>("/api/profile", {
       method: "PUT",

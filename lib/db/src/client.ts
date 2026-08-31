@@ -87,7 +87,7 @@ export function createD1Drizzle(config: D1Config = getD1Config()) {
     try {
       const rows = await queryD1<Record<string, unknown>>(sql, params, config);
       if (method === "get") {
-        return { rows: rows[0] ? Object.values(rows[0]) : undefined };
+        return { rows: rows[0] ? Object.values(rows[0]) : [] };
       }
       return { rows: rows.map((r) => Object.values(r)) };
     } catch (e: any) {
