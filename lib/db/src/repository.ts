@@ -360,6 +360,9 @@ export async function removeMediaFromVault(userId: string, mediaId: string): Pro
   await queryD1(`DELETE FROM wishlist_items WHERE user_id = ? AND media_id = ?;`, [userId, mediaId]);
 }
 
+export const trackMediaItem = trackMediaInVault;
+export const removeMediaItem = removeMediaFromVault;
+
 export type MediaReview = {
   id: string;
   userId: string;
