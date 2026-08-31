@@ -14,7 +14,7 @@ export default function HomePage() {
   const [feed, setFeed] = useState<HomeFeedData | null>(() => {
     if (typeof window !== "undefined") {
       try {
-        const cached = sessionStorage.getItem("nv_home_feed_v2");
+        const cached = sessionStorage.getItem("nv_home_feed_v2") || localStorage.getItem("nv_home_feed_v2");
         return cached ? JSON.parse(cached) : null;
       } catch {
         return null;
@@ -36,6 +36,7 @@ export default function HomePage() {
           if (typeof window !== "undefined") {
             try {
               sessionStorage.setItem("nv_home_feed_v2", JSON.stringify(data));
+              localStorage.setItem("nv_home_feed_v2", JSON.stringify(data));
             } catch {}
           }
         }

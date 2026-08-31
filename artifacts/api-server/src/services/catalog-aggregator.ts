@@ -21,7 +21,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T
 
 export const catalogAggregator = {
   async getHomeFeed(): Promise<HomeFeedData> {
-    // Parallel fetch with fast 2.5s timeouts so slow external APIs never delay the home feed
+    // Parallel fetch with fast 2.0s timeouts so slow external APIs never delay the home feed
     const [
       trendingMovies,
       topRatedMovies,
@@ -31,13 +31,13 @@ export const catalogAggregator = {
       popularAnime,
       popularGames,
     ] = await Promise.all([
-      withTimeout(tmdbService.getTrendingMovies(1).catch(() => []), 2500, []),
-      withTimeout(tmdbService.getTopRatedMovies(1).catch(() => []), 2500, []),
-      withTimeout(tmdbService.getTrendingShows(1).catch(() => []), 2500, []),
-      withTimeout(tmdbService.getTopRatedShows(1).catch(() => []), 2500, []),
-      withTimeout(anilistService.getTrendingAnime(1).catch(() => []), 2500, []),
-      withTimeout(anilistService.getPopularAnime(undefined, 1).catch(() => []), 2500, []),
-      withTimeout(igdbService.getPopularGames(undefined, 1).catch(() => []), 2500, []),
+      withTimeout(tmdbService.getTrendingMovies(1).catch(() => []), 2000, []),
+      withTimeout(tmdbService.getTopRatedMovies(1).catch(() => []), 2000, []),
+      withTimeout(tmdbService.getTrendingShows(1).catch(() => []), 2000, []),
+      withTimeout(tmdbService.getTopRatedShows(1).catch(() => []), 2000, []),
+      withTimeout(anilistService.getTrendingAnime(1).catch(() => []), 2000, []),
+      withTimeout(anilistService.getPopularAnime(undefined, 1).catch(() => []), 2000, []),
+      withTimeout(igdbService.getPopularGames(undefined, 1).catch(() => []), 2000, []),
     ]);
 
     // Instant in-memory dynamic shuffle for variety on every single visit with strict hentai filter
@@ -90,26 +90,27 @@ export const catalogAggregator = {
     if (isSingleType) {
       if (type === "Movie") {
         const [trending, topRated, niche] = await Promise.all([
-          tmdbService.discover({ type: "Movie", page }).catch(() => []),
-          tmdbService.getTopRatedMovies(page).catch(() => []),
-          tmdbService.getCultAndNiche("Movie", page).catch(() => []),
+          withTimeout(tmdbService.discover({ type: "Movie", page }).catch(() => []), 2000, []),
+          withTimeout(tmdbService.getTopRatedMovies(page).catch(() => []), 2000, []),
+          withTimeout(tmdbService.getCultAndNiche("Movie", page).catch(() => []), 2000, []),
         ]);
-        items = shuffleArray([...trending, ...topRated, ...niche]);
+        items = shuffleArray([...trending, ...topRated, ...niche]).filter((i) => !isHentaiOrAdult(i));
       } else if (type === "Series") {
         const [trending, topRated, niche] = await Promise.all([
-          tmdbService.discover({ type: "Series", page }).catch(() => []),
-          tmdbService.getTopRatedShows(page).catch(() => []),
-          tmdbService.getCultAndNiche("Series", page).catch(() => []),
+          withTimeout(tmdbService.discover({ type: "Series", page }).catch(() => []), 2000, []),
+          withTimeout(tmdbService.getTopRatedShows(page).catch(() => []), 2000, []),
+          withTimeout(tmdbService.getCultAndNiche("Series", page).catch(() => []), 2000, []),
         ]);
-        items = shuffleArray([...trending, ...topRated, ...niche]);
+        items = shuffleArray([...trending, ...topRated, ...niche]).filter((i) => !isHentaiOrAdult(i));
       } else if (type === "Anime") {
         const [trending, popular] = await Promise.all([
-          anilistService.getTrendingAnime(page).catch(() => []),
-          anilistService.getPopularAnime(genre !== "All genres" ? genre : undefined, page).catch(() => []),
+          withTimeout(anilistService.getTrendingAnime(page).catch(() => []), 2000, []),
+          withTimeout(anilistService.getPopularAnime(genre !== "All genres" ? genre : undefined, page).catch(() => []), 2000, []),
         ]);
-        items = shuffleArray([...trending, ...popular]);
+        items = shuffleArray([...trending, ...popular]).filter((i) => !isHentaiOrAdult(i));
       } else if (type === "Game") {
-        items = shuffleArray(await igdbService.getPopularGames(genre !== "All genres" ? genre : undefined, page).catch(() => []));
+        const games = await withTimeout(igdbService.getPopularGames(genre !== "All genres" ? genre : undefined, page).catch(() => []), 2000, []);
+        items = shuffleArray(games).filter((i) => !isHentaiOrAdult(i));
       }
 
       if (genre && genre !== "All genres") {
@@ -119,7 +120,7 @@ export const catalogAggregator = {
         );
       }
     } else {
-      // 100% REAL LIVE MULTI-SOURCE NERD HAVEN (Trending + Top-Rated + Cult/Niche)
+      // 100% REAL LIVE MULTI-SOURCE NERD HAVEN (Trending + Top-Rated + Cult/Niche) with 2s timeouts
       const [
         trendingMovies,
         nicheMovies,
@@ -129,19 +130,19 @@ export const catalogAggregator = {
         popularAnime,
         games,
       ] = await Promise.all([
-        tmdbService.getTrendingMovies(page).catch(() => []),
-        tmdbService.getCultAndNiche("Movie", page).catch(() => []),
-        tmdbService.getTrendingShows(page).catch(() => []),
-        tmdbService.getCultAndNiche("Series", page).catch(() => []),
-        anilistService.getTrendingAnime(page).catch(() => []),
-        anilistService.getPopularAnime(undefined, page).catch(() => []),
-        igdbService.getPopularGames(undefined, page).catch(() => []),
+        withTimeout(tmdbService.getTrendingMovies(page).catch(() => []), 2000, []),
+        withTimeout(tmdbService.getCultAndNiche("Movie", page).catch(() => []), 2000, []),
+        withTimeout(tmdbService.getTrendingShows(page).catch(() => []), 2000, []),
+        withTimeout(tmdbService.getCultAndNiche("Series", page).catch(() => []), 2000, []),
+        withTimeout(anilistService.getTrendingAnime(page).catch(() => []), 2000, []),
+        withTimeout(anilistService.getPopularAnime(undefined, page).catch(() => []), 2000, []),
+        withTimeout(igdbService.getPopularGames(undefined, page).catch(() => []), 2000, []),
       ]);
 
-      let poolMovies = shuffleArray([...trendingMovies, ...nicheMovies]);
-      let poolShows = shuffleArray([...trendingShows, ...nicheShows]);
-      let poolAnime = shuffleArray([...trendingAnime, ...popularAnime]);
-      let poolGames = shuffleArray(games);
+      let poolMovies = shuffleArray([...trendingMovies, ...nicheMovies]).filter((i) => !isHentaiOrAdult(i));
+      let poolShows = shuffleArray([...trendingShows, ...nicheShows]).filter((i) => !isHentaiOrAdult(i));
+      let poolAnime = shuffleArray([...trendingAnime, ...popularAnime]).filter((i) => !isHentaiOrAdult(i));
+      let poolGames = shuffleArray(games).filter((i) => !isHentaiOrAdult(i));
 
       if (genre && genre !== "All genres") {
         const matchGenre = (i: UnifiedMedia) =>
@@ -195,39 +196,46 @@ export const catalogAggregator = {
     if (!query.trim()) return [];
 
     const [tmdbResults, anilistResults, igdbResults] = await Promise.all([
-      tmdbService.search(query).catch(() => []),
-      anilistService.search(query).catch(() => []),
-      igdbService.search(query).catch(() => []),
+      withTimeout(tmdbService.search(query).catch(() => []), 2000, []),
+      withTimeout(anilistService.search(query).catch(() => []), 2000, []),
+      withTimeout(igdbService.search(query).catch(() => []), 2000, []),
     ]);
 
+    const cleanAnilist = anilistResults.filter((i) => !isHentaiOrAdult(i));
+    const cleanTmdb = tmdbResults.filter((i) => !isHentaiOrAdult(i));
+    const cleanIgdb = igdbResults.filter((i) => !isHentaiOrAdult(i));
+
     const combined: UnifiedMedia[] = [];
-    const maxLen = Math.max(tmdbResults.length, anilistResults.length, igdbResults.length);
+    const maxLen = Math.max(cleanTmdb.length, cleanAnilist.length, cleanIgdb.length);
 
     for (let i = 0; i < maxLen; i++) {
-      if (tmdbResults[i]) combined.push(tmdbResults[i]);
-      if (anilistResults[i]) combined.push(anilistResults[i]);
-      if (igdbResults[i]) combined.push(igdbResults[i]);
+      if (cleanTmdb[i]) combined.push(cleanTmdb[i]);
+      if (cleanAnilist[i]) combined.push(cleanAnilist[i]);
+      if (cleanIgdb[i]) combined.push(cleanIgdb[i]);
     }
 
     return combined;
   },
 
   async getMediaDetails(id: string): Promise<UnifiedMedia | null> {
-    if (id.startsWith("anilist-") || id.startsWith("tmdb-anime-")) {
-      return await anilistService.getDetails(id);
+    try {
+      if (id.startsWith("tmdb-")) {
+        const isMovie = id.startsWith("tmdb-movie-");
+        const realId = isMovie ? id.replace("tmdb-movie-", "") : id.replace("tmdb-show-", "");
+        return await tmdbService.getDetails(realId, isMovie ? "Movie" : "Series");
+      }
+      if (id.startsWith("anilist-")) {
+        const realId = id.replace("anilist-", "");
+        return await anilistService.getDetails(realId);
+      }
+      if (id.startsWith("igdb-")) {
+        const realId = id.replace("igdb-", "");
+        return await igdbService.getDetails(realId);
+      }
+      const searchRes = await this.search(id);
+      return searchRes[0] || null;
+    } catch {
+      return null;
     }
-    if (id.startsWith("igdb-")) {
-      const rawId = id.replace("igdb-", "");
-      return await igdbService.getDetails(rawId);
-    }
-    if (id.startsWith("tmdb-tv-") || id.startsWith("tmdb-series-")) {
-      const rawId = id.replace(/^(tmdb-tv-|tmdb-series-)/, "");
-      return await tmdbService.getDetails(rawId, "Series");
-    }
-    if (id.startsWith("tmdb-movie-") || id.startsWith("tmdb-")) {
-      const rawId = id.replace(/^(tmdb-movie-|tmdb-)/, "");
-      return await tmdbService.getDetails(rawId, "Movie");
-    }
-    return null;
   },
 };

@@ -85,7 +85,7 @@ export const onRequest: any = async (context: any) => {
     if (path === "/api/catalog/home" && method === "GET") {
       const feed = await catalogAggregator.getHomeFeed();
       return jsonResponse(feed, 200, {
-        "Cache-Control": "public, max-age=30, s-maxage=120, stale-while-revalidate=300",
+        "Cache-Control": "public, max-age=60, s-maxage=600, stale-while-revalidate=1800",
       });
     }
 
@@ -98,13 +98,17 @@ export const onRequest: any = async (context: any) => {
       const page = parseInt(url.searchParams.get("page") || "1", 10);
 
       const result = await catalogAggregator.discover({ type, genre, mood, sort, query: q, page });
-      return jsonResponse(result);
+      return jsonResponse(result, 200, {
+        "Cache-Control": "public, max-age=60, s-maxage=600, stale-while-revalidate=1800",
+      });
     }
 
     if (path === "/api/catalog/search" && method === "GET") {
       const q = url.searchParams.get("q") || "";
       const items = await catalogAggregator.search(q);
-      return jsonResponse({ items, results: items });
+      return jsonResponse({ items, results: items }, 200, {
+        "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=600",
+      });
     }
 
     if (path.startsWith("/api/catalog/media/") && path.endsWith("/reviews") && method === "GET") {
@@ -262,13 +266,13 @@ export const onRequest: any = async (context: any) => {
       return jsonResponse({ notifications });
     }
 
-    if (path === "/api/social/notifications/read" && method === "POST") {
+    if ((path === "/api/social/notifications/read" || path === "/api/social/notifications/delete") && method === "POST") {
       if (!currentUserId) return jsonResponse({ error: "Unauthorized" }, 401);
       const body = await request.json().catch(() => ({}));
       if (body.notificationId) {
-        await markNotificationAsRead(body.notificationId, currentUserId);
+        await deleteNotification(body.notificationId, currentUserId);
       } else {
-        await markAllNotificationsAsRead(currentUserId);
+        await deleteAllNotifications(currentUserId);
       }
       return jsonResponse({ success: true });
     }

@@ -25,8 +25,9 @@ export function MediaCard({
     }
   };
 
-  const posterUrl = !imgError && item.poster && !item.poster.includes("undefined")
-    ? item.poster
+  const rawPoster = item.poster || (item as any).coverUrl || (item as any).cover_url || item.backdrop || (item as any).backdropUrl;
+  const posterUrl = !imgError && rawPoster && typeof rawPoster === "string" && !rawPoster.includes("undefined") && rawPoster.trim() !== ""
+    ? rawPoster
     : undefined;
 
   return (

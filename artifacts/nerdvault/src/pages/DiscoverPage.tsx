@@ -20,9 +20,20 @@ export default function DiscoverPage() {
   const [sort, setSort] = useState("Recommended");
   const [mood, setMood] = useState<string | null>(null);
 
-  const [items, setItems] = useState<UnifiedMedia[]>([]);
+  const [items, setItems] = useState<UnifiedMedia[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = sessionStorage.getItem("nv_discover_feed_v2") || localStorage.getItem("nv_discover_feed_v2");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch {}
+    }
+    return [];
+  });
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => items.length === 0);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -67,7 +78,9 @@ export default function DiscoverPage() {
 
   // Fetch initial batch (Page 1)
   useEffect(() => {
-    setLoading(true);
+    if (items.length === 0) {
+      setLoading(true);
+    }
     setPage(1);
     setHasMore(true);
     isFetchingRef.current = true;
@@ -82,7 +95,15 @@ export default function DiscoverPage() {
     })
       .then((data) => {
         const fetched = data?.items || [];
-        setItems(fetched);
+        if (fetched.length > 0) {
+          setItems(fetched);
+          if (!debouncedQuery.trim() && type === "All types" && genre === "All genres") {
+            try {
+              sessionStorage.setItem("nv_discover_feed_v2", JSON.stringify(fetched));
+              localStorage.setItem("nv_discover_feed_v2", JSON.stringify(fetched));
+            } catch {}
+          }
+        }
         setHasMore(fetched.length >= 8 && !debouncedQuery.trim());
 
         // Restore scroll position if returning from detail page
@@ -96,7 +117,6 @@ export default function DiscoverPage() {
       })
       .catch((err) => {
         console.error("Discover error:", err);
-        setItems([]);
       })
       .finally(() => {
         setLoading(false);

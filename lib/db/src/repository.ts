@@ -8,17 +8,23 @@ export type VaultItemWithMedia = {
   originalTitle?: string;
   overview?: string;
   type: string;
-  status: "Watching" | "Completed" | "Wishlist" | "Favorite" | "Dropped" | "Paused";
+  status: "Watching" | "Completed" | "Wishlist" | "Favorite" | "Dropped" | "Paused" | string;
   releaseYear?: number;
+  year?: string;
   runtime?: number;
   rating?: number;
   userRating?: number;
   notes?: string;
+  poster?: string;
+  backdrop?: string;
   coverUrl?: string;
   backdropUrl?: string;
   trailerUrl?: string;
   source: string;
   sourceId: string;
+  genre?: string;
+  genres?: string[];
+  slug?: string;
   updatedAt: string;
 };
 
@@ -290,23 +296,29 @@ export async function getUserVaultItems(userId: string): Promise<VaultItemWithMe
   for (const r of unifiedRows) {
     const rawRating = r.user_rating ? (r.user_rating > 5 ? r.user_rating / 2 : r.user_rating) : undefined;
     itemMap.set(r.media_id, {
-      id: `${r.user_id}_${r.media_id}`,
+      id: r.media_id,
       mediaId: r.media_id,
       title: r.title,
       originalTitle: r.original_title,
-      overview: r.overview,
-      type: r.type,
+      overview: r.overview || "",
+      type: (r.type as any) || "Movie",
       status: (r.status as any) || "Watching",
+      year: String(r.release_year || ""),
       releaseYear: r.release_year,
       runtime: r.runtime,
       rating: r.media_rating ? (r.media_rating > 5 ? r.media_rating / 2 : r.media_rating) : undefined,
       userRating: rawRating,
       notes: r.notes,
-      coverUrl: r.cover_url,
-      backdropUrl: r.backdrop_url,
+      poster: r.cover_url || "",
+      coverUrl: r.cover_url || "",
+      backdrop: r.backdrop_url || "",
+      backdropUrl: r.backdrop_url || "",
       trailerUrl: r.trailer_url,
-      source: r.source,
-      sourceId: r.source_id,
+      source: (r.source as any) || "tmdb",
+      sourceId: r.source_id || r.media_id,
+      genre: "Featured",
+      genres: [],
+      slug: r.media_id,
       updatedAt: r.updated_at,
     });
   }
@@ -316,23 +328,29 @@ export async function getUserVaultItems(userId: string): Promise<VaultItemWithMe
       const rawRating = r.rating ? (r.rating > 5 ? r.rating / 2 : r.rating) : undefined;
       const isFavorite = r.status === "Favorite" || (rawRating && rawRating >= 4.5) || r.notes?.toLowerCase().includes("#favorite");
       itemMap.set(r.media_id, {
-        id: `${r.user_id}_${r.media_id}`,
+        id: r.media_id,
         mediaId: r.media_id,
         title: r.title,
         originalTitle: r.original_title,
-        overview: r.overview,
-        type: r.type,
+        overview: r.overview || "",
+        type: (r.type as any) || "Movie",
         status: isFavorite ? "Favorite" : ((r.status as any) || "Completed"),
+        year: String(r.release_year || ""),
         releaseYear: r.release_year,
         runtime: r.runtime,
         rating: r.media_rating ? (r.media_rating > 5 ? r.media_rating / 2 : r.media_rating) : undefined,
         userRating: rawRating,
         notes: r.notes,
-        coverUrl: r.cover_url,
-        backdropUrl: r.backdrop_url,
+        poster: r.cover_url || "",
+        coverUrl: r.cover_url || "",
+        backdrop: r.backdrop_url || "",
+        backdropUrl: r.backdrop_url || "",
         trailerUrl: r.trailer_url,
-        source: r.source,
-        sourceId: r.source_id,
+        source: (r.source as any) || "tmdb",
+        sourceId: r.source_id || r.media_id,
+        genre: "Featured",
+        genres: [],
+        slug: r.media_id,
         updatedAt: r.watched_at,
       });
     }
@@ -341,21 +359,27 @@ export async function getUserVaultItems(userId: string): Promise<VaultItemWithMe
   for (const r of wishlistRows) {
     if (!itemMap.has(r.media_id)) {
       itemMap.set(r.media_id, {
-        id: `${r.user_id}_${r.media_id}`,
+        id: r.media_id,
         mediaId: r.media_id,
         title: r.title,
         originalTitle: r.original_title,
-        overview: r.overview,
-        type: r.type,
+        overview: r.overview || "",
+        type: (r.type as any) || "Movie",
         status: "Wishlist",
+        year: String(r.release_year || ""),
         releaseYear: r.release_year,
         runtime: r.runtime,
-        rating: r.media_rating,
-        coverUrl: r.cover_url,
-        backdropUrl: r.backdrop_url,
+        rating: r.media_rating ? (r.media_rating > 5 ? r.media_rating / 2 : r.media_rating) : undefined,
+        poster: r.cover_url || "",
+        coverUrl: r.cover_url || "",
+        backdrop: r.backdrop_url || "",
+        backdropUrl: r.backdrop_url || "",
         trailerUrl: r.trailer_url,
-        source: r.source,
-        sourceId: r.source_id,
+        source: (r.source as any) || "tmdb",
+        sourceId: r.source_id || r.media_id,
+        genre: "Featured",
+        genres: [],
+        slug: r.media_id,
         updatedAt: r.created_at,
       });
     }
@@ -376,6 +400,8 @@ export async function trackMediaInVault(params: {
 
   // 1. If media record doesn't exist yet or is supplied, upsert it
   if (mediaData) {
+    const rawCover = mediaData.poster || mediaData.coverUrl || mediaData.cover_url || mediaData.image || (mediaData as any).banner;
+    const rawBackdrop = mediaData.backdrop || mediaData.backdropUrl || mediaData.backdrop_url;
     await upsertMedia({
       id: mediaId,
       slug: mediaData.slug || mediaId,
@@ -384,10 +410,10 @@ export async function trackMediaInVault(params: {
       overview: mediaData.overview,
       type: mediaData.type || "Movie",
       releaseYear: mediaData.releaseYear || mediaData.year ? Number(mediaData.releaseYear || mediaData.year) : undefined,
-      runtime: mediaData.runtime,
+      runtime: mediaData.runtime ? Number(mediaData.runtime.toString().replace(/\D/g, "")) : undefined,
       rating: mediaData.rating ? Number(mediaData.rating) : undefined,
-      coverUrl: mediaData.coverUrl || mediaData.poster,
-      backdropUrl: mediaData.backdropUrl || mediaData.backdrop,
+      coverUrl: rawCover,
+      backdropUrl: rawBackdrop,
       trailerUrl: mediaData.trailerUrl,
       source: mediaData.source || "tmdb",
       sourceId: mediaData.sourceId || mediaId,
@@ -829,12 +855,20 @@ export async function getUserNotifications(userId: string): Promise<Array<{
   }));
 }
 
+export async function deleteNotification(id: string, userId: string): Promise<void> {
+  await queryD1(`DELETE FROM notifications WHERE id = ? AND user_id = ?;`, [id, userId]);
+}
+
+export async function deleteAllNotifications(userId: string): Promise<void> {
+  await queryD1(`DELETE FROM notifications WHERE user_id = ?;`, [userId]);
+}
+
 export async function markNotificationAsRead(id: string, userId: string): Promise<void> {
-  await queryD1(`UPDATE notifications SET status = 'read' WHERE id = ? AND user_id = ?;`, [id, userId]);
+  await queryD1(`DELETE FROM notifications WHERE id = ? AND user_id = ?;`, [id, userId]);
 }
 
 export async function markAllNotificationsAsRead(userId: string): Promise<void> {
-  await queryD1(`UPDATE notifications SET status = 'read' WHERE user_id = ?;`, [userId]);
+  await queryD1(`DELETE FROM notifications WHERE user_id = ?;`, [userId]);
 }
 
 export async function getFriendRecommendations(userId: string): Promise<Array<{

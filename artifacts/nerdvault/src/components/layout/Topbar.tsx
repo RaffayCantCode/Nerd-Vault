@@ -59,10 +59,21 @@ export function Topbar() {
     }
   };
 
+  const handleRemoveNotification = async (notificationId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+    try {
+      await api.markNotificationsRead(notificationId);
+    } catch {}
+    notify("Notification removed");
+  };
+
   const handleMarkAllRead = async () => {
-    await api.markNotificationsRead();
-    fetchNotifications();
-    notify("Marked all as read");
+    setNotifications([]);
+    try {
+      await api.markNotificationsRead();
+    } catch {}
+    notify("All notifications cleared");
   };
 
   const unreadCount = notifications.filter((n) => n.status === "unread").length;
@@ -181,13 +192,22 @@ export function Topbar() {
                   notifications.map((n) => (
                     <div
                       key={n.id}
-                      className={`rounded-xl p-3 border transition ${
+                      className={`group/notif relative rounded-xl p-3 border transition ${
                         n.status === "unread"
                           ? "bg-[rgba(55,218,178,.06)] border-[rgba(55,218,178,.25)]"
                           : "bg-white/[.02] border-white/[.06]"
                       }`}
                     >
-                      <div className="flex items-start gap-3">
+                      {/* One-click remove cross */}
+                      <button
+                        onClick={(e) => handleRemoveNotification(n.id, e)}
+                        title="Remove notification"
+                        className="absolute top-2.5 right-2.5 flex h-6 w-6 items-center justify-center rounded-lg bg-black/40 text-slate-400 opacity-70 hover:opacity-100 hover:bg-rose-500/20 hover:text-rose-300 transition"
+                      >
+                        <X size={13} />
+                      </button>
+
+                      <div className="flex items-start gap-3 pr-6">
                         <div className="grid h-8 w-8 place-items-center rounded-xl bg-[hsl(var(--primary))]/15 text-[hsl(var(--primary))] shrink-0 text-[11px] font-bold">
                           {n.type === "friend_request" ? <UserPlus size={15} /> : <Clock size={15} />}
                         </div>

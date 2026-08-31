@@ -143,7 +143,8 @@ export default function ProfilePage() {
   };
 
   const handleFavoriteSelected = (item: UnifiedMedia, slotType: "Movie" | "Series" | "Anime" | "Game") => {
-    const favItem = { ...item, status: "Favorite" as const, userRating: 5 };
+    const poster = item.poster || (item as any).coverUrl || (item as any).cover_url || "";
+    const favItem = { ...item, status: "Favorite" as const, userRating: 5, poster, coverUrl: poster };
     if (typeof window !== "undefined" && (currentUser?.id || user?.id)) {
       const uid = currentUser?.id || user?.id;
       try {
