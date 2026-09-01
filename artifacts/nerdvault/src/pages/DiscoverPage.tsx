@@ -20,20 +20,9 @@ export default function DiscoverPage() {
   const [sort, setSort] = useState("Recommended");
   const [mood, setMood] = useState<string | null>(null);
 
-  const [items, setItems] = useState<UnifiedMedia[]>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const cached = sessionStorage.getItem("nv_discover_feed_v2") || localStorage.getItem("nv_discover_feed_v2");
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-        }
-      } catch {}
-    }
-    return [];
-  });
+  const [items, setItems] = useState<UnifiedMedia[]>([]);
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(() => items.length === 0);
+  const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -76,11 +65,9 @@ export default function DiscoverPage() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Fetch initial batch (Page 1)
+  // Fetch initial batch (Page 1) fresh
   useEffect(() => {
-    if (items.length === 0) {
-      setLoading(true);
-    }
+    setLoading(true);
     setPage(1);
     setHasMore(true);
     isFetchingRef.current = true;
@@ -95,16 +82,18 @@ export default function DiscoverPage() {
     })
       .then((data) => {
         const fetched = data?.items || [];
-        if (fetched.length > 0) {
-          setItems(fetched);
-          if (!debouncedQuery.trim() && type === "All types" && genre === "All genres") {
-            try {
-              sessionStorage.setItem("nv_discover_feed_v2", JSON.stringify(fetched));
-              localStorage.setItem("nv_discover_feed_v2", JSON.stringify(fetched));
-            } catch {}
-          }
-        }
-        setHasMore(fetched.length >= 8 && !debouncedQuery.trim());
+        const seenIds = new Set<string>();
+        const seenTitles = new Set<string>();
+        const unique = fetched.filter((i) => {
+          const key = `${i.title.toLowerCase().trim()}-${i.type}`;
+          if (seenIds.has(i.id) || seenTitles.has(key)) return false;
+          seenIds.add(i.id);
+          seenTitles.add(key);
+          return true;
+        });
+
+        setItems(unique);
+        setHasMore(unique.length >= 8 && !debouncedQuery.trim());
 
         // Restore scroll position if returning from detail page
         const savedScrollY = sessionStorage.getItem("nv_discover_scroll_y");
@@ -146,8 +135,15 @@ export default function DiscoverPage() {
           setHasMore(false);
         } else {
           setItems((prev) => {
-            const seen = new Set(prev.map((i) => i.id));
-            const unique = newItems.filter((i) => !seen.has(i.id));
+            const existingIds = new Set(prev.map((i) => i.id));
+            const existingTitles = new Set(prev.map((i) => `${i.title.toLowerCase().trim()}-${i.type}`));
+            const unique = newItems.filter((i) => {
+              const titleKey = `${i.title.toLowerCase().trim()}-${i.type}`;
+              if (existingIds.has(i.id) || existingTitles.has(titleKey)) return false;
+              existingIds.add(i.id);
+              existingTitles.add(titleKey);
+              return true;
+            });
             if (unique.length === 0) {
               setHasMore(false);
               return prev;
@@ -162,7 +158,6 @@ export default function DiscoverPage() {
       })
       .finally(() => {
         setLoadingMore(false);
-        // Small cooldown to prevent immediate refiring
         setTimeout(() => {
           isFetchingRef.current = false;
         }, 500);

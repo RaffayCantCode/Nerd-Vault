@@ -34,40 +34,41 @@ export function MediaCard({
     <>
       <div
         data-testid={`card-media-${item.id}`}
-        className={`nv-poster-wrap group relative block cursor-pointer ${
-          compact ? "w-[120px] shrink-0 sm:w-[152px]" : "min-w-0"
+        className={`nv-poster-wrap group relative block cursor-pointer select-none ${
+          compact ? "w-[155px] shrink-0 sm:w-[185px] md:w-[205px]" : "min-w-0"
         }`}
       >
         <Link href={`/media/${item.id}`} onClick={handleCardClick} className="block">
           <div
-            className={`relative overflow-hidden rounded-xl sm:rounded-2xl border border-white/[.09] bg-[#161d22] aspect-[2/3] transition-all duration-300 ease-out group-hover:-translate-y-2 group-hover:scale-[1.03] group-hover:shadow-[0_16px_36px_rgba(0,0,0,.85),0_0_24px_rgba(55,218,178,.2)] group-hover:border-[rgba(55,218,178,.6)]`}
+            className="relative overflow-hidden rounded-2xl sm:rounded-[22px] border border-white/[.1] bg-[#141b20] aspect-[2/3] transition-all duration-300 ease-out group-hover:-translate-y-2.5 group-hover:scale-[1.03] group-hover:shadow-[0_20px_45px_rgba(0,0,0,0.95),0_0_30px_rgba(55,218,178,0.22)] group-hover:border-[hsl(var(--primary))]/70"
           >
             {posterUrl ? (
               <img
                 src={posterUrl}
                 alt={`${item.title} poster`}
-                className="nv-poster h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
+                className="nv-poster h-full w-full object-cover object-center transition-transform duration-500 ease-out group-hover:scale-105"
                 loading="lazy"
                 onError={() => setImgError(true)}
               />
             ) : (
-              <div className="flex h-full w-full flex-col items-center justify-center bg-[#131b20] p-3 text-center">
-                <ImageOff size={24} className="text-slate-600 mb-1 sm:mb-2" />
-                <span className="text-[10px] sm:text-[11px] font-bold text-slate-400 line-clamp-2">{item.title}</span>
+              <div className="flex h-full w-full flex-col items-center justify-center bg-[#11171c] p-4 text-center">
+                <ImageOff size={28} className="text-slate-600 mb-2" />
+                <span className="text-[11px] sm:text-[12px] font-bold text-slate-400 line-clamp-2">{item.title}</span>
               </div>
             )}
 
-            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/30 to-black/10" />
+            {/* Subtle Gradient Overlays for High Legibility */}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#090d10]/95 via-[#090d10]/35 to-[#090d10]/10" />
 
-            {/* Prominent High-Legibility Media Type Badge */}
-            <span className="absolute left-2 top-2 sm:left-2.5 sm:top-2.5 rounded-md sm:rounded-lg bg-black/80 px-2 py-0.5 sm:px-2.5 sm:py-1 font-mono-ui text-[9px] sm:text-[11px] font-bold text-slate-100 shadow-xl backdrop-blur-md border border-white/[.16]">
+            {/* Prominent Frosted Glass Media Type Badge */}
+            <span className="absolute left-2.5 top-2.5 sm:left-3 sm:top-3 rounded-lg bg-black/75 px-2.5 py-1 font-mono-ui text-[10px] sm:text-[11px] font-extrabold text-slate-100 shadow-xl backdrop-blur-md border border-white/[.18]">
               {item.type}
             </span>
 
             {/* Status Badge + One-Click Remove Cross (X) */}
             {inVault && (
-              <div className="absolute right-2 top-2 sm:right-2.5 sm:top-2.5 z-20 flex items-center gap-1.5">
-                <span className="rounded-md sm:rounded-lg bg-[hsl(var(--primary))] px-2 py-0.5 sm:px-2.5 sm:py-1 font-mono-ui text-[9px] sm:text-[10px] font-extrabold text-[#09201c] shadow-xl backdrop-blur-md">
+              <div className="absolute right-2.5 top-2.5 sm:right-3 sm:top-3 z-20 flex items-center gap-1.5">
+                <span className="rounded-lg bg-[hsl(var(--primary))] px-2.5 py-1 font-mono-ui text-[9.5px] sm:text-[10.5px] font-black text-[#09201c] shadow-xl backdrop-blur-md">
                   {status || "Vault"}
                 </span>
                 <button
@@ -79,23 +80,24 @@ export function MediaCard({
                   }}
                   aria-label={`Remove ${item.title} from vault`}
                   title="Remove from vault"
-                  className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-md sm:rounded-lg bg-black/80 text-slate-300 hover:bg-red-500 hover:text-white border border-white/[.2] shadow-lg transition active:scale-95"
+                  className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-lg bg-black/80 text-slate-300 hover:bg-red-500 hover:text-white border border-white/[.2] shadow-lg transition active:scale-95"
                 >
-                  <X size={11} className="sm:w-3 sm:h-3" />
+                  <X size={12} className="sm:w-3.5 sm:h-3.5" />
                 </button>
               </div>
             )}
 
-            <div className="absolute inset-x-2.5 bottom-2.5 sm:inset-x-3 sm:bottom-3">
-              <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-[11px] font-bold text-[#e6f4ed]">
-                <Star size={11} className="text-[#acd986] sm:w-[13px] sm:h-[13px]" fill="#acd986" />
-                <span>{item.rating}</span>
-                <span className="text-slate-400 text-[8px] sm:text-[9px] font-normal">/ 5</span>
+            {/* Card Information Bottom Drawer */}
+            <div className="absolute inset-x-3 bottom-3 sm:inset-x-3.5 sm:bottom-3.5">
+              <div className="flex items-center gap-1.5 text-[11px] sm:text-[12px] font-bold text-[#e6f4ed]">
+                <Star size={12} className="text-[#acd986] sm:w-[14px] sm:h-[14px]" fill="#acd986" />
+                <span className="font-extrabold">{item.rating}</span>
+                <span className="text-slate-400 text-[9px] sm:text-[10px] font-normal">/ 5</span>
               </div>
-              <p className="mt-0.5 sm:mt-1 line-clamp-1 text-[11px] sm:text-[12px] font-bold text-white group-hover:text-[hsl(var(--primary))] transition-colors">
+              <p className="mt-1 line-clamp-1 text-[12px] sm:text-[13px] font-bold text-white group-hover:text-[hsl(var(--primary))] transition-colors drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
                 {item.title}
               </p>
-              <p className="font-mono-ui text-[9px] sm:text-[10px] text-slate-400">
+              <p className="mt-0.5 font-mono-ui text-[9.5px] sm:text-[10.5px] text-slate-400 truncate">
                 {item.year} · {item.genre}
               </p>
             </div>

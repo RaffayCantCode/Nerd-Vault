@@ -221,9 +221,14 @@ export const catalogAggregator = {
     try {
       const cleanId = id.trim();
 
-      // 1. AniList (e.g. anilist-12345, anilist-anime-12345)
+      // 1. AniList (e.g. anilist-12345, anilist-anime-12345, anilist-mal-12345)
       if (cleanId.startsWith("anilist-")) {
-        const realId = cleanId.replace(/^anilist-(anime-)?/i, "");
+        if (cleanId.startsWith("anilist-mal-")) {
+          const malId = cleanId.replace(/^anilist-mal-/i, "");
+          const malItem = await anilistService.getDetailsByMalId(malId).catch(() => null);
+          if (malItem) return malItem;
+        }
+        const realId = cleanId.replace(/^anilist-(anime-|mal-)?/i, "");
         const item = await anilistService.getDetails(realId).catch(() => null);
         if (item) return item;
       }

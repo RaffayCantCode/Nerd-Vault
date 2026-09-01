@@ -30,8 +30,10 @@ function formatGame(item: any): UnifiedMedia {
     ? `https://images.igdb.com/igdb/image/upload/t_cover_big/${item.cover.image_id}.jpg`
     : "https://images.igdb.com/igdb/image/upload/t_cover_big/co3xjm.jpg";
 
-  const backdropUrl = item.screenshots?.[0]?.image_id
-    ? `https://images.igdb.com/igdb/image/upload/t_1080p/${item.screenshots[0].image_id}.jpg`
+  // Pick genuine 1080p horizontal artwork or screenshot
+  const backdropImageId = item.artworks?.[0]?.image_id || item.screenshots?.[0]?.image_id || item.artworks?.[1]?.image_id || item.screenshots?.[1]?.image_id;
+  const backdropUrl = backdropImageId
+    ? `https://images.igdb.com/igdb/image/upload/t_1080p/${backdropImageId}.jpg`
     : undefined;
 
   const year = item.first_release_date
@@ -113,7 +115,7 @@ export const igdbService = {
       }
 
       const body = `
-        fields name, summary, first_release_date, rating, total_rating, cover.image_id, screenshots.image_id, genres.name, platforms.name, involved_companies.company.name;
+        fields name, summary, first_release_date, rating, total_rating, cover.image_id, artworks.image_id, screenshots.image_id, genres.name, platforms.name, involved_companies.company.name;
         sort rating desc;
         ${whereClause};
         offset ${offset};
@@ -132,7 +134,7 @@ export const igdbService = {
     try {
       const body = `
         search "${query.replace(/"/g, "")}";
-        fields name, summary, first_release_date, rating, cover.image_id, screenshots.image_id, genres.name, platforms.name;
+        fields name, summary, first_release_date, rating, cover.image_id, artworks.image_id, screenshots.image_id, genres.name, platforms.name;
         limit 15;
       `;
       const data = await queryIGDB("games", body);
@@ -147,10 +149,10 @@ export const igdbService = {
     try {
       const cleanId = id.replace(/^igdb-(game-)?/, "");
       const body = `
-        fields name, summary, first_release_date, rating, total_rating, cover.image_id, screenshots.image_id, genres.name, platforms.name, involved_companies.company.name,
+        fields name, summary, first_release_date, rating, total_rating, cover.image_id, artworks.image_id, screenshots.image_id, genres.name, platforms.name, involved_companies.company.name,
                franchises.name, franchises.games.name, franchises.games.cover.image_id, franchises.games.first_release_date, franchises.games.rating,
                collection.name, collection.games.name, collection.games.cover.image_id, collection.games.first_release_date, collection.games.rating,
-               similar_games.name, similar_games.cover.image_id, similar_games.first_release_date, similar_games.rating, similar_games.genres.name;
+               similar_games.name, similar_games.cover.image_id, similar_games.artworks.image_id, similar_games.screenshots.image_id, similar_games.first_release_date, similar_games.rating, similar_games.genres.name;
         where id = ${cleanId};
       `;
       const data = await queryIGDB("games", body);

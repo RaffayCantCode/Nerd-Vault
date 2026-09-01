@@ -142,6 +142,10 @@
 .nv-reveal-3 { animation-delay: .16s; }
 .nv-reveal-4 { animation-delay: .24s; }
 @keyframes nv-reveal { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes nv-pill-progress {
+  from { width: 0%; }
+  to { width: 100%; }
+}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }

@@ -19,7 +19,7 @@ export function MediaRail({
 
   const handleScroll = (direction: "left" | "right") => {
     if (railRef.current) {
-      const scrollAmount = direction === "left" ? -480 : 480;
+      const scrollAmount = direction === "left" ? -600 : 600;
       railRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
     }
   };
@@ -34,7 +34,7 @@ export function MediaRail({
       />
       <div
         ref={railRef}
-        className="flex gap-4 overflow-x-auto pt-4 pb-4 px-1.5 -mt-3 -mx-1.5 scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex gap-5 sm:gap-6 overflow-x-auto pt-4 pb-4 px-1.5 -mt-3 -mx-1.5 scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {items.map((item) => (
           <MediaCard key={item.id} item={item} compact />
