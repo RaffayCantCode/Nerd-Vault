@@ -144,16 +144,17 @@ export default function MediaDetailPage() {
       </div>
 
       {/* Hero Backdrop Section */}
-      <section className="nv-reveal relative -mx-5 -mt-1 min-h-[520px] overflow-hidden sm:-mx-8 lg:-mx-10 rounded-3xl border border-white/[.1]">
+      <section className="nv-reveal relative -mx-5 -mt-1 min-h-[520px] overflow-hidden sm:-mx-8 lg:-mx-10 rounded-3xl border border-white/[.14] shadow-2xl">
         <img
           src={media.backdrop || media.poster}
           alt=""
-          className="absolute inset-0 h-full w-full object-cover object-center opacity-60"
+          className="absolute inset-0 h-full w-full object-cover object-center opacity-95 transition-opacity duration-700"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#0b0e12] via-[#0b0e12]/80 to-[#0b0e12]/20" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0b0e12] via-transparent to-[#0b0e12]/10" />
+        {/* Soft left-weighted gradient for readability without darkening the whole banner */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#070b0e]/95 via-[#070b0e]/50 to-transparent sm:max-w-[75%]" />
+        <div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-[#070b0e]/95 via-[#070b0e]/40 to-transparent" />
 
-        <div className="relative flex min-h-[520px] items-end px-5 pb-10 sm:px-8 lg:px-12">
+        <div className="relative flex min-h-[520px] items-end px-5 pb-10 sm:px-8 lg:px-12 drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]">
           <div className="flex w-full max-w-[980px] flex-col gap-7 sm:flex-row sm:items-end">
             <img
               src={media.poster}
@@ -529,7 +530,7 @@ export default function MediaDetailPage() {
 
           <div
             ref={franchiseRef}
-            className="flex gap-4 overflow-x-auto pb-4 pt-2 scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="flex gap-4 overflow-x-auto pt-4 pb-4 px-1.5 -mt-3 -mx-1.5 scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             {franchiseItems.map((item) => (
               <div key={item.id} className="w-[140px] shrink-0 sm:w-[160px]">

@@ -10,20 +10,8 @@ export default function HomePage() {
   const { user, openAuthModal } = useAuth();
   const { trackMedia, isInVault } = useVault();
 
-  // Instant hydration from cache for sub-10ms initial paint
-  const [feed, setFeed] = useState<HomeFeedData | null>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const cached = sessionStorage.getItem("nv_home_feed_v2") || localStorage.getItem("nv_home_feed_v2");
-        return cached ? JSON.parse(cached) : null;
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  });
-
-  const [loading, setLoading] = useState(!feed);
+  const [feed, setFeed] = useState<HomeFeedData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 
@@ -33,12 +21,6 @@ export default function HomePage() {
       .then((data) => {
         if (data && isMounted) {
           setFeed(data);
-          if (typeof window !== "undefined") {
-            try {
-              sessionStorage.setItem("nv_home_feed_v2", JSON.stringify(data));
-              localStorage.setItem("nv_home_feed_v2", JSON.stringify(data));
-            } catch {}
-          }
         }
       })
       .catch((err) => {
@@ -100,39 +82,40 @@ export default function HomePage() {
 
   return (
     <div className="space-y-12 pb-16">
-      {/* 4-Slide Hero Spotlight Banner — Modular instant load */}
+      {/* 4-Slide Hero Spotlight Banner — Bright, Vivid Artwork */}
       {activeMedia ? (
         <section
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
-          className="nv-reveal relative min-h-[460px] sm:min-h-[500px] overflow-hidden rounded-3xl border border-white/[.12] shadow-2xl transition-all duration-500 flex flex-col justify-end"
+          className="nv-reveal relative min-h-[460px] sm:min-h-[500px] overflow-hidden rounded-3xl border border-white/[.14] shadow-2xl transition-all duration-500 flex flex-col justify-end"
         >
           <img
             key={activeMedia.id}
             src={activeMedia.backdrop || activeMedia.poster}
             alt=""
-            className="absolute inset-0 h-full w-full object-cover object-center opacity-70 transition-opacity duration-700"
+            className="absolute inset-0 h-full w-full object-cover object-center opacity-95 transition-opacity duration-700"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#0a0f13] via-[#0a0f13]/85 to-[#0a0f13]/25" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0a0f13] via-[#0a0f13]/60 to-transparent" />
+          {/* Targeted left-weighted gradient for readability without darkening the main artwork */}
+          <div className="absolute inset-0 bg-gradient-to-r from-[#070b0e]/95 via-[#070b0e]/50 to-transparent sm:max-w-[70%]" />
+          <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#070b0e]/90 via-[#070b0e]/40 to-transparent" />
 
           {/* Hero Content */}
-          <div className="relative z-10 flex flex-col justify-end p-6 sm:p-10 lg:p-12 max-w-[840px]">
+          <div className="relative z-10 flex flex-col justify-end p-6 sm:p-10 lg:p-12 max-w-[840px] drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-mono-ui text-[11px] uppercase font-extrabold tracking-[.22em] text-[hsl(var(--primary))] bg-[hsl(var(--primary))]/10 px-2.5 py-0.5 rounded-md border border-[hsl(var(--primary))]/20">
+              <span className="font-mono-ui text-[11px] uppercase font-extrabold tracking-[.22em] text-[hsl(var(--primary))] bg-black/60 px-2.5 py-1 rounded-lg border border-[hsl(var(--primary))]/30 backdrop-blur-md">
                 Featured tonight · {activeMedia.type}
               </span>
-              <span className="text-slate-500">·</span>
-              <span className="font-mono-ui text-[11px] font-bold text-[#acd986]">
+              <span className="text-slate-400">·</span>
+              <span className="font-mono-ui text-[11px] font-bold text-[#acd986] bg-black/60 px-2.5 py-1 rounded-lg border border-white/[.1] backdrop-blur-md">
                 ★ {activeMedia.rating} / 5
               </span>
             </div>
 
-            <h2 className="font-display mt-3 text-3xl font-bold tracking-[-.06em] text-white sm:text-5xl lg:text-6xl line-clamp-2">
+            <h2 className="font-display mt-3 text-3xl font-extrabold tracking-[-.05em] text-white sm:text-5xl lg:text-6xl line-clamp-2 drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]">
               {activeMedia.title}
             </h2>
 
-            <p className="mt-3 max-w-[580px] text-[12px] sm:text-[13px] leading-5 sm:leading-6 text-slate-300/85 line-clamp-3">
+            <p className="mt-3 max-w-[580px] text-[12px] sm:text-[13px] leading-5 sm:leading-6 text-slate-200 line-clamp-3 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
               {activeMedia.overview}
             </p>
 
@@ -150,7 +133,7 @@ export default function HomePage() {
                 <button
                   onClick={handleHeroTrack}
                   data-testid="button-hero-vault"
-                  className="nv-button flex items-center gap-2 rounded-xl border border-white/[.18] bg-black/40 px-4 py-2.5 text-[12px] font-bold text-white backdrop-blur-md hover:bg-white/[.12]"
+                  className="nv-button flex items-center gap-2 rounded-xl border border-white/[.18] bg-black/50 px-4 py-2.5 text-[12px] font-bold text-white backdrop-blur-md hover:bg-white/[.15]"
                 >
                   {isSaved ? <Check size={14} /> : <BookmarkPlus size={14} />}
                   {isSaved ? "In your vault" : "Add to vault"}
@@ -163,7 +146,7 @@ export default function HomePage() {
                 <button
                   onClick={handlePrevSlide}
                   aria-label="Previous slide"
-                  className="nv-button flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl border border-white/[.15] bg-black/50 text-white backdrop-blur-md transition hover:bg-white/20 hover:border-white/30 active:scale-95 shadow-md"
+                  className="nv-button flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl border border-white/[.15] bg-black/60 text-white backdrop-blur-md transition hover:bg-white/20 hover:border-white/30 active:scale-95 shadow-md"
                 >
                   <ChevronLeft size={16} />
                 </button>
@@ -194,7 +177,7 @@ export default function HomePage() {
                 <button
                   onClick={handleNextSlide}
                   aria-label="Next slide"
-                  className="nv-button flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl border border-white/[.15] bg-black/50 text-white backdrop-blur-md transition hover:bg-white/20 hover:border-white/30 active:scale-95 shadow-md"
+                  className="nv-button flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl border border-white/[.15] bg-black/60 text-white backdrop-blur-md transition hover:bg-white/20 hover:border-white/30 active:scale-95 shadow-md"
                 >
                   <ChevronRight size={16} />
                 </button>
@@ -203,7 +186,7 @@ export default function HomePage() {
           </div>
         </section>
       ) : (
-        /* Modular Hero Skeleton */
+        /* Sleek Initial Hero Skeleton */
         <div className="min-h-[460px] sm:min-h-[500px] rounded-3xl bg-white/[.03] border border-white/[.08] animate-pulse flex flex-col justify-end p-8 sm:p-12">
           <div className="h-6 w-36 rounded-md bg-white/[.06] mb-4" />
           <div className="h-12 w-3/4 max-w-[480px] rounded-xl bg-white/[.06] mb-3" />
@@ -212,7 +195,7 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Main Rails with Modular Loading */}
+      {/* Main Rails with Clean Single Loading State */}
       {feed?.trendingMovies && feed.trendingMovies.length > 0 ? (
         <MediaRail
           title="Trending movies this week"

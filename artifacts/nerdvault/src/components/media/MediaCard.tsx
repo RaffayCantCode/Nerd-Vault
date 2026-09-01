@@ -46,7 +46,7 @@ export function MediaCard({
               <img
                 src={posterUrl}
                 alt={`${item.title} poster`}
-                className="nv-poster h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                className="nv-poster h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
                 loading="lazy"
                 onError={() => setImgError(true)}
               />
