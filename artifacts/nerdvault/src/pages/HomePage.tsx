@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Link } from "wouter";
 import { Play, BookmarkPlus, Check, CircleDot, ChevronLeft, ChevronRight } from "lucide-react";
 import { api, HomeFeedData, UnifiedMedia } from "../lib/api";
 import { MediaRail } from "../components/media/MediaRail";
 import { useVault } from "../context/VaultContext";
 import { useAuth } from "../context/AuthContext";
+
+const SLIDE_DURATION_MS = 10000; // 10 seconds per slide
 
 export default function HomePage() {
   const { user, openAuthModal } = useAuth();
@@ -13,7 +15,12 @@ export default function HomePage() {
   const [feed, setFeed] = useState<HomeFeedData | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [progress, setProgress] = useState(0); // 0 to 100%
   const [isPaused, setIsPaused] = useState(false);
+
+  const progressRef = useRef(0);
+  const lastTimeRef = useRef<number | null>(null);
+  const animFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -55,17 +62,50 @@ export default function HomePage() {
     slides.push(feed.featured);
   }
 
+  // High-precision, hardware-synced requestAnimationFrame loop for the 10-second fill
+  useEffect(() => {
+    if (slides.length <= 1) return;
+
+    const tick = (timestamp: number) => {
+      if (lastTimeRef.current !== null && !isPaused) {
+        const delta = timestamp - lastTimeRef.current;
+        progressRef.current += (delta / SLIDE_DURATION_MS) * 100;
+
+        if (progressRef.current >= 100) {
+          progressRef.current = 0;
+          setCurrentSlide((prev) => (prev + 1) % slides.length);
+        }
+        setProgress(progressRef.current);
+      }
+      lastTimeRef.current = timestamp;
+      animFrameRef.current = requestAnimationFrame(tick);
+    };
+
+    animFrameRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      lastTimeRef.current = null;
+    };
+  }, [slides.length, isPaused]);
+
   const handlePrevSlide = () => {
     if (slides.length <= 1) return;
+    progressRef.current = 0;
+    setProgress(0);
     setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
   };
 
   const handleNextSlide = () => {
     if (slides.length <= 1) return;
+    progressRef.current = 0;
+    setProgress(0);
     setCurrentSlide((prev) => (prev + 1) % slides.length);
   };
 
   const handleSelectSlide = (idx: number) => {
+    progressRef.current = 0;
+    setProgress(0);
     setCurrentSlide(idx);
   };
 
@@ -102,7 +142,10 @@ export default function HomePage() {
       {activeMedia ? (
         <section
           onMouseEnter={() => setIsPaused(true)}
-          onMouseLeave={() => setIsPaused(false)}
+          onMouseLeave={() => {
+            lastTimeRef.current = null;
+            setIsPaused(false);
+          }}
           className="nv-reveal relative z-10 w-full -mt-[76px] pt-[96px] min-h-[640px] sm:min-h-[720px] lg:min-h-[780px] flex flex-col justify-end"
         >
           {/* Feathered Hero Artwork Container (Gradually dissolves into the ambient glow with zero hard cuts) */}
@@ -169,8 +212,8 @@ export default function HomePage() {
                   <ChevronLeft size={17} />
                 </button>
 
-                {/* 4 Animated Progress Bar Capsules (10 seconds fill per pill via Keyframes) */}
-                <div className="flex items-center gap-2 px-2.5 bg-black/60 py-2 rounded-xl border border-white/[.15] backdrop-blur-md shadow-lg">
+                {/* 4 Animated Progress Bar Capsules (10 seconds smooth continuous fill) */}
+                <div className="flex items-center gap-2 px-3 py-2 bg-black/60 rounded-xl border border-white/[.15] backdrop-blur-md shadow-lg">
                   {slides.map((s, idx) => {
                     const isActive = currentSlide === idx;
                     return (
@@ -178,24 +221,21 @@ export default function HomePage() {
                         key={s.id || idx}
                         onClick={() => handleSelectSlide(idx)}
                         aria-label={`Go to slide ${idx + 1}`}
-                        className="group relative h-2.5 rounded-full overflow-hidden transition-all duration-300 focus:outline-none cursor-pointer"
+                        className="group relative h-2.5 rounded-full overflow-hidden transition-all duration-300 focus:outline-none cursor-pointer flex items-center"
                         style={{
-                          width: isActive ? "44px" : "10px",
-                          backgroundColor: isActive ? "rgba(255, 255, 255, 0.25)" : "rgba(255, 255, 255, 0.4)",
+                          width: isActive ? "46px" : "10px",
+                          backgroundColor: isActive ? "rgba(255, 255, 255, 0.2)" : "rgba(255, 255, 255, 0.45)",
                         }}
                       >
                         {isActive ? (
                           <div
-                            key={`pill-fill-${currentSlide}`}
                             className="h-full bg-[hsl(var(--primary))] shadow-[0_0_10px_hsl(var(--primary))] rounded-full"
                             style={{
-                              animation: "nv-pill-progress 10s linear forwards",
-                              animationPlayState: isPaused ? "paused" : "running",
+                              width: `${Math.min(100, Math.max(0, progress))}%`,
                             }}
-                            onAnimationEnd={handleNextSlide}
                           />
                         ) : (
-                          <div className="h-full w-full opacity-0 group-hover:opacity-100 bg-white/30 rounded-full transition" />
+                          <div className="h-full w-full opacity-0 group-hover:opacity-100 bg-white/40 rounded-full transition" />
                         )}
                       </button>
                     );
