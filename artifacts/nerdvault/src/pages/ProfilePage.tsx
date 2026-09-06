@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Link, useParams } from "wouter";
 import {
   Star, Heart, Sparkles, Check, UserPlus, Share2, Edit3, Film, Tv,
   Gamepad2, Calendar, Clock, ListFilter, Search, ArrowUpDown, ChevronRight,
-  BookmarkCheck, Plus, LogIn, Lock
+  BookmarkCheck, Plus, LogIn, Lock, Camera, Loader2
 } from "lucide-react";
 import { api, UserProfile, VaultStats, UnifiedMedia } from "../lib/api";
 import { Avatar } from "../components/common/Avatar";
@@ -17,7 +17,7 @@ import { useVault } from "../context/VaultContext";
 
 export default function ProfilePage() {
   const { id } = useParams<{ id?: string }>();
-  const { user, openAuthModal } = useAuth();
+  const { user, openAuthModal, updateUser } = useAuth();
   const { vaultItems, stats, notify } = useVault();
 
   const [activeTab, setActiveTab] = useState<"showcase" | "activity" | "logs">("showcase");
@@ -32,6 +32,83 @@ export default function ProfilePage() {
   const [isOwner, setIsOwner] = useState(false);
   const [friendRequested, setFriendRequested] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarClick = () => {
+    if (!isOwner) return;
+    fileInputRef.current?.click();
+  };
+
+  const processAvatarFile = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("Failed to read image file"));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error("Failed to load image"));
+        img.onload = () => {
+          try {
+            const maxDim = 400;
+            const minEdge = Math.min(img.width, img.height);
+            const startX = (img.width - minEdge) / 2;
+            const startY = (img.height - minEdge) / 2;
+
+            const canvas = document.createElement("canvas");
+            const finalSize = Math.min(minEdge, maxDim);
+            canvas.width = finalSize;
+            canvas.height = finalSize;
+
+            const ctx = canvas.getContext("2d");
+            if (!ctx) {
+              resolve(reader.result as string);
+              return;
+            }
+
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = "high";
+            ctx.drawImage(img, startX, startY, minEdge, minEdge, 0, 0, finalSize, finalSize);
+
+            const compressed = canvas.toDataURL("image/jpeg", 0.88);
+            resolve(compressed);
+          } catch {
+            resolve(reader.result as string);
+          }
+        };
+        img.src = reader.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      notify("Please select a valid image file.");
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const dataUrl = await processAvatarFile(file);
+      const res = await api.updateProfile({ image: dataUrl });
+      if (res?.user) {
+        updateUser(res.user);
+        setProfileUser((prev) => (prev ? { ...prev, image: res.user.image } : res.user));
+        notify("Profile picture updated!");
+      }
+    } catch (err: any) {
+      console.error("Failed to update profile picture:", err);
+      notify("Failed to update profile picture: " + (err.message || "Unknown error"));
+    } finally {
+      setUploadingImage(false);
+      if (e.target) {
+        e.target.value = "";
+      }
+    }
+  };
 
   // Logs filters & sorting
   const [logSort, setLogSort] = useState<"latest" | "oldest" | "highest" | "title">("latest");
@@ -220,8 +297,79 @@ export default function ProfilePage() {
         <div className="absolute right-0 top-0 h-64 w-64 rounded-full bg-[rgba(55,218,178,.12)] blur-3xl" />
         <div className="relative flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
           <div className="flex items-center gap-5">
-            <div className="grid h-20 w-20 place-items-center rounded-3xl bg-gradient-to-br from-[#65d4bd] to-[#286d70] text-2xl font-extrabold text-[#09201c] shadow-[0_0_35px_rgba(55,218,178,.3)]">
-              {initials}
+            {/* Avatar Container with click-to-upload for owner */}
+            <div className="relative shrink-0">
+              <div
+                onClick={handleAvatarClick}
+                onKeyDown={(e) => {
+                  if (isOwner && (e.key === "Enter" || e.key === " ")) {
+                    e.preventDefault();
+                    handleAvatarClick();
+                  }
+                }}
+                role={isOwner ? "button" : undefined}
+                tabIndex={isOwner ? 0 : undefined}
+                title={isOwner ? "Click to change profile picture" : undefined}
+                data-testid="profile-avatar-clickable"
+                className={`relative h-20 w-20 select-none overflow-hidden rounded-3xl shadow-[0_0_35px_rgba(55,218,178,.3)] transition-all duration-300 ${
+                  isOwner
+                    ? "group cursor-pointer hover:ring-2 hover:ring-[hsl(var(--primary))] hover:ring-offset-2 hover:ring-offset-[#11171c] hover:shadow-[0_0_40px_rgba(55,218,178,.55)]"
+                    : ""
+                }`}
+              >
+                {currentUser?.image ? (
+                  <img
+                    src={currentUser.image}
+                    alt={currentUser?.name || "Profile"}
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                ) : (
+                  <div className="grid h-full w-full place-items-center bg-gradient-to-br from-[#65d4bd] to-[#286d70] text-2xl font-extrabold text-[#09201c]">
+                    {initials}
+                  </div>
+                )}
+
+                {/* Owner hover change overlay */}
+                {isOwner && (
+                  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/60 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-white">
+                    <Camera size={20} className="text-emerald-300" />
+                    <span className="mt-1 font-mono-ui text-[9px] font-bold uppercase tracking-wider text-emerald-300">
+                      Change
+                    </span>
+                  </div>
+                )}
+
+                {/* Loading indicator during upload */}
+                {uploadingImage && (
+                  <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/75 backdrop-blur-[2px] text-white">
+                    <Loader2 className="animate-spin text-emerald-400" size={22} />
+                    <span className="mt-1 text-[9px] font-bold text-emerald-300">Saving...</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Owner small camera badge indicator */}
+              {isOwner && !uploadingImage && (
+                <button
+                  type="button"
+                  onClick={handleAvatarClick}
+                  title="Click to select profile picture"
+                  className="absolute -bottom-1 -right-1 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-[#11171c] border-2 border-[#162026] text-[hsl(var(--primary))] shadow-md hover:bg-[hsl(var(--primary))] hover:text-[#08211c] transition-colors cursor-pointer"
+                >
+                  <Camera size={13} />
+                </button>
+              )}
+
+              {/* Hidden file input */}
+              {isOwner && (
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
+                  className="hidden"
+                  onChange={handleImageFileChange}
+                />
+              )}
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -648,7 +796,10 @@ export default function ProfilePage() {
 
       <EditProfileModal
         isOpen={editModalOpen}
-        onClose={() => setEditModalOpen(false)}
+        onClose={() => {
+          setEditModalOpen(false);
+          loadProfile();
+        }}
         currentUser={currentUser || { id: "guest", name: "Guest", email: "" }}
       />
 

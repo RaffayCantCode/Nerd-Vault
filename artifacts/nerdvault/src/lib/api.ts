@@ -71,6 +71,11 @@ export type Shelf = {
   isPublic?: boolean;
   itemCount?: number;
   items?: UnifiedMedia[];
+  ownerName?: string;
+  ownerAvatar?: string;
+  isOwner?: boolean;
+  createdAt?: string;
+  created_at?: string;
 };
 
 export type ActivityItem = {
@@ -217,16 +222,27 @@ export const api = {
 
   // Shelves
   getShelves: () => request<{ shelves: Shelf[] }>("/api/shelves"),
-  createShelf: (data: { name: string; description?: string; isPublic?: boolean; visibility?: string; color?: string }) =>
+  getShelfDetail: (idOrSlug: string) =>
+    request<{ shelf: Shelf; items: UnifiedMedia[] }>(`/api/shelves/${encodeURIComponent(idOrSlug)}`),
+  createShelf: (data: { name: string; description?: string; isPublic?: boolean; visibility?: string; color?: string; coverUrl?: string }) =>
     request<{ shelf: Shelf }>("/api/shelves", {
       method: "POST",
       body: JSON.stringify(data),
     }),
-  deleteShelf: (id: string) => request<{ success: boolean }>(`/api/shelves/${id}`, { method: "DELETE" }),
-  addMediaToShelf: (shelfId: string, mediaId: string) =>
-    request<{ success: boolean }>(`/api/shelves/${shelfId}/items`, {
+  updateShelf: (id: string, data: { name?: string; description?: string; visibility?: string; coverUrl?: string }) =>
+    request<{ shelf: Shelf }>(`/api/shelves/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteShelf: (id: string) => request<{ success: boolean }>(`/api/shelves/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  addMediaToShelf: (shelfId: string, mediaId: string, mediaData?: Partial<UnifiedMedia>) =>
+    request<{ success: boolean }>(`/api/shelves/${encodeURIComponent(shelfId)}/items`, {
       method: "POST",
-      body: JSON.stringify({ mediaId }),
+      body: JSON.stringify({ mediaId, mediaData }),
+    }),
+  removeMediaFromShelf: (shelfId: string, mediaId: string) =>
+    request<{ success: boolean }>(`/api/shelves/${encodeURIComponent(shelfId)}/items/${encodeURIComponent(mediaId)}`, {
+      method: "DELETE",
     }),
 
   // Social

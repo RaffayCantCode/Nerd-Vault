@@ -12,12 +12,16 @@ export function CustomSelect({
   options,
   placeholder,
   minWidth = "140px",
+  className = "",
+  buttonClassName = "",
 }: {
   value: string;
   onChange: (val: string) => void;
   options: string[] | Option[];
   placeholder?: string;
   minWidth?: string;
+  className?: string;
+  buttonClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -39,15 +43,15 @@ export function CustomSelect({
   }, []);
 
   return (
-    <div ref={containerRef} className="relative z-40 select-none" style={{ minWidth }}>
+    <div ref={containerRef} className={`relative z-40 select-none ${className}`} style={{ minWidth }}>
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className={`nv-button flex h-12 w-full items-center justify-between gap-3 rounded-2xl border px-4 text-[12px] font-bold transition-all duration-200 ${
+        className={`nv-button flex h-10 w-full items-center justify-between gap-2.5 rounded-xl border px-3.5 text-[12px] font-bold transition-all duration-200 ${
           open
             ? "border-[rgba(55,218,178,.6)] bg-[#172027] text-white shadow-[0_0_24px_rgba(55,218,178,.2)]"
             : "border-white/[.12] bg-[#141b20] text-slate-300 hover:border-white/[.22] hover:bg-[#182127]"
-        }`}
+        } ${buttonClassName}`}
       >
         <span className="truncate">{selectedOption?.label || placeholder}</span>
         <ChevronDown

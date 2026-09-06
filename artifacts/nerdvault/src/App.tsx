@@ -19,6 +19,7 @@ import DiscoverPage from "./pages/DiscoverPage";
 import MediaDetailPage from "./pages/MediaDetailPage";
 import FriendsPage from "./pages/FriendsPage";
 import ProfilePage from "./pages/ProfilePage";
+import ShelfDetailPage from "./pages/ShelfDetailPage";
 import NotFound from "./pages/not-found";
 
 const queryClient = new QueryClient({
@@ -36,6 +37,8 @@ function Router() {
       <Route path="/" component={HomePage} />
       <Route path="/vault" component={VaultPage} />
       <Route path="/discover" component={DiscoverPage} />
+      <Route path="/shelf/:id" component={ShelfDetailPage} />
+      <Route path="/shelves/:id" component={ShelfDetailPage} />
       <Route path="/media/:slug" component={MediaDetailPage} />
       <Route path="/friends" component={FriendsPage} />
       <Route path="/profile" component={ProfilePage} />

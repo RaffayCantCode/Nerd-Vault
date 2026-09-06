@@ -13,18 +13,12 @@ export const navItems = [
   { href: "/friends", label: "Friends", icon: Users },
 ];
 
+import { useVault } from "../../context/VaultContext";
+
 export function Sidebar({ onCreateShelf }: { onCreateShelf: () => void }) {
   const [location] = useLocation();
   const { user, openAuthModal } = useAuth();
-  const [shelves, setShelves] = useState<Shelf[]>([]);
-
-  useEffect(() => {
-    api.getShelves()
-      .then((res) => {
-        if (res?.shelves) setShelves(res.shelves);
-      })
-      .catch(() => {});
-  }, []);
+  const { shelves } = useVault();
 
   const initials = user?.name
     ? user.name
@@ -68,20 +62,27 @@ export function Sidebar({ onCreateShelf }: { onCreateShelf: () => void }) {
           Collections
         </p>
         <div className="space-y-1">
-          {shelves.map((shelf) => (
-            <Link
-              key={shelf.id}
-              href={`/vault?folder=${shelf.slug}`}
-              data-testid={`link-folder-${shelf.slug}`}
-              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-slate-400 transition hover:bg-white/[.04] hover:text-slate-200"
-            >
-              <Folder size={17} />
-              <span className="truncate">{shelf.name}</span>
-              <span className="ml-auto text-[11px] text-slate-600">
-                {String(shelf.itemCount).padStart(2, "0")}
-              </span>
-            </Link>
-          ))}
+          {shelves.map((shelf) => {
+            const active = location === `/shelf/${shelf.id}` || location === `/shelf/${shelf.slug}`;
+            return (
+              <Link
+                key={shelf.id}
+                href={`/shelf/${shelf.id}`}
+                data-testid={`link-folder-${shelf.slug}`}
+                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-semibold transition ${
+                  active
+                    ? "bg-[rgba(55,218,178,.11)] text-[hsl(var(--primary))]"
+                    : "text-slate-400 hover:bg-white/[.04] hover:text-slate-200"
+                }`}
+              >
+                <Folder size={17} strokeWidth={active ? 2.2 : 1.8} />
+                <span className="truncate">{shelf.name}</span>
+                <span className="ml-auto text-[11px] text-slate-600">
+                  {String(shelf.itemCount).padStart(2, "0")}
+                </span>
+              </Link>
+            );
+          })}
           <button
             onClick={onCreateShelf}
             data-testid="button-create-collection"

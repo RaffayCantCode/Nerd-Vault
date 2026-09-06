@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { X, Check, Lock, Eye, Users } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { X, Check, Lock, Eye, Users, Camera, Trash2 } from "lucide-react";
 import { api, UserProfile } from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
 import { useVault } from "../../context/VaultContext";
@@ -18,6 +18,14 @@ export function EditProfileModal({
 
   const [name, setName] = useState(currentUser.name || "");
   const [bio, setBio] = useState(currentUser.bio || "");
+  const [image, setImage] = useState(currentUser.image || "");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setName(currentUser.name || "");
+    setBio(currentUser.bio || "");
+    setImage(currentUser.image || "");
+  }, [currentUser, isOpen]);
 
   // Section-by-section privacy settings
   const savedSettings = JSON.parse(localStorage.getItem(`nv_privacy_${currentUser.id}`) || "{}");
@@ -30,11 +38,53 @@ export function EditProfileModal({
 
   if (!isOpen) return null;
 
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      notify("Please select a valid image file.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const maxDim = 400;
+          const minEdge = Math.min(img.width, img.height);
+          const startX = (img.width - minEdge) / 2;
+          const startY = (img.height - minEdge) / 2;
+
+          const canvas = document.createElement("canvas");
+          const finalSize = Math.min(minEdge, maxDim);
+          canvas.width = finalSize;
+          canvas.height = finalSize;
+
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = "high";
+            ctx.drawImage(img, startX, startY, minEdge, minEdge, 0, 0, finalSize, finalSize);
+            setImage(canvas.toDataURL("image/jpeg", 0.88));
+          } else {
+            setImage(reader.result as string);
+          }
+        } catch {
+          setImage(reader.result as string);
+        }
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await api.updateProfile({ name, bio });
+      const res = await api.updateProfile({ name, bio, image });
       if (res?.user) {
         updateUser(res.user);
       }
@@ -80,6 +130,50 @@ export function EditProfileModal({
         </h3>
 
         <form onSubmit={handleSave} className="space-y-5">
+          {/* Profile Picture Upload & Preview */}
+          <div className="flex items-center gap-4 rounded-2xl bg-white/[.02] border border-white/[.08] p-3.5">
+            <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl shadow-md border border-white/[.1]">
+              {image ? (
+                <img src={image} alt="Avatar preview" className="h-full w-full object-cover" />
+              ) : (
+                <div className="grid h-full w-full place-items-center bg-gradient-to-br from-[#65d4bd] to-[#286d70] text-xl font-extrabold text-[#09201c]">
+                  {(name || currentUser.name || "U")[0]?.toUpperCase()}
+                </div>
+              )}
+            </div>
+            <div className="flex flex-col gap-1.5 flex-1">
+              <span className="text-[12px] font-bold text-slate-200">Profile Picture</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="nv-button flex items-center gap-1.5 rounded-xl border border-white/[.12] bg-[#141b20] px-3 py-1.5 text-[11px] font-bold text-slate-300 hover:border-emerald-500/50 hover:text-white"
+                >
+                  <Camera size={13} />
+                  <span>{image ? "Change photo" : "Upload photo"}</span>
+                </button>
+                {image && (
+                  <button
+                    type="button"
+                    onClick={() => setImage("")}
+                    className="nv-button flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-[11px] font-semibold text-rose-400 hover:bg-rose-500/10"
+                    title="Remove custom photo"
+                  >
+                    <Trash2 size={12} />
+                    <span>Remove</span>
+                  </button>
+                )}
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
+                className="hidden"
+                onChange={handleImageFileChange}
+              />
+            </div>
+          </div>
+
           <div>
             <label className="block text-[11px] font-bold text-slate-400 mb-1.5">
               Display Name

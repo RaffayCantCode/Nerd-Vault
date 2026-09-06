@@ -6,11 +6,13 @@ import { useVault } from "../../context/VaultContext";
 export function CreateShelfModal({
   isOpen,
   onClose,
+  onSuccess,
 }: {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess?: (shelf: any) => void;
 }) {
-  const { notify } = useVault();
+  const { notify, refreshShelves } = useVault();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [visibility, setVisibility] = useState("public");
@@ -23,17 +25,21 @@ export function CreateShelfModal({
     if (!name.trim()) return;
     setCreating(true);
     try {
-      await api.createShelf({
+      const res = await api.createShelf({
         name: name.trim(),
         description: description.trim(),
         visibility,
       });
-      notify(`Created collection “${name.trim()}”`);
+      notify(`Created shelf “${name.trim()}”`);
+      await refreshShelves();
+      if (res?.shelf && onSuccess) {
+        onSuccess(res.shelf);
+      }
       setName("");
       setDescription("");
       onClose();
     } catch {
-      notify("Failed to create collection");
+      notify("Failed to create shelf");
     } finally {
       setCreating(false);
     }

@@ -605,6 +605,133 @@ export async function addMediaToShelf(folderId: string, mediaId: string): Promis
   );
 }
 
+export async function updateShelf(
+  shelfId: string,
+  userId: string,
+  params: { name?: string; description?: string; visibility?: string; coverUrl?: string }
+): Promise<Folder | null> {
+  const updates: string[] = [];
+  const args: any[] = [];
+
+  if (params.name !== undefined) {
+    updates.push("name = ?");
+    args.push(params.name);
+    const slug = params.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    updates.push("slug = ?");
+    args.push(slug);
+  }
+  if (params.description !== undefined) {
+    updates.push("description = ?");
+    args.push(params.description || null);
+  }
+  if (params.visibility !== undefined) {
+    updates.push("visibility = ?");
+    args.push(params.visibility);
+  }
+  if (params.coverUrl !== undefined) {
+    updates.push("cover_url = ?");
+    args.push(params.coverUrl || null);
+  }
+
+  if (updates.length === 0) {
+    const existing = await queryD1<Folder>(`SELECT * FROM folders WHERE id = ?;`, [shelfId]);
+    return existing[0] || null;
+  }
+
+  updates.push("updated_at = CURRENT_TIMESTAMP");
+  args.push(shelfId, userId);
+
+  await queryD1(
+    `UPDATE folders SET ${updates.join(", ")} WHERE id = ? AND user_id = ?;`,
+    args
+  );
+
+  const rows = await queryD1<Folder>(`SELECT * FROM folders WHERE id = ?;`, [shelfId]);
+  return rows[0] || null;
+}
+
+export async function getShelfById(shelfIdOrSlug: string, currentUserId?: string): Promise<{
+  shelf: Folder & { itemCount: number; ownerName?: string; ownerAvatar?: string; isOwner: boolean };
+  items: any[];
+} | null> {
+  const shelfRows = await queryD1<Folder & { item_count: number; owner_name?: string; owner_avatar?: string }>(
+    `SELECT f.*, COUNT(fi.media_id) as item_count, u.name as owner_name, u.image as owner_avatar
+     FROM folders f
+     LEFT JOIN users u ON f.user_id = u.id
+     LEFT JOIN folder_items fi ON f.id = fi.folder_id
+     WHERE f.id = ? OR f.slug = ?
+     GROUP BY f.id;`,
+    [shelfIdOrSlug, shelfIdOrSlug]
+  );
+  if (!shelfRows || shelfRows.length === 0) return null;
+  const s = shelfRows[0];
+  const isOwner = Boolean(currentUserId && currentUserId === s.user_id);
+
+  if (s.visibility === "private" && !isOwner) {
+    return null;
+  }
+
+  const shelf = {
+    ...s,
+    itemCount: Number(s.item_count || 0),
+    ownerName: s.owner_name || "Vault Curator",
+    ownerAvatar: s.owner_avatar,
+    isOwner,
+  };
+
+  const itemRows = await queryD1<{
+    id: string;
+    source: string;
+    source_id: string;
+    type: string;
+    title: string;
+    original_title?: string;
+    overview?: string;
+    release_year?: number;
+    runtime?: number;
+    rating?: number;
+    cover_url?: string;
+    backdrop_url?: string;
+    trailer_url?: string;
+    status?: string;
+    user_rating?: number;
+    notes?: string;
+  }>(
+    `SELECT m.*, v.status, v.user_rating, v.notes
+     FROM folder_items fi
+     JOIN media m ON fi.media_id = m.id
+     LEFT JOIN user_vault_items v ON v.media_id = m.id AND v.user_id = ?
+     WHERE fi.folder_id = ?
+     ORDER BY fi.created_at DESC;`,
+    [currentUserId || s.user_id, s.id]
+  );
+
+  const items = itemRows.map((r) => ({
+    id: r.id,
+    slug: r.id,
+    title: r.title,
+    originalTitle: r.original_title,
+    overview: r.overview || "",
+    type: (r.type as any) || "Movie",
+    status: (r.status as any) || "Completed",
+    year: String(r.release_year || ""),
+    releaseYear: r.release_year,
+    runtime: r.runtime ? `${r.runtime}m` : undefined,
+    rating: r.rating ? String(r.rating) : "4.5",
+    userRating: r.user_rating,
+    notes: r.notes,
+    poster: r.cover_url || "",
+    backdrop: r.backdrop_url || "",
+    trailerUrl: r.trailer_url,
+    source: (r.source as any) || "tmdb",
+    sourceId: r.source_id || r.id,
+    genre: "Featured",
+    genres: [],
+  }));
+
+  return { shelf, items };
+}
+
 export async function removeMediaFromShelf(folderId: string, mediaId: string): Promise<void> {
   await queryD1(`DELETE FROM folder_items WHERE folder_id = ? AND media_id = ?;`, [folderId, mediaId]);
 }

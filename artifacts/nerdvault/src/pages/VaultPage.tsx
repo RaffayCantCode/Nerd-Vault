@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { Plus, Bookmark, ChevronRight, FolderPlus } from "lucide-react";
 import { MediaCard } from "../components/media/MediaCard";
 import { SectionHeading } from "../components/common/SectionHeading";
+import { CustomSelect } from "../components/common/CustomSelect";
 import { useVault } from "../context/VaultContext";
 import { useAuth } from "../context/AuthContext";
 import { api, Shelf, UnifiedMedia } from "../lib/api";
@@ -10,26 +11,54 @@ import { CreateShelfModal } from "../components/shelves/CreateShelfModal";
 
 export default function VaultPage() {
   const { user, openAuthModal } = useAuth();
-  const { vaultItems, stats, notify, loading } = useVault();
+  const { vaultItems, stats, notify, loading, shelves, refreshShelves } = useVault();
   const [tab, setTab] = useState("All");
+  const [mediaType, setMediaType] = useState("All types");
   const [sort, setSort] = useState<"recent" | "rating" | "title">("recent");
-  const [shelves, setShelves] = useState<Shelf[]>([]);
   const [createShelfOpen, setCreateShelfOpen] = useState(false);
 
   useEffect(() => {
-    api.getShelves()
-      .then((res) => {
-        if (res?.shelves) setShelves(res.shelves);
-      })
-      .catch(() => {});
+    const query = new URLSearchParams(window.location.search);
+    const folder = query.get("folder");
+    if (folder) {
+      window.location.replace(`/shelf/${folder}`);
+    }
   }, []);
 
   const tabs = ["All", "Watching", "Completed", "Wishlist", "Favorites"];
 
+  const mediaTypeOptions = [
+    { label: "All types", value: "All types" },
+    { label: "Movies", value: "Movie" },
+    { label: "Series", value: "Series" },
+    { label: "Anime", value: "Anime" },
+    { label: "Games", value: "Game" },
+  ];
+
+  const sortOptions = [
+    { label: "Recently added", value: "recent" },
+    { label: "Highest rated", value: "rating" },
+    { label: "Alphabetical", value: "title" },
+  ];
+
   let filtered = vaultItems.filter((item) => {
-    if (tab === "All") return true;
-    if (tab === "Favorites") return item.status === "Favorite" || (item.userRating && item.userRating >= 4.5);
-    return item.status?.toLowerCase() === tab.toLowerCase();
+    if (tab === "Favorites") {
+      const isFav = item.status === "Favorite" || (item.userRating && item.userRating >= 4.5);
+      if (!isFav) return false;
+    } else if (tab !== "All") {
+      if (item.status?.toLowerCase() !== tab.toLowerCase()) return false;
+    }
+
+    if (mediaType !== "All types") {
+      const itemType = (item.type || "").toLowerCase();
+      const target = mediaType.toLowerCase();
+      if (target === "movie" && itemType !== "movie") return false;
+      if (target === "series" && itemType !== "series" && itemType !== "show") return false;
+      if (target === "anime" && itemType !== "anime") return false;
+      if (target === "game" && itemType !== "game") return false;
+    }
+
+    return true;
   });
 
   if (sort === "rating") {
@@ -130,16 +159,24 @@ export default function VaultPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 self-end sm:self-center">
-            <select
+          <div className="flex flex-wrap items-center gap-2.5 self-end sm:self-center">
+            {/* Media Type Filter to the LEFT of the recently added sort dropdown */}
+            <CustomSelect
+              value={mediaType}
+              onChange={setMediaType}
+              options={mediaTypeOptions}
+              minWidth="125px"
+              buttonClassName="h-10 text-[12px] bg-[#141b20]"
+            />
+
+            {/* Recently added / Sort dropdown */}
+            <CustomSelect
               value={sort}
-              onChange={(e) => setSort(e.target.value as any)}
-              className="h-10 rounded-xl border border-white/[.1] bg-[#141b20] px-3.5 text-[12px] font-semibold text-slate-300 outline-none"
-            >
-              <option value="recent">Recently added</option>
-              <option value="rating">Highest rated</option>
-              <option value="title">Alphabetical</option>
-            </select>
+              onChange={(val) => setSort(val as any)}
+              options={sortOptions}
+              minWidth="150px"
+              buttonClassName="h-10 text-[12px] bg-[#141b20]"
+            />
           </div>
         </div>
 
@@ -156,7 +193,7 @@ export default function VaultPage() {
               <Bookmark size={24} />
             </div>
             <p className="mt-4 text-[15px] font-bold text-slate-200">
-              No {tab.toLowerCase()} titles in your vault
+              No {mediaType !== "All types" ? mediaType.toLowerCase() : ""} {tab.toLowerCase()} titles in your vault
             </p>
             <p className="mt-1 max-w-[340px] text-[12px] leading-5 text-slate-500">
               Explore trending movies, series, anime, and games to begin building your personal archive.
@@ -188,20 +225,20 @@ export default function VaultPage() {
               return (
                 <Link
                   key={shelf.id}
-                  href={`/vault?folder=${shelf.slug}`}
+                  href={`/shelf/${shelf.id}`}
                   data-testid={`button-shelf-${shelf.slug}`}
-                  className="nv-button flex items-center gap-3 rounded-2xl border border-white/[.08] bg-white/[.025] p-3.5 text-left hover:bg-white/[.07] transition"
+                  className="nv-button group flex items-center gap-3 rounded-2xl border border-white/[.08] bg-white/[.025] p-3.5 text-left hover:border-white/[.18] hover:bg-white/[.06] transition-all"
                 >
-                  <span className={`h-3 w-3 rounded-full ${colorClass}`} />
+                  <span className={`h-3 w-3 rounded-full shrink-0 ${colorClass}`} />
                   <span className="min-w-0">
-                    <span className="block truncate text-[12px] font-bold text-slate-200">
+                    <span className="block truncate text-[12px] font-bold text-slate-200 group-hover:text-white">
                       {shelf.name}
                     </span>
                     <span className="block text-[11px] text-slate-500">
                       {shelf.itemCount} titles
                     </span>
                   </span>
-                  <ChevronRight size={15} className="ml-auto text-slate-600" />
+                  <ChevronRight size={15} className="ml-auto text-slate-600 group-hover:text-[hsl(var(--primary))] transition-transform group-hover:translate-x-0.5 shrink-0" />
                 </Link>
               );
             })}

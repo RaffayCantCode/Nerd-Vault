@@ -25,12 +25,14 @@ export function Avatar({
     xl: "h-20 w-20 text-2xl rounded-3xl",
   };
 
+  const roundedClass = size === "xl" ? "rounded-3xl" : "rounded-full";
+
   if (image) {
     return (
       <img
         src={image}
         alt={initials}
-        className={`${sizes[size]} shrink-0 rounded-full object-cover ring-2 ring-[#11171b]`}
+        className={`${sizes[size]} shrink-0 ${roundedClass} object-cover ring-2 ring-[#11171b]`}
       />
     );
   }
@@ -38,7 +40,7 @@ export function Avatar({
   return (
     <span
       data-testid={`img-avatar-${initials.toLowerCase()}`}
-      className={`grid shrink-0 place-items-center rounded-full bg-gradient-to-br ${tones[tone]} font-extrabold text-[#101519] ring-2 ring-[#11171b] ${sizes[size]}`}
+      className={`grid shrink-0 place-items-center ${roundedClass} bg-gradient-to-br ${tones[tone]} font-extrabold text-[#101519] ring-2 ring-[#11171b] ${sizes[size]}`}
     >
       {initials}
     </span>

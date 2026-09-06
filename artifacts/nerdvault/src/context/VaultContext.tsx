@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { api, UnifiedMedia, VaultStats } from "../lib/api";
+import { api, UnifiedMedia, VaultStats, Shelf } from "../lib/api";
 
 type VaultContextType = {
   vaultItems: UnifiedMedia[];
   stats: VaultStats | null;
+  shelves: Shelf[];
   isLoading: boolean;
   loading: boolean;
   trackMedia: (item: UnifiedMedia, status: string, rating?: number, notes?: string) => Promise<void>;
@@ -13,6 +14,7 @@ type VaultContextType = {
   feedback: string | null;
   notify: (message: string) => void;
   refreshVault: () => Promise<void>;
+  refreshShelves: () => Promise<void>;
 };
 
 const VaultContext = createContext<VaultContextType | undefined>(undefined);
@@ -31,6 +33,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     return [];
   });
 
+  const [shelves, setShelves] = useState<Shelf[]>([]);
   const [stats, setStats] = useState<VaultStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -40,6 +43,17 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     setTimeout(() => {
       setFeedback((current) => (current === msg ? null : current));
     }, 2800);
+  };
+
+  const refreshShelves = async () => {
+    try {
+      const res = await api.getShelves();
+      if (res?.shelves && Array.isArray(res.shelves)) {
+        setShelves(res.shelves);
+      }
+    } catch (err) {
+      console.warn("Could not load shelves:", err);
+    }
   };
 
   const refreshVault = async () => {
@@ -63,6 +77,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     refreshVault();
+    refreshShelves();
   }, []);
 
   const trackMedia = async (item: UnifiedMedia, status: string, rating?: number, notes?: string) => {
@@ -141,6 +156,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       value={{
         vaultItems,
         stats,
+        shelves,
         isLoading,
         loading: isLoading,
         trackMedia,
@@ -150,6 +166,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         feedback,
         notify,
         refreshVault,
+        refreshShelves,
       }}
     >
       {children}

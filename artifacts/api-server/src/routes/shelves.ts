@@ -1,5 +1,14 @@
 import { Router } from "express";
-import { getUserShelves, createShelf, deleteShelf, addMediaToShelf, removeMediaFromShelf } from "@workspace/db";
+import {
+  getUserShelves,
+  createShelf,
+  updateShelf,
+  deleteShelf,
+  getShelfById,
+  addMediaToShelf,
+  removeMediaFromShelf,
+  upsertMedia,
+} from "@workspace/db";
 
 const router = Router();
 
@@ -22,6 +31,23 @@ router.get("/", async (req, res) => {
     res.json({ shelves });
   } catch (error: any) {
     res.status(500).json({ error: error.message || "Failed to load shelves" });
+  }
+});
+
+/**
+ * GET /api/shelves/:id
+ * Retrieve shelf details and its items
+ */
+router.get("/:id", async (req, res) => {
+  try {
+    const userId = getReqUserId(req);
+    const result = await getShelfById(req.params.id, userId);
+    if (!result) {
+      return res.status(404).json({ error: "Shelf not found" });
+    }
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Failed to load shelf" });
   }
 });
 
@@ -57,6 +83,60 @@ router.post("/", async (req, res) => {
 });
 
 /**
+ * PATCH /api/shelves/:id
+ * Update an existing shelf (name, description, visibility, coverUrl)
+ */
+router.patch("/:id", async (req, res) => {
+  try {
+    const userId = getReqUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized. Please sign in." });
+    }
+
+    const { name, description, visibility, coverUrl } = req.body;
+    const shelf = await updateShelf(req.params.id, userId, {
+      name,
+      description,
+      visibility,
+      coverUrl,
+    });
+
+    if (!shelf) {
+      return res.status(404).json({ error: "Shelf not found or not permitted to edit" });
+    }
+
+    res.json({ shelf });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Failed to update shelf" });
+  }
+});
+
+router.put("/:id", async (req, res) => {
+  try {
+    const userId = getReqUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized. Please sign in." });
+    }
+
+    const { name, description, visibility, coverUrl } = req.body;
+    const shelf = await updateShelf(req.params.id, userId, {
+      name,
+      description,
+      visibility,
+      coverUrl,
+    });
+
+    if (!shelf) {
+      return res.status(404).json({ error: "Shelf not found or not permitted to edit" });
+    }
+
+    res.json({ shelf });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Failed to update shelf" });
+  }
+});
+
+/**
  * DELETE /api/shelves/:id
  * Delete a shelf
  */
@@ -84,9 +164,30 @@ router.post("/:id/items", async (req, res) => {
       return res.status(401).json({ error: "Unauthorized. Please sign in." });
     }
 
-    const { mediaId } = req.body;
+    const { mediaId, mediaData } = req.body;
     if (!mediaId) {
       return res.status(400).json({ error: "mediaId is required" });
+    }
+
+    if (mediaData) {
+      const rawCover = mediaData.poster || mediaData.coverUrl || mediaData.cover_url;
+      const rawBackdrop = mediaData.backdrop || mediaData.backdropUrl || mediaData.backdrop_url;
+      await upsertMedia({
+        id: mediaId,
+        slug: mediaData.slug || mediaId,
+        title: mediaData.title || "Untitled",
+        originalTitle: mediaData.originalTitle,
+        overview: mediaData.overview,
+        type: mediaData.type || "Movie",
+        releaseYear: mediaData.releaseYear || mediaData.year ? Number(mediaData.releaseYear || mediaData.year) : undefined,
+        runtime: mediaData.runtime ? Number(mediaData.runtime.toString().replace(/\D/g, "")) : undefined,
+        rating: mediaData.rating ? Number(mediaData.rating) : undefined,
+        coverUrl: rawCover,
+        backdropUrl: rawBackdrop,
+        trailerUrl: mediaData.trailerUrl,
+        source: mediaData.source || "tmdb",
+        sourceId: mediaData.sourceId || mediaId,
+      });
     }
 
     await addMediaToShelf(req.params.id, mediaId);
