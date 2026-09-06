@@ -654,8 +654,8 @@ export async function getShelfById(shelfIdOrSlug: string, currentUserId?: string
   shelf: Folder & { itemCount: number; ownerName?: string; ownerAvatar?: string; isOwner: boolean };
   items: any[];
 } | null> {
-  const shelfRows = await queryD1<Folder & { item_count: number; owner_name?: string; owner_avatar?: string }>(
-    `SELECT f.*, COUNT(fi.media_id) as item_count, u.name as owner_name, u.image as owner_avatar
+  const shelfRows = await queryD1<Folder & { item_count: number; owner_name?: string; owner_avatar?: string; user_id?: string }>(
+    `SELECT f.*, f.user_id as userId, COUNT(fi.media_id) as item_count, u.name as owner_name, u.image as owner_avatar
      FROM folders f
      LEFT JOIN users u ON f.user_id = u.id
      LEFT JOIN folder_items fi ON f.id = fi.folder_id
@@ -665,7 +665,8 @@ export async function getShelfById(shelfIdOrSlug: string, currentUserId?: string
   );
   if (!shelfRows || shelfRows.length === 0) return null;
   const s = shelfRows[0];
-  const isOwner = Boolean(currentUserId && currentUserId === s.user_id);
+  const shelfUserId = s.userId || s.user_id || "";
+  const isOwner = Boolean(currentUserId && currentUserId === shelfUserId);
 
   if (s.visibility === "private" && !isOwner) {
     return null;
@@ -673,6 +674,7 @@ export async function getShelfById(shelfIdOrSlug: string, currentUserId?: string
 
   const shelf = {
     ...s,
+    userId: shelfUserId,
     itemCount: Number(s.item_count || 0),
     ownerName: s.owner_name || "Vault Curator",
     ownerAvatar: s.owner_avatar,
@@ -703,7 +705,7 @@ export async function getShelfById(shelfIdOrSlug: string, currentUserId?: string
      LEFT JOIN user_vault_items v ON v.media_id = m.id AND v.user_id = ?
      WHERE fi.folder_id = ?
      ORDER BY fi.created_at DESC;`,
-    [currentUserId || s.user_id, s.id]
+    [currentUserId || shelfUserId, s.id]
   );
 
   const items = itemRows.map((r) => ({

@@ -101,7 +101,7 @@ export function AddMediaToShelfModal({
                       {item.title}
                     </p>
                     <p className="text-[11px] text-slate-400">
-                      {item.type} · {item.year || item.releaseYear || "Unknown"}
+                      {item.type} · {item.year || (item as any).releaseYear || "Unknown"}
                     </p>
                   </div>
                   {alreadyAdded ? (
