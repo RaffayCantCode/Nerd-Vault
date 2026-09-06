@@ -31,7 +31,9 @@ function formatGame(item: any): UnifiedMedia {
     : "https://images.igdb.com/igdb/image/upload/t_cover_big/co3xjm.jpg";
 
   // Pick genuine 1080p horizontal artwork or screenshot
-  const backdropImageId = item.artworks?.[0]?.image_id || item.screenshots?.[0]?.image_id || item.artworks?.[1]?.image_id || item.screenshots?.[1]?.image_id;
+  const artwork = (item.artworks || []).find((a: any) => a && a.image_id);
+  const screenshot = (item.screenshots || []).find((s: any) => s && s.image_id);
+  const backdropImageId = artwork?.image_id || screenshot?.image_id || item.artworks?.[0]?.image_id || item.screenshots?.[0]?.image_id;
   const backdropUrl = backdropImageId
     ? `https://images.igdb.com/igdb/image/upload/t_1080p/${backdropImageId}.jpg`
     : undefined;
@@ -61,7 +63,7 @@ function formatGame(item: any): UnifiedMedia {
     genres: normalizedGenres.length > 0 ? normalizedGenres : ["Game"],
     poster: coverUrl,
     backdrop: backdropUrl,
-    overview: item.summary || "No description available.",
+    overview: item.summary || item.storyline || "No description available.",
     platform: platforms || undefined,
     studio: item.involved_companies?.[0]?.company?.name || undefined,
     source: "igdb",
@@ -96,37 +98,88 @@ async function queryIGDB(endpoint: string, queryBody: string): Promise<any> {
 }
 
 export const igdbService = {
+  async getTrendingGames(genre?: string, page: number = 1): Promise<UnifiedMedia[]> {
+    try {
+      const offset = (page - 1) * 18;
+      // Recent trending releases with high activity/hypes (2022-2025) and genuine backdrops
+      let whereClause = "where cover != null & (hypes > 5 | rating_count > 15) & first_release_date > 1640995200 & (artworks != null | screenshots != null)";
+      if (genre && genre !== "All genres") {
+        whereClause += ` & genres.name ~ *"${genre}"*`;
+      }
+
+      const body = `
+        fields name, summary, storyline, first_release_date, rating, total_rating, cover.image_id, artworks.image_id, screenshots.image_id, genres.name, platforms.name, involved_companies.company.name;
+        sort hypes desc;
+        ${whereClause};
+        offset ${offset};
+        limit 18;
+      `;
+      const data = await queryIGDB("games", body);
+      const items = (data || []).map((g: any) => ({ ...formatGame(g), curation: "Trending" as const }));
+      if (items.length > 0) return items;
+    } catch (err) {
+      console.warn("IGDB getTrendingGames query warning:", err);
+    }
+    // Fallback if trending query is empty
+    return (await this.getPopularGames(genre, page)).map((g) => ({ ...g, curation: "Trending" as const }));
+  },
+
   async getPopularGames(genre?: string, page: number = 1): Promise<UnifiedMedia[]> {
     try {
       const offset = (page - 1) * 18;
 
-      let whereClause = "where rating != null & rating_count > 30 & cover != null";
+      let whereClause = "where rating != null & rating_count > 30 & cover != null & (artworks != null | screenshots != null)";
       if (genre && genre !== "All genres") {
         const g = genre.toLowerCase();
         if (g.includes("rpg") || g.includes("role-playing")) {
-          whereClause = `where (genres.name ~ *"Role-playing"* | genres.name ~ *"RPG"*) & rating != null & cover != null`;
+          whereClause = `where (genres.name ~ *"Role-playing"* | genres.name ~ *"RPG"*) & rating != null & cover != null & (artworks != null | screenshots != null)`;
         } else if (g.includes("sci-fi")) {
-          whereClause = `where (genres.name ~ *"Sci-Fi"* | themes.name ~ *"Science fiction"*) & rating != null & cover != null`;
+          whereClause = `where (genres.name ~ *"Sci-Fi"* | themes.name ~ *"Science fiction"*) & rating != null & cover != null & (artworks != null | screenshots != null)`;
         } else if (g.includes("fantasy")) {
-          whereClause = `where (genres.name ~ *"Fantasy"* | themes.name ~ *"Fantasy"*) & rating != null & cover != null`;
+          whereClause = `where (genres.name ~ *"Fantasy"* | themes.name ~ *"Fantasy"*) & rating != null & cover != null & (artworks != null | screenshots != null)`;
         } else {
-          whereClause = `where genres.name ~ *"${genre}"* & rating != null & cover != null`;
+          whereClause = `where genres.name ~ *"${genre}"* & rating != null & cover != null & (artworks != null | screenshots != null)`;
         }
       }
 
       const body = `
-        fields name, summary, first_release_date, rating, total_rating, cover.image_id, artworks.image_id, screenshots.image_id, genres.name, platforms.name, involved_companies.company.name;
+        fields name, summary, storyline, first_release_date, rating, total_rating, cover.image_id, artworks.image_id, screenshots.image_id, genres.name, platforms.name, involved_companies.company.name;
         sort rating desc;
         ${whereClause};
         offset ${offset};
         limit 18;
       `;
       const data = await queryIGDB("games", body);
-      return (data || []).map(formatGame);
+      return (data || []).map((g: any) => ({ ...formatGame(g), curation: "Popular" as const }));
     } catch (err) {
       console.warn("IGDB getPopularGames query warning:", err);
       return [];
     }
+  },
+
+  async getNicheGames(genre?: string, page: number = 1): Promise<UnifiedMedia[]> {
+    try {
+      const offset = (page - 1) * 18;
+      let whereClause = "where (themes.name ~ *\"Indie\"* | genres.name ~ *\"Indie\"*) & rating >= 75 & rating_count >= 10 & cover != null & (artworks != null | screenshots != null)";
+      if (genre && genre !== "All genres") {
+        whereClause += ` & genres.name ~ *"${genre}"*`;
+      }
+
+      const body = `
+        fields name, summary, storyline, first_release_date, rating, total_rating, cover.image_id, artworks.image_id, screenshots.image_id, genres.name, platforms.name, involved_companies.company.name;
+        sort rating desc;
+        ${whereClause};
+        offset ${offset};
+        limit 18;
+      `;
+      const data = await queryIGDB("games", body);
+      const items = (data || []).map((g: any) => ({ ...formatGame(g), curation: "Niche" as const }));
+      if (items.length > 0) return items;
+    } catch (err) {
+      console.warn("IGDB getNicheGames query warning:", err);
+    }
+    // Fallback if indie query is empty
+    return (await this.getPopularGames(genre, page + 4)).map((g) => ({ ...g, curation: "Niche" as const }));
   },
 
   async search(query: string): Promise<UnifiedMedia[]> {

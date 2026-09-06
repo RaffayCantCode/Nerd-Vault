@@ -49,6 +49,20 @@ function RoutedErrorBoundary({ children }: { children: ReactNode }) {
   return <ErrorBoundary resetKey={location}>{children}</ErrorBoundary>;
 }
 
+function ScrollToTop() {
+  const [location] = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    document.documentElement.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    if (document.body) {
+      document.body.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    }
+  }, [location]);
+
+  return null;
+}
+
 function AppContent() {
   const { feedback } = useVault();
 
@@ -58,6 +72,7 @@ function AppContent() {
 
   return (
     <>
+      <ScrollToTop />
       <AppShell>
         <Router />
       </AppShell>

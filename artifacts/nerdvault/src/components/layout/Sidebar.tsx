@@ -36,7 +36,7 @@ export function Sidebar({ onCreateShelf }: { onCreateShelf: () => void }) {
     : "NV";
 
   return (
-    <aside className="nv-sidebar fixed inset-y-0 left-0 z-20 hidden w-[236px] flex-col px-5 py-6 lg:flex">
+    <aside className="nv-sidebar fixed inset-y-0 left-0 z-20 hidden w-[200px] flex-col px-3.5 py-5 lg:flex">
       <Logo />
       <div className="mt-12 flex flex-1 flex-col">
         <p className="mb-3 px-3 font-mono-ui text-[10px] uppercase tracking-[.2em] text-slate-600">

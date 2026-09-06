@@ -6,6 +6,8 @@ import { CustomSelect } from "../components/common/CustomSelect";
 import { api, UnifiedMedia } from "../lib/api";
 import { useVault } from "../context/VaultContext";
 
+let cachedDiscoverBatch: { items: UnifiedMedia[]; hasMore: boolean } | null = null;
+
 export default function DiscoverPage() {
   const { notify } = useVault();
 
@@ -18,17 +20,22 @@ export default function DiscoverPage() {
   const [genre, setGenre] = useState("All genres");
   const [type, setType] = useState(initialType);
   const [sort, setSort] = useState("Recommended");
+  const [curation, setCuration] = useState("All curations");
   const [mood, setMood] = useState<string | null>(null);
+  const [visitSeed, setVisitSeed] = useState(() => Math.floor(Math.random() * 100000));
 
-  const [items, setItems] = useState<UnifiedMedia[]>([]);
+  const isDefaultInitial = !initialSearch && initialType === "All types";
+  const [items, setItems] = useState<UnifiedMedia[]>(() => (isDefaultInitial && cachedDiscoverBatch ? cachedDiscoverBatch.items : []));
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !(isDefaultInitial && cachedDiscoverBatch));
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMore, setHasMore] = useState(() => (isDefaultInitial && cachedDiscoverBatch ? cachedDiscoverBatch.hasMore : true));
   const [showScrollTop, setShowScrollTop] = useState(false);
 
   const isFetchingRef = useRef(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const seenIdsRef = useRef<Set<string>>(new Set());
+  const seenTitlesRef = useRef<Set<string>>(new Set());
 
   const genres = [
     "All genres",
@@ -46,6 +53,7 @@ export default function DiscoverPage() {
   ];
 
   const types = ["All types", "Movie", "Series", "Anime", "Game"];
+  const curations = ["All curations", "Trending", "Popular", "Niche"];
   const sortOptions = ["Recommended", "Highest rated", "Newest"];
 
   // Debounce search query
@@ -65,43 +73,53 @@ export default function DiscoverPage() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Fetch initial batch (Page 1) fresh
+  // Fetch initial batch (Page 1) fresh on every visit or filter change
   useEffect(() => {
-    setLoading(true);
+    const isDefault =
+      !debouncedQuery.trim() &&
+      type === "All types" &&
+      genre === "All genres" &&
+      !mood &&
+      sort === "Recommended" &&
+      curation === "All curations";
+
+    if (!isDefault || !cachedDiscoverBatch) {
+      setLoading(true);
+    }
     setPage(1);
     setHasMore(true);
     isFetchingRef.current = true;
+    seenIdsRef.current.clear();
+    seenTitlesRef.current.clear();
+
+    // Opening discover page starts from top of page
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
 
     api.discover({
       type: type !== "All types" ? type : undefined,
       genre: genre !== "All genres" ? genre : undefined,
       mood: mood || undefined,
       sort,
+      curation: curation !== "All curations" ? curation : undefined,
       search: debouncedQuery.trim() || undefined,
       page: 1,
+      seed: visitSeed,
     })
       .then((data) => {
         const fetched = data?.items || [];
-        const seenIds = new Set<string>();
-        const seenTitles = new Set<string>();
         const unique = fetched.filter((i) => {
           const key = `${i.title.toLowerCase().trim()}-${i.type}`;
-          if (seenIds.has(i.id) || seenTitles.has(key)) return false;
-          seenIds.add(i.id);
-          seenTitles.add(key);
+          if (seenIdsRef.current.has(i.id) || seenTitlesRef.current.has(key)) return false;
+          seenIdsRef.current.add(i.id);
+          seenTitlesRef.current.add(key);
           return true;
         });
 
         setItems(unique);
-        setHasMore(unique.length >= 8 && !debouncedQuery.trim());
-
-        // Restore scroll position if returning from detail page
-        const savedScrollY = sessionStorage.getItem("nv_discover_scroll_y");
-        if (savedScrollY) {
-          setTimeout(() => {
-            window.scrollTo({ top: Number(savedScrollY), behavior: "smooth" });
-            sessionStorage.removeItem("nv_discover_scroll_y");
-          }, 120);
+        const more = unique.length >= 8 && !debouncedQuery.trim();
+        setHasMore(more);
+        if (isDefault && unique.length > 0) {
+          cachedDiscoverBatch = { items: unique, hasMore: more };
         }
       })
       .catch((err) => {
@@ -111,9 +129,9 @@ export default function DiscoverPage() {
         setLoading(false);
         isFetchingRef.current = false;
       });
-  }, [type, genre, mood, sort, debouncedQuery]);
+  }, [type, genre, mood, sort, curation, debouncedQuery, visitSeed]);
 
-  // Load next batch
+  // Load next batch without repeating entries
   const loadNextPage = useCallback(() => {
     if (isFetchingRef.current || !hasMore || debouncedQuery.trim() || loading) return;
     isFetchingRef.current = true;
@@ -126,8 +144,10 @@ export default function DiscoverPage() {
       genre: genre !== "All genres" ? genre : undefined,
       mood: mood || undefined,
       sort,
+      curation: curation !== "All curations" ? curation : undefined,
       search: debouncedQuery.trim() || undefined,
       page: nextPage,
+      seed: visitSeed,
     })
       .then((data) => {
         const newItems = data?.items || [];
@@ -135,17 +155,14 @@ export default function DiscoverPage() {
           setHasMore(false);
         } else {
           setItems((prev) => {
-            const existingIds = new Set(prev.map((i) => i.id));
-            const existingTitles = new Set(prev.map((i) => `${i.title.toLowerCase().trim()}-${i.type}`));
             const unique = newItems.filter((i) => {
-              const titleKey = `${i.title.toLowerCase().trim()}-${i.type}`;
-              if (existingIds.has(i.id) || existingTitles.has(titleKey)) return false;
-              existingIds.add(i.id);
-              existingTitles.add(titleKey);
+              const key = `${i.title.toLowerCase().trim()}-${i.type}`;
+              if (seenIdsRef.current.has(i.id) || seenTitlesRef.current.has(key)) return false;
+              seenIdsRef.current.add(i.id);
+              seenTitlesRef.current.add(key);
               return true;
             });
             if (unique.length === 0) {
-              setHasMore(false);
               return prev;
             }
             return [...prev, ...unique];
@@ -162,7 +179,7 @@ export default function DiscoverPage() {
           isFetchingRef.current = false;
         }, 500);
       });
-  }, [hasMore, debouncedQuery, page, type, genre, mood, sort, loading]);
+  }, [hasMore, debouncedQuery, page, type, genre, mood, sort, curation, visitSeed, loading]);
 
   // Robust Infinite Scroll Observer on separate sentinel
   useEffect(() => {
@@ -213,8 +230,8 @@ export default function DiscoverPage() {
             <br />
             <span className="text-[hsl(var(--accent))]">obsession.</span>
           </h2>
-          <p className="max-w-[300px] text-[12px] leading-5 text-slate-400">
-            Scroll infinitely through 1 Movie, 1 Series, 1 Anime, and 1 Game in seamless succession.
+          <p className="max-w-[340px] text-[12px] leading-5 text-slate-400">
+            Equally balanced across Movies, Series, Anime, and Games — spanning trending buzz, popular hits, and niche gems. Fresh discoveries on every visit.
           </p>
         </div>
       </div>
@@ -253,7 +270,17 @@ export default function DiscoverPage() {
                 setMood(null);
               }}
               options={types}
-              minWidth="130px"
+              minWidth="120px"
+            />
+
+            <CustomSelect
+              value={curation}
+              onChange={(val) => {
+                setCuration(val);
+                setMood(null);
+              }}
+              options={curations}
+              minWidth="135px"
             />
 
             <CustomSelect
@@ -263,21 +290,21 @@ export default function DiscoverPage() {
                 setMood(null);
               }}
               options={genres}
-              minWidth="140px"
+              minWidth="130px"
             />
 
             <CustomSelect
               value={sort}
               onChange={(val) => setSort(val)}
               options={sortOptions}
-              minWidth="150px"
+              minWidth="140px"
             />
           </div>
         </div>
       </div>
 
-      {/* Results Count & Clear Header */}
-      <div className="flex items-center justify-between">
+      {/* Results Count & Action Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-[12px] text-slate-400">
           <ListFilter size={15} className="text-[hsl(var(--primary))]" />
           Showing <strong className="text-slate-100">{items.length} titles</strong>
@@ -286,20 +313,35 @@ export default function DiscoverPage() {
           )}
         </div>
 
-        {(genre !== "All genres" || type !== "All types" || mood || query) && (
+        <div className="flex items-center gap-3">
           <button
             onClick={() => {
-              setGenre("All genres");
-              setType("All types");
-              setMood(null);
-              setQuery("");
+              setVisitSeed(Math.floor(Math.random() * 100000));
+              notify("Shuffled fresh discoveries!");
             }}
-            data-testid="button-clear-filters"
-            className="text-[12px] font-semibold text-[hsl(var(--primary))] hover:underline"
+            data-testid="button-shuffle-discover"
+            className="nv-button flex items-center gap-1.5 rounded-xl border border-white/[.15] bg-white/[.05] px-3 py-1.5 text-[11.5px] font-bold text-slate-200 hover:bg-white/[.12] hover:text-[hsl(var(--primary))] transition active:scale-95 cursor-pointer"
           >
-            Clear filters
+            <Sparkles size={13} className="text-[hsl(var(--primary))]" />
+            <span>Shuffle fresh mix</span>
           </button>
-        )}
+
+          {(genre !== "All genres" || type !== "All types" || curation !== "All curations" || mood || query) && (
+            <button
+              onClick={() => {
+                setGenre("All genres");
+                setType("All types");
+                setCuration("All curations");
+                setMood(null);
+                setQuery("");
+              }}
+              data-testid="button-clear-filters"
+              className="text-[12px] font-semibold text-[hsl(var(--primary))] hover:underline"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Media Grid */}

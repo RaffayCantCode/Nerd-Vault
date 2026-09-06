@@ -29,6 +29,7 @@ export type UnifiedMedia = {
     items: UnifiedMedia[];
   };
   similar?: UnifiedMedia[];
+  curation?: "Trending" | "Popular" | "Niche";
 };
 
 export type HomeFeedData = {
@@ -49,6 +50,8 @@ export type DiscoverOptions = {
   search?: string;
   mood?: string;
   page?: number;
+  seed?: number | string;
+  curation?: string;
 };
 
 export function toFiveStarRating(val: number | string | undefined | null): string {

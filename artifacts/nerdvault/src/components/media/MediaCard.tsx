@@ -19,12 +19,6 @@ export function MediaCard({
   const inVault = isInVault(item.id);
   const status = getItemStatus(item.id) || item.status;
 
-  const handleCardClick = () => {
-    if (typeof window !== "undefined") {
-      sessionStorage.setItem("nv_discover_scroll_y", String(window.scrollY));
-    }
-  };
-
   const rawPoster = item.poster || (item as any).coverUrl || (item as any).cover_url || item.backdrop || (item as any).backdropUrl;
   const posterUrl = !imgError && rawPoster && typeof rawPoster === "string" && !rawPoster.includes("undefined") && rawPoster.trim() !== ""
     ? rawPoster
@@ -38,7 +32,7 @@ export function MediaCard({
           compact ? "w-[155px] shrink-0 sm:w-[185px] md:w-[205px]" : "min-w-0"
         }`}
       >
-        <Link href={`/media/${item.id}`} onClick={handleCardClick} className="block">
+        <Link href={`/media/${item.id}`} className="block">
           <div
             className="relative overflow-hidden rounded-2xl sm:rounded-[22px] border border-white/[.1] bg-[#141b20] aspect-[2/3] transition-all duration-300 ease-out group-hover:-translate-y-2.5 group-hover:scale-[1.03] group-hover:shadow-[0_20px_45px_rgba(0,0,0,0.95),0_0_30px_rgba(55,218,178,0.22)] group-hover:border-[hsl(var(--primary))]/70"
           >

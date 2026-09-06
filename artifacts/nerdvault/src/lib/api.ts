@@ -170,7 +170,7 @@ export const api = {
 
   // Catalog
   getHomeFeed: () => request<HomeFeedData>("/api/catalog/home"),
-  discover: (params: { type?: string; genre?: string; mood?: string; sort?: string; search?: string; page?: number }) => {
+  discover: (params: { type?: string; genre?: string; mood?: string; sort?: string; search?: string; page?: number; seed?: number | string; curation?: string }) => {
     const query = new URLSearchParams();
     if (params.type && params.type !== "All types") query.set("type", params.type);
     if (params.genre && params.genre !== "All genres") query.set("genre", params.genre);
@@ -178,6 +178,8 @@ export const api = {
     if (params.sort) query.set("sort", params.sort);
     if (params.search) query.set("search", params.search);
     if (params.page) query.set("page", String(params.page));
+    if (params.seed !== undefined) query.set("seed", String(params.seed));
+    if (params.curation && params.curation !== "All") query.set("curation", params.curation);
     return request<{ items: UnifiedMedia[]; total: number }>(`/api/catalog/discover?${query.toString()}`);
   },
   search: (q: string) => request<{ items: UnifiedMedia[] }>(`/api/catalog/search?q=${encodeURIComponent(q)}`),

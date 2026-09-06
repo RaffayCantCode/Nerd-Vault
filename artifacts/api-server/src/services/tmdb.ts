@@ -4,7 +4,7 @@ import { UnifiedMedia, slugify, toFiveStarRating } from "./types";
 const TMDB_API_KEY = process.env.TMDB_API_KEY || "e992852c2a6404df9d6218982f12c36e";
 const BASE_URL = "https://api.themoviedb.org/3";
 const IMG_BASE = "https://image.tmdb.org/t/p/w500";
-const BACKDROP_BASE = "https://image.tmdb.org/t/p/w1280";
+const BACKDROP_BASE = "https://image.tmdb.org/t/p/original";
 
 const GENRE_MAP: Record<number, string> = {
   28: "Action", 12: "Adventure", 16: "Animation", 35: "Comedy", 80: "Crime",
@@ -66,7 +66,7 @@ export const tmdbService = {
     const data = await fetchWithCache(url, 1000 * 60 * 15);
     return (data.results || [])
       .filter((m: any) => !isAnimeItem(m))
-      .map((m: any) => formatMedia(m, "Movie"));
+      .map((m: any) => ({ ...formatMedia(m, "Movie"), curation: "Trending" as const }));
   },
 
   async getTrendingShows(page: number = 1): Promise<UnifiedMedia[]> {
@@ -74,7 +74,23 @@ export const tmdbService = {
     const data = await fetchWithCache(url, 1000 * 60 * 15);
     return (data.results || [])
       .filter((m: any) => !isAnimeItem(m))
-      .map((m: any) => formatMedia(m, "Series"));
+      .map((m: any) => ({ ...formatMedia(m, "Series"), curation: "Trending" as const }));
+  },
+
+  async getPopularMovies(page: number = 1): Promise<UnifiedMedia[]> {
+    const url = `${BASE_URL}/movie/popular?api_key=${TMDB_API_KEY}&page=${page}&language=en-US`;
+    const data = await fetchWithCache(url, 1000 * 60 * 30);
+    return (data.results || [])
+      .filter((m: any) => !isAnimeItem(m))
+      .map((m: any) => ({ ...formatMedia(m, "Movie"), curation: "Popular" as const }));
+  },
+
+  async getPopularShows(page: number = 1): Promise<UnifiedMedia[]> {
+    const url = `${BASE_URL}/tv/popular?api_key=${TMDB_API_KEY}&page=${page}&language=en-US`;
+    const data = await fetchWithCache(url, 1000 * 60 * 30);
+    return (data.results || [])
+      .filter((m: any) => !isAnimeItem(m))
+      .map((m: any) => ({ ...formatMedia(m, "Series"), curation: "Popular" as const }));
   },
 
   async getTopRatedMovies(page: number = 1): Promise<UnifiedMedia[]> {
@@ -82,7 +98,7 @@ export const tmdbService = {
     const data = await fetchWithCache(url, 1000 * 60 * 30);
     return (data.results || [])
       .filter((m: any) => !isAnimeItem(m))
-      .map((m: any) => formatMedia(m, "Movie"));
+      .map((m: any) => ({ ...formatMedia(m, "Movie"), curation: "Popular" as const }));
   },
 
   async getTopRatedShows(page: number = 1): Promise<UnifiedMedia[]> {
@@ -90,17 +106,17 @@ export const tmdbService = {
     const data = await fetchWithCache(url, 1000 * 60 * 30);
     return (data.results || [])
       .filter((m: any) => !isAnimeItem(m))
-      .map((m: any) => formatMedia(m, "Series"));
+      .map((m: any) => ({ ...formatMedia(m, "Series"), curation: "Popular" as const }));
   },
 
   async getCultAndNiche(type: "Movie" | "Series", page: number = 1): Promise<UnifiedMedia[]> {
     const endpoint = type === "Series" ? "tv" : "movie";
     const genreIds = type === "Series" ? "10765,9648,18" : "878,14,9648,53";
-    const url = `${BASE_URL}/discover/${endpoint}?api_key=${TMDB_API_KEY}&with_genres=${genreIds}&sort_by=vote_average.desc&vote_count.gte=250&page=${page}`;
+    const url = `${BASE_URL}/discover/${endpoint}?api_key=${TMDB_API_KEY}&with_genres=${genreIds}&sort_by=vote_average.desc&vote_count.gte=180&page=${page}`;
     const data = await fetchWithCache(url, 1000 * 60 * 30);
     return (data.results || [])
       .filter((m: any) => !isAnimeItem(m))
-      .map((m: any) => formatMedia(m, type));
+      .map((m: any) => ({ ...formatMedia(m, type), curation: "Niche" as const }));
   },
 
   async discover(params: { type?: "Movie" | "Series"; genreId?: number; sort?: string; page?: number }): Promise<UnifiedMedia[]> {

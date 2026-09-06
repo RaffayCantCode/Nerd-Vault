@@ -26,7 +26,7 @@ router.get("/home", async (req, res) => {
  */
 router.get("/discover", async (req, res) => {
   try {
-    const { type, genre, sort, q, search, mood, page } = req.query;
+    const { type, genre, sort, q, search, mood, page, seed, curation } = req.query;
     const result = await catalogAggregator.discover({
       type: type as string,
       genre: genre as string,
@@ -34,6 +34,8 @@ router.get("/discover", async (req, res) => {
       query: ((q || search) as string) || undefined,
       mood: mood as string,
       page: page ? parseInt(page as string, 10) : 1,
+      seed: seed as string,
+      curation: curation as string,
     });
     res.json(result);
   } catch (error: any) {

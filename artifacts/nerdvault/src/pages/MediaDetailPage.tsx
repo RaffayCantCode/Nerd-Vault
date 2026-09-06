@@ -13,6 +13,81 @@ import { MediaCard } from "../components/media/MediaCard";
 import { FriendRecModal } from "../components/media/FriendRecModal";
 import { MediaTrackModal } from "../components/media/MediaTrackModal";
 
+function useBackdropPalette(imageUrl?: string) {
+  const [palette, setPalette] = useState({
+    isLight: false,
+    badgeBg: "bg-black/65 backdrop-blur-md",
+    badgeBorder: "border-white/20",
+    badgeText: "text-slate-100",
+    descText: "text-slate-100 drop-shadow-[0_1px_6px_rgba(0,0,0,0.9)]",
+    gradientFrom: "from-[#070b0e]/95 via-[#070b0e]/60 to-transparent",
+  });
+
+  useEffect(() => {
+    if (!imageUrl) return;
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = imageUrl;
+
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = 40;
+        canvas.height = 40;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        if (!ctx) return;
+        ctx.drawImage(img, 0, 0, 40, 40);
+
+        const imgData = ctx.getImageData(0, 10, 25, 28).data;
+        let totalLuma = 0;
+        let count = 0;
+
+        for (let i = 0; i < imgData.length; i += 4) {
+          const r = imgData[i];
+          const g = imgData[i + 1];
+          const b = imgData[i + 2];
+          const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+          totalLuma += luma;
+          count++;
+        }
+
+        const avgLuma = totalLuma / (count || 1);
+
+        if (avgLuma > 105) {
+          setPalette({
+            isLight: true,
+            badgeBg: "bg-black/85 backdrop-blur-md",
+            badgeBorder: "border-white/35",
+            badgeText: "text-white font-bold",
+            descText: "text-white font-medium drop-shadow-[0_2px_8px_rgba(0,0,0,1)]",
+            gradientFrom: "from-black/98 via-black/85 to-transparent",
+          });
+        } else {
+          setPalette({
+            isLight: false,
+            badgeBg: "bg-black/65 backdrop-blur-md",
+            badgeBorder: "border-white/20",
+            badgeText: "text-slate-100",
+            descText: "text-slate-100 drop-shadow-[0_1px_6px_rgba(0,0,0,0.9)]",
+            gradientFrom: "from-[#070b0e]/95 via-[#070b0e]/60 to-transparent",
+          });
+        }
+      } catch {
+        setPalette({
+          isLight: false,
+          badgeBg: "bg-black/70 backdrop-blur-md",
+          badgeBorder: "border-white/25",
+          badgeText: "text-white",
+          descText: "text-slate-100 drop-shadow-[0_1px_6px_rgba(0,0,0,0.9)]",
+          gradientFrom: "from-[#070b0e]/95 via-[#070b0e]/65 to-transparent",
+        });
+      }
+    };
+  }, [imageUrl]);
+
+  return palette;
+}
+
 export default function MediaDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const { user, openAuthModal } = useAuth();
@@ -29,6 +104,8 @@ export default function MediaDetailPage() {
   const [userRating, setUserRating] = useState<number>(0);
   const [recModalOpen, setRecModalOpen] = useState(false);
   const [trackModalOpen, setTrackModalOpen] = useState(false);
+
+  const palette = useBackdropPalette(media ? media.backdrop || media.poster : undefined);
 
   const fetchReviews = (mediaId: string) => {
     api.getReviews(mediaId)
@@ -145,13 +222,24 @@ export default function MediaDetailPage() {
 
       {/* Hero Backdrop Section */}
       <section className="nv-reveal relative -mx-5 -mt-1 min-h-[520px] overflow-hidden sm:-mx-8 lg:-mx-10 rounded-3xl border border-white/[.14] shadow-2xl">
-        <img
-          src={media.backdrop || media.poster}
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover object-center opacity-95 transition-opacity duration-700"
-        />
+        {media.backdrop && media.backdrop !== media.poster ? (
+          <img
+            src={media.backdrop}
+            alt={media.title}
+            className="absolute inset-0 h-full w-full object-cover object-center sm:object-[center_25%] opacity-95 transition-opacity duration-700"
+          />
+        ) : (
+          <div className="absolute inset-0 overflow-hidden">
+            <img
+              src={media.poster}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 h-full w-full object-cover object-center blur-2xl opacity-60 scale-110 pointer-events-none"
+            />
+          </div>
+        )}
         {/* Soft left-weighted gradient for readability without darkening the whole banner */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#070b0e]/95 via-[#070b0e]/50 to-transparent sm:max-w-[75%]" />
+        <div className={`absolute inset-0 bg-gradient-to-r ${palette.gradientFrom} sm:max-w-[78%] transition-all duration-500`} />
         <div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-[#070b0e]/95 via-[#070b0e]/40 to-transparent" />
 
         <div className="relative flex min-h-[520px] items-end px-5 pb-10 sm:px-8 lg:px-12 drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]">
@@ -164,15 +252,17 @@ export default function MediaDetailPage() {
             <div className="max-w-[650px]">
               {/* Media Badges & Prominent Genres */}
               <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold text-slate-300">
-                <span className="rounded-md bg-[hsl(var(--primary))] px-2.5 py-1 text-[#08211c] font-extrabold">
+                <span className="rounded-md bg-[hsl(var(--primary))] px-2.5 py-1 text-[#08211c] font-black shadow-sm">
                   {media.type}
                 </span>
-                <span>{media.year}</span>
+                <span className={`rounded-md px-2 py-0.5 border shadow-sm font-semibold transition-all duration-300 ${palette.badgeBg} ${palette.badgeBorder} ${palette.badgeText}`}>
+                  {media.year}
+                </span>
                 <span>·</span>
                 {genreList.map((g) => (
                   <span
                     key={g}
-                    className="rounded-md bg-white/[.08] px-2 py-0.5 text-slate-200 border border-white/[.1]"
+                    className={`rounded-md px-2.5 py-0.5 border shadow-sm font-semibold transition-all duration-300 ${palette.badgeBg} ${palette.badgeBorder} ${palette.badgeText}`}
                   >
                     {g}
                   </span>
@@ -180,22 +270,24 @@ export default function MediaDetailPage() {
                 {media.runtime && (
                   <>
                     <span>·</span>
-                    <span>{media.runtime}</span>
+                    <span className={`rounded-md px-2 py-0.5 border shadow-sm font-semibold transition-all duration-300 ${palette.badgeBg} ${palette.badgeBorder} ${palette.badgeText}`}>
+                      {media.runtime}
+                    </span>
                   </>
                 )}
                 {media.platform && (
                   <>
                     <span>·</span>
-                    <span className="text-[hsl(var(--accent))]">{media.platform}</span>
+                    <span className="text-[hsl(var(--accent))] font-semibold">{media.platform}</span>
                   </>
                 )}
               </div>
 
-              <h2 className="font-display mt-3 text-4xl font-bold tracking-[-.07em] text-white sm:text-6xl">
+              <h2 className="font-display mt-3 text-4xl font-bold tracking-[-.07em] text-white sm:text-6xl drop-shadow-[0_3px_12px_rgba(0,0,0,0.95)]">
                 {media.title}
               </h2>
 
-              <p className="mt-4 max-w-[590px] text-[13px] leading-6 text-slate-300/85 line-clamp-4">
+              <p className={`mt-4 max-w-[620px] text-[13.5px] sm:text-[14px] leading-6 line-clamp-4 transition-colors duration-300 ${palette.descText}`}>
                 {media.overview}
               </p>
 
@@ -213,21 +305,21 @@ export default function MediaDetailPage() {
                   value={currentStatus}
                   onChange={(e) => handleStatusChange(e.target.value)}
                   data-testid="select-detail-status"
-                  className="h-11 rounded-xl border border-white/[.14] bg-black/35 px-3.5 text-[12px] font-bold text-slate-200 outline-none backdrop-blur"
+                  className={`h-11 rounded-xl border px-3.5 text-[12px] font-bold outline-none backdrop-blur transition-all duration-300 ${palette.badgeBg} ${palette.badgeBorder} ${palette.badgeText}`}
                 >
-                  <option value="Watching">Watching</option>
-                  <option value="Completed">Completed</option>
-                  <option value="Wishlist">Wishlist</option>
-                  <option value="Favorite">Favorite</option>
-                  <option value="Paused">Paused</option>
-                  <option value="Dropped">Dropped</option>
+                  <option className="bg-[#12181d] text-white" value="Watching">Watching</option>
+                  <option className="bg-[#12181d] text-white" value="Completed">Completed</option>
+                  <option className="bg-[#12181d] text-white" value="Wishlist">Wishlist</option>
+                  <option className="bg-[#12181d] text-white" value="Favorite">Favorite</option>
+                  <option className="bg-[#12181d] text-white" value="Paused">Paused</option>
+                  <option className="bg-[#12181d] text-white" value="Dropped">Dropped</option>
                 </select>
 
                 <button
                   onClick={() => handleAuthGuardedAction(() => setRecModalOpen(true))}
                   data-testid="button-detail-share"
                   title="Recommend to Friend"
-                  className="nv-button flex items-center gap-1.5 rounded-xl border border-white/[.14] bg-black/25 px-4 py-2.5 text-[12px] font-bold text-slate-300 backdrop-blur hover:bg-white/[.1]"
+                  className={`nv-button flex items-center gap-1.5 rounded-xl border px-4 py-2.5 text-[12px] font-bold backdrop-blur transition-all duration-300 ${palette.badgeBg} ${palette.badgeBorder} ${palette.badgeText} hover:bg-white/20`}
                 >
                   <Send size={15} /> Recommend
                 </button>

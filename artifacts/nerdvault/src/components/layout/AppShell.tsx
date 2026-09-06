@@ -24,7 +24,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className={`nv-shell nv-noise min-h-[100dvh] text-slate-100 overflow-x-hidden ${isFullWidthHome ? "!bg-transparent !bg-none" : ""}`}>
       <Sidebar onCreateShelf={handleCreateCollection} />
-      <div className="lg:pl-[236px] flex flex-col min-h-screen relative z-10">
+      <div className="lg:pl-[200px] flex flex-col min-h-screen relative z-10">
         <Topbar />
         <main className={`flex-1 w-full ${isFullWidthHome ? "" : "mx-auto max-w-[1560px] px-5 pt-7 sm:px-8 lg:px-10 lg:pt-9"}`}>
           {children}

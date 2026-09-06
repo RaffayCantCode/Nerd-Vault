@@ -8,12 +8,14 @@ import { useAuth } from "../context/AuthContext";
 
 const SLIDE_DURATION_MS = 10000; // 10 seconds per slide
 
+let cachedHomeFeed: HomeFeedData | null = null;
+
 export default function HomePage() {
   const { user, openAuthModal } = useAuth();
   const { trackMedia, isInVault } = useVault();
 
-  const [feed, setFeed] = useState<HomeFeedData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [feed, setFeed] = useState<HomeFeedData | null>(cachedHomeFeed);
+  const [loading, setLoading] = useState(!cachedHomeFeed);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [progress, setProgress] = useState(0); // 0 to 100%
   const [isPaused, setIsPaused] = useState(false);
@@ -27,6 +29,7 @@ export default function HomePage() {
     api.getHomeFeed()
       .then((data) => {
         if (data && isMounted) {
+          cachedHomeFeed = data;
           setFeed(data);
         }
       })
@@ -42,20 +45,49 @@ export default function HomePage() {
     };
   }, []);
 
-  // Build the 4 slides: 1 Movie, 1 Show, 1 Anime, 1 Game (Prioritize genuine widescreen 16:9 backdrops)
+  // Build the 4 slides: 1 Movie, 1 Show, 1 Anime, 1 Game (Prioritize acclaimed entries with 1080p backdrops)
   const slides: UnifiedMedia[] = [];
   if (feed) {
-    const movie = feed.trendingMovies?.find((m) => m.backdrop && m.backdrop.length > 5 && m.backdrop !== m.poster) || feed.trendingMovies?.[0];
-    if (movie) slides.push(movie);
+    if (feed.featuredSlides && feed.featuredSlides.length >= 4) {
+      slides.push(...feed.featuredSlides);
+    } else {
+      const pickHeroFallback = (list?: UnifiedMedia[]): UnifiedMedia | undefined => {
+        if (!list || list.length === 0) return undefined;
+        const prime = list.filter(
+          (m) =>
+            m.backdrop &&
+            m.backdrop.length > 10 &&
+            m.backdrop !== m.poster &&
+            Number(m.rating) >= 4.0 &&
+            m.overview &&
+            m.overview.trim().length >= 35
+        );
+        if (prime.length > 0) return prime[0];
 
-    const show = feed.trendingShows?.find((s) => s.backdrop && s.backdrop.length > 5 && s.backdrop !== s.poster) || feed.trendingShows?.[0];
-    if (show) slides.push(show);
+        const secondary = list.filter(
+          (m) =>
+            m.backdrop &&
+            m.backdrop.length > 10 &&
+            m.backdrop !== m.poster &&
+            Number(m.rating) >= 3.6
+        );
+        if (secondary.length > 0) return secondary[0];
 
-    const anime = feed.topAnime?.find((a) => a.backdrop && a.backdrop.length > 5 && a.backdrop !== a.poster) || feed.topAnime?.[0];
-    if (anime) slides.push(anime);
+        return list.find((m) => m.backdrop && m.backdrop.length > 5 && m.backdrop !== m.poster) || list[0];
+      };
 
-    const game = feed.popularGames?.find((g) => g.backdrop && g.backdrop.length > 5 && g.backdrop !== g.poster) || feed.popularGames?.[0];
-    if (game) slides.push(game);
+      const movie = pickHeroFallback(feed.trendingMovies);
+      if (movie) slides.push(movie);
+
+      const show = pickHeroFallback(feed.trendingShows);
+      if (show) slides.push(show);
+
+      const anime = pickHeroFallback(feed.topAnime);
+      if (anime) slides.push(anime);
+
+      const game = pickHeroFallback(feed.popularGames);
+      if (game) slides.push(game);
+    }
   }
 
   if (slides.length === 0 && feed?.featured) {
@@ -124,21 +156,24 @@ export default function HomePage() {
 
   return (
     <div className="relative min-h-screen w-full">
-      {/* Full-Page Dynamic Ambient Atmosphere (Smoothly projects the banner's natural blurred color wash down the entire page) */}
-      {activeMedia && (
-        <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+      {/* Full-Page Dynamic Ambient Atmosphere (Smooth crossfade between slide color washes) */}
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+        {slides.map((slide, idx) => (
           <img
-            key={`ambient-${activeMedia.id}`}
-            src={activeMedia.backdrop || activeMedia.poster}
+            key={`ambient-${slide.id}`}
+            src={slide.backdrop || slide.poster}
             alt=""
-            className="h-full w-full object-cover scale-125 transition-all duration-1000 filter blur-[90px] sm:blur-[110px] opacity-60 sm:opacity-70 saturate-[140%]"
+            aria-hidden="true"
+            className={`absolute inset-0 h-full w-full object-cover scale-125 filter blur-[90px] sm:blur-[110px] saturate-[140%] transition-opacity duration-1000 ease-in-out ${
+              idx === currentSlide ? "opacity-60 sm:opacity-75" : "opacity-0"
+            }`}
           />
-          {/* Subtle natural vignette that maintains crisp readability across all media cards */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/15 via-black/40 to-[#070b0e]/80" />
-        </div>
-      )}
+        ))}
+        {/* Subtle natural vignette that maintains crisp readability across all media cards */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/15 via-black/40 to-[#070b0e]/80" />
+      </div>
 
-      {/* Full-Bleed Immersive Hero with Feathered Bottom Fade (Melt seamlessly into ambient background) */}
+      {/* Full-Bleed Immersive Hero with Feathered Bottom Fade (Fits screen viewport height cleanly on laptops and desktops) */}
       {activeMedia ? (
         <section
           onMouseEnter={() => setIsPaused(true)}
@@ -146,47 +181,95 @@ export default function HomePage() {
             lastTimeRef.current = null;
             setIsPaused(false);
           }}
-          className="nv-reveal relative z-10 w-full -mt-[76px] pt-[96px] min-h-[640px] sm:min-h-[720px] lg:min-h-[780px] flex flex-col justify-end"
+          className="nv-reveal relative z-10 w-full -mt-[76px] pt-[80px] h-[100dvh] min-h-[480px] max-h-[820px] flex flex-col justify-end"
         >
-          {/* Feathered Hero Artwork Container (Gradually dissolves into the ambient glow with zero hard cuts) */}
+          {/* Feathered Hero Artwork Container (Smoothly crossfades between hero slides) */}
           <div className="absolute inset-0 overflow-hidden [mask-image:linear-gradient(to_bottom,black_0%,black_55%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,black_0%,black_55%,transparent_100%)]">
-            <img
-              key={activeMedia.id}
-              src={activeMedia.backdrop || activeMedia.poster}
-              alt=""
-              className="h-full w-full object-cover object-center opacity-95 transition-opacity duration-700"
-            />
+            {slides.map((slide, idx) => (
+              <img
+                key={`hero-art-${slide.id}`}
+                src={slide.backdrop || slide.poster}
+                alt=""
+                className={`absolute inset-0 h-full w-full object-cover object-center transition-opacity duration-1000 ease-in-out ${
+                  idx === currentSlide ? "opacity-95" : "opacity-0 pointer-events-none"
+                }`}
+              />
+            ))}
             {/* Directional left shadow for text clarity */}
             <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/40 to-transparent sm:max-w-[70%]" />
           </div>
 
           {/* Hero Content Container aligned with media rails */}
-          <div className="relative z-10 mx-auto max-w-[1600px] w-full px-6 sm:px-10 lg:px-12 pb-14 flex flex-col justify-end drop-shadow-[0_2px_14px_rgba(0,0,0,0.85)]">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className="font-mono-ui text-[11px] uppercase font-extrabold tracking-[.22em] text-[hsl(var(--primary))] bg-black/60 px-3 py-1 rounded-xl border border-[hsl(var(--primary))]/30 backdrop-blur-md shadow-sm">
-                Featured tonight · {activeMedia.type}
-              </span>
-              <span className="text-slate-400">·</span>
-              <span className="font-mono-ui text-[11px] font-bold text-[#acd986] bg-black/60 px-3 py-1 rounded-xl border border-white/[.1] backdrop-blur-md shadow-sm">
-                ★ {activeMedia.rating} / 5
-              </span>
+          <div className="relative z-10 mx-auto max-w-[1600px] w-full px-6 sm:px-10 lg:px-12 pb-6 sm:pb-8 lg:pb-10 flex flex-col justify-end drop-shadow-[0_2px_14px_rgba(0,0,0,0.85)]">
+            <div className="flex items-end justify-between gap-6">
+              <div className="max-w-[760px] flex flex-col justify-end">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <span className="font-mono-ui text-[10.5px] sm:text-[11px] uppercase font-extrabold tracking-[.22em] text-[hsl(var(--primary))] bg-black/60 px-3 py-1 rounded-xl border border-[hsl(var(--primary))]/30 backdrop-blur-md shadow-sm">
+                    Featured tonight · {activeMedia.type}
+                  </span>
+                  <span className="text-slate-400">·</span>
+                  <span className="font-mono-ui text-[10.5px] sm:text-[11px] font-bold text-[#acd986] bg-black/60 px-3 py-1 rounded-xl border border-white/[.1] backdrop-blur-md shadow-sm">
+                    ★ {activeMedia.rating} / 5
+                  </span>
+                  {activeMedia.year && (
+                    <>
+                      <span className="text-slate-400">·</span>
+                      <span className="font-mono-ui text-[10.5px] sm:text-[11px] font-bold text-slate-300 bg-black/60 px-2.5 py-1 rounded-xl border border-white/[.1] backdrop-blur-md">
+                        {activeMedia.year}
+                      </span>
+                    </>
+                  )}
+                  {activeMedia.genre && (
+                    <span className="hidden sm:inline-block font-mono-ui text-[10.5px] sm:text-[11px] text-slate-300 bg-black/60 px-2.5 py-1 rounded-xl border border-white/[.1] backdrop-blur-md">
+                      {activeMedia.genre}
+                    </span>
+                  )}
+                </div>
+
+                <h2 className="font-display mt-2 sm:mt-2.5 text-2xl sm:text-4xl lg:text-5xl xl:text-6xl font-extrabold tracking-[-.05em] text-white line-clamp-2 drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]">
+                  {activeMedia.title}
+                </h2>
+
+                <p className="mt-2 sm:mt-3 max-w-[640px] text-[12.5px] sm:text-[14px] leading-5 sm:leading-6 text-slate-200 line-clamp-2 sm:line-clamp-3 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
+                  {activeMedia.overview}
+                </p>
+              </div>
+
+              {/* Floating Entry Poster on the Right Side (Above slide controls) */}
+              <div className="hidden md:flex flex-col items-end flex-shrink-0">
+                <Link
+                  href={`/media/${activeMedia.id}`}
+                  className="group relative block overflow-hidden rounded-2xl border border-white/20 bg-black/50 backdrop-blur-md p-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.85)] hover:border-[hsl(var(--primary))]/60 transition-all duration-300 hover:shadow-[0_20px_50px_rgba(55,218,178,0.3)] hover:-translate-y-1.5 cursor-pointer"
+                  title={`View details for ${activeMedia.title}`}
+                >
+                  <div className="relative aspect-[2/3] w-28 sm:w-32 lg:w-36 xl:w-40 overflow-hidden rounded-xl">
+                    <img
+                      key={`poster-${activeMedia.id}`}
+                      src={activeMedia.poster}
+                      alt={activeMedia.title}
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-30 transition-opacity" />
+                    <div className="absolute bottom-1.5 inset-x-1.5 flex items-center justify-between text-[10px] font-mono-ui font-bold text-white/90">
+                      <span className="bg-black/70 backdrop-blur-md px-1.5 py-0.5 rounded border border-white/10">
+                        {activeMedia.type}
+                      </span>
+                      <span className="bg-[hsl(var(--primary))]/90 text-[#08211c] font-black px-1.5 py-0.5 rounded">
+                        ★ {activeMedia.rating}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              </div>
             </div>
 
-            <h2 className="font-display mt-3 text-3xl font-extrabold tracking-[-.05em] text-white sm:text-5xl lg:text-6xl line-clamp-2 drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]">
-              {activeMedia.title}
-            </h2>
-
-            <p className="mt-3.5 max-w-[640px] text-[13px] sm:text-[14px] leading-6 sm:leading-7 text-slate-200 line-clamp-3 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
-              {activeMedia.overview}
-            </p>
-
             {/* Bottom Controls Row: Action Buttons + 4 Progress Bar Capsules & Arrows */}
-            <div className="mt-7 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
               <div className="flex flex-wrap items-center gap-3">
                 <Link
                   href={`/media/${activeMedia.id}`}
                   data-testid="link-hero-details"
-                  className="nv-button flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-6 py-3 text-[12.5px] font-extrabold text-[#08211c] hover:bg-[#73e4c7] shadow-[0_0_28px_rgba(55,218,178,.35)] active:scale-95 transition"
+                  className="nv-button flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 sm:px-6 sm:py-3 text-[12px] sm:text-[12.5px] font-extrabold text-[#08211c] hover:bg-[#73e4c7] shadow-[0_0_28px_rgba(55,218,178,.35)] active:scale-95 transition"
                 >
                   <Play size={14} fill="currentColor" />
                   View details
@@ -194,7 +277,7 @@ export default function HomePage() {
                 <button
                   onClick={handleHeroTrack}
                   data-testid="button-hero-vault"
-                  className="nv-button flex items-center gap-2 rounded-xl border border-white/[.2] bg-black/50 px-5 py-3 text-[12.5px] font-bold text-white backdrop-blur-md hover:bg-white/[.15] active:scale-95 transition"
+                  className="nv-button flex items-center gap-2 rounded-xl border border-white/[.2] bg-black/50 px-4.5 py-2.5 sm:px-5 sm:py-3 text-[12px] sm:text-[12.5px] font-bold text-white backdrop-blur-md hover:bg-white/[.15] active:scale-95 transition"
                 >
                   {isSaved ? <Check size={14} /> : <BookmarkPlus size={14} />}
                   {isSaved ? "In your vault" : "Add to vault"}
@@ -261,12 +344,12 @@ export default function HomePage() {
           </div>
         </section>
       ) : (
-        /* Sleek Initial Hero Skeleton */
-        <div className="w-full -mt-[76px] pt-[96px] min-h-[640px] sm:min-h-[720px] lg:min-h-[780px] bg-white/[.03] animate-pulse flex flex-col justify-end p-8 sm:p-14 mx-auto max-w-[1600px]">
-          <div className="h-6 w-40 rounded-md bg-white/[.06] mb-4" />
-          <div className="h-14 w-3/4 max-w-[500px] rounded-xl bg-white/[.06] mb-3" />
-          <div className="h-4 w-full max-w-[580px] rounded-md bg-white/[.04] mb-7" />
-          <div className="h-12 w-52 rounded-xl bg-white/[.08]" />
+        /* Sleek Initial Hero Skeleton Matching Exact Fit */
+        <div className="w-full -mt-[76px] pt-[80px] h-[100dvh] min-h-[480px] max-h-[820px] bg-white/[.03] animate-pulse flex flex-col justify-end px-6 sm:px-10 lg:px-12 pb-6 sm:pb-8 lg:pb-10 mx-auto max-w-[1600px]">
+          <div className="h-5 w-36 rounded-md bg-white/[.06] mb-3" />
+          <div className="h-10 sm:h-14 w-3/4 max-w-[500px] rounded-xl bg-white/[.06] mb-3" />
+          <div className="h-4 w-full max-w-[580px] rounded-md bg-white/[.04] mb-6" />
+          <div className="h-11 w-48 rounded-xl bg-white/[.08]" />
         </div>
       )}
 
