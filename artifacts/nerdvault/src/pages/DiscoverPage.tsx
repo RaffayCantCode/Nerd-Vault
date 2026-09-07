@@ -8,6 +8,18 @@ import { useVault } from "../context/VaultContext";
 
 let cachedDiscoverBatch: { items: UnifiedMedia[]; hasMore: boolean } | null = null;
 
+function isClientReleased(item: UnifiedMedia): boolean {
+  if (!item) return false;
+  const today = new Date().toISOString().slice(0, 10);
+  const currentYear = new Date().getFullYear();
+  if (item.year) {
+    const y = parseInt(item.year, 10);
+    if (!isNaN(y) && y > currentYear) return false;
+  }
+  if (item.releaseDate && item.releaseDate > today) return false;
+  return true;
+}
+
 export default function DiscoverPage() {
   const { notify } = useVault();
 
@@ -108,6 +120,7 @@ export default function DiscoverPage() {
       .then((data) => {
         const fetched = data?.items || [];
         const filtered = fetched.filter((i) => {
+          if (!isClientReleased(i)) return false;
           if (type !== "All types" && (i.type || "").toLowerCase() !== type.toLowerCase()) return false;
           if (genre !== "All genres") {
             const match =
@@ -163,6 +176,7 @@ export default function DiscoverPage() {
       .then((data) => {
         const newItems = data?.items || [];
         const filtered = newItems.filter((i) => {
+          if (!isClientReleased(i)) return false;
           if (type !== "All types" && (i.type || "").toLowerCase() !== type.toLowerCase()) return false;
           if (genre !== "All genres") {
             const match =
@@ -368,16 +382,16 @@ export default function DiscoverPage() {
 
       {/* Media Grid */}
       {loading ? (
-        <div className="grid grid-cols-2 min-[440px]:grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-4 md:gap-5">
-          {Array.from({ length: 18 }).map((_, i) => (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3.5 sm:gap-5 md:gap-6">
+          {Array.from({ length: 15 }).map((_, i) => (
             <div
               key={i}
-              className="aspect-[2/3] animate-pulse rounded-2xl border border-white/[.08] bg-white/[.03]"
+              className="aspect-[2/3] animate-pulse rounded-2xl sm:rounded-[22px] border border-white/[.08] bg-white/[.03]"
             />
           ))}
         </div>
       ) : items.length > 0 ? (
-        <div className="grid grid-cols-2 min-[440px]:grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-4 md:gap-5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3.5 sm:gap-5 md:gap-6">
           {items.map((item, idx) => (
             <MediaCard
               key={`${item.id}-${idx}`}

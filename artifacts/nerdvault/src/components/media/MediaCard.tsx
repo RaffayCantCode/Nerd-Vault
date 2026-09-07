@@ -82,16 +82,16 @@ export function MediaCard({
             )}
 
             {/* Card Information Bottom Drawer */}
-            <div className="absolute inset-x-3 bottom-3 sm:inset-x-3.5 sm:bottom-3.5">
-              <div className="flex items-center gap-1.5 text-[11px] sm:text-[12px] font-bold text-[#e6f4ed]">
-                <Star size={12} className="text-[#acd986] sm:w-[14px] sm:h-[14px]" fill="#acd986" />
+            <div className="absolute inset-x-3 bottom-3 sm:inset-x-4 sm:bottom-4">
+              <div className="flex items-center gap-1.5 text-[11.5px] sm:text-[13px] font-bold text-[#e6f4ed]">
+                <Star size={13} className="text-[#acd986] sm:w-[15px] sm:h-[15px]" fill="#acd986" />
                 <span className="font-extrabold">{item.rating}</span>
-                <span className="text-slate-400 text-[9px] sm:text-[10px] font-normal">/ 5</span>
+                <span className="text-slate-400 text-[9.5px] sm:text-[10.5px] font-normal">/ 5</span>
               </div>
-              <p className="mt-1 line-clamp-1 text-[12px] sm:text-[13px] font-bold text-white group-hover:text-[hsl(var(--primary))] transition-colors drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+              <p className="mt-1 line-clamp-1 text-[13px] sm:text-[14.5px] font-bold text-white group-hover:text-[hsl(var(--primary))] transition-colors drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
                 {item.title}
               </p>
-              <p className="mt-0.5 font-mono-ui text-[9.5px] sm:text-[10.5px] text-slate-400 truncate">
+              <p className="mt-0.5 font-mono-ui text-[10px] sm:text-[11.5px] text-slate-400 truncate">
                 {item.year} · {item.genre}
               </p>
             </div>

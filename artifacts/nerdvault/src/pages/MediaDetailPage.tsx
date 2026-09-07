@@ -275,12 +275,6 @@ export default function MediaDetailPage() {
                     </span>
                   </>
                 )}
-                {media.platform && (
-                  <>
-                    <span>·</span>
-                    <span className="text-[hsl(var(--accent))] font-semibold">{media.platform}</span>
-                  </>
-                )}
               </div>
 
               <h2 className="font-display mt-3 text-4xl font-bold tracking-[-.07em] text-white sm:text-6xl drop-shadow-[0_3px_12px_rgba(0,0,0,0.95)]">

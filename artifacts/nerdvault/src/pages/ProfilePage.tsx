@@ -170,6 +170,39 @@ export default function ProfilePage() {
     genresBreakdown: [],
   };
 
+  const completedCount = React.useMemo(() => {
+    return allItems.filter((i) => {
+      const s = (i.status || "").toLowerCase();
+      return s === "completed" || s === "watched" || s === "favorite";
+    }).length;
+  }, [allItems]);
+
+  const topGenre = React.useMemo(() => {
+    if (allItems.length === 0) return "Exploring";
+    const counts: Record<string, number> = {};
+    const ignored = new Set(["featured", "movie", "series", "anime", "game", "show", "tv", "all genres"]);
+
+    for (const item of allItems) {
+      const candidates: string[] = [];
+      if (item.genre) candidates.push(item.genre);
+      if (Array.isArray(item.genres)) candidates.push(...item.genres);
+
+      for (const g of candidates) {
+        if (!g || typeof g !== "string") continue;
+        const clean = g.trim();
+        if (clean && !ignored.has(clean.toLowerCase())) {
+          counts[clean] = (counts[clean] || 0) + 1;
+        }
+      }
+    }
+
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    if (sorted.length > 0) return sorted[0][0];
+    return displayStats.topGenre && !ignored.has(displayStats.topGenre.toLowerCase())
+      ? displayStats.topGenre
+      : allItems[0]?.type || "Cinema";
+  }, [allItems, displayStats.topGenre]);
+
   // Section Privacy Checks
   const privacySettings = JSON.parse(localStorage.getItem(`nv_privacy_${currentUser?.id}`) || "{}");
   const favsPrivate = !isOwner && privacySettings.favorites === "private";
@@ -443,7 +476,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Stats Row */}
-        <div className="relative mt-8 grid grid-cols-3 gap-3 border-t border-white/[.08] pt-6 sm:max-w-[560px]">
+        <div className="relative mt-8 grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 border-t border-white/[.08] pt-6 sm:max-w-[620px]">
           <div>
             <p className="font-display text-2xl font-bold text-slate-100">
               {displayStats.totalCollected}
@@ -452,9 +485,15 @@ export default function ProfilePage() {
           </div>
           <div>
             <p className="font-display text-2xl font-bold text-slate-100">
-              {displayStats.hoursWatched}h
+              {completedCount}
             </p>
-            <p className="text-[11px] text-slate-500">Hours tracked</p>
+            <p className="text-[11px] text-slate-500">Completed</p>
+          </div>
+          <div>
+            <p className="font-display text-2xl font-bold text-[hsl(var(--primary))] truncate" title={topGenre}>
+              {topGenre}
+            </p>
+            <p className="text-[11px] text-slate-500">Top genre</p>
           </div>
           <div>
             <p className="font-display text-2xl font-bold text-slate-100">
@@ -495,29 +534,32 @@ export default function ProfilePage() {
       {activeTab === "showcase" && (
         <div className="space-y-10">
           {/* --- TOP 4 FAVORITES BALANCED SHOWCASE (ABOVE DNA) --- */}
-          <section className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-mono-ui text-[10px] uppercase font-bold tracking-[.2em] text-[hsl(var(--primary))]">
+          <section className="nv-card relative overflow-hidden rounded-3xl p-6 sm:p-9 border border-white/[.08] space-y-7 flex flex-col items-center">
+            <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-[rgba(55,218,178,.07)] to-transparent pointer-events-none" />
+
+            <div className="flex flex-col items-center text-center max-w-xl mx-auto relative z-10">
+              <div className="inline-flex items-center gap-2 rounded-full bg-[hsl(var(--primary))]/10 px-3.5 py-1 border border-[hsl(var(--primary))]/20 mb-2.5">
+                <Sparkles size={13} className="text-[hsl(var(--primary))]" />
+                <span className="font-mono-ui text-[10.5px] uppercase font-bold tracking-[.25em] text-[hsl(var(--primary))]">
                   Signature Taste
-                </p>
-                <h3 className="font-display text-xl font-bold tracking-[-.04em] text-white">
-                  Favorite 4 showcase
-                </h3>
+                </span>
               </div>
-              <span className="text-[11px] text-slate-500">
-                1 per media category
-              </span>
+              <h3 className="font-display text-2xl sm:text-3xl font-bold tracking-[-.04em] text-white">
+                Favorite 4 showcase
+              </h3>
+              <p className="mt-1.5 text-[12.5px] text-slate-400">
+                1 definitive favorite per media category · Click any slot to customize
+              </p>
             </div>
 
             {favsPrivate ? (
-              <div className="nv-card flex flex-col items-center justify-center rounded-3xl p-10 text-center border border-dashed border-white/[.1]">
+              <div className="nv-card flex flex-col items-center justify-center rounded-3xl p-10 text-center border border-dashed border-white/[.1] w-full max-w-md">
                 <Lock size={26} className="text-slate-500 mb-2" />
                 <p className="text-[13px] font-bold text-slate-300">This section is private</p>
                 <p className="text-[11px] text-slate-500 mt-1">The collector has set their Favorite 4 showcase to private.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-[760px]">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 w-full max-w-[940px] mx-auto relative z-10">
                 {top4Slots.map((slot) => {
                   const Icon = slot.icon;
                   const item = slot.item;
@@ -527,14 +569,14 @@ export default function ProfilePage() {
                       <div key={slot.label} className="flex flex-col group relative">
                         <div
                           onClick={() => handleSlotClick(slot.type)}
-                          className="cursor-pointer"
+                          className="cursor-pointer transition-transform duration-300 hover:scale-[1.02]"
                           title={`Click to change Favorite ${slot.type}`}
                         >
                           <MediaCard item={item} />
                         </div>
-                        <div className="mt-2 flex items-center justify-center">
-                          <span className="font-mono-ui text-[10px] uppercase font-bold text-[hsl(var(--primary))] flex items-center gap-1">
-                            <Icon size={11} /> {slot.label}
+                        <div className="mt-2.5 flex items-center justify-center">
+                          <span className="font-mono-ui text-[10px] sm:text-[11px] uppercase font-extrabold text-[hsl(var(--primary))] flex items-center gap-1.5 px-3 py-1 rounded-full bg-[hsl(var(--primary))]/10 border border-[hsl(var(--primary))]/25 shadow-sm">
+                            <Icon size={12} /> {slot.label}
                           </span>
                         </div>
                       </div>
@@ -546,15 +588,15 @@ export default function ProfilePage() {
                       key={slot.label}
                       type="button"
                       onClick={() => handleSlotClick(slot.type)}
-                      className="nv-card flex aspect-[2/3] flex-col items-center justify-center rounded-2xl border border-dashed border-white/[.14] p-4 text-center hover:border-[rgba(55,218,178,.5)] hover:bg-white/[.04] transition group"
+                      className="nv-card flex aspect-[2/3] flex-col items-center justify-center rounded-2xl sm:rounded-[22px] border border-dashed border-white/[.16] p-5 text-center hover:border-[hsl(var(--primary))]/70 hover:bg-white/[.04] transition-all duration-300 group shadow-lg"
                     >
-                      <div className="grid h-10 w-10 place-items-center rounded-xl bg-white/[.05] text-slate-500 group-hover:bg-[hsl(var(--primary))]/15 group-hover:text-[hsl(var(--primary))] transition">
-                        <Icon size={18} />
+                      <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white/[.06] text-slate-400 group-hover:bg-[hsl(var(--primary))]/20 group-hover:text-[hsl(var(--primary))] group-hover:scale-110 transition duration-300">
+                        <Icon size={22} />
                       </div>
-                      <span className="mt-2.5 text-[12px] font-bold text-slate-300">
+                      <span className="mt-3 text-[13px] font-bold text-slate-200">
                         {slot.label}
                       </span>
-                      <span className="mt-1 font-mono-ui text-[10px] text-slate-500 group-hover:text-[hsl(var(--primary))]">
+                      <span className="mt-1 font-mono-ui text-[10.5px] text-slate-500 group-hover:text-[hsl(var(--primary))] font-semibold">
                         + Add Favorite
                       </span>
                     </button>
@@ -620,8 +662,12 @@ export default function ProfilePage() {
                   </p>
                   <div className="mt-6 space-y-2">
                     <div className="flex justify-between py-2 text-[12px] border-b border-white/[.06]">
-                      <span className="text-slate-500 font-medium">Favorite Format</span>
-                      <span className="text-slate-200 font-bold">{displayStats.topGenre || "Multi-format"}</span>
+                      <span className="text-slate-500 font-medium">Top Genre</span>
+                      <span className="text-slate-200 font-bold">{topGenre || "Multi-genre"}</span>
+                    </div>
+                    <div className="flex justify-between py-2 text-[12px] border-b border-white/[.06]">
+                      <span className="text-slate-500 font-medium">Completed Titles</span>
+                      <span className="text-slate-200 font-bold">{completedCount}</span>
                     </div>
                     <div className="flex justify-between py-2 text-[12px] border-b border-white/[.06]">
                       <span className="text-slate-500 font-medium">Profile Visibility</span>

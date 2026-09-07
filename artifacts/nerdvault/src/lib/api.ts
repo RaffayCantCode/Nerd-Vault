@@ -7,6 +7,7 @@ export type UnifiedMedia = {
   originalTitle?: string;
   type: MediaType;
   year: string;
+  releaseDate?: string;
   rating: string;
   genre: string;
   genres: string[];

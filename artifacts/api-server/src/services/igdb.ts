@@ -38,8 +38,12 @@ function formatGame(item: any): UnifiedMedia {
     ? `https://images.igdb.com/igdb/image/upload/t_1080p/${backdropImageId}.jpg`
     : undefined;
 
-  const year = item.first_release_date
-    ? new Date(item.first_release_date * 1000).getFullYear().toString()
+  const releaseDate = item.first_release_date
+    ? new Date(item.first_release_date * 1000).toISOString().slice(0, 10)
+    : undefined;
+
+  const year = releaseDate
+    ? releaseDate.slice(0, 4)
     : "2024";
 
   const rawGenres = (item.genres || []).map((g: any) => g.name || g);
@@ -58,6 +62,7 @@ function formatGame(item: any): UnifiedMedia {
     title: item.name || "Untitled Game",
     type: "Game",
     year,
+    releaseDate,
     rating: toFiveStarRating(rawRating / 10),
     genre: normalizedGenres[0] || "Game",
     genres: normalizedGenres.length > 0 ? normalizedGenres : ["Game"],
@@ -101,8 +106,9 @@ export const igdbService = {
   async getTrendingGames(genre?: string, page: number = 1): Promise<UnifiedMedia[]> {
     try {
       const offset = (page - 1) * 18;
-      // Recent trending releases with high activity/hypes (2022-2025) and genuine backdrops
-      let whereClause = "where cover != null & (hypes > 5 | rating_count > 15) & first_release_date > 1640995200 & (artworks != null | screenshots != null)";
+      const nowSec = Math.floor(Date.now() / 1000);
+      // Recent trending releases with high activity/hypes (2022-present) and genuine backdrops (strictly released)
+      let whereClause = `where cover != null & (hypes > 5 | rating_count > 15) & first_release_date > 1640995200 & first_release_date <= ${nowSec} & (artworks != null | screenshots != null)`;
       if (genre && genre !== "All genres") {
         whereClause += ` & genres.name ~ *"${genre}"*`;
       }
@@ -127,18 +133,19 @@ export const igdbService = {
   async getPopularGames(genre?: string, page: number = 1): Promise<UnifiedMedia[]> {
     try {
       const offset = (page - 1) * 18;
+      const nowSec = Math.floor(Date.now() / 1000);
 
-      let whereClause = "where rating != null & rating_count > 30 & cover != null & (artworks != null | screenshots != null)";
+      let whereClause = `where rating != null & rating_count > 30 & first_release_date <= ${nowSec} & cover != null & (artworks != null | screenshots != null)`;
       if (genre && genre !== "All genres") {
         const g = genre.toLowerCase();
         if (g.includes("rpg") || g.includes("role-playing")) {
-          whereClause = `where (genres.name ~ *"Role-playing"* | genres.name ~ *"RPG"*) & rating != null & cover != null & (artworks != null | screenshots != null)`;
+          whereClause = `where (genres.name ~ *"Role-playing"* | genres.name ~ *"RPG"*) & rating != null & first_release_date <= ${nowSec} & cover != null & (artworks != null | screenshots != null)`;
         } else if (g.includes("sci-fi")) {
-          whereClause = `where (genres.name ~ *"Sci-Fi"* | themes.name ~ *"Science fiction"*) & rating != null & cover != null & (artworks != null | screenshots != null)`;
+          whereClause = `where (genres.name ~ *"Sci-Fi"* | themes.name ~ *"Science fiction"*) & rating != null & first_release_date <= ${nowSec} & cover != null & (artworks != null | screenshots != null)`;
         } else if (g.includes("fantasy")) {
-          whereClause = `where (genres.name ~ *"Fantasy"* | themes.name ~ *"Fantasy"*) & rating != null & cover != null & (artworks != null | screenshots != null)`;
+          whereClause = `where (genres.name ~ *"Fantasy"* | themes.name ~ *"Fantasy"*) & rating != null & first_release_date <= ${nowSec} & cover != null & (artworks != null | screenshots != null)`;
         } else {
-          whereClause = `where genres.name ~ *"${genre}"* & rating != null & cover != null & (artworks != null | screenshots != null)`;
+          whereClause = `where genres.name ~ *"${genre}"* & rating != null & first_release_date <= ${nowSec} & cover != null & (artworks != null | screenshots != null)`;
         }
       }
 
@@ -160,7 +167,8 @@ export const igdbService = {
   async getNicheGames(genre?: string, page: number = 1): Promise<UnifiedMedia[]> {
     try {
       const offset = (page - 1) * 18;
-      let whereClause = "where (themes.name ~ *\"Indie\"* | genres.name ~ *\"Indie\"*) & rating >= 75 & rating_count >= 10 & cover != null & (artworks != null | screenshots != null)";
+      const nowSec = Math.floor(Date.now() / 1000);
+      let whereClause = `where (themes.name ~ *"Indie"* | genres.name ~ *"Indie"*) & rating >= 75 & rating_count >= 10 & first_release_date <= ${nowSec} & cover != null & (artworks != null | screenshots != null)`;
       if (genre && genre !== "All genres") {
         whereClause += ` & genres.name ~ *"${genre}"*`;
       }
@@ -191,7 +199,10 @@ export const igdbService = {
         limit 15;
       `;
       const data = await queryIGDB("games", body);
-      return (data || []).map(formatGame);
+      const nowSec = Math.floor(Date.now() / 1000);
+      return (data || [])
+        .filter((g: any) => !g.first_release_date || g.first_release_date <= nowSec)
+        .map(formatGame);
     } catch (err) {
       console.warn("IGDB search warning:", err);
       return [];

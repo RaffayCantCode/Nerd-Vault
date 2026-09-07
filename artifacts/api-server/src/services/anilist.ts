@@ -94,6 +94,37 @@ export const anilistItemCache = new Map<string, UnifiedMedia>();
 
 const KITSU_BASE_URL = "https://kitsu.io/api/edge";
 
+export function isReleasedKitsu(item: any): boolean {
+  if (!item) return false;
+  const attr = item.attributes || {};
+  if (attr.status === "unreleased" || attr.status === "upcoming") return false;
+  const today = new Date().toISOString().slice(0, 10);
+  if (attr.startDate && String(attr.startDate).slice(0, 10) > today) {
+    return false;
+  }
+  const currentYear = new Date().getFullYear();
+  const year = parseInt((attr.startDate || "").slice(0, 4), 10);
+  if (!isNaN(year) && year > currentYear) {
+    return false;
+  }
+  return true;
+}
+
+export function isReleasedAniList(item: any): boolean {
+  if (!item) return false;
+  if (item.status === "NOT_YET_RELEASED") return false;
+  const today = new Date().toISOString().slice(0, 10);
+  if (item.startDate?.year) {
+    const y = String(item.startDate.year).padStart(4, "0");
+    const m = item.startDate.month ? String(item.startDate.month).padStart(2, "0") : "01";
+    const d = item.startDate.day ? String(item.startDate.day).padStart(2, "0") : "01";
+    if (`${y}-${m}-${d}` > today) return false;
+  }
+  const currentYear = new Date().getFullYear();
+  if (item.seasonYear && item.seasonYear > currentYear) return false;
+  return true;
+}
+
 function formatKitsu(data: any): UnifiedMedia {
   const attr = data.attributes || {};
   const canonicalTitle = attr.canonicalTitle || attr.titles?.en || attr.titles?.en_jp || "Anime";
@@ -109,6 +140,7 @@ function formatKitsu(data: any): UnifiedMedia {
     originalTitle: attr.titles?.ja_jp,
     type: "Anime",
     year,
+    releaseDate: attr.startDate ? String(attr.startDate).slice(0, 10) : undefined,
     rating: toFiveStarRating(rawScore),
     genre: "Anime",
     genres: ["Anime"],
@@ -165,7 +197,7 @@ export async function fetchKitsuTrending(): Promise<UnifiedMedia[]> {
       if (!res.ok) return [];
       const json: any = await res.json();
       return (json.data || [])
-        .filter((d: any) => !isHentaiOrAdult(d))
+        .filter((d: any) => !isHentaiOrAdult(d) && isReleasedKitsu(d))
         .map(formatKitsu);
     } catch {
       return [];
@@ -183,7 +215,7 @@ export async function fetchKitsuSearch(query: string): Promise<UnifiedMedia[]> {
       if (!res.ok) return [];
       const json: any = await res.json();
       return (json.data || [])
-        .filter((d: any) => !isHentaiOrAdult(d))
+        .filter((d: any) => !isHentaiOrAdult(d) && isReleasedKitsu(d))
         .map(formatKitsu);
     } catch {
       return [];
@@ -196,6 +228,14 @@ function formatAniList(item: any): UnifiedMedia {
   const year = String(item.seasonYear || item.startDate?.year || "2024");
   const rawScore = item.averageScore ? item.averageScore / 10 : 8.0;
 
+  let releaseDate: string | undefined;
+  if (item.startDate?.year) {
+    const y = String(item.startDate.year).padStart(4, "0");
+    const m = item.startDate.month ? String(item.startDate.month).padStart(2, "0") : "01";
+    const d = item.startDate.day ? String(item.startDate.day).padStart(2, "0") : "01";
+    releaseDate = `${y}-${m}-${d}`;
+  }
+
   const media: UnifiedMedia = {
     id: `anilist-${item.id}`,
     slug: slugify(title),
@@ -203,6 +243,7 @@ function formatAniList(item: any): UnifiedMedia {
     originalTitle: item.title?.native,
     type: "Anime",
     year,
+    releaseDate,
     rating: toFiveStarRating(rawScore),
     genre: item.genres?.[0] || "Anime",
     genres: item.genres?.length > 0 ? item.genres : ["Anime", "Action"],
@@ -228,6 +269,7 @@ function formatJikan(item: any): UnifiedMedia {
   const year = String(item.year || item.aired?.prop?.from?.year || "2024");
   const rawScore = item.score || 8.0;
   const genres = (item.genres || []).map((g: any) => g.name);
+  const releaseDate = item.aired?.from ? String(item.aired.from).slice(0, 10) : undefined;
 
   return {
     id: `anilist-mal-${item.mal_id}`,
@@ -236,6 +278,7 @@ function formatJikan(item: any): UnifiedMedia {
     originalTitle: item.title_japanese,
     type: "Anime",
     year,
+    releaseDate,
     rating: toFiveStarRating(rawScore),
     genre: genres[0] || "Anime",
     genres: genres.length > 0 ? genres : ["Anime", "Action"],
@@ -313,8 +356,14 @@ async function fetchJikanTop(page: number = 1): Promise<UnifiedMedia[]> {
       const res = await fetch(url, { headers: { "User-Agent": "NerdVault/2.0" } });
       if (!res.ok) return [];
       const data: any = await res.json();
+      const today = new Date().toISOString().slice(0, 10);
       return (data.data || [])
-        .filter((item: any) => !isAdultContent(item))
+        .filter((item: any) => {
+          if (isAdultContent(item)) return false;
+          if (item.status === "Not yet aired") return false;
+          if (item.aired?.from && String(item.aired.from).slice(0, 10) > today) return false;
+          return true;
+        })
         .map(formatJikan);
     } catch {
       return [];
@@ -327,26 +376,33 @@ async function fetchTmdbAnimation(page: number = 1): Promise<UnifiedMedia[]> {
   const cacheKey = `tmdb:anime:${page}`;
   return fetchWithCache(cacheKey, 1000 * 60 * 30, async () => {
     try {
-      const url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_genres=16&with_original_language=ja&sort_by=popularity.desc&include_adult=false&page=${page}`;
+      const today = new Date().toISOString().slice(0, 10);
+      const url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_genres=16&with_original_language=ja&sort_by=popularity.desc&include_adult=false&first_air_date.lte=${today}&page=${page}`;
       const res = await fetch(url, { headers: { "User-Agent": "NerdVault/2.0" } });
       if (!res.ok) return [];
       const data: any = await res.json();
-      return (data.results || []).map((m: any) => ({
-        id: `tmdb-anime-${m.id}`,
-        slug: slugify(m.name || m.original_name || `anime-${m.id}`),
-        title: m.name || m.original_name || "Anime",
-        originalTitle: m.original_name,
-        type: "Anime" as const,
-        year: (m.first_air_date || "").slice(0, 4) || "2024",
-        rating: toFiveStarRating(m.vote_average || 8.0),
-        genre: "Anime",
-        genres: ["Anime", "Action", "Fantasy"],
-        poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://image.tmdb.org/t/p/w500/dqzenchTd7lp5zht7BdlqM7RBhD.jpg",
-        backdrop: m.backdrop_path ? `https://image.tmdb.org/t/p/w1280${m.backdrop_path}` : undefined,
-        overview: m.overview || "Popular Japanese anime series.",
-        source: "tmdb" as const,
-        sourceId: String(m.id),
-      }));
+      return (data.results || [])
+        .filter((m: any) => {
+          const date = m.first_air_date || "";
+          return date && date.slice(0, 10) <= today;
+        })
+        .map((m: any) => ({
+          id: `tmdb-anime-${m.id}`,
+          slug: slugify(m.name || m.original_name || `anime-${m.id}`),
+          title: m.name || m.original_name || "Anime",
+          originalTitle: m.original_name,
+          type: "Anime" as const,
+          year: (m.first_air_date || "").slice(0, 4) || "2024",
+          releaseDate: m.first_air_date || undefined,
+          rating: toFiveStarRating(m.vote_average || 8.0),
+          genre: "Anime",
+          genres: ["Anime", "Action", "Fantasy"],
+          poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://image.tmdb.org/t/p/w500/dqzenchTd7lp5zht7BdlqM7RBhD.jpg",
+          backdrop: m.backdrop_path ? `https://image.tmdb.org/t/p/w1280${m.backdrop_path}` : undefined,
+          overview: m.overview || "Popular Japanese anime series.",
+          source: "tmdb" as const,
+          sourceId: String(m.id),
+        }));
     } catch {
       return [];
     }
@@ -359,12 +415,13 @@ export const anilistService = {
     const query = `
       query ($page: Int) {
         Page(page: $page, perPage: 24) {
-          media(type: ANIME, isAdult: false, sort: [TRENDING_DESC, POPULARITY_DESC]) {
+          media(type: ANIME, isAdult: false, status_in: [FINISHED, RELEASING], sort: [TRENDING_DESC, POPULARITY_DESC]) {
             id
             isAdult
+            status
             title { romaji english native }
             seasonYear
-            startDate { year }
+            startDate { year month day }
             coverImage { large extraLarge }
             bannerImage
             averageScore
@@ -384,7 +441,7 @@ export const anilistService = {
       ]);
 
       const anilistItems = (data?.Page?.media || [])
-        .filter((item: any) => !isAdultContent(item))
+        .filter((item: any) => !isAdultContent(item) && isReleasedAniList(item))
         .map((m: any) => ({ ...formatAniList(m), curation: "Trending" as const }));
 
       const seenTitles = new Set(anilistItems.map((a: UnifiedMedia) => a.title.toLowerCase().trim()));
@@ -414,12 +471,13 @@ export const anilistService = {
     const query = `
       query ($genre: String, $page: Int) {
         Page(page: $page, perPage: 24) {
-          media(type: ANIME, isAdult: false, sort: [SCORE_DESC, POPULARITY_DESC], genre: $genre) {
+          media(type: ANIME, isAdult: false, status_in: [FINISHED, RELEASING], sort: [SCORE_DESC, POPULARITY_DESC], genre: $genre) {
             id
             isAdult
+            status
             title { romaji english native }
             seasonYear
-            startDate { year }
+            startDate { year month day }
             coverImage { large extraLarge }
             bannerImage
             averageScore
@@ -439,7 +497,7 @@ export const anilistService = {
       ]);
 
       const anilistItems = (data?.Page?.media || [])
-        .filter((item: any) => !isAdultContent(item))
+        .filter((item: any) => !isAdultContent(item) && isReleasedAniList(item))
         .map((m: any) => ({ ...formatAniList(m), curation: "Popular" as const }));
 
       const seenTitles = new Set(anilistItems.map((a: UnifiedMedia) => a.title.toLowerCase().trim()));
@@ -468,12 +526,13 @@ export const anilistService = {
     const query = `
       query ($genre: String, $page: Int) {
         Page(page: $page, perPage: 24) {
-          media(type: ANIME, isAdult: false, sort: [SCORE_DESC], popularity_greater: 8000, popularity_lesser: 95000, genre: $genre) {
+          media(type: ANIME, isAdult: false, status_in: [FINISHED, RELEASING], sort: [SCORE_DESC], popularity_greater: 8000, popularity_lesser: 95000, genre: $genre) {
             id
             isAdult
+            status
             title { romaji english native }
             seasonYear
-            startDate { year }
+            startDate { year month day }
             coverImage { large extraLarge }
             bannerImage
             averageScore
@@ -489,7 +548,7 @@ export const anilistService = {
     try {
       const data = await runGraphQLQuery(query, { genre: genre || undefined, page }).catch(() => null);
       const anilistItems = (data?.Page?.media || [])
-        .filter((item: any) => !isAdultContent(item))
+        .filter((item: any) => !isAdultContent(item) && isReleasedAniList(item))
         .map((m: any) => ({ ...formatAniList(m), curation: "Niche" as const }));
 
       if (anilistItems.length > 0) {
@@ -509,12 +568,13 @@ export const anilistService = {
     const query = `
       query ($search: String) {
         Page(page: 1, perPage: 20) {
-          media(type: ANIME, isAdult: false, search: $search, sort: SEARCH_MATCH) {
+          media(type: ANIME, isAdult: false, status_in: [FINISHED, RELEASING], search: $search, sort: SEARCH_MATCH) {
             id
             isAdult
+            status
             title { romaji english native }
             seasonYear
-            startDate { year }
+            startDate { year month day }
             coverImage { large extraLarge }
             bannerImage
             averageScore
@@ -530,7 +590,7 @@ export const anilistService = {
     try {
       const data = await runGraphQLQuery(query, { search });
       const items = (data?.Page?.media || [])
-        .filter((item: any) => !isAdultContent(item))
+        .filter((item: any) => !isAdultContent(item) && isReleasedAniList(item))
         .map(formatAniList);
       if (items.length > 0) return items;
     } catch (err) {
@@ -543,28 +603,36 @@ export const anilistService = {
         const res = await fetch(tmdbAnimeUrl);
         if (!res.ok) return [];
         const d: any = await res.json();
+        const today = new Date().toISOString().slice(0, 10);
         return (d.results || [])
           .filter((item: any) => {
             const isJp = item.original_language === "ja" || (Array.isArray(item.origin_country) && item.origin_country.includes("JP"));
             const isAnim = Array.isArray(item.genre_ids) && item.genre_ids.includes(16);
-            return (isJp || isAnim) && !isAdultContent(item);
+            if (!((isJp || isAnim) && !isAdultContent(item))) return false;
+            const release = item.first_air_date || item.release_date;
+            if (release && release.slice(0, 10) > today) return false;
+            return true;
           })
-          .map((item: any) => ({
-            id: `tmdb-anime-${item.id}`,
-            slug: slugify(item.name || item.title || "Anime"),
-            title: item.name || item.title || "Anime",
-            originalTitle: item.original_name || item.original_title,
-            type: "Anime" as const,
-            year: (item.first_air_date || item.release_date || "2024").slice(0, 4),
-            rating: toFiveStarRating(item.vote_average ? item.vote_average / 2 : 4.0),
-            genre: "Anime",
-            genres: ["Anime", "Animation"],
-            poster: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : "https://image.tmdb.org/t/p/w500/dqzenchTd7lp5zht7BdlqM7RBhD.jpg",
-            backdrop: item.backdrop_path ? `https://image.tmdb.org/t/p/original${item.backdrop_path}` : undefined,
-            overview: item.overview || "No description provided.",
-            source: "anilist" as const,
-            sourceId: String(item.id),
-          }));
+          .map((item: any) => {
+            const release = item.first_air_date || item.release_date;
+            return {
+              id: `tmdb-anime-${item.id}`,
+              slug: slugify(item.name || item.title || "Anime"),
+              title: item.name || item.title || "Anime",
+              originalTitle: item.original_name || item.original_title,
+              type: "Anime" as const,
+              year: (release || "2024").slice(0, 4),
+              releaseDate: release || undefined,
+              rating: toFiveStarRating(item.vote_average ? item.vote_average / 2 : 4.0),
+              genre: "Anime",
+              genres: ["Anime", "Animation"],
+              poster: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : "https://image.tmdb.org/t/p/w500/dqzenchTd7lp5zht7BdlqM7RBhD.jpg",
+              backdrop: item.backdrop_path ? `https://image.tmdb.org/t/p/original${item.backdrop_path}` : undefined,
+              overview: item.overview || "No description provided.",
+              source: "anilist" as const,
+              sourceId: String(item.id),
+            };
+          });
       } catch {
         return [];
       }

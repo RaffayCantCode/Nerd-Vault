@@ -20,14 +20,39 @@ function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T
   ]);
 }
 
+export function isOfficiallyReleased(item: UnifiedMedia | null | undefined): boolean {
+  if (!item) return false;
+  if (isHentaiOrAdult(item)) return false;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const currentYear = new Date().getFullYear();
+
+  // If year is in the future (> currentYear), it is unreleased
+  if (item.year) {
+    const parsedYear = parseInt(item.year, 10);
+    if (!isNaN(parsedYear) && parsedYear > currentYear) {
+      return false;
+    }
+  }
+
+  // If exact releaseDate is present, check against today's date
+  if (item.releaseDate) {
+    if (item.releaseDate > today) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 function pickHeroCandidate(pool: UnifiedMedia[]): UnifiedMedia | null {
   if (!pool || pool.length === 0) return null;
 
-  // Tier 1: Acclaimed titles (rating >= 4.0/5), valid widescreen backdrop, rich overview
+  // Tier 1: Acclaimed titles (rating >= 4.0/5), valid widescreen backdrop, rich overview, officially released
   const prime = pool.filter(
     (item) =>
       item &&
-      !isHentaiOrAdult(item) &&
+      isOfficiallyReleased(item) &&
       item.backdrop &&
       item.backdrop.length > 10 &&
       item.backdrop !== item.poster &&
@@ -45,7 +70,7 @@ function pickHeroCandidate(pool: UnifiedMedia[]): UnifiedMedia | null {
   const secondary = pool.filter(
     (item) =>
       item &&
-      !isHentaiOrAdult(item) &&
+      isOfficiallyReleased(item) &&
       item.backdrop &&
       item.backdrop.length > 10 &&
       item.backdrop !== item.poster &&
@@ -57,7 +82,7 @@ function pickHeroCandidate(pool: UnifiedMedia[]): UnifiedMedia | null {
     return topN[Math.floor(Math.random() * topN.length)];
   }
 
-  return pool.find((i) => i && !isHentaiOrAdult(i) && i.backdrop) || pool[0] || null;
+  return pool.find((i) => i && isOfficiallyReleased(i) && i.backdrop) || pool[0] || null;
 }
 
 export const catalogAggregator = {
@@ -106,11 +131,11 @@ export const catalogAggregator = {
       popularGames,
     } = rawPools;
 
-    // Instant in-memory dynamic shuffle for variety on every single visit with strict hentai filter
-    const allMovies = shuffleArray([...trendingMovies, ...topRatedMovies]).filter((i) => !isHentaiOrAdult(i));
-    const allShows = shuffleArray([...trendingShows, ...topRatedShows]).filter((i) => !isHentaiOrAdult(i));
-    const allAnime = shuffleArray([...topAnime, ...popularAnime]).filter((i) => !isHentaiOrAdult(i));
-    const allGames = shuffleArray(popularGames).filter((i) => !isHentaiOrAdult(i));
+    // Instant in-memory dynamic shuffle for variety on every single visit with strict released filter
+    const allMovies = shuffleArray([...trendingMovies, ...topRatedMovies]).filter(isOfficiallyReleased);
+    const allShows = shuffleArray([...trendingShows, ...topRatedShows]).filter(isOfficiallyReleased);
+    const allAnime = shuffleArray([...topAnime, ...popularAnime]).filter(isOfficiallyReleased);
+    const allGames = shuffleArray(popularGames).filter(isOfficiallyReleased);
 
     // 4 Real Live Featured Hero Slides: 1 Movie, 1 Series, 1 Anime, 1 Game (Acclaimed with genuine widescreen backdrops)
     const heroMovie = pickHeroCandidate(topRatedMovies.length > 0 ? [...topRatedMovies, ...trendingMovies] : trendingMovies);
@@ -123,7 +148,7 @@ export const catalogAggregator = {
       heroShow,
       heroAnime,
       heroGame,
-    ].filter((i): i is UnifiedMedia => Boolean(i) && !isHentaiOrAdult(i));
+    ].filter((i): i is UnifiedMedia => Boolean(i) && isOfficiallyReleased(i));
 
     // Curated multi-media drop with randomized assortment
     const weeklyDrop: UnifiedMedia[] = shuffleArray([
@@ -131,7 +156,7 @@ export const catalogAggregator = {
       ...allShows.slice(1, 5),
       ...allAnime.slice(1, 5),
       ...allGames.slice(1, 5),
-    ]).filter((i) => !isHentaiOrAdult(i));
+    ]).filter(isOfficiallyReleased);
 
     return {
       featured: featuredSlides[0] || null,
@@ -180,11 +205,11 @@ export const catalogAggregator = {
         results.sort((a, b) => Number(b.year) - Number(a.year));
       }
 
-      // Deduplicate results
+      // Deduplicate results and enforce released status
       const seenIds = new Set<string>();
       const seenTitles = new Set<string>();
       results = results.filter((item) => {
-        if (!item || isHentaiOrAdult(item)) return false;
+        if (!item || !isOfficiallyReleased(item)) return false;
         const key = `${item.title.toLowerCase().trim()}-${item.type}`;
         if (seenIds.has(item.id) || seenTitles.has(key)) return false;
         seenIds.add(item.id);
@@ -216,7 +241,7 @@ export const catalogAggregator = {
       const filterUnique = (list: UnifiedMedia[]) => {
         const res: UnifiedMedia[] = [];
         for (const item of list) {
-          if (!item || isHentaiOrAdult(item)) continue;
+          if (!item || !isOfficiallyReleased(item)) continue;
           const key = `${item.title.toLowerCase().trim()}-${item.type}`;
           if (!seen.has(item.id) && !seen.has(key)) {
             seen.add(item.id);
@@ -441,10 +466,11 @@ export const catalogAggregator = {
       }
     }
 
-    // Deduplicate across the entire combined list
+    // Deduplicate across the entire combined list and enforce released media
     const finalSeenIds = new Set<string>();
     const finalSeenTitles = new Set<string>();
     items = items.filter((item) => {
+      if (!isOfficiallyReleased(item)) return false;
       const key = `${item.title.toLowerCase().trim()}-${item.type}`;
       if (finalSeenIds.has(item.id) || finalSeenTitles.has(key)) return false;
       finalSeenIds.add(item.id);
@@ -480,22 +506,22 @@ export const catalogAggregator = {
 
     if (normType === "anime") {
       const anilistResults = await withTimeout(anilistService.search(query).catch(() => []), 6000, []);
-      return anilistResults.filter((i) => !isHentaiOrAdult(i) && (i.type || "").toLowerCase() === "anime");
+      return anilistResults.filter((i) => isOfficiallyReleased(i) && (i.type || "").toLowerCase() === "anime");
     }
 
     if (normType === "game") {
       const igdbResults = await withTimeout(igdbService.search(query).catch(() => []), 5000, []);
-      return igdbResults.filter((i) => !isHentaiOrAdult(i) && (i.type || "").toLowerCase() === "game");
+      return igdbResults.filter((i) => isOfficiallyReleased(i) && (i.type || "").toLowerCase() === "game");
     }
 
     if (normType === "movie") {
       const tmdbResults = await withTimeout(tmdbService.search(query).catch(() => []), 5000, []);
-      return tmdbResults.filter((i) => !isHentaiOrAdult(i) && (i.type || "").toLowerCase() === "movie");
+      return tmdbResults.filter((i) => isOfficiallyReleased(i) && (i.type || "").toLowerCase() === "movie");
     }
 
     if (normType === "series" || normType === "show" || normType === "tv") {
       const tmdbResults = await withTimeout(tmdbService.search(query).catch(() => []), 5000, []);
-      return tmdbResults.filter((i) => !isHentaiOrAdult(i) && (i.type || "").toLowerCase() === "series");
+      return tmdbResults.filter((i) => isOfficiallyReleased(i) && (i.type || "").toLowerCase() === "series");
     }
 
     const [tmdbResults, anilistResults, igdbResults] = await Promise.all([
@@ -504,9 +530,9 @@ export const catalogAggregator = {
       withTimeout(igdbService.search(query).catch(() => []), 3000, []),
     ]);
 
-    const cleanAnilist = anilistResults.filter((i) => !isHentaiOrAdult(i));
-    const cleanTmdb = tmdbResults.filter((i) => !isHentaiOrAdult(i));
-    const cleanIgdb = igdbResults.filter((i) => !isHentaiOrAdult(i));
+    const cleanAnilist = anilistResults.filter(isOfficiallyReleased);
+    const cleanTmdb = tmdbResults.filter(isOfficiallyReleased);
+    const cleanIgdb = igdbResults.filter(isOfficiallyReleased);
 
     const combined: UnifiedMedia[] = [];
     const maxLen = Math.max(cleanTmdb.length, cleanAnilist.length, cleanIgdb.length);

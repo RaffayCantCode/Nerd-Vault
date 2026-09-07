@@ -5,6 +5,7 @@ export type UnifiedMedia = {
   originalTitle?: string;
   type: "Movie" | "Series" | "Anime" | "Game";
   year: string;
+  releaseDate?: string;
   rating: string; // e.g. "4.3" (out of 5)
   genre: string;
   genres: string[];
