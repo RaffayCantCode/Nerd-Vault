@@ -3,7 +3,7 @@ import { Link, useParams } from "wouter";
 import {
   Star, Heart, Sparkles, Check, UserPlus, Share2, Edit3, Film, Tv,
   Gamepad2, Calendar, Clock, ListFilter, Search, ArrowUpDown, ChevronRight,
-  BookmarkCheck, Plus, LogIn, Lock, Camera, Loader2
+  BookmarkCheck, Plus, LogIn, Lock, Camera, Loader2, X
 } from "lucide-react";
 import { api, UserProfile, VaultStats, UnifiedMedia } from "../lib/api";
 import { Avatar } from "../components/common/Avatar";
@@ -18,7 +18,7 @@ import { useVault } from "../context/VaultContext";
 export default function ProfilePage() {
   const { id } = useParams<{ id?: string }>();
   const { user, openAuthModal, updateUser } = useAuth();
-  const { vaultItems, stats, notify } = useVault();
+  const { vaultItems, stats, trackMedia, notify } = useVault();
 
   const [activeTab, setActiveTab] = useState<"showcase" | "activity" | "logs">("showcase");
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -221,21 +221,18 @@ export default function ProfilePage() {
   };
 
   // Derive Top 4 Favorites (1 Movie, 1 Series, 1 Anime, 1 Game)
-  const favMovie = favorites.find((i) => i.type?.toLowerCase() === "movie") ||
-    getStoredFavorite("Movie") ||
-    allItems.find((i) => i.type?.toLowerCase() === "movie" && (i.status === "Favorite" || (i.userRating && i.userRating >= 4.5)));
+  // Strictly explicitly picked favorites only! Giving 5 stars NEVER makes an item a favorite.
+  const favMovie = getStoredFavorite("Movie") ||
+    favorites.find((i) => i.type?.toLowerCase() === "movie" && (i.status === "Favorite" || (i.notes && i.notes.includes("#favorite Movie"))));
 
-  const favSeries = favorites.find((i) => i.type?.toLowerCase() === "series" || i.type?.toLowerCase() === "show") ||
-    getStoredFavorite("Series") ||
-    allItems.find((i) => (i.type?.toLowerCase() === "series" || i.type?.toLowerCase() === "show") && (i.status === "Favorite" || (i.userRating && i.userRating >= 4.5)));
+  const favSeries = getStoredFavorite("Series") ||
+    favorites.find((i) => (i.type?.toLowerCase() === "series" || i.type?.toLowerCase() === "show") && (i.status === "Favorite" || (i.notes && i.notes.includes("#favorite Series"))));
 
-  const favAnime = favorites.find((i) => i.type?.toLowerCase() === "anime") ||
-    getStoredFavorite("Anime") ||
-    allItems.find((i) => i.type?.toLowerCase() === "anime" && (i.status === "Favorite" || (i.userRating && i.userRating >= 4.5)));
+  const favAnime = getStoredFavorite("Anime") ||
+    favorites.find((i) => i.type?.toLowerCase() === "anime" && (i.status === "Favorite" || (i.notes && i.notes.includes("#favorite Anime"))));
 
-  const favGame = favorites.find((i) => i.type?.toLowerCase() === "game") ||
-    getStoredFavorite("Game") ||
-    allItems.find((i) => i.type?.toLowerCase() === "game" && (i.status === "Favorite" || (i.userRating && i.userRating >= 4.5)));
+  const favGame = getStoredFavorite("Game") ||
+    favorites.find((i) => i.type?.toLowerCase() === "game" && (i.status === "Favorite" || (i.notes && i.notes.includes("#favorite Game"))));
 
   const top4Slots = [
     { label: "Favorite Movie", type: "Movie" as const, icon: Film, item: favMovie },
@@ -252,7 +249,15 @@ export default function ProfilePage() {
     setFavoriteModalType(slotType);
   };
 
-  const handleFavoriteSelected = (item: UnifiedMedia, slotType: "Movie" | "Series" | "Anime" | "Game") => {
+  const handleFavoriteSelected = async (item: UnifiedMedia, slotType: "Movie" | "Series" | "Anime" | "Game") => {
+    // If replacing an existing favorite, clear the previous favorite's rating too
+    const existingSlot = top4Slots.find((s) => s.type === slotType);
+    const prevItem = existingSlot?.item;
+    if (prevItem && prevItem.id !== item.id) {
+      const prevStatus = prevItem.status === "Favorite" ? "Completed" : (prevItem.status || "Completed");
+      await trackMedia(prevItem, prevStatus, 0, "");
+    }
+
     const poster = item.poster || (item as any).coverUrl || (item as any).cover_url || "";
     const favItem = { ...item, status: "Favorite" as const, userRating: 5, poster, coverUrl: poster };
     if (typeof window !== "undefined" && (currentUser?.id || user?.id)) {
@@ -261,10 +266,15 @@ export default function ProfilePage() {
         localStorage.setItem(`nv_profile_fav_${slotType}_${uid}`, JSON.stringify(favItem));
       } catch {}
     }
+
+    // Favourites automatically receive 5 stars
+    await trackMedia(favItem, "Favorite", 5, `#favorite ${slotType}`);
+
     setFavorites((prev) => {
       const filtered = prev.filter(
         (i) => i.type?.toLowerCase() !== slotType.toLowerCase() &&
-               !(slotType === "Series" && i.type?.toLowerCase() === "show")
+               !(slotType === "Series" && i.type?.toLowerCase() === "show") &&
+               i.id !== (prevItem ? prevItem.id : "")
       );
       return [favItem, ...filtered];
     });
@@ -272,6 +282,31 @@ export default function ProfilePage() {
       const filtered = prev.filter((i) => i.id !== item.id);
       return [favItem, ...filtered];
     });
+    notify(`Set ${item.title} as your Favorite ${slotType}!`);
+    loadProfile();
+  };
+
+  const handleRemoveFavorite = async (slotType: "Movie" | "Series" | "Anime" | "Game", item: UnifiedMedia) => {
+    const uid = currentUser?.id || user?.id;
+    if (typeof window !== "undefined" && uid) {
+      try {
+        localStorage.removeItem(`nv_profile_fav_${slotType}_${uid}`);
+      } catch {}
+    }
+
+    setFavorites((prev) =>
+      prev.filter(
+        (i) => i.id !== item.id &&
+               i.type?.toLowerCase() !== slotType.toLowerCase() &&
+               !(slotType === "Series" && i.type?.toLowerCase() === "show")
+      )
+    );
+
+    // "if you remove that favourite from your profile page just remove the rating too!"
+    const newStatus = item.status === "Favorite" ? "Completed" : (item.status || "Completed");
+    await trackMedia(item, newStatus, 0, "");
+
+    notify(`Removed ${item.title} from Favorite ${slotType} and cleared its rating`);
     loadProfile();
   };
 
@@ -304,23 +339,28 @@ export default function ProfilePage() {
   // Filter and sort logs
   let filteredLogs = [...allItems];
   if (logSearch.trim()) {
+    const q = logSearch.toLowerCase().trim();
     filteredLogs = filteredLogs.filter((i) =>
-      i.title.toLowerCase().includes(logSearch.toLowerCase()) ||
-      i.genre?.toLowerCase().includes(logSearch.toLowerCase())
+      i.title.toLowerCase().includes(q) ||
+      i.genre?.toLowerCase().includes(q) ||
+      (Array.isArray(i.genres) && i.genres.some((g) => g.toLowerCase().includes(q)))
     );
   }
   if (logType !== "All formats") {
-    filteredLogs = filteredLogs.filter((i) => i.type?.toLowerCase() === logType.toLowerCase());
+    filteredLogs = filteredLogs.filter((i) => {
+      const t = (i.type || "").toLowerCase();
+      const target = logType.toLowerCase();
+      if (target === "series") return t === "series" || t === "show";
+      return t === target;
+    });
   }
 
-  if (logSort === "latest") {
-    // Recently added
-  } else if (logSort === "oldest") {
-    filteredLogs.reverse();
+  if (logSort === "oldest") {
+    filteredLogs = [...filteredLogs].reverse();
   } else if (logSort === "highest") {
-    filteredLogs.sort((a, b) => Number(b.userRating || b.rating || 0) - Number(a.userRating || a.rating || 0));
+    filteredLogs = [...filteredLogs].sort((a, b) => Number(b.userRating || b.rating || 0) - Number(a.userRating || a.rating || 0));
   } else if (logSort === "title") {
-    filteredLogs.sort((a, b) => a.title.localeCompare(b.title));
+    filteredLogs = [...filteredLogs].sort((a, b) => a.title.localeCompare(b.title));
   }
 
   return (
@@ -567,10 +607,25 @@ export default function ProfilePage() {
                   if (item) {
                     return (
                       <div key={slot.label} className="flex flex-col group relative">
+                        {isOwner && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleRemoveFavorite(slot.type, item);
+                            }}
+                            aria-label={`Remove ${slot.label}`}
+                            title={`Remove ${slot.label}`}
+                            className="absolute -top-2 -right-2 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-[#10161b] text-slate-400 hover:bg-red-500 hover:text-white border border-white/[.2] shadow-xl transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer"
+                          >
+                            <X size={13} />
+                          </button>
+                        )}
                         <div
-                          onClick={() => handleSlotClick(slot.type)}
-                          className="cursor-pointer transition-transform duration-300 hover:scale-[1.02]"
-                          title={`Click to change Favorite ${slot.type}`}
+                          onClick={() => isOwner && handleSlotClick(slot.type)}
+                          className={`transition-transform duration-300 ${isOwner ? "cursor-pointer hover:scale-[1.02]" : ""}`}
+                          title={isOwner ? `Click to change ${slot.label}` : undefined}
                         >
                           <MediaCard item={item} />
                         </div>
@@ -753,7 +808,7 @@ export default function ProfilePage() {
           ) : (
             <>
               {/* Search, Filter, and Sort Bar for Logs */}
-              <div className="nv-card rounded-3xl p-4 sm:p-5 border border-white/[.1] flex flex-col sm:flex-row gap-3 items-center justify-between">
+              <div className="nv-card relative z-30 rounded-3xl p-4 sm:p-5 border border-white/[.1] flex flex-col sm:flex-row gap-3 items-center justify-between">
                 <div className="relative w-full sm:w-80">
                   <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
                   <input
@@ -765,12 +820,13 @@ export default function ProfilePage() {
                   />
                 </div>
 
-                <div className="flex gap-2.5 w-full sm:w-auto overflow-x-auto">
+                <div className="flex items-center gap-2.5 w-full sm:w-auto shrink-0">
                   <CustomSelect
                     value={logType}
                     onChange={(val) => setLogType(val)}
                     options={["All formats", "Movie", "Series", "Anime", "Game"]}
                     minWidth="130px"
+                    align="left"
                   />
 
                   <CustomSelect
@@ -783,6 +839,7 @@ export default function ProfilePage() {
                       { label: "Alphabetical", value: "title" },
                     ]}
                     minWidth="160px"
+                    align="right"
                   />
                 </div>
               </div>
@@ -819,7 +876,11 @@ export default function ProfilePage() {
                         {(item.userRating || item.rating) && (
                           <div className="flex items-center gap-1 font-mono-ui text-[11px] font-bold text-[#acd986] bg-black/40 px-2.5 py-1 rounded-lg border border-white/[.08]">
                             <Star size={12} fill="currentColor" />
-                            <span>{item.userRating || item.rating} / 5</span>
+                            <span>
+                              {item.userRating
+                                ? Math.round(Number(item.userRating) > 5 ? Number(item.userRating) / 2 : Number(item.userRating))
+                                : item.rating} / 5
+                            </span>
                           </div>
                         )}
                       </div>

@@ -91,7 +91,7 @@ function useBackdropPalette(imageUrl?: string) {
 export default function MediaDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const { user, openAuthModal } = useAuth();
-  const { isInVault, getItemStatus, trackMedia, notify } = useVault();
+  const { isInVault, getItemStatus, getItemRating, trackMedia, notify } = useVault();
 
   const franchiseRef = useRef<HTMLDivElement>(null);
   const similarRef = useRef<HTMLDivElement>(null);
@@ -124,8 +124,11 @@ export default function MediaDetailPage() {
       .then((data) => {
         if (data?.item) {
           setMedia(data.item);
-          if (data.item.userRating) {
-            setUserRating(data.item.userRating > 5 ? Math.round(data.item.userRating / 2) : data.item.userRating);
+          const existingRating = data.item.userRating
+            ? (data.item.userRating > 5 ? Math.round(data.item.userRating / 2) : data.item.userRating)
+            : (getItemRating(data.item.id) || (data.item.slug ? getItemRating(data.item.slug) : undefined) || 0);
+          if (existingRating) {
+            setUserRating(existingRating);
           }
           fetchReviews(data.item.id);
         }
@@ -135,6 +138,15 @@ export default function MediaDetailPage() {
       })
       .finally(() => setLoading(false));
   }, [slug]);
+
+  useEffect(() => {
+    if (media?.id && !userRating) {
+      const vRating = getItemRating(media.id) || (media.slug ? getItemRating(media.slug) : undefined);
+      if (vRating) {
+        setUserRating(vRating);
+      }
+    }
+  }, [media?.id, media?.slug, getItemRating, userRating]);
 
   const handleBackToBrowse = () => {
     if (window.history.length > 1) {
@@ -296,7 +308,7 @@ export default function MediaDetailPage() {
                 </button>
 
                 <select
-                  value={currentStatus}
+                  value={currentStatus === "Favorite" ? "Completed" : currentStatus}
                   onChange={(e) => handleStatusChange(e.target.value)}
                   data-testid="select-detail-status"
                   className={`h-11 rounded-xl border px-3.5 text-[12px] font-bold outline-none backdrop-blur transition-all duration-300 ${palette.badgeBg} ${palette.badgeBorder} ${palette.badgeText}`}
@@ -304,7 +316,6 @@ export default function MediaDetailPage() {
                   <option className="bg-[#12181d] text-white" value="Watching">Watching</option>
                   <option className="bg-[#12181d] text-white" value="Completed">Completed</option>
                   <option className="bg-[#12181d] text-white" value="Wishlist">Wishlist</option>
-                  <option className="bg-[#12181d] text-white" value="Favorite">Favorite</option>
                   <option className="bg-[#12181d] text-white" value="Paused">Paused</option>
                   <option className="bg-[#12181d] text-white" value="Dropped">Dropped</option>
                 </select>

@@ -54,8 +54,7 @@ async function handleGetProfile(targetId: string | undefined, currentUserId: str
   ]);
 
   const favorites = vaultItems.filter((i) => {
-    const r = i.userRating || i.rating;
-    return i.status === "Favorite" || (r && r >= 4.5);
+    return i.status === "Favorite" || (i.notes && i.notes.includes("#favorite"));
   });
 
   const recentActivity = vaultItems.slice(0, 10).map((i) => ({

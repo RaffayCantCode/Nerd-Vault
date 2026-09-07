@@ -41,9 +41,25 @@ export default function VaultPage() {
     { label: "Alphabetical", value: "title" },
   ];
 
+  const profileFavoriteIds = React.useMemo(() => {
+    if (typeof window === "undefined") return new Set<string>();
+    const ids = new Set<string>();
+    const types = ["Movie", "Series", "Anime", "Game"];
+    for (const t of types) {
+      try {
+        const stored = localStorage.getItem(`nv_profile_fav_${t}_${user?.id}`);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed?.id) ids.add(parsed.id);
+        }
+      } catch {}
+    }
+    return ids;
+  }, [user?.id, vaultItems]);
+
   let filtered = vaultItems.filter((item) => {
     if (tab === "Favorites") {
-      const isFav = item.status === "Favorite" || (item.userRating && item.userRating >= 4.5);
+      const isFav = item.status === "Favorite" || profileFavoriteIds.has(item.id) || (item.notes && item.notes.includes("#favorite"));
       if (!isFav) return false;
     } else if (tab !== "All") {
       if (item.status?.toLowerCase() !== tab.toLowerCase()) return false;
@@ -67,10 +83,35 @@ export default function VaultPage() {
     filtered = [...filtered].sort((a, b) => a.title.localeCompare(b.title));
   }
 
+  const completedCount = vaultItems.filter(
+    (i) => (i.status as string) === "Completed" || (i.status as string) === "Watched" || (i.status as string) === "Read"
+  ).length;
+
+  const topGenre = React.useMemo(() => {
+    const counts: Record<string, number> = {};
+    const ignored = new Set(["all", "unknown", "n/a", "featured", "other", "general", ""]);
+    for (const item of vaultItems) {
+      const candidates = [
+        ...(item.genres || []),
+        ...(item.genre ? item.genre.split(/[\/,·|]/) : []),
+      ];
+      for (const g of candidates) {
+        if (!g || typeof g !== "string") continue;
+        const clean = g.trim();
+        if (clean && !ignored.has(clean.toLowerCase())) {
+          counts[clean] = (counts[clean] || 0) + 1;
+        }
+      }
+    }
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    if (sorted.length > 0) return sorted[0][0];
+    return stats?.topGenre || vaultItems[0]?.genre || "Cinema";
+  }, [vaultItems, stats?.topGenre]);
+
   const statCards = [
     { label: "In your vault", value: String(stats?.totalCollected || vaultItems.length), meta: "Tracked titles" },
-    { label: "Hours tracked", value: `${stats?.hoursWatched || Math.round(vaultItems.length * 2.2)}h`, meta: "Estimated watch time" },
-    { label: "Top genre", value: stats?.topGenre || (vaultItems[0]?.genre || "Not enough data"), meta: `${stats?.topGenreCount || vaultItems.length} titles` },
+    { label: "Completed", value: String(completedCount), meta: "Finished titles" },
+    { label: "Top genre", value: topGenre, meta: "Most logged" },
     { label: "Avg. user rating", value: `${stats?.averageRating ? stats.averageRating.toFixed(1) : "0.0"} / 5`, meta: "Out of 5 stars" },
   ];
 

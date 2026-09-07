@@ -14,8 +14,9 @@ export function MediaTrackModal({
   item: UnifiedMedia;
 }) {
   const { user, openAuthModal } = useAuth();
-  const { trackMedia, removeMedia, isInVault, getItemStatus } = useVault();
+  const { trackMedia, removeMedia, isInVault, getItemStatus, getItemRating } = useVault();
   const currentStatus = getItemStatus(item.id) || item.status || "Watching";
+  const existingRating = item.userRating ?? getItemRating(item.id);
 
   const rawNotes = item.notes || "";
   const initialPrivate = rawNotes.startsWith("[PRIVATE]") || rawNotes.startsWith("#private");
@@ -23,7 +24,7 @@ export function MediaTrackModal({
 
   const [status, setStatus] = useState(currentStatus);
   const [rating, setRating] = useState<number>(
-    item.userRating ? Math.min(5, Math.max(1, Math.round(item.userRating > 5 ? item.userRating / 2 : item.userRating))) : 4
+    existingRating ? Math.min(5, Math.max(1, Math.round(Number(existingRating) > 5 ? Number(existingRating) / 2 : Number(existingRating)))) : 4
   );
   const [notes, setNotes] = useState<string>(cleanNotes);
   const [isPrivate, setIsPrivate] = useState<boolean>(initialPrivate);
@@ -101,8 +102,8 @@ export function MediaTrackModal({
             <label className="block text-[11px] font-bold text-slate-400 mb-1.5">
               Tracking Status
             </label>
-            <div className="grid grid-cols-3 gap-2">
-              {["Watching", "Completed", "Wishlist", "Favorite", "Dropped", "Paused"].map((s) => (
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+              {["Watching", "Completed", "Wishlist", "Paused", "Dropped"].map((s) => (
                 <button
                   key={s}
                   type="button"

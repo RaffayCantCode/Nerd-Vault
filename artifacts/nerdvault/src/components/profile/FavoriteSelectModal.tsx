@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { X, Search, Star, Check, Loader2, Sparkles, Film, Tv, Gamepad2 } from "lucide-react";
 import { api, UnifiedMedia } from "../../lib/api";
-import { useVault } from "../../context/VaultContext";
 import { useAuth } from "../../context/AuthContext";
 
 export function FavoriteSelectModal({
@@ -15,7 +14,6 @@ export function FavoriteSelectModal({
   targetType: "Movie" | "Series" | "Anime" | "Game";
   onSelected: (item: UnifiedMedia) => void;
 }) {
-  const { trackMedia, notify } = useVault();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<UnifiedMedia[]>([]);
   const [loading, setLoading] = useState(false);
@@ -59,15 +57,8 @@ export function FavoriteSelectModal({
 
   const { user } = useAuth();
 
-  const handleSelect = async (item: UnifiedMedia) => {
-    if (typeof window !== "undefined" && user?.id) {
-      try {
-        localStorage.setItem(`nv_profile_fav_${targetType}_${user.id}`, JSON.stringify({ ...item, status: "Favorite", userRating: 5 }));
-      } catch {}
-    }
-    await trackMedia(item, "Favorite", 5, `#favorite ${targetType}`);
+  const handleSelect = (item: UnifiedMedia) => {
     onSelected(item);
-    notify(`Set ${item.title} as your Favorite ${targetType}!`);
     onClose();
   };
 

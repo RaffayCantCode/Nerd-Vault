@@ -12,12 +12,21 @@ export function MediaCard({
   item: UnifiedMedia;
   compact?: boolean;
 }) {
-  const { isInVault, getItemStatus, removeMedia } = useVault();
+  const { isInVault, getItemStatus, getItemRating, removeMedia } = useVault();
   const [modalOpen, setModalOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
 
   const inVault = isInVault(item.id);
   const status = getItemStatus(item.id) || item.status;
+
+  const vaultRating = getItemRating(item.id) || (item.slug ? getItemRating(item.slug) : undefined);
+  const rawRating = item.userRating !== undefined && item.userRating !== null && Number(item.userRating) > 0
+    ? Number(item.userRating)
+    : vaultRating;
+  const hasUserRating = inVault && rawRating !== undefined && rawRating !== null && Number(rawRating) > 0;
+  const displayRating = hasUserRating
+    ? Math.round(Number(rawRating) > 5 ? Number(rawRating) / 2 : Number(rawRating))
+    : item.rating;
 
   const rawPoster = item.poster || (item as any).coverUrl || (item as any).cover_url || item.backdrop || (item as any).backdropUrl;
   const posterUrl = !imgError && rawPoster && typeof rawPoster === "string" && !rawPoster.includes("undefined") && rawPoster.trim() !== ""
@@ -85,7 +94,7 @@ export function MediaCard({
             <div className="absolute inset-x-3 bottom-3 sm:inset-x-4 sm:bottom-4">
               <div className="flex items-center gap-1.5 text-[11.5px] sm:text-[13px] font-bold text-[#e6f4ed]">
                 <Star size={13} className="text-[#acd986] sm:w-[15px] sm:h-[15px]" fill="#acd986" />
-                <span className="font-extrabold">{item.rating}</span>
+                <span className="font-extrabold">{displayRating}</span>
                 <span className="text-slate-400 text-[9.5px] sm:text-[10.5px] font-normal">/ 5</span>
               </div>
               <p className="mt-1 line-clamp-1 text-[13px] sm:text-[14.5px] font-bold text-white group-hover:text-[hsl(var(--primary))] transition-colors drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">

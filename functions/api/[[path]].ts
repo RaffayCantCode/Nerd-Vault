@@ -436,7 +436,7 @@ export const onRequest: any = async (context: any) => {
         calculateProfileStats(currentUserId),
         getUserVaultItems(currentUserId),
       ]);
-      const favorites = vault.filter((i) => i.status === "Favorite" || (i.userRating && i.userRating >= 4.5));
+      const favorites = vault.filter((i) => i.status === "Favorite" || (i.notes && i.notes.includes("#favorite")));
       const activity = vault.slice(0, 10).map((v) => ({
         id: v.id,
         type: v.status === "Completed" ? "Completed" : "Logged",
@@ -456,7 +456,7 @@ export const onRequest: any = async (context: any) => {
         calculateProfileStats(targetUserId),
         getUserVaultItems(targetUserId),
       ]);
-      const favorites = vault.filter((i) => i.status === "Favorite" || (i.userRating && i.userRating >= 4.5));
+      const favorites = vault.filter((i) => i.status === "Favorite" || (i.notes && i.notes.includes("#favorite")));
       const activity = vault.slice(0, 10).map((v) => ({
         id: v.id,
         type: v.status === "Completed" ? "Completed" : "Logged",

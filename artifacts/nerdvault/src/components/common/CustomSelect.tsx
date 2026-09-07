@@ -14,6 +14,7 @@ export function CustomSelect({
   minWidth = "140px",
   className = "",
   buttonClassName = "",
+  align = "right",
 }: {
   value: string;
   onChange: (val: string) => void;
@@ -22,6 +23,7 @@ export function CustomSelect({
   minWidth?: string;
   className?: string;
   buttonClassName?: string;
+  align?: "left" | "right";
 }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -38,18 +40,27 @@ export function CustomSelect({
         setOpen(false);
       }
     };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    if (open) {
+      document.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
 
   return (
-    <div ref={containerRef} className={`relative z-40 select-none ${className}`} style={{ minWidth }}>
+    <div ref={containerRef} className={`relative select-none ${open ? "z-50" : "z-20"} ${className}`} style={{ minWidth }}>
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className={`nv-button flex h-10 w-full items-center justify-between gap-2.5 rounded-xl border px-3.5 text-[12px] font-bold transition-all duration-200 ${
+        className={`nv-button flex h-10 w-full items-center justify-between gap-2.5 rounded-xl border px-3.5 text-[12px] font-bold transition-all duration-200 cursor-pointer ${
           open
-            ? "border-[rgba(55,218,178,.6)] bg-[#172027] text-white shadow-[0_0_24px_rgba(55,218,178,.2)]"
+            ? "border-[hsl(var(--primary))] bg-[#162027] text-white shadow-[0_0_20px_rgba(55,218,178,.25)]"
             : "border-white/[.12] bg-[#141b20] text-slate-300 hover:border-white/[.22] hover:bg-[#182127]"
         } ${buttonClassName}`}
       >
@@ -63,7 +74,7 @@ export function CustomSelect({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-[100] mt-2 max-h-72 w-full min-w-[170px] overflow-y-auto rounded-2xl border border-white/[.18] bg-[#0c1216] p-1.5 shadow-[0_24px_60px_rgba(0,0,0,0.98)] [scrollbar-width:none] animate-in fade-in-0 zoom-in-95">
+        <div className={`absolute ${align === "left" ? "left-0" : "right-0"} top-full z-[100] mt-2 max-h-72 w-full min-w-[170px] overflow-y-auto rounded-2xl border border-white/[.18] bg-[#0c1216] p-1.5 shadow-[0_24px_60px_rgba(0,0,0,0.98)] [scrollbar-width:none] animate-in fade-in-0 zoom-in-95`}>
           {normalizedOptions.map((opt) => {
             const isSelected = opt.value === value;
             return (

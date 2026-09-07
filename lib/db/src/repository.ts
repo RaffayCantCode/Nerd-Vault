@@ -422,15 +422,22 @@ export async function trackMediaInVault(params: {
 
   // 2. Insert into unified user_vault_items table
   const vaultItemId = `${userId}_${mediaId}`;
+  const dbRating = rating !== undefined ? (rating === 0 ? 0 : rating) : (status === "Favorite" ? 5 : null);
+  const dbNotes = notes !== undefined ? (notes === "" ? null : notes) : (status === "Favorite" ? "#favorite" : null);
+
   await queryD1(
     `INSERT INTO user_vault_items (id, user_id, media_id, status, user_rating, notes, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
      ON CONFLICT(user_id, media_id) DO UPDATE SET
        status = excluded.status,
-       user_rating = coalesce(excluded.user_rating, user_vault_items.user_rating),
+       user_rating = CASE
+         WHEN excluded.user_rating = 0 THEN NULL
+         WHEN excluded.user_rating IS NOT NULL THEN excluded.user_rating
+         ELSE user_vault_items.user_rating
+       END,
        notes = coalesce(excluded.notes, user_vault_items.notes),
        updated_at = CURRENT_TIMESTAMP;`,
-    [vaultItemId, userId, mediaId, status, rating ?? (status === "Favorite" ? 5 : null), notes ?? (status === "Favorite" ? "#favorite" : null)]
+    [vaultItemId, userId, mediaId, status, dbRating, dbNotes]
   );
 
   // 3. Update legacy watched/wishlist tables for compatibility
@@ -449,10 +456,14 @@ export async function trackMediaInVault(params: {
        VALUES (?, ?, CURRENT_TIMESTAMP, ?, ?, ?)
        ON CONFLICT(user_id, media_id) DO UPDATE SET
          watched_at = CURRENT_TIMESTAMP,
-         rating = coalesce(excluded.rating, watched_items.rating),
+         rating = CASE
+           WHEN excluded.rating = 0 THEN NULL
+           WHEN excluded.rating IS NOT NULL THEN excluded.rating
+           ELSE watched_items.rating
+         END,
          notes = coalesce(excluded.notes, watched_items.notes),
          status = excluded.status;`,
-      [userId, mediaId, rating ?? (status === "Favorite" ? 5 : null), notes ?? (status === "Favorite" ? "#favorite" : null), status]
+      [userId, mediaId, dbRating, dbNotes, status]
     );
   }
 

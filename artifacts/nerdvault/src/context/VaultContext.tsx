@@ -11,6 +11,8 @@ type VaultContextType = {
   removeMedia: (mediaId: string) => Promise<void>;
   isInVault: (mediaId: string) => boolean;
   getItemStatus: (mediaId: string) => string | undefined;
+  getItemRating: (mediaId: string) => number | undefined;
+  getVaultItem: (mediaId: string) => UnifiedMedia | undefined;
   feedback: string | null;
   notify: (message: string) => void;
   refreshVault: () => Promise<void>;
@@ -81,14 +83,27 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const trackMedia = async (item: UnifiedMedia, status: string, rating?: number, notes?: string) => {
-    const updatedItem = { ...item, status: status as any, userRating: rating ?? (status === "Favorite" ? 5 : item.userRating), notes: notes ?? item.notes };
+    const updatedRating = rating !== undefined
+      ? (rating === 0 ? undefined : rating)
+      : (status === "Favorite" ? 5 : item.userRating);
+
+    const updatedItem: UnifiedMedia = {
+      ...item,
+      status: status as any,
+      userRating: updatedRating,
+      notes: notes !== undefined ? (notes === "" ? undefined : notes) : (status === "Favorite" ? item.notes || "#favorite" : item.notes),
+    };
 
     // Optimistic UI update with persistence
     setVaultItems((prev) => {
-      const existing = prev.find((i) => i.id === item.id || i.slug === item.slug);
+      const existingIndex = prev.findIndex(
+        (i) => i.id === item.id || (item.slug && i.slug === item.slug) || (item.sourceId && i.sourceId === item.sourceId)
+      );
       let updated: UnifiedMedia[];
-      if (existing) {
-        updated = prev.map((i) => (i.id === item.id ? { ...i, ...updatedItem } : i));
+      if (existingIndex >= 0) {
+        updated = prev.map((i, idx) =>
+          idx === existingIndex ? { ...i, ...updatedItem } : i
+        );
       } else {
         updated = [updatedItem, ...prev];
       }
@@ -100,13 +115,17 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       return updated;
     });
 
-    notify(`${item.title} ${status === "Wishlist" ? "added to Wishlist" : status === "Favorite" ? "added to Favorites" : `marked as ${status}`}`);
+    if (rating === 0) {
+      notify(`Cleared rating for ${item.title}`);
+    } else {
+      notify(`${item.title} ${status === "Wishlist" ? "added to Wishlist" : status === "Favorite" ? "added to Favorites" : `marked as ${status}`}`);
+    }
 
     try {
       const res = await api.trackMedia({
         mediaId: item.id,
         status,
-        rating: rating ?? (status === "Favorite" ? 5 : undefined),
+        rating: rating !== undefined ? rating : (status === "Favorite" ? 5 : item.userRating),
         notes: notes ?? (status === "Favorite" ? "#favorite" : undefined),
         media: item,
       });
@@ -143,12 +162,27 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   };
 
   const isInVault = (mediaId: string) => {
-    return vaultItems.some((i) => i.id === mediaId || i.sourceId === mediaId || i.slug === mediaId);
+    return vaultItems.some((i) => i.id === mediaId || i.sourceId === mediaId || (i.slug && i.slug === mediaId));
   };
 
   const getItemStatus = (mediaId: string) => {
-    const found = vaultItems.find((i) => i.id === mediaId || i.sourceId === mediaId || i.slug === mediaId);
+    const found = vaultItems.find((i) => i.id === mediaId || i.sourceId === mediaId || (i.slug && i.slug === mediaId));
     return found?.status;
+  };
+
+  const getItemRating = (mediaId: string): number | undefined => {
+    const found = vaultItems.find((i) => i.id === mediaId || i.sourceId === mediaId || (i.slug && i.slug === mediaId));
+    if (!found) return undefined;
+    const r = found.userRating;
+    if (r !== undefined && r !== null && Number(r) > 0) {
+      const num = Number(r);
+      return num > 5 ? Math.round(num / 2) : Math.round(num);
+    }
+    return undefined;
+  };
+
+  const getVaultItem = (mediaId: string): UnifiedMedia | undefined => {
+    return vaultItems.find((i) => i.id === mediaId || i.sourceId === mediaId || (i.slug && i.slug === mediaId));
   };
 
   return (
@@ -163,6 +197,8 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         removeMedia,
         isInVault,
         getItemStatus,
+        getItemRating,
+        getVaultItem,
         feedback,
         notify,
         refreshVault,
