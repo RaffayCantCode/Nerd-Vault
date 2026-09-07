@@ -187,7 +187,11 @@ export const api = {
     if (params.curation && params.curation !== "All") query.set("curation", params.curation);
     return request<{ items: UnifiedMedia[]; total: number }>(`/api/catalog/discover?${query.toString()}`);
   },
-  search: (q: string) => request<{ items: UnifiedMedia[] }>(`/api/catalog/search?q=${encodeURIComponent(q)}`),
+  search: (q: string, type?: string) => {
+    const query = new URLSearchParams({ q });
+    if (type && type !== "All types") query.set("type", type);
+    return request<{ items: UnifiedMedia[] }>(`/api/catalog/search?${query.toString()}`);
+  },
   getMediaDetail: (id: string) => request<{ item: UnifiedMedia }>(`/api/catalog/media/${encodeURIComponent(id)}`),
   getReviews: (mediaId: string) => request<{ reviews: MediaReview[] }>(`/api/catalog/media/${encodeURIComponent(mediaId)}/reviews`),
 

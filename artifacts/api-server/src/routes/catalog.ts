@@ -49,7 +49,8 @@ router.get("/discover", async (req, res) => {
 router.get("/search", async (req, res) => {
   try {
     const query = ((req.query.q || req.query.search) as string) || "";
-    const items = await catalogAggregator.search(query);
+    const type = (req.query.type as string) || undefined;
+    const items = await catalogAggregator.search(query, type);
     res.json({ items, results: items });
   } catch (error: any) {
     res.status(500).json({ error: error.message || "Search failed" });

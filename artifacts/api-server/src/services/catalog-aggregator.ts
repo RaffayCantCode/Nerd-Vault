@@ -145,13 +145,55 @@ export const catalogAggregator = {
   },
 
   async discover(options: DiscoverOptions): Promise<{ items: UnifiedMedia[]; total: number; hasMore: boolean }> {
+    const { type, genre, mood, sort, curation } = options;
     const searchQuery = options.search || options.query;
+
     if (searchQuery && searchQuery.trim()) {
-      const results = await this.search(searchQuery.trim());
+      let results = await this.search(searchQuery.trim(), type);
+
+      if (type && type !== "All types") {
+        results = results.filter((i) => (i.type || "").toLowerCase() === type.toLowerCase());
+      }
+
+      if (genre && genre !== "All genres") {
+        const matchGenre = (i: UnifiedMedia) =>
+          (i.genre && i.genre.toLowerCase() === genre.toLowerCase()) ||
+          (i.genres && i.genres.some((g) => g.toLowerCase() === genre.toLowerCase()));
+        results = results.filter(matchGenre);
+      }
+
+      if (mood) {
+        if (mood === "slow-burn") {
+          results = results.filter((i) => i.genres?.some((g) => ["Drama", "Mystery", "Thriller", "Sci-Fi"].includes(g)));
+        } else if (mood === "otherworldly") {
+          results = results.filter((i) => i.genres?.some((g) => ["Sci-Fi", "Fantasy", "Animation", "Adventure"].includes(g)));
+        } else if (mood === "beautiful-chaos") {
+          results = results.filter((i) => i.genres?.some((g) => ["Action", "Cyberpunk", "Animation", "Crime"].includes(g)));
+        } else if (mood === "one-more-run") {
+          results = results.filter((i) => i.type === "Game" || i.genres?.some((g) => ["Action", "Roguelike", "Indie"].includes(g)));
+        }
+      }
+
+      if (sort === "Highest rated") {
+        results.sort((a, b) => Number(b.rating) - Number(a.rating));
+      } else if (sort === "Newest") {
+        results.sort((a, b) => Number(b.year) - Number(a.year));
+      }
+
+      // Deduplicate results
+      const seenIds = new Set<string>();
+      const seenTitles = new Set<string>();
+      results = results.filter((item) => {
+        if (!item || isHentaiOrAdult(item)) return false;
+        const key = `${item.title.toLowerCase().trim()}-${item.type}`;
+        if (seenIds.has(item.id) || seenTitles.has(key)) return false;
+        seenIds.add(item.id);
+        seenTitles.add(key);
+        return true;
+      });
+
       return { items: results, total: results.length, hasMore: false };
     }
-
-    const { type, genre, mood, sort, curation } = options;
     const page = options.page || 1;
 
     // Seed-based dynamic visit offset so every visit shows fresh, different entries
@@ -431,13 +473,35 @@ export const catalogAggregator = {
     return { items, total: items.length, hasMore: items.length > 0 };
   },
 
-  async search(query: string): Promise<UnifiedMedia[]> {
+  async search(query: string, filterType?: string): Promise<UnifiedMedia[]> {
     if (!query.trim()) return [];
 
+    const normType = (filterType || "").trim().toLowerCase();
+
+    if (normType === "anime") {
+      const anilistResults = await withTimeout(anilistService.search(query).catch(() => []), 6000, []);
+      return anilistResults.filter((i) => !isHentaiOrAdult(i) && (i.type || "").toLowerCase() === "anime");
+    }
+
+    if (normType === "game") {
+      const igdbResults = await withTimeout(igdbService.search(query).catch(() => []), 5000, []);
+      return igdbResults.filter((i) => !isHentaiOrAdult(i) && (i.type || "").toLowerCase() === "game");
+    }
+
+    if (normType === "movie") {
+      const tmdbResults = await withTimeout(tmdbService.search(query).catch(() => []), 5000, []);
+      return tmdbResults.filter((i) => !isHentaiOrAdult(i) && (i.type || "").toLowerCase() === "movie");
+    }
+
+    if (normType === "series" || normType === "show" || normType === "tv") {
+      const tmdbResults = await withTimeout(tmdbService.search(query).catch(() => []), 5000, []);
+      return tmdbResults.filter((i) => !isHentaiOrAdult(i) && (i.type || "").toLowerCase() === "series");
+    }
+
     const [tmdbResults, anilistResults, igdbResults] = await Promise.all([
-      withTimeout(tmdbService.search(query).catch(() => []), 2000, []),
-      withTimeout(anilistService.search(query).catch(() => []), 2000, []),
-      withTimeout(igdbService.search(query).catch(() => []), 2000, []),
+      withTimeout(tmdbService.search(query).catch(() => []), 3000, []),
+      withTimeout(anilistService.search(query).catch(() => []), 3000, []),
+      withTimeout(igdbService.search(query).catch(() => []), 3000, []),
     ]);
 
     const cleanAnilist = anilistResults.filter((i) => !isHentaiOrAdult(i));

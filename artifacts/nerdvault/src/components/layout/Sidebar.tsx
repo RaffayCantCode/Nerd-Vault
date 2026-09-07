@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutGrid, Library, Compass, Users, Folder, Plus, Settings2 } from "lucide-react";
+import { LayoutGrid, Library, Compass, Users, Folder, Plus, Settings2, Trash2 } from "lucide-react";
 import { Logo } from "./Logo";
 import { Avatar } from "../common/Avatar";
 import { useAuth } from "../../context/AuthContext";
@@ -18,7 +18,7 @@ import { useVault } from "../../context/VaultContext";
 export function Sidebar({ onCreateShelf }: { onCreateShelf: () => void }) {
   const [location] = useLocation();
   const { user, openAuthModal } = useAuth();
-  const { shelves } = useVault();
+  const { shelves, notify, refreshShelves } = useVault();
 
   const initials = user?.name
     ? user.name
@@ -65,22 +65,48 @@ export function Sidebar({ onCreateShelf }: { onCreateShelf: () => void }) {
           {shelves.map((shelf) => {
             const active = location === `/shelf/${shelf.id}` || location === `/shelf/${shelf.slug}`;
             return (
-              <Link
+              <div
                 key={shelf.id}
-                href={`/shelf/${shelf.id}`}
-                data-testid={`link-folder-${shelf.slug}`}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-semibold transition ${
+                className={`group flex items-center justify-between rounded-xl px-2.5 py-2 text-[13px] font-semibold transition ${
                   active
                     ? "bg-[rgba(55,218,178,.11)] text-[hsl(var(--primary))]"
                     : "text-slate-400 hover:bg-white/[.04] hover:text-slate-200"
                 }`}
               >
-                <Folder size={17} strokeWidth={active ? 2.2 : 1.8} />
-                <span className="truncate">{shelf.name}</span>
-                <span className="ml-auto text-[11px] text-slate-600">
-                  {String(shelf.itemCount).padStart(2, "0")}
-                </span>
-              </Link>
+                <Link
+                  href={`/shelf/${shelf.id}`}
+                  data-testid={`link-folder-${shelf.slug}`}
+                  className="flex items-center gap-2.5 flex-1 min-w-0"
+                >
+                  <Folder size={16} strokeWidth={active ? 2.2 : 1.8} className="shrink-0" />
+                  <span className="truncate">{shelf.name}</span>
+                </Link>
+                <div className="flex items-center gap-1 shrink-0 ml-1">
+                  <span className="text-[11px] text-slate-600 group-hover:hidden">
+                    {String(shelf.itemCount).padStart(2, "0")}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (window.confirm(`Delete shelf "${shelf.name}"?`)) {
+                        try {
+                          await api.deleteShelf(shelf.id);
+                          notify(`Shelf "${shelf.name}" deleted`);
+                          refreshShelves();
+                        } catch {
+                          notify("Failed to delete shelf");
+                        }
+                      }
+                    }}
+                    title="Delete shelf"
+                    className="hidden group-hover:flex items-center justify-center p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </div>
             );
           })}
           <button

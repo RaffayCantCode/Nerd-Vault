@@ -107,7 +107,18 @@ export default function DiscoverPage() {
     })
       .then((data) => {
         const fetched = data?.items || [];
-        const unique = fetched.filter((i) => {
+        const filtered = fetched.filter((i) => {
+          if (type !== "All types" && (i.type || "").toLowerCase() !== type.toLowerCase()) return false;
+          if (genre !== "All genres") {
+            const match =
+              (i.genre && i.genre.toLowerCase() === genre.toLowerCase()) ||
+              (i.genres && i.genres.some((g) => g.toLowerCase() === genre.toLowerCase()));
+            if (!match) return false;
+          }
+          return true;
+        });
+
+        const unique = filtered.filter((i) => {
           const key = `${i.title.toLowerCase().trim()}-${i.type}`;
           if (seenIdsRef.current.has(i.id) || seenTitlesRef.current.has(key)) return false;
           seenIdsRef.current.add(i.id);
@@ -151,11 +162,22 @@ export default function DiscoverPage() {
     })
       .then((data) => {
         const newItems = data?.items || [];
-        if (newItems.length === 0) {
+        const filtered = newItems.filter((i) => {
+          if (type !== "All types" && (i.type || "").toLowerCase() !== type.toLowerCase()) return false;
+          if (genre !== "All genres") {
+            const match =
+              (i.genre && i.genre.toLowerCase() === genre.toLowerCase()) ||
+              (i.genres && i.genres.some((g) => g.toLowerCase() === genre.toLowerCase()));
+            if (!match) return false;
+          }
+          return true;
+        });
+
+        if (filtered.length === 0) {
           setHasMore(false);
         } else {
           setItems((prev) => {
-            const unique = newItems.filter((i) => {
+            const unique = filtered.filter((i) => {
               const key = `${i.title.toLowerCase().trim()}-${i.type}`;
               if (seenIdsRef.current.has(i.id) || seenTitlesRef.current.has(key)) return false;
               seenIdsRef.current.add(i.id);

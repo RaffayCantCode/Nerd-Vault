@@ -3,25 +3,126 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <title>NerdVault</title>
-    <meta name="description" content="Track, organize, and discover Movies, Series, Anime, and Games in one unified vault." />
-    <meta name="robots" content="index, follow" />
-    <meta property="og:title" content="NerdVault" />
-    <meta property="og:description" content="Track, organize, and discover Movies, Series, Anime, and Games in one unified vault." />
-    <meta property="og:image" content="/logo.png" />
+    <title>NerdVault — Unified Entertainment Tracker for Movies, Shows, Anime & Games</title>
+    <meta name="description" content="NerdVault is the modern unified entertainment tracking and discovery platform for movies, TV series, anime, and video games. Track watchlists, build custom shelves, view stats, and explore millions of titles across TMDB, AniList, and IGDB." />
+    <meta name="keywords" content="NerdVault, media tracker, movie tracker, anime tracker, game tracker, TV show tracker, watchlist, media discovery, AniList, TMDB, IGDB, custom shelves" />
+    <meta name="author" content="NerdVault" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <link rel="canonical" href="https://nerdvault.site/" />
+
+    <!-- Google Search & Browser Favicons (Multi-resolution suite) -->
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#06080c" />
+    <meta name="msapplication-TileColor" content="#06080c" />
+
+    <!-- OpenGraph / Facebook -->
+    <meta property="og:site_name" content="NerdVault" />
+    <meta property="og:title" content="NerdVault — Unified Entertainment Tracker" />
+    <meta property="og:description" content="Track, organize, and discover Movies, Series, Anime, and Games in one unified vault with custom shelves and real-time discovery." />
     <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="NerdVault" />
+    <meta property="og:url" content="https://nerdvault.site/" />
+    <meta property="og:image" content="https://nerdvault.site/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="NerdVault — Track, Organize, Discover Movies, TV Series, Anime, and Video Games" />
+
+    <!-- Twitter / X Cards -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="NerdVault — Unified Entertainment Tracker" />
     <meta name="twitter:description" content="Track, organize, and discover Movies, Series, Anime, and Games in one unified vault." />
-    <meta name="twitter:image" content="/logo.png" />
-    <link rel="icon" type="image/png" href="/logo.png" />
-    <link rel="shortcut icon" href="/favicon.png" />
+    <meta name="twitter:image" content="https://nerdvault.site/og-image.png" />
+    <meta name="twitter:image:alt" content="NerdVault" />
+
+    <!-- Schema.org Structured Data (JSON-LD for Google Search & AI Overview Knowledge Graph) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebApplication",
+          "@id": "https://nerdvault.site/#webapp",
+          "name": "NerdVault",
+          "alternateName": [
+            "Nerd Vault",
+            "NerdVault Entertainment Tracker",
+            "NerdVault Site"
+          ],
+          "url": "https://nerdvault.site",
+          "description": "NerdVault is the modern unified entertainment tracking and discovery platform for movies, TV series, anime, and video games. Track watchlists, build custom shelves, view stats, and explore millions of titles across TMDB, AniList, and IGDB.",
+          "applicationCategory": "EntertainmentApplication",
+          "operatingSystem": "All modern web browsers",
+          "browserRequirements": "Requires JavaScript. Requires HTML5.",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+          },
+          "featureList": [
+            "Multi-media tracking for Movies, TV Series, Anime, and Video Games",
+            "Aggregated real-time discovery powered by TMDB, AniList, and IGDB",
+            "Custom interactive shelves with public and private sharing",
+            "Dynamic vault analytics and taste score profiling",
+            "Community reviews, star ratings, and real-time social activity feed"
+          ],
+          "screenshot": "https://nerdvault.site/og-image.png"
+        },
+        {
+          "@type": "Organization",
+          "@id": "https://nerdvault.site/#organization",
+          "name": "NerdVault",
+          "url": "https://nerdvault.site",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://nerdvault.site/favicon-192x192.png",
+            "width": 192,
+            "height": 192
+          },
+          "sameAs": [
+            "https://github.com/RaffayCantCode/Nerd-Vault"
+          ]
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://nerdvault.site/#website",
+          "url": "https://nerdvault.site",
+          "name": "NerdVault",
+          "description": "Unified entertainment tracking and discovery for Movies, TV Series, Anime, and Video Games.",
+          "publisher": {
+            "@id": "https://nerdvault.site/#organization"
+          },
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://nerdvault.site/discover?search={search_term_string}",
+            "query-input": "required name=search_term_string"
+          }
+        }
+      ]
+    }
+    </script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <header style="display:none" aria-hidden="true">
+        <h1>NerdVault — Unified Media Tracker for Movies, TV Shows, Anime & Games</h1>
+        <p>NerdVault is the modern all-in-one entertainment tracking and discovery platform. Track your movies, television shows, anime, and video games in one personal vault. Create custom shelves, explore trending drops, rate entries, and analyze your taste.</p>
+        <nav>
+          <a href="/discover">Discover Media</a>
+          <a href="/vault">Personal Vault</a>
+          <a href="/community">Community Activity</a>
+        </nav>
+      </header>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

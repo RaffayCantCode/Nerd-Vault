@@ -42,7 +42,7 @@ export function FavoriteSelectModal({
     if (!query.trim()) return;
     const timeout = setTimeout(() => {
       setLoading(true);
-      api.search(query.trim())
+      api.search(query.trim(), targetType)
         .then((res) => {
           const filtered = (res?.items || []).filter(
             (i) => i.type?.toLowerCase() === targetType.toLowerCase() ||

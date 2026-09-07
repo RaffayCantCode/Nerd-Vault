@@ -1,3 +1,10 @@
 <svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect width="180" height="180" rx="36" fill="#FF3C00"/>
+  <rect width="180" height="180" rx="36" fill="#06080c"/>
+  <path d="M42 38H82V88L106 58H138V142H98V92L74 122H42V38Z" fill="url(#nv_grad)"/>
+  <defs>
+    <linearGradient id="nv_grad" x1="42" y1="38" x2="138" y2="142" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4eefc6"/>
+      <stop offset="1" stop-color="#22b894"/>
+    </linearGradient>
+  </defs>
 </svg>

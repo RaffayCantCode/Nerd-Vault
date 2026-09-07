@@ -1,2 +1,10 @@
+# Google Search, Googlebot, Google-Extended (AI Overview & Gemini), and web crawlers
 User-agent: *
 Allow: /
+Allow: /favicon.ico
+Allow: /favicon-*.png
+Allow: /logo.png
+Allow: /og-image.png
+
+# Sitemaps
+Sitemap: https://nerdvault.site/sitemap.xml

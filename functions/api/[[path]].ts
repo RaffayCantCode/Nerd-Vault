@@ -9,8 +9,12 @@ import {
   removeMediaItem,
   getUserShelves,
   createShelf,
+  updateShelf,
   deleteShelf,
+  getShelfById,
   addMediaToShelf,
+  removeMediaFromShelf,
+  upsertMedia,
   getFriendActivityStream,
   getFriendsList,
   getSuggestedUsers,
@@ -96,18 +100,24 @@ export const onRequest: any = async (context: any) => {
       const sort = (url.searchParams.get("sort") as any) || undefined;
       const q = url.searchParams.get("q") || url.searchParams.get("search") || undefined;
       const page = parseInt(url.searchParams.get("page") || "1", 10);
+      const seed = url.searchParams.get("seed") || undefined;
+      const curation = url.searchParams.get("curation") || undefined;
 
-      const result = await catalogAggregator.discover({ type, genre, mood, sort, query: q, page });
+      const result = await catalogAggregator.discover({ type, genre, mood, sort, query: q, page, seed, curation });
+      const cacheHeader = q
+        ? "no-store, no-cache, must-revalidate"
+        : "public, max-age=60, s-maxage=600, stale-while-revalidate=1800";
       return jsonResponse(result, 200, {
-        "Cache-Control": "public, max-age=60, s-maxage=600, stale-while-revalidate=1800",
+        "Cache-Control": cacheHeader,
       });
     }
 
     if (path === "/api/catalog/search" && method === "GET") {
-      const q = url.searchParams.get("q") || "";
-      const items = await catalogAggregator.search(q);
+      const q = url.searchParams.get("q") || url.searchParams.get("search") || "";
+      const type = url.searchParams.get("type") || undefined;
+      const items = await catalogAggregator.search(q, type);
       return jsonResponse({ items, results: items }, 200, {
-        "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=600",
+        "Cache-Control": "no-store, no-cache, must-revalidate",
       });
     }
 
@@ -251,7 +261,7 @@ export const onRequest: any = async (context: any) => {
     }
 
     // -------------------------------------------------------------
-    // SHELVES
+    // SHELVES & CUSTOM COLLECTIONS
     // -------------------------------------------------------------
     if (path === "/api/shelves" && method === "GET") {
       if (!currentUserId) return jsonResponse({ shelves: [] });
@@ -260,8 +270,9 @@ export const onRequest: any = async (context: any) => {
     }
 
     if (path === "/api/shelves" && method === "POST") {
-      if (!currentUserId) return jsonResponse({ error: "Unauthorized" }, 401);
+      if (!currentUserId) return jsonResponse({ error: "Unauthorized. Please sign in." }, 401);
       const body = await request.json().catch(() => ({}));
+      if (!body.name) return jsonResponse({ error: "Shelf name is required" }, 400);
       const shelf = await createShelf({
         userId: currentUserId,
         name: body.name,
@@ -272,17 +283,71 @@ export const onRequest: any = async (context: any) => {
       return jsonResponse({ shelf });
     }
 
-    if (path.startsWith("/api/shelves/") && method === "DELETE") {
-      if (!currentUserId) return jsonResponse({ error: "Unauthorized" }, 401);
+    if (path.startsWith("/api/shelves/") && method === "GET" && !path.includes("/items")) {
+      const shelfId = path.replace("/api/shelves/", "");
+      const result = await getShelfById(shelfId, currentUserId);
+      if (!result) return jsonResponse({ error: "Shelf not found" }, 404);
+      return jsonResponse(result);
+    }
+
+    if (path.startsWith("/api/shelves/") && (method === "PATCH" || method === "PUT") && !path.includes("/items")) {
+      if (!currentUserId) return jsonResponse({ error: "Unauthorized. Please sign in." }, 401);
+      const shelfId = path.replace("/api/shelves/", "");
+      const body = await request.json().catch(() => ({}));
+      const shelf = await updateShelf(shelfId, currentUserId, {
+        name: body.name,
+        description: body.description,
+        visibility: body.visibility,
+        coverUrl: body.coverUrl,
+      });
+      if (!shelf) return jsonResponse({ error: "Shelf not found or not permitted to edit" }, 404);
+      return jsonResponse({ shelf });
+    }
+
+    if (path.startsWith("/api/shelves/") && method === "DELETE" && !path.includes("/items")) {
+      if (!currentUserId) return jsonResponse({ error: "Unauthorized. Please sign in." }, 401);
       const shelfId = path.replace("/api/shelves/", "");
       await deleteShelf(shelfId, currentUserId);
       return jsonResponse({ success: true });
     }
 
     if (path.startsWith("/api/shelves/") && path.endsWith("/items") && method === "POST") {
+      if (!currentUserId) return jsonResponse({ error: "Unauthorized. Please sign in." }, 401);
       const shelfId = path.replace("/api/shelves/", "").replace("/items", "");
       const body = await request.json().catch(() => ({}));
+      if (!body.mediaId) return jsonResponse({ error: "mediaId is required" }, 400);
+
+      if (body.mediaData) {
+        const rawCover = body.mediaData.poster || body.mediaData.coverUrl || body.mediaData.cover_url;
+        const rawBackdrop = body.mediaData.backdrop || body.mediaData.backdropUrl || body.mediaData.backdrop_url;
+        await upsertMedia({
+          id: body.mediaId,
+          slug: body.mediaData.slug || body.mediaId,
+          title: body.mediaData.title || "Untitled",
+          originalTitle: body.mediaData.originalTitle,
+          overview: body.mediaData.overview,
+          type: body.mediaData.type || "Movie",
+          releaseYear: body.mediaData.releaseYear || body.mediaData.year ? Number(body.mediaData.releaseYear || body.mediaData.year) : undefined,
+          runtime: body.mediaData.runtime ? Number(body.mediaData.runtime.toString().replace(/\D/g, "")) : undefined,
+          rating: body.mediaData.rating ? Number(body.mediaData.rating) : undefined,
+          coverUrl: rawCover,
+          backdropUrl: rawBackdrop,
+          trailerUrl: body.mediaData.trailerUrl,
+          source: body.mediaData.source || "tmdb",
+          sourceId: body.mediaData.sourceId || body.mediaId,
+        });
+      }
+
       await addMediaToShelf(shelfId, body.mediaId);
+      return jsonResponse({ success: true });
+    }
+
+    if (path.startsWith("/api/shelves/") && path.includes("/items/") && method === "DELETE") {
+      if (!currentUserId) return jsonResponse({ error: "Unauthorized. Please sign in." }, 401);
+      const match = path.match(/^\/api\/shelves\/([^/]+)\/items\/([^/]+)$/);
+      if (!match) return jsonResponse({ error: "Invalid path" }, 400);
+      const [, shelfId, mediaId] = match;
+      await removeMediaFromShelf(shelfId, mediaId);
       return jsonResponse({ success: true });
     }
 

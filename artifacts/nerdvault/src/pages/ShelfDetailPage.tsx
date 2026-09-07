@@ -30,7 +30,7 @@ export default function ShelfDetailPage() {
 
   const [, navigate] = useLocation();
   const { user } = useAuth();
-  const { notify, refreshShelves } = useVault();
+  const { notify, refreshShelves, shelves } = useVault();
 
   const [shelf, setShelf] = useState<Shelf | null>(null);
   const [items, setItems] = useState<UnifiedMedia[]>([]);
@@ -131,18 +131,35 @@ export default function ShelfDetailPage() {
           <p className="mt-1 max-w-[320px] text-[12px] text-slate-500">
             This collection may have been removed, or is set to private by its creator.
           </p>
-          <button
-            onClick={() => navigate("/vault")}
-            className="nv-button mt-4 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 text-[12px] font-extrabold text-[#08211c] hover:bg-[#73e4c7]"
-          >
-            Go to My Vault
-          </button>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2.5">
+            <button
+              onClick={() => navigate("/vault")}
+              className="nv-button rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 text-[12px] font-extrabold text-[#08211c] hover:bg-[#73e4c7]"
+            >
+              Go to My Vault
+            </button>
+            {shelves.some((s) => s.id === shelfIdOrSlug || s.slug === shelfIdOrSlug) && (
+              <button
+                onClick={async () => {
+                  try {
+                    await api.deleteShelf(shelfIdOrSlug);
+                  } catch {}
+                  notify("Shelf removed");
+                  refreshShelves();
+                  navigate("/vault");
+                }}
+                className="nv-button rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-[12px] font-bold text-rose-300 hover:bg-rose-500/20 transition"
+              >
+                Delete this shelf
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );
   }
 
-  const isOwner = shelf.isOwner || (user && user.id === (shelf as any).user_id);
+  const isOwner = shelf.isOwner || Boolean(user && user.id === ((shelf as any).userId || (shelf as any).user_id));
   const existingMediaIds = new Set(items.map((i) => i.id));
 
   // Filter items

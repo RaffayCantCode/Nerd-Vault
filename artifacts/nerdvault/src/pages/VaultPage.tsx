@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Plus, Bookmark, ChevronRight, FolderPlus } from "lucide-react";
+import { Plus, Bookmark, ChevronRight, FolderPlus, Trash2 } from "lucide-react";
 import { MediaCard } from "../components/media/MediaCard";
 import { SectionHeading } from "../components/common/SectionHeading";
 import { CustomSelect } from "../components/common/CustomSelect";
@@ -223,23 +223,52 @@ export default function VaultPage() {
               const colorKeys = Object.keys(colors);
               const colorClass = colors[colorKeys[idx % colorKeys.length]];
               return (
-                <Link
+                <div
                   key={shelf.id}
-                  href={`/shelf/${shelf.id}`}
-                  data-testid={`button-shelf-${shelf.slug}`}
-                  className="nv-button group flex items-center gap-3 rounded-2xl border border-white/[.08] bg-white/[.025] p-3.5 text-left hover:border-white/[.18] hover:bg-white/[.06] transition-all"
+                  className="group relative flex items-center justify-between gap-2.5 rounded-2xl border border-white/[.08] bg-white/[.025] p-3.5 text-left hover:border-white/[.18] hover:bg-white/[.06] transition-all"
                 >
-                  <span className={`h-3 w-3 rounded-full shrink-0 ${colorClass}`} />
-                  <span className="min-w-0">
-                    <span className="block truncate text-[12px] font-bold text-slate-200 group-hover:text-white">
-                      {shelf.name}
+                  <Link
+                    href={`/shelf/${shelf.id}`}
+                    data-testid={`button-shelf-${shelf.slug}`}
+                    className="flex items-center gap-3 flex-1 min-w-0"
+                  >
+                    <span className={`h-3 w-3 rounded-full shrink-0 ${colorClass}`} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[12px] font-bold text-slate-200 group-hover:text-white">
+                        {shelf.name}
+                      </span>
+                      <span className="block text-[11px] text-slate-500">
+                        {shelf.itemCount} titles
+                      </span>
                     </span>
-                    <span className="block text-[11px] text-slate-500">
-                      {shelf.itemCount} titles
-                    </span>
-                  </span>
-                  <ChevronRight size={15} className="ml-auto text-slate-600 group-hover:text-[hsl(var(--primary))] transition-transform group-hover:translate-x-0.5 shrink-0" />
-                </Link>
+                  </Link>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (window.confirm(`Are you sure you want to delete shelf "${shelf.name}"?`)) {
+                          try {
+                            await api.deleteShelf(shelf.id);
+                            notify(`Shelf "${shelf.name}" deleted`);
+                            refreshShelves();
+                          } catch {
+                            notify("Failed to delete shelf");
+                          }
+                        }
+                      }}
+                      title="Delete shelf"
+                      className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                    <Link href={`/shelf/${shelf.id}`} className="text-slate-600 group-hover:text-[hsl(var(--primary))] transition-transform group-hover:translate-x-0.5">
+                      <ChevronRight size={15} />
+                    </Link>
+                  </div>
+                </div>
               );
             })}
           </div>

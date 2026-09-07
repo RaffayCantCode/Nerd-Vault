@@ -145,7 +145,7 @@ export async function fetchKitsuById(id: string): Promise<UnifiedMedia | null> {
   return fetchWithCache(cacheKey, 1000 * 60 * 60 * 24, async () => {
     try {
       const url = `${KITSU_BASE_URL}/anime/${cleanId}`;
-      const res = await fetch(url, { headers: { Accept: "application/vnd.api+json", "User-Agent": "NerdVault/2.0" } });
+      const res = await fetch(url, { headers: { Accept: "application/vnd.api+json", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" } });
       if (!res.ok) return null;
       const data: any = await res.json();
       if (!data.data) return null;
@@ -161,7 +161,7 @@ export async function fetchKitsuTrending(): Promise<UnifiedMedia[]> {
   return fetchWithCache(cacheKey, 1000 * 60 * 60, async () => {
     try {
       const url = `${KITSU_BASE_URL}/trending/anime?limit=20`;
-      const res = await fetch(url, { headers: { Accept: "application/vnd.api+json", "User-Agent": "NerdVault/2.0" } });
+      const res = await fetch(url, { headers: { Accept: "application/vnd.api+json", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" } });
       if (!res.ok) return [];
       const json: any = await res.json();
       return (json.data || [])
@@ -179,7 +179,7 @@ export async function fetchKitsuSearch(query: string): Promise<UnifiedMedia[]> {
   return fetchWithCache(cacheKey, 1000 * 60 * 30, async () => {
     try {
       const url = `${KITSU_BASE_URL}/anime?filter[text]=${encodeURIComponent(query.trim())}&page[limit]=15`;
-      const res = await fetch(url, { headers: { Accept: "application/vnd.api+json", "User-Agent": "NerdVault/2.0" } });
+      const res = await fetch(url, { headers: { Accept: "application/vnd.api+json", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" } });
       if (!res.ok) return [];
       const json: any = await res.json();
       return (json.data || [])
@@ -249,7 +249,12 @@ function formatJikan(item: any): UnifiedMedia {
   };
 }
 
+let anilistDownUntil = 0;
+
 async function runGraphQLQuery(query: string, variables: any = {}) {
+  if (Date.now() < anilistDownUntil) {
+    throw new Error("AniList API is temporarily disabled upstream");
+  }
   const cacheKey = `anilist:${JSON.stringify({ query, variables })}`;
   return fetchWithCache(
     cacheKey,
@@ -258,14 +263,14 @@ async function runGraphQLQuery(query: string, variables: any = {}) {
       let lastErr: any;
       for (let attempt = 0; attempt < 2; attempt++) {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
         try {
           const res = await fetch(ANILIST_GRAPHQL_URL, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               Accept: "application/json",
-              "User-Agent": "Mozilla/5.0 NerdVault/2.0 (https://nerdvault.site)",
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
             },
             body: JSON.stringify({ query, variables }),
             signal: controller.signal,
@@ -275,15 +280,22 @@ async function runGraphQLQuery(query: string, variables: any = {}) {
             await new Promise((r) => setTimeout(r, 600));
             continue;
           }
+          if (res.status === 403) {
+            anilistDownUntil = Date.now() + 1000 * 60 * 5;
+            throw new Error(`AniList returned status 403 (disabled upstream)`);
+          }
           if (!res.ok) throw new Error(`AniList returned status ${res.status}`);
           const json: any = await res.json();
           if (json.errors && json.errors.length > 0 && !json.data) {
             throw new Error(`AniList GraphQL error: ${json.errors[0].message}`);
           }
           return json.data;
-        } catch (err) {
+        } catch (err: any) {
           clearTimeout(timeoutId);
           lastErr = err;
+          if (err?.message?.includes("403") || err?.message?.includes("disabled")) {
+            break;
+          }
           if (attempt === 0) await new Promise((r) => setTimeout(r, 300));
         }
       }
@@ -525,8 +537,46 @@ export const anilistService = {
       console.warn("AniList search live query failed, trying live Kitsu search:", err);
     }
 
-    const kitsuSearch = await fetchKitsuSearch(search);
+    const fetchTmdbAnime = async (): Promise<UnifiedMedia[]> => {
+      try {
+        const tmdbAnimeUrl = `https://api.themoviedb.org/3/search/multi?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(search)}&include_adult=false`;
+        const res = await fetch(tmdbAnimeUrl);
+        if (!res.ok) return [];
+        const d: any = await res.json();
+        return (d.results || [])
+          .filter((item: any) => {
+            const isJp = item.original_language === "ja" || (Array.isArray(item.origin_country) && item.origin_country.includes("JP"));
+            const isAnim = Array.isArray(item.genre_ids) && item.genre_ids.includes(16);
+            return (isJp || isAnim) && !isAdultContent(item);
+          })
+          .map((item: any) => ({
+            id: `tmdb-anime-${item.id}`,
+            slug: slugify(item.name || item.title || "Anime"),
+            title: item.name || item.title || "Anime",
+            originalTitle: item.original_name || item.original_title,
+            type: "Anime" as const,
+            year: (item.first_air_date || item.release_date || "2024").slice(0, 4),
+            rating: toFiveStarRating(item.vote_average ? item.vote_average / 2 : 4.0),
+            genre: "Anime",
+            genres: ["Anime", "Animation"],
+            poster: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : "https://image.tmdb.org/t/p/w500/dqzenchTd7lp5zht7BdlqM7RBhD.jpg",
+            backdrop: item.backdrop_path ? `https://image.tmdb.org/t/p/original${item.backdrop_path}` : undefined,
+            overview: item.overview || "No description provided.",
+            source: "anilist" as const,
+            sourceId: String(item.id),
+          }));
+      } catch {
+        return [];
+      }
+    };
+
+    const [kitsuSearch, tmdbAnime] = await Promise.all([
+      fetchKitsuSearch(search).catch(() => []),
+      fetchTmdbAnime().catch(() => []),
+    ]);
+
     if (kitsuSearch.length > 0) return kitsuSearch;
+    if (tmdbAnime.length > 0) return tmdbAnime;
 
     return [];
   },
