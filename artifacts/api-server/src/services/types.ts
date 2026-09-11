@@ -31,6 +31,7 @@ export type UnifiedMedia = {
   };
   similar?: UnifiedMedia[];
   curation?: "Trending" | "Popular" | "Niche";
+  highlightTag?: string;
 };
 
 export type HomeFeedData = {

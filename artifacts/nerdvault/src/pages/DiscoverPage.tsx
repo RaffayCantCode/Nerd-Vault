@@ -1,12 +1,11 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useLayoutEffect, useState, useRef, useCallback } from "react";
 import { Search, ListFilter, Clock3, Sparkles, CircleDot, Gamepad2, ArrowUp, Loader2, X } from "lucide-react";
 import { MediaCard } from "../components/media/MediaCard";
 import { SectionHeading } from "../components/common/SectionHeading";
 import { CustomSelect } from "../components/common/CustomSelect";
 import { api, UnifiedMedia } from "../lib/api";
 import { useVault } from "../context/VaultContext";
-
-let cachedDiscoverBatch: { items: UnifiedMedia[]; hasMore: boolean } | null = null;
+import { discoverStore } from "../lib/discoverStore";
 
 function isClientReleased(item: UnifiedMedia): boolean {
   if (!item) return false;
@@ -24,30 +23,38 @@ export default function DiscoverPage() {
   const { notify } = useVault();
 
   const queryParams = new URLSearchParams(window.location.search);
-  const initialSearch = queryParams.get("search") || "";
-  const initialType = queryParams.get("type") || "All types";
+  const paramSearch = queryParams.get("search");
+  const paramType = queryParams.get("type");
+
+  const savedState = discoverStore.getState();
+  const hasSavedSession = discoverStore.isInitialized();
+
+  // If query parameters are present in the URL, prioritize them; otherwise use saved session state
+  const initialSearch = paramSearch !== null ? paramSearch : (hasSavedSession ? savedState.query : "");
+  const initialType = paramType !== null ? paramType : (hasSavedSession ? savedState.type : "All types");
 
   const [query, setQuery] = useState(initialSearch);
   const [debouncedQuery, setDebouncedQuery] = useState(initialSearch);
-  const [genre, setGenre] = useState("All genres");
+  const [genre, setGenre] = useState(() => hasSavedSession ? savedState.genre : "All genres");
   const [type, setType] = useState(initialType);
-  const [sort, setSort] = useState("Recommended");
-  const [curation, setCuration] = useState("All curations");
-  const [mood, setMood] = useState<string | null>(null);
-  const [visitSeed, setVisitSeed] = useState(() => Math.floor(Math.random() * 100000));
+  const [sort, setSort] = useState(() => hasSavedSession ? savedState.sort : "Recommended");
+  const [curation, setCuration] = useState(() => hasSavedSession ? savedState.curation : "All curations");
+  const [mood, setMood] = useState<string | null>(() => hasSavedSession ? savedState.mood : null);
+  const [visitSeed, setVisitSeed] = useState(() => hasSavedSession ? savedState.visitSeed : Math.floor(Math.random() * 100000));
 
-  const isDefaultInitial = !initialSearch && initialType === "All types";
-  const [items, setItems] = useState<UnifiedMedia[]>(() => (isDefaultInitial && cachedDiscoverBatch ? cachedDiscoverBatch.items : []));
-  const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(() => !(isDefaultInitial && cachedDiscoverBatch));
+  // Initialize items and page directly from persistent session if already visited in this session
+  const [items, setItems] = useState<UnifiedMedia[]>(() => hasSavedSession ? savedState.items : []);
+  const [page, setPage] = useState(() => hasSavedSession ? savedState.page : 1);
+  const [loading, setLoading] = useState(() => !hasSavedSession);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(() => (isDefaultInitial && cachedDiscoverBatch ? cachedDiscoverBatch.hasMore : true));
+  const [hasMore, setHasMore] = useState(() => hasSavedSession ? savedState.hasMore : true);
   const [showScrollTop, setShowScrollTop] = useState(false);
 
   const isFetchingRef = useRef(false);
+  const isFirstMountRef = useRef(true);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
-  const seenIdsRef = useRef<Set<string>>(new Set());
-  const seenTitlesRef = useRef<Set<string>>(new Set());
+  const seenIdsRef = useRef<Set<string>>(hasSavedSession ? new Set(savedState.seenIds) : new Set());
+  const seenTitlesRef = useRef<Set<string>>(hasSavedSession ? new Set(savedState.seenTitles) : new Set());
 
   const genres = [
     "All genres",
@@ -76,35 +83,73 @@ export default function DiscoverPage() {
     return () => clearTimeout(handler);
   }, [query]);
 
-  // Scroll listener for scroll-to-top button
+  // Track and save scroll position continuously and restore on return
   useEffect(() => {
+    let ticking = false;
     const handleScroll = () => {
       setShowScrollTop(window.scrollY > 400);
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          discoverStore.setScroll(window.scrollY);
+          ticking = false;
+        });
+        ticking = true;
+      }
     };
+
     window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+    return () => {
+      discoverStore.setScroll(window.scrollY);
+      window.removeEventListener("scroll", handleScroll);
+    };
   }, []);
 
-  // Fetch initial batch (Page 1) fresh on every visit or filter change
-  useEffect(() => {
-    const isDefault =
-      !debouncedQuery.trim() &&
-      type === "All types" &&
-      genre === "All genres" &&
-      !mood &&
-      sort === "Recommended" &&
-      curation === "All curations";
-
-    if (!isDefault || !cachedDiscoverBatch) {
-      setLoading(true);
+  // Restore scroll position when returning from details page with existing items
+  useLayoutEffect(() => {
+    if (hasSavedSession && savedState.items.length > 0) {
+      const targetY = discoverStore.getScroll();
+      if (targetY > 0) {
+        // Dual requestAnimationFrame guarantees DOM layout is painted before scroll
+        requestAnimationFrame(() => {
+          window.scrollTo({ top: targetY, behavior: "instant" });
+          requestAnimationFrame(() => {
+            window.scrollTo({ top: targetY, behavior: "instant" });
+          });
+        });
+      }
     }
+  }, [hasSavedSession]);
+
+  // Fetch initial batch (Page 1) fresh only on first site visit, page reload, or explicit filter/search change
+  useEffect(() => {
+    // If returning from details page and session is already initialized, do NOT refetch or wipe items!
+    if (isFirstMountRef.current) {
+      isFirstMountRef.current = false;
+      if (discoverStore.isInitialized() && discoverStore.getState().items.length > 0) {
+        return;
+      }
+    }
+
+    setLoading(true);
     setPage(1);
     setHasMore(true);
     isFetchingRef.current = true;
     seenIdsRef.current.clear();
     seenTitlesRef.current.clear();
 
-    // Opening discover page starts from top of page
+    discoverStore.resetForFilterChange();
+    discoverStore.updateState({
+      query,
+      debouncedQuery,
+      genre,
+      type,
+      sort,
+      curation,
+      mood,
+      visitSeed,
+    });
+
+    // When changing filters or on fresh visit, start at top
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
 
     api.discover({
@@ -142,9 +187,16 @@ export default function DiscoverPage() {
         setItems(unique);
         const more = unique.length >= 8 && !debouncedQuery.trim();
         setHasMore(more);
-        if (isDefault && unique.length > 0) {
-          cachedDiscoverBatch = { items: unique, hasMore: more };
-        }
+
+        discoverStore.updateState({
+          items: unique,
+          page: 1,
+          hasMore: more,
+          seenIds: seenIdsRef.current,
+          seenTitles: seenTitlesRef.current,
+          isInitialized: true,
+          visitSeed,
+        });
       })
       .catch((err) => {
         console.error("Discover error:", err);
@@ -155,7 +207,7 @@ export default function DiscoverPage() {
       });
   }, [type, genre, mood, sort, curation, debouncedQuery, visitSeed]);
 
-  // Load next batch without repeating entries
+  // Load next batch without repeating entries and sync to session store
   const loadNextPage = useCallback(() => {
     if (isFetchingRef.current || !hasMore || debouncedQuery.trim() || loading) return;
     isFetchingRef.current = true;
@@ -189,6 +241,7 @@ export default function DiscoverPage() {
 
         if (filtered.length === 0) {
           setHasMore(false);
+          discoverStore.updateState({ hasMore: false });
         } else {
           setItems((prev) => {
             const unique = filtered.filter((i) => {
@@ -201,13 +254,22 @@ export default function DiscoverPage() {
             if (unique.length === 0) {
               return prev;
             }
-            return [...prev, ...unique];
+            const updated = [...prev, ...unique];
+            discoverStore.updateState({
+              items: updated,
+              page: nextPage,
+              hasMore: true,
+              seenIds: seenIdsRef.current,
+              seenTitles: seenTitlesRef.current,
+            });
+            return updated;
           });
           setPage(nextPage);
         }
       })
       .catch(() => {
         setHasMore(false);
+        discoverStore.updateState({ hasMore: false });
       })
       .finally(() => {
         setLoadingMore(false);
@@ -228,7 +290,7 @@ export default function DiscoverPage() {
           loadNextPage();
         }
       },
-      { rootMargin: "300px" }
+      { rootMargin: "400px" }
     );
 
     observer.observe(sentinel);
@@ -237,6 +299,74 @@ export default function DiscoverPage() {
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleShuffle = () => {
+    const newSeed = discoverStore.resetForShuffle();
+    setVisitSeed(newSeed);
+    setItems([]);
+    setPage(1);
+    setHasMore(true);
+    setLoading(true);
+    isFetchingRef.current = true;
+    seenIdsRef.current.clear();
+    seenTitlesRef.current.clear();
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    notify("Shuffled fresh discoveries!");
+
+    api.discover({
+      type: type !== "All types" ? type : undefined,
+      genre: genre !== "All genres" ? genre : undefined,
+      mood: mood || undefined,
+      sort,
+      curation: curation !== "All curations" ? curation : undefined,
+      search: debouncedQuery.trim() || undefined,
+      page: 1,
+      seed: newSeed,
+    })
+      .then((data) => {
+        const fetched = data?.items || [];
+        const filtered = fetched.filter((i) => {
+          if (!isClientReleased(i)) return false;
+          if (type !== "All types" && (i.type || "").toLowerCase() !== type.toLowerCase()) return false;
+          if (genre !== "All genres") {
+            const match =
+              (i.genre && i.genre.toLowerCase() === genre.toLowerCase()) ||
+              (i.genres && i.genres.some((g) => g.toLowerCase() === genre.toLowerCase()));
+            if (!match) return false;
+          }
+          return true;
+        });
+
+        const unique = filtered.filter((i) => {
+          const key = `${i.title.toLowerCase().trim()}-${i.type}`;
+          if (seenIdsRef.current.has(i.id) || seenTitlesRef.current.has(key)) return false;
+          seenIdsRef.current.add(i.id);
+          seenTitlesRef.current.add(key);
+          return true;
+        });
+
+        setItems(unique);
+        const more = unique.length >= 8 && !debouncedQuery.trim();
+        setHasMore(more);
+
+        discoverStore.updateState({
+          items: unique,
+          page: 1,
+          hasMore: more,
+          seenIds: seenIdsRef.current,
+          seenTitles: seenTitlesRef.current,
+          isInitialized: true,
+          visitSeed: newSeed,
+        });
+      })
+      .catch((err) => {
+        console.error("Discover error:", err);
+      })
+      .finally(() => {
+        setLoading(false);
+        isFetchingRef.current = false;
+      });
   };
 
   const moods = [
@@ -267,7 +397,7 @@ export default function DiscoverPage() {
             <span className="text-[hsl(var(--accent))]">obsession.</span>
           </h2>
           <p className="max-w-[340px] text-[12px] leading-5 text-slate-400">
-            Equally balanced across Movies, Series, Anime, and Games — spanning trending buzz, popular hits, and niche gems. Fresh discoveries on every visit.
+            Seamless continuous scroll across Movies, Series, Anime, and Games. Your browsing position and discovered titles are preserved as you explore.
           </p>
         </div>
       </div>
@@ -351,10 +481,7 @@ export default function DiscoverPage() {
 
         <div className="flex items-center gap-3">
           <button
-            onClick={() => {
-              setVisitSeed(Math.floor(Math.random() * 100000));
-              notify("Shuffled fresh discoveries!");
-            }}
+            onClick={handleShuffle}
             data-testid="button-shuffle-discover"
             className="nv-button flex items-center gap-1.5 rounded-xl border border-white/[.15] bg-white/[.05] px-3 py-1.5 text-[11.5px] font-bold text-slate-200 hover:bg-white/[.12] hover:text-[hsl(var(--primary))] transition active:scale-95 cursor-pointer"
           >

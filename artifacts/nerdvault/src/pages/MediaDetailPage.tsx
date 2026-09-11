@@ -5,6 +5,7 @@ import {
   ChevronRight, ChevronLeft, MessageCircle, Layers, ArrowLeft, Heart, Lock, Eye, Edit3, Plus
 } from "lucide-react";
 import { api, UnifiedMedia, MediaReview } from "../lib/api";
+import { mediaCache } from "../lib/mediaCache";
 import { useVault } from "../context/VaultContext";
 import { useAuth } from "../context/AuthContext";
 import { SectionHeading } from "../components/common/SectionHeading";
@@ -96,10 +97,11 @@ export default function MediaDetailPage() {
   const franchiseRef = useRef<HTMLDivElement>(null);
   const similarRef = useRef<HTMLDivElement>(null);
 
-  const [media, setMedia] = useState<UnifiedMedia | null>(null);
+  const cachedMedia = slug ? mediaCache.get(slug) : null;
+  const [media, setMedia] = useState<UnifiedMedia | null>(cachedMedia);
   const [reviews, setReviews] = useState<MediaReview[]>([]);
   const [likedReviews, setLikedReviews] = useState<Record<string, boolean>>({});
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !cachedMedia);
   const [expanded, setExpanded] = useState(true);
   const [userRating, setUserRating] = useState<number>(0);
   const [recModalOpen, setRecModalOpen] = useState(false);
@@ -117,13 +119,21 @@ export default function MediaDetailPage() {
 
   useEffect(() => {
     if (!slug) return;
-    setLoading(true);
+    const existing = mediaCache.get(slug);
+    if (existing) {
+      setMedia(existing);
+      setLoading(false);
+      fetchReviews(existing.id);
+    } else {
+      setLoading(true);
+    }
     window.scrollTo({ top: 0, behavior: "instant" });
 
     api.getMediaDetail(slug)
       .then((data) => {
         if (data?.item) {
           setMedia(data.item);
+          mediaCache.set(data.item);
           const existingRating = data.item.userRating
             ? (data.item.userRating > 5 ? Math.round(data.item.userRating / 2) : data.item.userRating)
             : (getItemRating(data.item.id) || (data.item.slug ? getItemRating(data.item.slug) : undefined) || 0);
@@ -134,7 +144,7 @@ export default function MediaDetailPage() {
         }
       })
       .catch(() => {
-        setMedia(null);
+        if (!existing) setMedia(null);
       })
       .finally(() => setLoading(false));
   }, [slug]);

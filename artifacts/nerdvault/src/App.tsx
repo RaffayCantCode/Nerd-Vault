@@ -52,10 +52,18 @@ function RoutedErrorBoundary({ children }: { children: ReactNode }) {
   return <ErrorBoundary resetKey={location}>{children}</ErrorBoundary>;
 }
 
+import { discoverStore } from "./lib/discoverStore";
+
 function ScrollToTop() {
   const [location] = useLocation();
 
   useEffect(() => {
+    // If navigating back to discover page and session is initialized,
+    // let DiscoverPage seamlessly restore its exact scroll position.
+    if (location === "/discover" && discoverStore.isInitialized()) {
+      return;
+    }
+
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
     document.documentElement.scrollTo({ top: 0, left: 0, behavior: "instant" });
     if (document.body) {

@@ -1,3 +1,5 @@
+import { mediaCache } from "./mediaCache";
+
 export type MediaType = "Movie" | "Series" | "Anime" | "Game";
 
 export type UnifiedMedia = {
@@ -32,6 +34,7 @@ export type UnifiedMedia = {
     items: UnifiedMedia[];
   };
   similar?: UnifiedMedia[];
+  highlightTag?: string;
 };
 
 export type HomeFeedData = {
@@ -175,8 +178,20 @@ export const api = {
   logout: () => request<{ success: boolean }>("/api/auth/logout", { method: "POST" }),
 
   // Catalog
-  getHomeFeed: () => request<HomeFeedData>("/api/catalog/home"),
-  discover: (params: { type?: string; genre?: string; mood?: string; sort?: string; search?: string; page?: number; seed?: number | string; curation?: string }) => {
+  getHomeFeed: async () => {
+    const data = await request<HomeFeedData>("/api/catalog/home");
+    if (data) {
+      if (data.featured) mediaCache.set(data.featured);
+      if (data.featuredSlides) mediaCache.setMany(data.featuredSlides);
+      if (data.trendingMovies) mediaCache.setMany(data.trendingMovies);
+      if (data.trendingShows) mediaCache.setMany(data.trendingShows);
+      if (data.topAnime) mediaCache.setMany(data.topAnime);
+      if (data.popularGames) mediaCache.setMany(data.popularGames);
+      if (data.weeklyDrop) mediaCache.setMany(data.weeklyDrop);
+    }
+    return data;
+  },
+  discover: async (params: { type?: string; genre?: string; mood?: string; sort?: string; search?: string; page?: number; seed?: number | string; curation?: string }) => {
     const query = new URLSearchParams();
     if (params.type && params.type !== "All types") query.set("type", params.type);
     if (params.genre && params.genre !== "All genres") query.set("genre", params.genre);
@@ -186,15 +201,44 @@ export const api = {
     if (params.page) query.set("page", String(params.page));
     if (params.seed !== undefined) query.set("seed", String(params.seed));
     if (params.curation && params.curation !== "All") query.set("curation", params.curation);
-    return request<{ items: UnifiedMedia[]; total: number }>(`/api/catalog/discover?${query.toString()}`);
+    const data = await request<{ items: UnifiedMedia[]; total: number }>(`/api/catalog/discover?${query.toString()}`);
+    if (data?.items) {
+      mediaCache.setMany(data.items);
+    }
+    return data;
   },
-  search: (q: string, type?: string) => {
+  search: async (q: string, type?: string) => {
     const query = new URLSearchParams({ q });
     if (type && type !== "All types") query.set("type", type);
-    return request<{ items: UnifiedMedia[] }>(`/api/catalog/search?${query.toString()}`);
+    const data = await request<{ items: UnifiedMedia[] }>(`/api/catalog/search?${query.toString()}`);
+    if (data?.items) {
+      mediaCache.setMany(data.items);
+    }
+    return data;
   },
-  getMediaDetail: (id: string) => request<{ item: UnifiedMedia }>(`/api/catalog/media/${encodeURIComponent(id)}`),
-  getReviews: (mediaId: string) => request<{ reviews: MediaReview[] }>(`/api/catalog/media/${encodeURIComponent(mediaId)}/reviews`),
+  getMediaDetail: async (id: string) => {
+    const cacheKey = `media_detail_${id}`;
+    const cached = mediaCache.getCachedQuery<{ item: UnifiedMedia }>(cacheKey);
+    if (cached) return cached;
+
+    const data = await request<{ item: UnifiedMedia }>(`/api/catalog/media/${encodeURIComponent(id)}`);
+    if (data?.item) {
+      mediaCache.set(data.item);
+      mediaCache.setCachedQuery(cacheKey, data, 1000 * 60 * 10);
+    }
+    return data;
+  },
+  getReviews: async (mediaId: string) => {
+    const cacheKey = `media_reviews_${mediaId}`;
+    const cached = mediaCache.getCachedQuery<{ reviews: MediaReview[] }>(cacheKey);
+    if (cached) return cached;
+
+    const data = await request<{ reviews: MediaReview[] }>(`/api/catalog/media/${encodeURIComponent(mediaId)}/reviews`);
+    if (data) {
+      mediaCache.setCachedQuery(cacheKey, data, 1000 * 60 * 3);
+    }
+    return data;
+  },
 
   // Vault
   getVault: () => request<{ items: UnifiedMedia[]; stats: VaultStats }>("/api/vault"),

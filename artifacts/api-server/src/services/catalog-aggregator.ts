@@ -45,10 +45,14 @@ export function isOfficiallyReleased(item: UnifiedMedia | null | undefined): boo
   return true;
 }
 
-function pickHeroCandidate(pool: UnifiedMedia[]): UnifiedMedia | null {
-  if (!pool || pool.length === 0) return null;
+function pickHeroCandidates(
+  pool: UnifiedMedia[],
+  count: number = 2,
+  tag: string = "Featured"
+): UnifiedMedia[] {
+  if (!pool || pool.length === 0) return [];
 
-  // Tier 1: Acclaimed titles (rating >= 4.0/5), valid widescreen backdrop, rich overview, officially released
+  // Filter for valid 1080p widescreen backdrop, rich overview, officially released
   const prime = pool.filter(
     (item) =>
       item &&
@@ -57,32 +61,25 @@ function pickHeroCandidate(pool: UnifiedMedia[]): UnifiedMedia | null {
       item.backdrop.length > 10 &&
       item.backdrop !== item.poster &&
       item.overview &&
-      item.overview.trim().length >= 35 &&
-      Number(item.rating) >= 4.0
+      item.overview.trim().length >= 20 &&
+      Number(item.rating) >= 3.7
   );
 
-  if (prime.length > 0) {
-    const topN = prime.slice(0, 5);
-    return topN[Math.floor(Math.random() * topN.length)];
-  }
-
-  // Tier 2: Valid backdrop and rating >= 3.6
-  const secondary = pool.filter(
+  const fallback = pool.filter(
     (item) =>
       item &&
       isOfficiallyReleased(item) &&
       item.backdrop &&
       item.backdrop.length > 10 &&
-      item.backdrop !== item.poster &&
-      Number(item.rating) >= 3.6
+      item.backdrop !== item.poster
   );
 
-  if (secondary.length > 0) {
-    const topN = secondary.slice(0, 4);
-    return topN[Math.floor(Math.random() * topN.length)];
-  }
-
-  return pool.find((i) => i && isOfficiallyReleased(i) && i.backdrop) || pool[0] || null;
+  const candidates = prime.length >= count ? prime : (fallback.length > 0 ? fallback : pool);
+  const shuffled = shuffleArray(candidates);
+  return shuffled.slice(0, count).map((item) => ({
+    ...item,
+    highlightTag: tag,
+  }));
 }
 
 export const catalogAggregator = {
@@ -137,18 +134,39 @@ export const catalogAggregator = {
     const allAnime = shuffleArray([...topAnime, ...popularAnime]).filter(isOfficiallyReleased);
     const allGames = shuffleArray(popularGames).filter(isOfficiallyReleased);
 
-    // 4 Real Live Featured Hero Slides: 1 Movie, 1 Series, 1 Anime, 1 Game (Acclaimed with genuine widescreen backdrops)
-    const heroMovie = pickHeroCandidate(topRatedMovies.length > 0 ? [...topRatedMovies, ...trendingMovies] : trendingMovies);
-    const heroShow = pickHeroCandidate(topRatedShows.length > 0 ? [...topRatedShows, ...trendingShows] : trendingShows);
-    const heroAnime = pickHeroCandidate(topAnime.length > 0 ? [...topAnime, ...popularAnime] : popularAnime);
-    const heroGame = pickHeroCandidate(popularGames);
+    // Curate 6 to 8 Dynamic Featured Hero Slides across diverse categories
+    const heroTrendingMovies = pickHeroCandidates(trendingMovies, 2, "Trending Blockbuster");
+    const heroClassicMovies = pickHeroCandidates(topRatedMovies, 1, "Cinematic Masterpiece");
+    const heroTrendingShows = pickHeroCandidates(trendingShows, 2, "Must-Watch Series");
+    const heroClassicShows = pickHeroCandidates(topRatedShows, 1, "Critically Acclaimed");
+    const heroTrendingAnime = pickHeroCandidates(topAnime, 1, "Anime Sensation");
+    const heroClassicAnime = pickHeroCandidates(popularAnime, 1, "Anime Masterwork");
+    const heroGames = pickHeroCandidates(popularGames, 2, "Gaming Phenomenon");
 
-    const featuredSlides: UnifiedMedia[] = [
-      heroMovie,
-      heroShow,
-      heroAnime,
-      heroGame,
-    ].filter((i): i is UnifiedMedia => Boolean(i) && isOfficiallyReleased(i));
+    const allHeroCandidates = [
+      ...heroTrendingMovies,
+      ...heroClassicMovies,
+      ...heroTrendingShows,
+      ...heroClassicShows,
+      ...heroTrendingAnime,
+      ...heroClassicAnime,
+      ...heroGames,
+    ];
+
+    // Deduplicate hero slides by ID and title
+    const heroSeenIds = new Set<string>();
+    const heroSeenTitles = new Set<string>();
+    const uniqueHeroSlides = allHeroCandidates.filter((item) => {
+      if (!item || !isOfficiallyReleased(item)) return false;
+      const titleKey = `${item.title.toLowerCase().trim()}-${item.type}`;
+      if (heroSeenIds.has(item.id) || heroSeenTitles.has(titleKey)) return false;
+      heroSeenIds.add(item.id);
+      heroSeenTitles.add(titleKey);
+      return true;
+    });
+
+    // Randomize slide order so visits start on varied media types (Movie, Anime, Game, Series)
+    const featuredSlides = shuffleArray(uniqueHeroSlides).slice(0, 8);
 
     // Curated multi-media drop with randomized assortment
     const weeklyDrop: UnifiedMedia[] = shuffleArray([

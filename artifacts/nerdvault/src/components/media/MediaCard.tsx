@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link } from "wouter";
 import { Star, ImageOff, X } from "lucide-react";
 import { UnifiedMedia } from "../../lib/api";
+import { mediaCache } from "../../lib/mediaCache";
 import { useVault } from "../../context/VaultContext";
 import { MediaTrackModal } from "./MediaTrackModal";
 
@@ -41,7 +42,12 @@ export function MediaCard({
           compact ? "w-[155px] shrink-0 sm:w-[185px] md:w-[205px]" : "min-w-0"
         }`}
       >
-        <Link href={`/media/${item.id}`} className="block">
+        <Link
+          href={`/media/${item.id}`}
+          className="block"
+          onClick={() => mediaCache.set(item)}
+          onMouseEnter={() => mediaCache.set(item)}
+        >
           <div
             className="relative overflow-hidden rounded-2xl sm:rounded-[22px] border border-white/[.1] bg-[#141b20] aspect-[2/3] transition-all duration-300 ease-out group-hover:-translate-y-2.5 group-hover:scale-[1.03] group-hover:shadow-[0_20px_45px_rgba(0,0,0,0.95),0_0_30px_rgba(55,218,178,0.22)] group-hover:border-[hsl(var(--primary))]/70"
           >
@@ -51,6 +57,7 @@ export function MediaCard({
                 alt={`${item.title} poster`}
                 className="nv-poster h-full w-full object-cover object-center transition-transform duration-500 ease-out group-hover:scale-105"
                 loading="lazy"
+                decoding="async"
                 onError={() => setImgError(true)}
               />
             ) : (
