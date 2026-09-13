@@ -105,10 +105,10 @@ async function queryIGDB(endpoint: string, queryBody: string): Promise<any> {
 export const igdbService = {
   async getTrendingGames(genre?: string, page: number = 1): Promise<UnifiedMedia[]> {
     try {
-      const offset = (page - 1) * 18;
+      const offset = (page - 1) * 24;
       const nowSec = Math.floor(Date.now() / 1000);
-      // Recent trending releases with high activity/hypes (2022-present) and genuine backdrops (strictly released)
-      let whereClause = `where cover != null & (hypes > 5 | rating_count > 15) & first_release_date > 1640995200 & first_release_date <= ${nowSec} & (artworks != null | screenshots != null)`;
+      // Recent trending releases with high activity/hypes (2022-present) and genuine backdrops (strictly standalone released)
+      let whereClause = `where parent_game = null & version_parent = null & cover != null & (hypes > 5 | rating_count > 25) & first_release_date > 1640995200 & first_release_date <= ${nowSec} & (artworks != null | screenshots != null)`;
       if (genre && genre !== "All genres") {
         whereClause += ` & genres.name ~ *"${genre}"*`;
       }
@@ -118,7 +118,7 @@ export const igdbService = {
         sort hypes desc;
         ${whereClause};
         offset ${offset};
-        limit 18;
+        limit 24;
       `;
       const data = await queryIGDB("games", body);
       const items = (data || []).map((g: any) => ({ ...formatGame(g), curation: "Trending" as const }));
@@ -132,20 +132,20 @@ export const igdbService = {
 
   async getPopularGames(genre?: string, page: number = 1): Promise<UnifiedMedia[]> {
     try {
-      const offset = (page - 1) * 18;
+      const offset = (page - 1) * 35;
       const nowSec = Math.floor(Date.now() / 1000);
 
-      let whereClause = `where rating != null & rating_count > 30 & first_release_date <= ${nowSec} & cover != null & (artworks != null | screenshots != null)`;
+      let whereClause = `where parent_game = null & version_parent = null & rating != null & rating_count >= 80 & first_release_date <= ${nowSec} & cover != null & (artworks != null | screenshots != null)`;
       if (genre && genre !== "All genres") {
         const g = genre.toLowerCase();
         if (g.includes("rpg") || g.includes("role-playing")) {
-          whereClause = `where (genres.name ~ *"Role-playing"* | genres.name ~ *"RPG"*) & rating != null & first_release_date <= ${nowSec} & cover != null & (artworks != null | screenshots != null)`;
+          whereClause = `where parent_game = null & version_parent = null & (genres.name ~ *"Role-playing"* | genres.name ~ *"RPG"*) & rating != null & rating_count >= 40 & first_release_date <= ${nowSec} & cover != null & (artworks != null | screenshots != null)`;
         } else if (g.includes("sci-fi")) {
-          whereClause = `where (genres.name ~ *"Sci-Fi"* | themes.name ~ *"Science fiction"*) & rating != null & first_release_date <= ${nowSec} & cover != null & (artworks != null | screenshots != null)`;
+          whereClause = `where parent_game = null & version_parent = null & (genres.name ~ *"Sci-Fi"* | themes.name ~ *"Science fiction"*) & rating != null & rating_count >= 40 & first_release_date <= ${nowSec} & cover != null & (artworks != null | screenshots != null)`;
         } else if (g.includes("fantasy")) {
-          whereClause = `where (genres.name ~ *"Fantasy"* | themes.name ~ *"Fantasy"*) & rating != null & first_release_date <= ${nowSec} & cover != null & (artworks != null | screenshots != null)`;
+          whereClause = `where parent_game = null & version_parent = null & (genres.name ~ *"Fantasy"* | themes.name ~ *"Fantasy"*) & rating != null & rating_count >= 40 & first_release_date <= ${nowSec} & cover != null & (artworks != null | screenshots != null)`;
         } else {
-          whereClause = `where genres.name ~ *"${genre}"* & rating != null & first_release_date <= ${nowSec} & cover != null & (artworks != null | screenshots != null)`;
+          whereClause = `where parent_game = null & version_parent = null & genres.name ~ *"${genre}"* & rating != null & rating_count >= 40 & first_release_date <= ${nowSec} & cover != null & (artworks != null | screenshots != null)`;
         }
       }
 
@@ -154,7 +154,7 @@ export const igdbService = {
         sort rating desc;
         ${whereClause};
         offset ${offset};
-        limit 18;
+        limit 35;
       `;
       const data = await queryIGDB("games", body);
       return (data || []).map((g: any) => ({ ...formatGame(g), curation: "Popular" as const }));
@@ -166,9 +166,9 @@ export const igdbService = {
 
   async getNicheGames(genre?: string, page: number = 1): Promise<UnifiedMedia[]> {
     try {
-      const offset = (page - 1) * 18;
+      const offset = (page - 1) * 20;
       const nowSec = Math.floor(Date.now() / 1000);
-      let whereClause = `where (themes.name ~ *"Indie"* | genres.name ~ *"Indie"*) & rating >= 75 & rating_count >= 10 & first_release_date <= ${nowSec} & cover != null & (artworks != null | screenshots != null)`;
+      let whereClause = `where parent_game = null & version_parent = null & (themes.name ~ *"Indie"* | genres.name ~ *"Indie"*) & rating >= 75 & rating_count >= 10 & first_release_date <= ${nowSec} & cover != null & (artworks != null | screenshots != null)`;
       if (genre && genre !== "All genres") {
         whereClause += ` & genres.name ~ *"${genre}"*`;
       }
@@ -178,7 +178,7 @@ export const igdbService = {
         sort rating desc;
         ${whereClause};
         offset ${offset};
-        limit 18;
+        limit 20;
       `;
       const data = await queryIGDB("games", body);
       const items = (data || []).map((g: any) => ({ ...formatGame(g), curation: "Niche" as const }));

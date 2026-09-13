@@ -34,7 +34,7 @@ export function MediaRail({
       />
       <div
         ref={railRef}
-        className="flex gap-5 sm:gap-6 overflow-x-auto pt-4 pb-4 px-1.5 -mt-3 -mx-1.5 scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex gap-5 sm:gap-6 overflow-x-auto pt-5 pb-8 px-2.5 -mt-3 -mb-6 -mx-2.5 scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {items.map((item) => (
           <MediaCard key={item.id} item={item} compact />

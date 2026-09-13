@@ -127,10 +127,7 @@ export default function VaultPage() {
       {/* Header */}
       <div className="nv-reveal flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <p className="font-mono-ui text-[11px] uppercase font-bold tracking-[.22em] text-[hsl(var(--primary))]">
-            Personal archive
-          </p>
-          <h2 className="font-display mt-1 text-3xl sm:text-4xl font-bold tracking-[-.06em] text-white">
+          <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-white">
             Your collection, your rules.
           </h2>
         </div>
@@ -144,14 +141,14 @@ export default function VaultPage() {
               setCreateShelfOpen(true);
             }}
             data-testid="button-new-shelf-vault"
-            className="nv-button flex items-center gap-2 rounded-xl border border-white/[.12] bg-white/[.04] px-4 py-2.5 text-[12px] font-bold text-slate-200 hover:border-[rgba(55,218,178,.35)] hover:text-[hsl(var(--primary))]"
+            className="nv-button flex items-center gap-2 rounded-xl border border-white/[.12] bg-white/[.04] px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-200 hover:border-[rgba(55,218,178,.35)] hover:text-[hsl(var(--primary))]"
           >
             <Plus size={15} /> New shelf
           </button>
           <Link
             href="/discover"
             data-testid="button-import-vault"
-            className="nv-button flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 py-2.5 text-[12px] font-extrabold text-[#09201c] hover:bg-[#73e4c7]"
+            className="nv-button flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 py-2.5 text-xs sm:text-sm font-extrabold text-[#09201c] hover:bg-[#73e4c7]"
           >
             <Plus size={15} /> Add title
           </Link>
@@ -166,11 +163,11 @@ export default function VaultPage() {
             data-testid={`stat-vault-${i}`}
             className={`nv-card nv-reveal nv-reveal-${i + 1} rounded-2xl p-5 border border-white/[.08]`}
           >
-            <p className="text-[11px] text-slate-500">{stat.label}</p>
-            <p className="font-display mt-2 text-2xl sm:text-3xl font-bold tracking-[-.05em] text-slate-100">
+            <p className="text-xs font-medium text-slate-400">{stat.label}</p>
+            <p className="font-display mt-2 text-2xl sm:text-3xl font-bold tracking-tight text-slate-100">
               {stat.value}
             </p>
-            <p className="mt-1 font-mono-ui text-[9px] uppercase tracking-wider text-[hsl(var(--accent))]">
+            <p className="mt-1 text-xs text-[hsl(var(--accent))] font-medium">
               {stat.meta}
             </p>
           </div>

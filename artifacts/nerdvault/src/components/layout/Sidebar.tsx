@@ -33,7 +33,7 @@ export function Sidebar({ onCreateShelf }: { onCreateShelf: () => void }) {
     <aside className="nv-sidebar fixed inset-y-0 left-0 z-20 hidden w-[200px] flex-col px-3.5 py-5 lg:flex">
       <Logo />
       <div className="mt-12 flex flex-1 flex-col">
-        <p className="mb-3 px-3 font-mono-ui text-[10px] uppercase tracking-[.2em] text-slate-600">
+        <p className="mb-2 px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">
           Your space
         </p>
         <nav className="space-y-1">
@@ -48,7 +48,7 @@ export function Sidebar({ onCreateShelf }: { onCreateShelf: () => void }) {
                 className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-semibold transition ${
                   active
                     ? "bg-[rgba(55,218,178,.11)] text-[hsl(var(--primary))]"
-                    : "text-slate-500 hover:bg-white/[.04] hover:text-slate-200"
+                    : "text-slate-400 hover:bg-white/[.04] hover:text-slate-100"
                 }`}
               >
                 <Icon size={17} strokeWidth={active ? 2.2 : 1.8} />
@@ -58,7 +58,7 @@ export function Sidebar({ onCreateShelf }: { onCreateShelf: () => void }) {
           })}
         </nav>
 
-        <p className="mb-3 mt-10 px-3 font-mono-ui text-[10px] uppercase tracking-[.2em] text-slate-600">
+        <p className="mb-2 mt-8 px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">
           Collections
         </p>
         <div className="space-y-1">
@@ -70,7 +70,7 @@ export function Sidebar({ onCreateShelf }: { onCreateShelf: () => void }) {
                 className={`group flex items-center justify-between rounded-xl px-2.5 py-2 text-[13px] font-semibold transition ${
                   active
                     ? "bg-[rgba(55,218,178,.11)] text-[hsl(var(--primary))]"
-                    : "text-slate-400 hover:bg-white/[.04] hover:text-slate-200"
+                    : "text-slate-300 hover:bg-white/[.04] hover:text-slate-100"
                 }`}
               >
                 <Link
@@ -82,7 +82,7 @@ export function Sidebar({ onCreateShelf }: { onCreateShelf: () => void }) {
                   <span className="truncate">{shelf.name}</span>
                 </Link>
                 <div className="flex items-center gap-1 shrink-0 ml-1">
-                  <span className="text-[11px] text-slate-600 group-hover:hidden">
+                  <span className="font-mono-ui text-xs text-slate-400 group-hover:hidden">
                     {String(shelf.itemCount).padStart(2, "0")}
                   </span>
                   <button
@@ -112,7 +112,7 @@ export function Sidebar({ onCreateShelf }: { onCreateShelf: () => void }) {
           <button
             onClick={onCreateShelf}
             data-testid="button-create-collection"
-            className="nv-button flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold text-slate-500 hover:bg-white/[.04] hover:text-slate-300"
+            className="nv-button flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold text-slate-400 hover:bg-white/[.04] hover:text-slate-200"
           >
             <Plus size={17} />
             New collection
@@ -129,10 +129,10 @@ export function Sidebar({ onCreateShelf }: { onCreateShelf: () => void }) {
           >
             <Avatar initials={initials} tone="teal" image={user?.image} />
             <div className="min-w-0">
-              <p className="truncate text-[12px] font-bold text-slate-200">{user.name}</p>
-              <p className="text-[11px] text-slate-500">View Vault Profile</p>
+              <p className="truncate text-xs font-bold text-slate-200">{user.name}</p>
+              <p className="text-xs text-slate-400">View Vault Profile</p>
             </div>
-            <Settings2 size={15} className="ml-auto text-slate-600" />
+            <Settings2 size={15} className="ml-auto text-slate-500" />
           </Link>
         ) : (
           <button
@@ -140,12 +140,12 @@ export function Sidebar({ onCreateShelf }: { onCreateShelf: () => void }) {
             data-testid="button-signin-sidebar"
             className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-white/[.04]"
           >
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-amber-400/10 text-amber-400 font-bold text-[12px]">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-amber-400/10 text-amber-400 font-bold text-xs">
               G
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[12px] font-bold text-slate-200">Guest mode</p>
-              <p className="text-[11px] text-[hsl(var(--primary))] font-semibold">Sign in / Register</p>
+              <p className="truncate text-xs font-bold text-slate-200">Guest mode</p>
+              <p className="text-xs text-[hsl(var(--primary))] font-semibold">Sign in / Register</p>
             </div>
           </button>
         )}

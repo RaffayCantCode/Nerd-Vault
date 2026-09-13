@@ -445,15 +445,10 @@ export default function ProfilePage() {
               )}
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="font-mono-ui text-[10px] uppercase font-bold tracking-[.22em] text-[hsl(var(--primary))]">
-                  {isGuest ? "Guest Mode" : "Collector profile"}
-                </span>
-              </div>
-              <h2 className="font-display mt-1 text-3xl font-bold tracking-[-.06em] text-white">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-white">
                 {currentUser?.name || "Guest Collector"}
               </h2>
-              <p className="mt-1 text-[13px] text-slate-400 max-w-[440px]">
+              <p className="mt-1.5 text-sm text-slate-400 max-w-xl leading-relaxed">
                 {currentUser?.bio ||
                   (isGuest
                     ? "Browsing as guest. Sign in to customize your profile and save your collection."
@@ -578,16 +573,10 @@ export default function ProfilePage() {
             <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-[rgba(55,218,178,.07)] to-transparent pointer-events-none" />
 
             <div className="flex flex-col items-center text-center max-w-xl mx-auto relative z-10">
-              <div className="inline-flex items-center gap-2 rounded-full bg-[hsl(var(--primary))]/10 px-3.5 py-1 border border-[hsl(var(--primary))]/20 mb-2.5">
-                <Sparkles size={13} className="text-[hsl(var(--primary))]" />
-                <span className="font-mono-ui text-[10.5px] uppercase font-bold tracking-[.25em] text-[hsl(var(--primary))]">
-                  Signature Taste
-                </span>
-              </div>
-              <h3 className="font-display text-2xl sm:text-3xl font-bold tracking-[-.04em] text-white">
-                Favorite 4 showcase
+              <h3 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-white">
+                Favorite 4 Showcase
               </h3>
-              <p className="mt-1.5 text-[12.5px] text-slate-400">
+              <p className="mt-1.5 text-sm text-slate-400">
                 1 definitive favorite per media category · Click any slot to customize
               </p>
             </div>

@@ -127,7 +127,7 @@ export function Topbar() {
         <Logo />
         {menuOpen && (
           <div className="glass absolute left-0 top-12 z-50 w-52 rounded-2xl border border-white/[.15] p-2 shadow-2xl bg-[#11171c]">
-            <p className="px-3 pb-2 pt-1 font-mono-ui text-[9px] uppercase tracking-[.18em] text-slate-500">
+            <p className="px-3 pb-2 pt-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">
               Navigate
             </p>
             {navItems.map((item) => (
@@ -136,11 +136,11 @@ export function Topbar() {
                 href={item.href}
                 onClick={() => setMenuOpen(false)}
                 data-testid={`link-menu-${item.label.toLowerCase().replace(" ", "-")}`}
-                className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[12px] font-bold text-slate-400 hover:bg-white/[.06] hover:text-[hsl(var(--primary))]"
+                className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-300 hover:bg-white/[.06] hover:text-[hsl(var(--primary))]"
               >
                 <item.icon size={16} />
                 {item.label}
-                <ChevronRight size={13} className="ml-auto text-slate-700" />
+                <ChevronRight size={13} className="ml-auto text-slate-600" />
               </Link>
             ))}
           </div>
@@ -150,15 +150,15 @@ export function Topbar() {
       {/* Desktop Header Title & Date */}
       <div className="hidden lg:flex items-center gap-4">
         <div className="drop-shadow-[0_2px_10px_rgba(0,0,0,0.85)]">
-          <p className="font-mono-ui text-[10px] uppercase tracking-[.19em] text-slate-400">
+          <p className="text-xs font-medium text-slate-400">
             {today}
           </p>
           <div className="flex items-center gap-3">
-            <h1 className="font-display mt-0.5 text-[19px] font-extrabold tracking-[-.03em] text-white">
+            <h1 className="font-display mt-0.5 text-lg font-bold tracking-tight text-white">
               {title}
             </h1>
-            <span className="hidden xl:inline-flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1 text-[11px] font-mono-ui font-semibold text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/30 shadow-md backdrop-blur-xl">
-              <Sparkles size={11} className="text-[hsl(var(--primary))]" /> This is a tracking & logging website — save your stuff!
+            <span className="hidden xl:inline-flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1 text-xs font-medium text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/30 shadow-md backdrop-blur-xl">
+              <Sparkles size={12} className="text-[hsl(var(--primary))]" /> Track & log movies, TV, anime & games
             </span>
           </div>
         </div>
@@ -298,8 +298,8 @@ export function Topbar() {
                 ) : (
                   <div className="p-2 space-y-2">
                     <div className="px-1 py-1">
-                      <p className="text-[12px] font-bold text-slate-200">Browsing as Guest</p>
-                      <p className="text-[10px] text-slate-500 mt-0.5">Sign in to save your personal collection and reviews.</p>
+                      <p className="text-xs font-bold text-slate-200">Browsing as Guest</p>
+                      <p className="text-xs text-slate-400 mt-0.5">Sign in to save your personal collection and reviews.</p>
                     </div>
 
                     <button

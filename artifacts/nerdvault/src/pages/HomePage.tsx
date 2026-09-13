@@ -24,6 +24,7 @@ export default function HomePage() {
   const progressRef = useRef(0);
   const lastTimeRef = useRef<number | null>(null);
   const animFrameRef = useRef<number | null>(null);
+  const thumbStripRef = useRef<HTMLDivElement>(null);
 
   const loadFeed = useCallback((forceFresh: boolean = false) => {
     if (!forceFresh && cachedHomeFeed) {
@@ -115,6 +116,22 @@ export default function HomePage() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [slides.length]);
+
+  // Automatically smoothly scroll the mini-cards strip to center the active slide
+  useEffect(() => {
+    if (!thumbStripRef.current) return;
+    const container = thumbStripRef.current;
+    const activeEl = container.children[currentSlide] as HTMLElement;
+    if (activeEl) {
+      const containerRect = container.getBoundingClientRect();
+      const activeRect = activeEl.getBoundingClientRect();
+      const offset = (activeRect.left - containerRect.left) - (container.clientWidth / 2) + (activeEl.clientWidth / 2);
+      container.scrollBy({
+        left: offset,
+        behavior: "smooth",
+      });
+    }
+  }, [currentSlide]);
 
   const handlePrevSlide = () => {
     if (slides.length <= 1) return;
@@ -218,39 +235,45 @@ export default function HomePage() {
               {/* Left Column: Title, Highlight Tags, Synopsis, Actions */}
               <div className="max-w-[820px] flex flex-col justify-end">
                 <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
-                  {/* Dynamic Highlight Tag from Backend */}
-                  <span className="font-mono-ui text-[10.5px] sm:text-[11.5px] uppercase font-black tracking-[.2em] text-[hsl(var(--primary))] bg-black/70 px-3 py-1.5 rounded-xl border border-[hsl(var(--primary))]/40 backdrop-blur-md shadow-[0_0_15px_rgba(55,218,178,0.25)] flex items-center gap-1.5">
-                    <Sparkles size={13} className="text-[hsl(var(--primary))]" />
-                    <span>{activeMedia.highlightTag || `Spotlight · ${activeMedia.type}`}</span>
+                  <span className="text-xs font-bold text-white bg-black/70 px-3 py-1.5 rounded-xl border border-white/[.16] backdrop-blur-md shadow-sm">
+                    {activeMedia.type}
                   </span>
 
-                  <span className="text-slate-400 font-bold">·</span>
-                  <span className="font-mono-ui text-[10.5px] sm:text-[11.5px] font-extrabold text-[#acd986] bg-black/65 px-3 py-1.5 rounded-xl border border-white/[.15] backdrop-blur-md shadow-sm flex items-center gap-1">
-                    <Star size={12} fill="#acd986" stroke="#acd986" />
-                    <span>{activeMedia.rating} / 5</span>
-                  </span>
+                  <span className="text-slate-500 font-bold">·</span>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-[#acd986] bg-black/70 px-3 py-1.5 rounded-xl border border-white/[.16] backdrop-blur-md shadow-sm">
+                    <Star size={13} fill="#acd986" stroke="#acd986" />
+                    <span className="font-mono-ui font-extrabold">{activeMedia.rating}</span>
+                    <span className="text-slate-400 font-normal">/ 5</span>
+                  </div>
 
                   {activeMedia.year && (
                     <>
-                      <span className="text-slate-400 font-bold">·</span>
-                      <span className="font-mono-ui text-[10.5px] sm:text-[11.5px] font-bold text-slate-200 bg-black/65 px-2.5 py-1.5 rounded-xl border border-white/[.15] backdrop-blur-md">
+                      <span className="text-slate-500 font-bold">·</span>
+                      <span className="font-mono-ui text-xs font-semibold text-slate-200 bg-black/70 px-3 py-1.5 rounded-xl border border-white/[.16] backdrop-blur-md">
                         {activeMedia.year}
                       </span>
                     </>
                   )}
 
                   {activeMedia.genre && (
-                    <span className="hidden sm:inline-block font-mono-ui text-[10.5px] sm:text-[11.5px] text-slate-300 bg-black/65 px-2.5 py-1.5 rounded-xl border border-white/[.15] backdrop-blur-md">
+                    <span className="hidden sm:inline-block text-xs font-medium text-slate-300 bg-black/70 px-3 py-1.5 rounded-xl border border-white/[.16] backdrop-blur-md">
                       {activeMedia.genre}
+                    </span>
+                  )}
+
+                  {activeMedia.highlightTag && (
+                    <span className="text-xs font-semibold text-[hsl(var(--primary))] bg-[hsl(var(--primary))]/15 px-3 py-1.5 rounded-xl border border-[hsl(var(--primary))]/30 backdrop-blur-md flex items-center gap-1.5">
+                      <Sparkles size={12} className="text-[hsl(var(--primary))]" />
+                      <span>{activeMedia.highlightTag}</span>
                     </span>
                   )}
                 </div>
 
-                <h2 className="font-display mt-3 sm:mt-4 text-2xl sm:text-4xl lg:text-5xl xl:text-6xl font-extrabold tracking-[-.05em] text-white line-clamp-2 drop-shadow-[0_4px_20px_rgba(0,0,0,0.95)]">
+                <h2 className="font-display mt-3 sm:mt-4 text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white line-clamp-2 drop-shadow-[0_4px_20px_rgba(0,0,0,0.95)]">
                   {activeMedia.title}
                 </h2>
 
-                <p className="mt-2.5 sm:mt-3.5 max-w-[680px] text-[13px] sm:text-[14.5px] leading-5 sm:leading-6 text-slate-200 line-clamp-2 sm:line-clamp-3 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
+                <p className="mt-3 max-w-2xl text-sm sm:text-[15px] leading-relaxed text-slate-200 line-clamp-2 sm:line-clamp-3 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
                   {activeMedia.overview}
                 </p>
 
@@ -260,7 +283,7 @@ export default function HomePage() {
                     href={`/media/${activeMedia.id}`}
                     onClick={() => mediaCache.set(activeMedia)}
                     data-testid="link-hero-details"
-                    className="nv-button flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 sm:px-6 sm:py-3 text-[12px] sm:text-[13px] font-extrabold text-[#08211c] hover:bg-[#73e4c7] shadow-[0_0_28px_rgba(55,218,178,.45)] active:scale-95 transition"
+                    className="nv-button flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 sm:px-6 sm:py-3 text-xs sm:text-sm font-extrabold text-[#08211c] hover:bg-[#73e4c7] shadow-[0_0_28px_rgba(55,218,178,.45)] active:scale-95 transition"
                   >
                     <Play size={15} fill="currentColor" />
                     View details
@@ -269,7 +292,7 @@ export default function HomePage() {
                   <button
                     onClick={handleHeroTrack}
                     data-testid="button-hero-vault"
-                    className="nv-button flex items-center gap-2 rounded-xl border border-white/[.2] bg-black/60 px-4.5 py-2.5 sm:px-5 sm:py-3 text-[12px] sm:text-[13px] font-bold text-white backdrop-blur-md hover:bg-white/[.15] active:scale-95 transition"
+                    className="nv-button flex items-center gap-2 rounded-xl border border-white/[.2] bg-black/60 px-4.5 py-2.5 sm:px-5 sm:py-3 text-xs sm:text-sm font-bold text-white backdrop-blur-md hover:bg-white/[.15] active:scale-95 transition"
                   >
                     {isSaved ? <Check size={15} /> : <BookmarkPlus size={15} />}
                     {isSaved ? "In your vault" : "Add to vault"}
@@ -279,43 +302,46 @@ export default function HomePage() {
                     onClick={handleShuffleHero}
                     data-testid="button-hero-shuffle"
                     title="Shuffle featured titles"
-                    className="nv-button flex items-center gap-1.5 rounded-xl border border-white/[.15] bg-black/40 px-3.5 py-2.5 text-[11.5px] font-bold text-slate-300 backdrop-blur-md hover:text-[hsl(var(--primary))] hover:border-[hsl(var(--primary))]/50 active:scale-95 transition cursor-pointer"
+                    className="nv-button flex items-center gap-1.5 rounded-xl border border-white/[.15] bg-black/40 px-3.5 py-2.5 text-xs font-semibold text-slate-300 backdrop-blur-md hover:text-[hsl(var(--primary))] hover:border-[hsl(var(--primary))]/50 active:scale-95 transition cursor-pointer"
                   >
-                    <Sparkles size={14} className="text-[hsl(var(--primary))]" />
+                    <Sparkles size={13} className="text-[hsl(var(--primary))]" />
                     <span className="hidden sm:inline">Shuffle spotlight</span>
                   </button>
                 </div>
               </div>
 
               {/* Right Column: Interactive Slides Strip with Mini Thumbnails */}
-              <div className="flex flex-col items-start lg:items-end flex-shrink-0 gap-3">
+              <div className="flex flex-col items-start lg:items-end flex-shrink-0 gap-3.5">
                 {/* Carousel Controls Bar */}
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-3">
                   <button
                     onClick={handlePrevSlide}
                     aria-label="Previous slide"
-                    className="nv-button flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl border border-white/[.2] bg-black/70 text-white backdrop-blur-md transition hover:bg-white/20 hover:border-white/40 active:scale-95 shadow-md cursor-pointer"
+                    className="nv-button flex h-11 w-11 sm:h-13 sm:w-13 items-center justify-center rounded-2xl border border-white/20 bg-black/80 text-white backdrop-blur-xl transition hover:bg-white/20 hover:border-white/40 active:scale-90 shadow-[0_8px_24px_rgba(0,0,0,0.6)] cursor-pointer"
                   >
-                    <ChevronLeft size={18} />
+                    <ChevronLeft size={22} className="sm:w-6 sm:h-6" />
                   </button>
 
                   {/* Slide Counter */}
-                  <div className="flex items-center gap-1.5 text-[11px] font-mono-ui font-extrabold text-slate-200 bg-black/70 px-3 py-2 rounded-xl border border-white/[.15] backdrop-blur-md shadow-lg">
-                    <CircleDot size={12} className="text-[hsl(var(--primary))]" />
-                    <span>0{currentSlide + 1} / 0{slides.length}</span>
+                  <div className="flex items-center gap-2 text-xs sm:text-sm md:text-base font-mono-ui font-black text-white bg-black/80 px-4 py-2.5 sm:px-5 sm:py-3 rounded-2xl border border-white/20 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.6)]">
+                    <CircleDot size={15} className="sm:w-[17px] sm:h-[17px] text-[hsl(var(--primary))] animate-pulse" />
+                    <span>{String(currentSlide + 1).padStart(2, "0")} / {String(slides.length).padStart(2, "0")}</span>
                   </div>
 
                   <button
                     onClick={handleNextSlide}
                     aria-label="Next slide"
-                    className="nv-button flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl border border-white/[.2] bg-black/70 text-white backdrop-blur-md transition hover:bg-white/20 hover:border-white/40 active:scale-95 shadow-md cursor-pointer"
+                    className="nv-button flex h-11 w-11 sm:h-13 sm:w-13 items-center justify-center rounded-2xl border border-white/20 bg-black/80 text-white backdrop-blur-xl transition hover:bg-white/20 hover:border-white/40 active:scale-90 shadow-[0_8px_24px_rgba(0,0,0,0.6)] cursor-pointer"
                   >
-                    <ChevronRight size={18} />
+                    <ChevronRight size={22} className="sm:w-6 sm:h-6" />
                   </button>
                 </div>
 
                 {/* Interactive Mini-Thumbnail Cards Carousel Strip */}
-                <div className="flex items-center gap-2 overflow-x-auto max-w-[90vw] lg:max-w-[480px] xl:max-w-[560px] pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div
+                  ref={thumbStripRef}
+                  className="flex items-center gap-3 overflow-x-auto w-full max-w-[92vw] sm:max-w-[540px] lg:max-w-[600px] xl:max-w-[680px] p-2 scroll-smooth overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                >
                   {slides.map((slide, idx) => {
                     const isActive = currentSlide === idx;
                     return (
@@ -323,13 +349,13 @@ export default function HomePage() {
                         key={`hero-thumb-${slide.id || idx}`}
                         onClick={() => handleSelectSlide(idx)}
                         aria-label={`Jump to slide: ${slide.title}`}
-                        className={`group relative flex items-center gap-2 rounded-xl p-1.5 transition-all duration-300 text-left cursor-pointer flex-shrink-0 ${
+                        className={`group relative flex items-center gap-2.5 rounded-2xl p-2 transition-all duration-300 text-left cursor-pointer flex-shrink-0 ${
                           isActive
-                            ? "border border-[hsl(var(--primary))] bg-black/85 shadow-[0_0_20px_rgba(55,218,178,0.3)] scale-[1.03]"
-                            : "border border-white/10 bg-black/45 hover:border-white/30 hover:bg-black/65 opacity-70 hover:opacity-100"
+                            ? "border-2 border-[hsl(var(--primary))] bg-black/95 shadow-[0_0_28px_rgba(55,218,178,0.5)] ring-2 ring-[hsl(var(--primary))]/30 scale-[1.06] z-10"
+                            : "border border-white/12 bg-black/60 opacity-60 hover:opacity-100 hover:scale-[1.02] hover:border-white/30"
                         }`}
                       >
-                        <div className="relative h-11 w-8 sm:h-12 sm:w-9 overflow-hidden rounded-lg bg-black/50 flex-shrink-0">
+                        <div className="relative h-12 w-9 sm:h-14 sm:w-10 overflow-hidden rounded-xl bg-black/50 flex-shrink-0 shadow-inner">
                           <img
                             src={slide.poster || slide.backdrop}
                             alt=""
@@ -339,23 +365,28 @@ export default function HomePage() {
                           />
                         </div>
 
-                        <div className="hidden sm:flex flex-col min-w-[70px] max-w-[95px] pr-1.5">
-                          <span className="font-mono-ui text-[9px] uppercase font-bold text-[hsl(var(--primary))] truncate">
-                            {slide.type}
-                          </span>
-                          <span className="text-[11px] font-bold text-white truncate">
+                        <div className="hidden sm:flex flex-col min-w-[75px] max-w-[105px] pr-1.5">
+                          <div className="flex items-center gap-1">
+                            <span className="text-[11px] font-bold text-[hsl(var(--primary))] truncate">
+                              {slide.type}
+                            </span>
+                            {isActive && (
+                              <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--primary))] shadow-[0_0_6px_hsl(var(--primary))] animate-pulse shrink-0" />
+                            )}
+                          </div>
+                          <span className="text-xs font-bold text-white truncate">
                             {slide.title}
                           </span>
-                          <span className="font-mono-ui text-[9.5px] text-slate-300 flex items-center gap-0.5">
+                          <span className="font-mono-ui text-xs text-slate-300 flex items-center gap-0.5">
                             ★ {slide.rating}
                           </span>
                         </div>
 
                         {/* Active Slide Progress Line */}
                         {isActive && (
-                          <div className="absolute bottom-0 inset-x-1.5 h-0.5 bg-white/20 rounded-full overflow-hidden">
+                          <div className="absolute bottom-0 inset-x-2 h-1 bg-white/20 rounded-full overflow-hidden">
                             <div
-                              className="h-full bg-[hsl(var(--primary))] shadow-[0_0_8px_hsl(var(--primary))]"
+                              className="h-full bg-[hsl(var(--primary))] shadow-[0_0_10px_hsl(var(--primary))]"
                               style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
                             />
                           </div>
@@ -385,8 +416,7 @@ export default function HomePage() {
       <div className="relative z-10 mx-auto max-w-[1600px] w-full px-6 sm:px-10 lg:px-12 space-y-16 mt-8 sm:mt-12 lg:mt-16 pb-28">
         {feed?.trendingMovies && feed.trendingMovies.length > 0 ? (
           <MediaRail
-            title="Trending movies this week"
-            eyebrow="Cinema spotlight"
+            title="Trending Movies"
             items={feed.trendingMovies}
           />
         ) : loading ? (
@@ -402,8 +432,7 @@ export default function HomePage() {
 
         {feed?.trendingShows && feed.trendingShows.length > 0 ? (
           <MediaRail
-            title="Trending television series"
-            eyebrow="Small screen drops"
+            title="Trending TV Series"
             items={feed.trendingShows}
           />
         ) : loading ? (
@@ -419,8 +448,7 @@ export default function HomePage() {
 
         {feed?.topAnime && feed.topAnime.length > 0 ? (
           <MediaRail
-            title="Top anime this season"
-            eyebrow="AniList charts"
+            title="Top Anime This Season"
             items={feed.topAnime}
           />
         ) : loading ? (
@@ -436,8 +464,7 @@ export default function HomePage() {
 
         {feed?.popularGames && feed.popularGames.length > 0 ? (
           <MediaRail
-            title="Popular video games"
-            eyebrow="IGDB rankings"
+            title="Popular Games"
             items={feed.popularGames}
           />
         ) : loading ? (
@@ -453,8 +480,7 @@ export default function HomePage() {
 
         {feed?.weeklyDrop && feed.weeklyDrop.length > 0 ? (
           <MediaRail
-            title="Curated multi-media drop"
-            eyebrow="The weekly batch"
+            title="Curated Weekly Drop"
             items={feed.weeklyDrop}
           />
         ) : null}

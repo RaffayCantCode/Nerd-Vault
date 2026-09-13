@@ -387,16 +387,13 @@ export default function DiscoverPage() {
     <div className="space-y-8 pb-20 relative">
       {/* Title */}
       <div className="nv-reveal">
-        <p className="font-mono-ui text-[11px] uppercase font-bold tracking-[.22em] text-[hsl(var(--primary))]">
-          The Infinite Vault
-        </p>
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-          <h2 className="font-display max-w-[620px] text-3xl font-bold tracking-[-.06em] text-white sm:text-4xl">
+          <h2 className="font-display max-w-[620px] text-3xl font-bold tracking-tight text-white sm:text-4xl">
             Find your next
             <br />
             <span className="text-[hsl(var(--accent))]">obsession.</span>
           </h2>
-          <p className="max-w-[340px] text-[12px] leading-5 text-slate-400">
+          <p className="max-w-md text-sm leading-relaxed text-slate-400">
             Seamless continuous scroll across Movies, Series, Anime, and Games. Your browsing position and discovered titles are preserved as you explore.
           </p>
         </div>
@@ -564,8 +561,7 @@ export default function DiscoverPage() {
       {/* Browse by Mood */}
       <div className="pt-8 border-t border-white/[.06]">
         <SectionHeading
-          eyebrow="Browse by mood"
-          title="What are you in the mood for?"
+          title="Browse by Mood"
           action="Shuffle"
           onAction={() => {
             const nextIdx = Math.floor(Math.random() * moods.length);
@@ -593,7 +589,7 @@ export default function DiscoverPage() {
                   <h4 className="font-display text-[15px] font-bold text-white group-hover:text-[hsl(var(--primary))] transition">
                     {m.title}
                   </h4>
-                  <p className="mt-1 text-[11px] text-slate-400">{m.meta}</p>
+                  <p className="mt-1 text-xs text-slate-400">{m.meta}</p>
                 </div>
               </button>
             );

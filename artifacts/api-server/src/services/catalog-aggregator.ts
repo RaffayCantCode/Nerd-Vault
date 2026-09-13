@@ -1,6 +1,6 @@
 import { UnifiedMedia, HomeFeedData, DiscoverOptions } from "./types";
-import { tmdbService } from "./tmdb";
-import { anilistService, isHentaiOrAdult, fetchKitsuById, fetchKitsuByTitle } from "./anilist";
+import { tmdbService, isNews } from "./tmdb";
+import { anilistService, isHentaiOrAdult, isEcchi, fetchKitsuById, fetchKitsuByTitle } from "./anilist";
 import { igdbService } from "./igdb";
 import { mediaCache } from "./cache";
 
@@ -52,11 +52,13 @@ function pickHeroCandidates(
 ): UnifiedMedia[] {
   if (!pool || pool.length === 0) return [];
 
-  // Filter for valid 1080p widescreen backdrop, rich overview, officially released
+  // Filter for valid 1080p widescreen backdrop, rich overview, officially released, strictly exclude Ecchi and News
   const prime = pool.filter(
     (item) =>
       item &&
       isOfficiallyReleased(item) &&
+      !isEcchi(item) &&
+      !isNews(item) &&
       item.backdrop &&
       item.backdrop.length > 10 &&
       item.backdrop !== item.poster &&
@@ -69,12 +71,14 @@ function pickHeroCandidates(
     (item) =>
       item &&
       isOfficiallyReleased(item) &&
+      !isEcchi(item) &&
+      !isNews(item) &&
       item.backdrop &&
       item.backdrop.length > 10 &&
       item.backdrop !== item.poster
   );
 
-  const candidates = prime.length >= count ? prime : (fallback.length > 0 ? fallback : pool);
+  const candidates = prime.length >= count ? prime : (fallback.length > 0 ? fallback : pool.filter((i) => !isEcchi(i) && !isNews(i)));
   const shuffled = shuffleArray(candidates);
   return shuffled.slice(0, count).map((item) => ({
     ...item,
@@ -95,6 +99,7 @@ export const catalogAggregator = {
           topRatedShows,
           topAnime,
           popularAnime,
+          trendingGames,
           popularGames,
         ] = await Promise.all([
           withTimeout(tmdbService.getTrendingMovies(1).catch(() => []), 4500, []),
@@ -103,6 +108,7 @@ export const catalogAggregator = {
           withTimeout(tmdbService.getTopRatedShows(1).catch(() => []), 4500, []),
           withTimeout(anilistService.getTrendingAnime(1).catch(() => []), 4500, []),
           withTimeout(anilistService.getPopularAnime(undefined, 1).catch(() => []), 4500, []),
+          withTimeout(igdbService.getTrendingGames(undefined, 1).catch(() => []), 4500, []),
           withTimeout(igdbService.getPopularGames(undefined, 1).catch(() => []), 4500, []),
         ]);
         return {
@@ -112,6 +118,7 @@ export const catalogAggregator = {
           topRatedShows,
           topAnime,
           popularAnime,
+          trendingGames,
           popularGames,
         };
       },
@@ -125,14 +132,31 @@ export const catalogAggregator = {
       topRatedShows,
       topAnime,
       popularAnime,
+      trendingGames,
       popularGames,
     } = rawPools;
 
     // Instant in-memory dynamic shuffle for variety on every single visit with strict released filter
     const allMovies = shuffleArray([...trendingMovies, ...topRatedMovies]).filter(isOfficiallyReleased);
-    const allShows = shuffleArray([...trendingShows, ...topRatedShows]).filter(isOfficiallyReleased);
-    const allAnime = shuffleArray([...topAnime, ...popularAnime]).filter(isOfficiallyReleased);
-    const allGames = shuffleArray(popularGames).filter(isOfficiallyReleased);
+    const allShows = shuffleArray([...trendingShows, ...topRatedShows]).filter((s) => isOfficiallyReleased(s) && !isNews(s));
+
+    // Anime: strictly push Ecchi anime to the bottom of the rail so they appear far less and never dominate
+    const rawAnime = shuffleArray([...topAnime, ...popularAnime]).filter(isOfficiallyReleased);
+    const nonEcchiAnime = rawAnime.filter((a) => !isEcchi(a));
+    const ecchiAnime = rawAnime.filter((a) => isEcchi(a));
+    const allAnime = [...nonEcchiAnime, ...ecchiAnime];
+
+    // Games: combine trending and classic games, deduplicate by ID and base title
+    const rawGames = shuffleArray([...(trendingGames || []), ...(popularGames || [])]).filter(isOfficiallyReleased);
+    const gameSeenIds = new Set<string>();
+    const gameSeenTitles = new Set<string>();
+    const allGames = rawGames.filter((g) => {
+      const baseTitle = g.title.toLowerCase().replace(/(:.*|-.*|\(.*\))/g, "").trim();
+      if (gameSeenIds.has(g.id) || gameSeenTitles.has(baseTitle)) return false;
+      gameSeenIds.add(g.id);
+      gameSeenTitles.add(baseTitle);
+      return true;
+    });
 
     // Curate 6 to 8 Dynamic Featured Hero Slides across diverse categories
     const heroTrendingMovies = pickHeroCandidates(trendingMovies, 2, "Trending Blockbuster");
@@ -141,7 +165,8 @@ export const catalogAggregator = {
     const heroClassicShows = pickHeroCandidates(topRatedShows, 1, "Critically Acclaimed");
     const heroTrendingAnime = pickHeroCandidates(topAnime, 1, "Anime Sensation");
     const heroClassicAnime = pickHeroCandidates(popularAnime, 1, "Anime Masterwork");
-    const heroGames = pickHeroCandidates(popularGames, 2, "Gaming Phenomenon");
+    const heroTrendingGames = pickHeroCandidates(trendingGames || [], 1, "Trending Game");
+    const heroClassicGames = pickHeroCandidates(popularGames || [], 1, "Gaming Masterpiece");
 
     const allHeroCandidates = [
       ...heroTrendingMovies,
@@ -150,15 +175,17 @@ export const catalogAggregator = {
       ...heroClassicShows,
       ...heroTrendingAnime,
       ...heroClassicAnime,
-      ...heroGames,
+      ...heroTrendingGames,
+      ...heroClassicGames,
     ];
 
-    // Deduplicate hero slides by ID and title
+    // Deduplicate hero slides by ID and base title to ensure no duplicate franchises/editions appear
     const heroSeenIds = new Set<string>();
     const heroSeenTitles = new Set<string>();
     const uniqueHeroSlides = allHeroCandidates.filter((item) => {
-      if (!item || !isOfficiallyReleased(item)) return false;
-      const titleKey = `${item.title.toLowerCase().trim()}-${item.type}`;
+      if (!item || !isOfficiallyReleased(item) || isEcchi(item) || isNews(item)) return false;
+      const baseTitle = item.title.toLowerCase().replace(/(:.*|-.*|\(.*\))/g, "").trim();
+      const titleKey = `${baseTitle}-${item.type}`;
       if (heroSeenIds.has(item.id) || heroSeenTitles.has(titleKey)) return false;
       heroSeenIds.add(item.id);
       heroSeenTitles.add(titleKey);
@@ -168,13 +195,13 @@ export const catalogAggregator = {
     // Randomize slide order so visits start on varied media types (Movie, Anime, Game, Series)
     const featuredSlides = shuffleArray(uniqueHeroSlides).slice(0, 8);
 
-    // Curated multi-media drop with randomized assortment
+    // Curated multi-media drop with randomized assortment (strictly clean)
     const weeklyDrop: UnifiedMedia[] = shuffleArray([
       ...allMovies.slice(1, 5),
       ...allShows.slice(1, 5),
-      ...allAnime.slice(1, 5),
+      ...nonEcchiAnime.slice(1, 5),
       ...allGames.slice(1, 5),
-    ]).filter(isOfficiallyReleased);
+    ]).filter((i) => isOfficiallyReleased(i) && !isEcchi(i) && !isNews(i));
 
     return {
       featured: featuredSlides[0] || null,
@@ -259,7 +286,7 @@ export const catalogAggregator = {
       const filterUnique = (list: UnifiedMedia[]) => {
         const res: UnifiedMedia[] = [];
         for (const item of list) {
-          if (!item || !isOfficiallyReleased(item)) continue;
+          if (!item || !isOfficiallyReleased(item) || isNews(item)) continue;
           const key = `${item.title.toLowerCase().trim()}-${item.type}`;
           if (!seen.has(item.id) && !seen.has(key)) {
             seen.add(item.id);
@@ -539,7 +566,7 @@ export const catalogAggregator = {
 
     if (normType === "series" || normType === "show" || normType === "tv") {
       const tmdbResults = await withTimeout(tmdbService.search(query).catch(() => []), 5000, []);
-      return tmdbResults.filter((i) => isOfficiallyReleased(i) && (i.type || "").toLowerCase() === "series");
+      return tmdbResults.filter((i) => isOfficiallyReleased(i) && !isNews(i) && (i.type || "").toLowerCase() === "series");
     }
 
     const [tmdbResults, anilistResults, igdbResults] = await Promise.all([
@@ -548,8 +575,12 @@ export const catalogAggregator = {
       withTimeout(igdbService.search(query).catch(() => []), 3000, []),
     ]);
 
-    const cleanAnilist = anilistResults.filter(isOfficiallyReleased);
-    const cleanTmdb = tmdbResults.filter(isOfficiallyReleased);
+    const cleanAnilistRaw = anilistResults.filter(isOfficiallyReleased);
+    const cleanAnilist = [
+      ...cleanAnilistRaw.filter((a) => !isEcchi(a)),
+      ...cleanAnilistRaw.filter((a) => isEcchi(a)),
+    ];
+    const cleanTmdb = tmdbResults.filter((i) => isOfficiallyReleased(i) && !isNews(i));
     const cleanIgdb = igdbResults.filter(isOfficiallyReleased);
 
     const combined: UnifiedMedia[] = [];

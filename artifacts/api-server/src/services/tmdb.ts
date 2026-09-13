@@ -25,6 +25,38 @@ export function isAnimeItem(item: any): boolean {
   return hasAnimation && isJapanese;
 }
 
+/**
+ * Identify if a TMDB media item is a news program, channel, or broadcast
+ */
+export function isNews(item: any): boolean {
+  if (!item) return false;
+  const genreIds: number[] = item.genre_ids || (item.genres ? item.genres.map((g: any) => typeof g === "object" ? g.id : null).filter(Boolean) : []);
+  if (genreIds.includes(10763)) return true;
+
+  const genres = Array.isArray(item.genres) ? item.genres : [];
+  for (const g of genres) {
+    const name = (typeof g === "string" ? g : g?.name || "").toLowerCase();
+    if (name === "news") return true;
+  }
+  if (typeof item.genre === "string" && item.genre.toLowerCase() === "news") return true;
+
+  const title = (item.title || item.name || item.original_title || item.original_name || "").toLowerCase();
+  if (
+    /\bnews\b/i.test(title) ||
+    /\btagesschau\b/i.test(title) ||
+    /\bnoticiero\b/i.test(title) ||
+    /\btelediario\b/i.test(title) ||
+    /\bjournal télévisé\b/i.test(title) ||
+    /\bheute[- ]journal\b/i.test(title) ||
+    /\bcable news\b/i.test(title) ||
+    /\bnewscast\b/i.test(title)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 export function isReleasedTmdb(item: any, type: "Movie" | "Series" = "Movie"): boolean {
   const isMovie = type === "Movie";
   const rawDate = isMovie ? item.release_date : item.first_air_date;
@@ -92,7 +124,7 @@ export const tmdbService = {
     const url = `${BASE_URL}/trending/tv/week?api_key=${TMDB_API_KEY}&page=${page}`;
     const data = await fetchWithCache(url, 1000 * 60 * 15);
     return (data.results || [])
-      .filter((m: any) => !isAnimeItem(m) && isReleasedTmdb(m, "Series"))
+      .filter((m: any) => !isAnimeItem(m) && !isNews(m) && isReleasedTmdb(m, "Series"))
       .map((m: any) => ({ ...formatMedia(m, "Series"), curation: "Trending" as const }));
   },
 
@@ -107,10 +139,10 @@ export const tmdbService = {
 
   async getPopularShows(page: number = 1): Promise<UnifiedMedia[]> {
     const today = new Date().toISOString().slice(0, 10);
-    const url = `${BASE_URL}/discover/tv?api_key=${TMDB_API_KEY}&page=${page}&language=en-US&sort_by=popularity.desc&first_air_date.lte=${today}`;
+    const url = `${BASE_URL}/discover/tv?api_key=${TMDB_API_KEY}&page=${page}&language=en-US&sort_by=popularity.desc&without_genres=10763&first_air_date.lte=${today}`;
     const data = await fetchWithCache(url, 1000 * 60 * 30);
     return (data.results || [])
-      .filter((m: any) => !isAnimeItem(m) && isReleasedTmdb(m, "Series"))
+      .filter((m: any) => !isAnimeItem(m) && !isNews(m) && isReleasedTmdb(m, "Series"))
       .map((m: any) => ({ ...formatMedia(m, "Series"), curation: "Popular" as const }));
   },
 
@@ -125,10 +157,10 @@ export const tmdbService = {
 
   async getTopRatedShows(page: number = 1): Promise<UnifiedMedia[]> {
     const today = new Date().toISOString().slice(0, 10);
-    const url = `${BASE_URL}/discover/tv?api_key=${TMDB_API_KEY}&page=${page}&language=en-US&sort_by=vote_average.desc&vote_count.gte=200&first_air_date.lte=${today}`;
+    const url = `${BASE_URL}/discover/tv?api_key=${TMDB_API_KEY}&page=${page}&language=en-US&sort_by=vote_average.desc&vote_count.gte=200&without_genres=10763&first_air_date.lte=${today}`;
     const data = await fetchWithCache(url, 1000 * 60 * 30);
     return (data.results || [])
-      .filter((m: any) => !isAnimeItem(m) && isReleasedTmdb(m, "Series"))
+      .filter((m: any) => !isAnimeItem(m) && !isNews(m) && isReleasedTmdb(m, "Series"))
       .map((m: any) => ({ ...formatMedia(m, "Series"), curation: "Popular" as const }));
   },
 
@@ -137,10 +169,11 @@ export const tmdbService = {
     const endpoint = type === "Series" ? "tv" : "movie";
     const dateParam = type === "Series" ? `first_air_date.lte=${today}` : `primary_release_date.lte=${today}`;
     const genreIds = type === "Series" ? "10765,9648,18" : "878,14,9648,53";
-    const url = `${BASE_URL}/discover/${endpoint}?api_key=${TMDB_API_KEY}&with_genres=${genreIds}&sort_by=vote_average.desc&vote_count.gte=180&page=${page}&${dateParam}`;
+    const withoutParam = type === "Series" ? "&without_genres=10763" : "";
+    const url = `${BASE_URL}/discover/${endpoint}?api_key=${TMDB_API_KEY}&with_genres=${genreIds}${withoutParam}&sort_by=vote_average.desc&vote_count.gte=180&page=${page}&${dateParam}`;
     const data = await fetchWithCache(url, 1000 * 60 * 30);
     return (data.results || [])
-      .filter((m: any) => !isAnimeItem(m) && isReleasedTmdb(m, type))
+      .filter((m: any) => !isAnimeItem(m) && !isNews(m) && isReleasedTmdb(m, type))
       .map((m: any) => ({ ...formatMedia(m, type), curation: "Niche" as const }));
   },
 
@@ -150,12 +183,15 @@ export const tmdbService = {
     const dateParam = params.type === "Series" ? `first_air_date.lte=${today}` : `primary_release_date.lte=${today}`;
     const page = params.page || 1;
     let url = `${BASE_URL}/discover/${type}?api_key=${TMDB_API_KEY}&language=en-US&sort_by=popularity.desc&vote_count.gte=60&page=${page}&${dateParam}`;
+    if (params.type === "Series") {
+      url += "&without_genres=10763";
+    }
     if (params.genreId) {
       url += `&with_genres=${params.genreId}`;
     }
     const data = await fetchWithCache(url, 1000 * 60 * 20);
     return (data.results || [])
-      .filter((m: any) => !isAnimeItem(m) && isReleasedTmdb(m, params.type === "Series" ? "Series" : "Movie"))
+      .filter((m: any) => !isAnimeItem(m) && !isNews(m) && isReleasedTmdb(m, params.type === "Series" ? "Series" : "Movie"))
       .map((m: any) => formatMedia(m, params.type === "Series" ? "Series" : "Movie"));
   },
 
@@ -164,7 +200,7 @@ export const tmdbService = {
     const url = `${BASE_URL}/search/multi?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&include_adult=false`;
     const data = await fetchWithCache(url, 1000 * 60 * 10);
     return (data.results || [])
-      .filter((item: any) => (item.media_type === "movie" || item.media_type === "tv") && isReleasedTmdb(item, item.media_type === "movie" ? "Movie" : "Series"))
+      .filter((item: any) => (item.media_type === "movie" || item.media_type === "tv") && isReleasedTmdb(item, item.media_type === "movie" ? "Movie" : "Series") && (item.media_type === "movie" || !isNews(item)))
       .map((item: any) => formatMedia(item, item.media_type === "movie" ? "Movie" : "Series"));
   },
 

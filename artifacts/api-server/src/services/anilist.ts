@@ -87,6 +87,34 @@ export function isHentaiOrAdult(item: any): boolean {
   return false;
 }
 
+export function isEcchi(item: any): boolean {
+  if (!item) return false;
+  const genres = Array.isArray(item.genres) ? item.genres : [];
+  for (const g of genres) {
+    const genreStr = typeof g === "string" ? g : g?.name || "";
+    if (genreStr.toLowerCase() === "ecchi") return true;
+  }
+  if (typeof item.genre === "string" && item.genre.toLowerCase() === "ecchi") return true;
+
+  const tags = Array.isArray(item.tags) ? item.tags : [];
+  for (const t of tags) {
+    const tagStr = typeof t === "string" ? t : t?.name || "";
+    if (tagStr.toLowerCase() === "ecchi") return true;
+  }
+
+  const desc = (item.description || item.overview || item.synopsis || "").toLowerCase();
+  if (
+    desc.includes("ecchi") ||
+    desc.includes("fanservice-heavy") ||
+    desc.includes("harem fanservice") ||
+    desc.includes("scantily clad")
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 const isAdultContent = isHentaiOrAdult;
 
 export const anilistIdToTitle = new Map<string, string>();
@@ -451,8 +479,11 @@ export const anilistService = {
 
       const combined = [...anilistItems, ...uniqueTmdb];
       if (combined.length > 0) {
-        const withBackdrop = combined.filter((i) => i.backdrop && i.backdrop.length > 5);
-        const withoutBackdrop = combined.filter((i) => !i.backdrop || i.backdrop.length <= 5);
+        const nonEcchi = combined.filter((i) => !isEcchi(i));
+        const ecchi = combined.filter((i) => isEcchi(i));
+        const prioritized = [...nonEcchi, ...ecchi];
+        const withBackdrop = prioritized.filter((i) => i.backdrop && i.backdrop.length > 5);
+        const withoutBackdrop = prioritized.filter((i) => !i.backdrop || i.backdrop.length <= 5);
         return [...withBackdrop, ...withoutBackdrop].slice(0, 24);
       }
     } catch (err) {
@@ -507,8 +538,11 @@ export const anilistService = {
 
       const combined = [...anilistItems, ...uniqueTmdb];
       if (combined.length > 0) {
-        const withBackdrop = combined.filter((i) => i.backdrop && i.backdrop.length > 5);
-        const withoutBackdrop = combined.filter((i) => !i.backdrop || i.backdrop.length <= 5);
+        const nonEcchi = combined.filter((i) => !isEcchi(i));
+        const ecchi = combined.filter((i) => isEcchi(i));
+        const prioritized = [...nonEcchi, ...ecchi];
+        const withBackdrop = prioritized.filter((i) => i.backdrop && i.backdrop.length > 5);
+        const withoutBackdrop = prioritized.filter((i) => !i.backdrop || i.backdrop.length <= 5);
         return [...withBackdrop, ...withoutBackdrop].slice(0, 24);
       }
     } catch (err) {

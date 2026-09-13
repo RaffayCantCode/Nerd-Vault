@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Plus, Heart, Check, Users, Sparkles, UserPlus, Search, UserCheck, Loader2, ArrowRight } from "lucide-react";
+import { Plus, Heart, Check, Users, Sparkles, UserPlus, Search, UserCheck, Loader2, ArrowRight, X } from "lucide-react";
 import { api, FriendRecommendation, UserProfile } from "../lib/api";
 import { Avatar } from "../components/common/Avatar";
 import { SectionHeading } from "../components/common/SectionHeading";
@@ -120,20 +120,17 @@ export default function FriendsPage() {
       {/* Header */}
       <div className="nv-reveal flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <p className="font-mono-ui text-[10px] uppercase tracking-[.2em] text-[hsl(var(--primary))] font-bold">
-            Your circle
-          </p>
-          <h2 className="font-display mt-1 text-3xl sm:text-4xl font-bold tracking-[-.06em] text-white">
+          <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-white">
             Find collectors & friends.
           </h2>
-          <p className="mt-1.5 text-[12px] text-slate-400 max-w-[520px]">
+          <p className="mt-1.5 text-sm text-slate-400 max-w-xl leading-relaxed">
             Search collectors across NerdVault, compare signature tastes, share recommendations, and follow activity.
           </p>
         </div>
         <button
           onClick={handleInvite}
           data-testid="button-invite-friend"
-          className="nv-button flex items-center gap-2 self-start rounded-xl bg-[hsl(var(--primary))] px-4 py-2.5 text-[12px] font-extrabold text-[#08211c] hover:bg-[#73e4c7] shadow-md"
+          className="nv-button flex items-center gap-2 self-start rounded-xl bg-[hsl(var(--primary))] px-4 py-2.5 text-xs sm:text-sm font-extrabold text-[#08211c] hover:bg-[#73e4c7] shadow-md"
         >
           {inviteCopied ? <Check size={15} /> : <Plus size={15} />}
           {inviteCopied ? "Link Copied!" : "Invite friends"}
@@ -145,64 +142,75 @@ export default function FriendsPage() {
         <label className="relative block">
           <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
           <input
-            type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search collectors by name or handle..."
-            className="h-12 w-full rounded-2xl border border-white/[.1] bg-black/40 pl-11 pr-4 text-[13px] text-slate-100 outline-none placeholder:text-slate-500 focus:border-[rgba(55,218,178,.55)] shadow-inner"
+            data-testid="input-friend-search"
+            placeholder="Search collector by username..."
+            className="h-12 w-full rounded-2xl border border-white/[.1] bg-black/40 pl-11 pr-10 text-xs sm:text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-[hsl(var(--primary))]"
           />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1"
+            >
+              <X size={15} />
+            </button>
+          )}
         </label>
 
-        {/* Live Search Results */}
+        {/* Search Results Dropdown List */}
         {searchQuery.trim() && (
           <div className="mt-4 pt-4 border-t border-white/[.08]">
-            <p className="font-mono-ui text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">
               Search Results
             </p>
             {searching ? (
-              <div className="flex items-center justify-center py-6 gap-2 text-slate-400 text-[12px]">
+              <div className="flex items-center gap-2 text-xs text-slate-400 py-3">
                 <Loader2 size={16} className="animate-spin text-[hsl(var(--primary))]" />
                 <span>Searching collectors...</span>
               </div>
             ) : searchResults.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
                 {searchResults.map((person) => {
                   const status = friendStatuses[person.id] || person.friendStatus;
-                  const initials = person.name ? person.name.slice(0, 2).toUpperCase() : "NV";
+                  const initials = (person.name || "Collector").slice(0, 2).toUpperCase();
 
                   return (
                     <div
                       key={person.id}
-                      className="flex items-center justify-between gap-3 rounded-2xl border border-white/[.08] bg-white/[.03] p-3.5 hover:border-[rgba(55,218,178,.3)] transition"
+                      className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-white/[.03] hover:bg-white/[.06] border border-white/[.05] transition"
                     >
-                      <Link href={`/profile/${person.id}`} className="flex items-center gap-3 min-w-0 flex-1 group">
-                        <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-[#3b9f8b] to-[#1e585b] text-[12px] font-bold text-[#09201c] shrink-0">
+                      <Link
+                        href={`/user/${person.id}`}
+                        className="flex items-center gap-3 min-w-0 flex-1 group"
+                      >
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-black/40 border border-white/[.1] text-xs font-bold text-slate-200">
                           {initials}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-[13px] font-bold text-white group-hover:text-[hsl(var(--primary))] truncate">
+                          <p className="text-sm font-bold text-white group-hover:text-[hsl(var(--primary))] truncate">
                             {person.name}
                           </p>
-                          <p className="text-[10px] text-slate-400 truncate">
+                          <p className="text-xs text-slate-400 truncate">
                             {person.bio || `${person.totalVaultItems || 0} titles in vault`}
                           </p>
                         </div>
                       </Link>
 
                       {status === "friend" ? (
-                        <span className="flex items-center gap-1 rounded-lg bg-[hsl(var(--primary))]/15 px-2.5 py-1 text-[10px] font-bold text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/30 shrink-0">
-                          <UserCheck size={12} /> Friends
+                        <span className="flex items-center gap-1 rounded-lg bg-[hsl(var(--primary))]/15 px-2.5 py-1 text-xs font-semibold text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/30 shrink-0">
+                          <UserCheck size={13} /> Friends
                         </span>
                       ) : status === "pending_sent" ? (
-                        <span className="rounded-lg bg-white/[.06] px-2.5 py-1 text-[10px] font-bold text-slate-400 border border-white/[.08] shrink-0">
+                        <span className="rounded-lg bg-white/[.06] px-2.5 py-1 text-xs font-semibold text-slate-400 border border-white/[.08] shrink-0">
                           Pending
                         </span>
                       ) : (
                         <button
                           onClick={() => handleSendFriendRequest(person.id, person.name)}
-                          className="nv-button flex items-center gap-1 rounded-xl bg-[hsl(var(--primary))] px-3 py-1.5 text-[11px] font-extrabold text-[#09201c] hover:bg-[#73e4c7] shrink-0 shadow-sm"
+                          className="nv-button flex items-center gap-1 rounded-xl bg-[hsl(var(--primary))] px-3 py-1.5 text-xs font-bold text-[#09201c] hover:bg-[#73e4c7] shrink-0 shadow-sm"
                         >
-                          <UserPlus size={13} /> Add
+                          <UserPlus size={14} /> Add
                         </button>
                       )}
                     </div>

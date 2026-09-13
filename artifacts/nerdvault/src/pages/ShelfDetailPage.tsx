@@ -233,12 +233,12 @@ export default function ShelfDetailPage() {
             </div>
 
             {/* Shelf Name Title */}
-            <h1 className="font-display text-3xl sm:text-5xl font-bold tracking-[-.06em] text-white">
+            <h1 className="font-display text-3xl sm:text-5xl font-bold tracking-tight text-white">
               {shelf.name}
             </h1>
 
             {/* Description */}
-            <p className="text-[13.5px] sm:text-[14px] leading-6 text-slate-300 font-medium">
+            <p className="text-sm sm:text-[15px] leading-relaxed text-slate-300 font-normal max-w-2xl">
               {shelf.description || "A custom curated shelf of titles from personal nerd archive."}
             </p>
           </div>
