@@ -221,6 +221,21 @@ export const tmdbService = {
         media.runtime = `${data.number_of_seasons} Season${data.number_of_seasons > 1 ? "s" : ""} · ${data.number_of_episodes || 0} Episodes`;
       }
 
+      if (data.status) {
+        const s = String(data.status).toLowerCase().trim();
+        if (s === "ended" || s === "canceled") {
+          media.airingStatus = "Completed";
+        } else if (s === "returning series" || s === "in production" || s === "pilot") {
+          media.airingStatus = "Ongoing";
+        } else if (s === "planned" || s === "post production") {
+          media.airingStatus = "Upcoming";
+        } else if (s === "released") {
+          media.airingStatus = isMovie ? "Completed" : "Ongoing";
+        } else {
+          media.airingStatus = data.status;
+        }
+      }
+
       if (data.credits) {
         const director = data.credits.crew?.find((c: any) => c.job === "Director" || c.department === "Directing");
         if (director) media.director = director.name;

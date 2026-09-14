@@ -242,7 +242,7 @@ export default function HomePage() {
                   <span className="text-slate-500 font-bold">·</span>
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-[#acd986] bg-black/70 px-3 py-1.5 rounded-xl border border-white/[.16] backdrop-blur-md shadow-sm">
                     <Star size={13} fill="#acd986" stroke="#acd986" />
-                    <span className="font-mono-ui font-extrabold">{activeMedia.rating}</span>
+                    <span className="font-mono-ui font-extrabold">{Math.round(Number(activeMedia.rating) > 5 ? Number(activeMedia.rating) / 2 : (Number(activeMedia.rating) || 4))}</span>
                     <span className="text-slate-400 font-normal">/ 5</span>
                   </div>
 
@@ -378,7 +378,7 @@ export default function HomePage() {
                             {slide.title}
                           </span>
                           <span className="font-mono-ui text-xs text-slate-300 flex items-center gap-0.5">
-                            ★ {slide.rating}
+                            ★ {Math.round(Number(slide.rating) > 5 ? Number(slide.rating) / 2 : (Number(slide.rating) || 4))}
                           </span>
                         </div>
 

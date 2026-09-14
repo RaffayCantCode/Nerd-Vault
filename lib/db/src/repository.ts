@@ -38,6 +38,19 @@ export type VaultStats = {
   genresBreakdown: Array<{ name: string; count: number; percentage: number; color: string }>;
 };
 
+export function toIntegerRating(val: number | string | undefined | null): number | undefined {
+  if (val === undefined || val === null || val === "") return undefined;
+  const num = Number(val);
+  if (isNaN(num) || num <= 0) return undefined;
+  let normalized = num;
+  if (normalized > 10) {
+    normalized = normalized / 20;
+  } else if (normalized > 5) {
+    normalized = normalized / 2;
+  }
+  return Math.min(5, Math.max(1, Math.round(normalized)));
+}
+
 // -------------------------------------------------------------
 // USER DATA ACCESS
 // -------------------------------------------------------------
@@ -185,7 +198,7 @@ export async function upsertMedia(media: {
       media.status || null,
       media.releaseYear || null,
       media.runtime || null,
-      media.rating || null,
+      toIntegerRating(media.rating) ?? null,
       media.coverUrl || null,
       media.backdropUrl || null,
       media.trailerUrl || null,
@@ -294,7 +307,7 @@ export async function getUserVaultItems(userId: string): Promise<VaultItemWithMe
   const itemMap = new Map<string, VaultItemWithMedia>();
 
   for (const r of unifiedRows) {
-    const rawRating = r.user_rating ? (r.user_rating > 5 ? r.user_rating / 2 : r.user_rating) : undefined;
+    const rawRating = toIntegerRating(r.user_rating);
     itemMap.set(r.media_id, {
       id: r.media_id,
       mediaId: r.media_id,
@@ -306,7 +319,7 @@ export async function getUserVaultItems(userId: string): Promise<VaultItemWithMe
       year: String(r.release_year || ""),
       releaseYear: r.release_year,
       runtime: r.runtime,
-      rating: r.media_rating ? (r.media_rating > 5 ? r.media_rating / 2 : r.media_rating) : undefined,
+      rating: toIntegerRating(r.media_rating),
       userRating: rawRating,
       notes: r.notes,
       poster: r.cover_url || "",
@@ -325,8 +338,8 @@ export async function getUserVaultItems(userId: string): Promise<VaultItemWithMe
 
   for (const r of watchedRows) {
     if (!itemMap.has(r.media_id)) {
-      const rawRating = r.rating ? (r.rating > 5 ? r.rating / 2 : r.rating) : undefined;
-      const isFavorite = r.status === "Favorite" || (rawRating && rawRating >= 4.5) || r.notes?.toLowerCase().includes("#favorite");
+      const rawRating = toIntegerRating(r.rating);
+      const isFavorite = r.status === "Favorite" || (rawRating && rawRating >= 5) || r.notes?.toLowerCase().includes("#favorite");
       itemMap.set(r.media_id, {
         id: r.media_id,
         mediaId: r.media_id,
@@ -338,7 +351,7 @@ export async function getUserVaultItems(userId: string): Promise<VaultItemWithMe
         year: String(r.release_year || ""),
         releaseYear: r.release_year,
         runtime: r.runtime,
-        rating: r.media_rating ? (r.media_rating > 5 ? r.media_rating / 2 : r.media_rating) : undefined,
+        rating: toIntegerRating(r.media_rating),
         userRating: rawRating,
         notes: r.notes,
         poster: r.cover_url || "",
@@ -369,7 +382,7 @@ export async function getUserVaultItems(userId: string): Promise<VaultItemWithMe
         year: String(r.release_year || ""),
         releaseYear: r.release_year,
         runtime: r.runtime,
-        rating: r.media_rating ? (r.media_rating > 5 ? r.media_rating / 2 : r.media_rating) : undefined,
+        rating: toIntegerRating(r.media_rating),
         poster: r.cover_url || "",
         coverUrl: r.cover_url || "",
         backdrop: r.backdrop_url || "",
@@ -393,10 +406,14 @@ export async function trackMediaInVault(params: {
   mediaId: string;
   status: "Watching" | "Completed" | "Wishlist" | "Favorite" | "Dropped" | "Paused" | string;
   rating?: number;
+  userRating?: number;
   notes?: string;
+  progress?: number;
+  isPrivate?: boolean;
   mediaData?: any;
 }): Promise<void> {
-  const { userId, mediaId, status, rating, notes, mediaData } = params;
+  const { userId, mediaId, status, notes, mediaData } = params;
+  const inputRating = params.userRating !== undefined ? params.userRating : params.rating;
 
   // 1. If media record doesn't exist yet or is supplied, upsert it
   if (mediaData) {
@@ -411,7 +428,7 @@ export async function trackMediaInVault(params: {
       type: mediaData.type || "Movie",
       releaseYear: mediaData.releaseYear || mediaData.year ? Number(mediaData.releaseYear || mediaData.year) : undefined,
       runtime: mediaData.runtime ? Number(mediaData.runtime.toString().replace(/\D/g, "")) : undefined,
-      rating: mediaData.rating ? Number(mediaData.rating) : undefined,
+      rating: mediaData.rating ? toIntegerRating(mediaData.rating) : undefined,
       coverUrl: rawCover,
       backdropUrl: rawBackdrop,
       trailerUrl: mediaData.trailerUrl,
@@ -422,7 +439,9 @@ export async function trackMediaInVault(params: {
 
   // 2. Insert into unified user_vault_items table
   const vaultItemId = `${userId}_${mediaId}`;
-  const dbRating = rating !== undefined ? (rating === 0 ? 0 : rating) : (status === "Favorite" ? 5 : null);
+  const dbRating = inputRating !== undefined && inputRating !== null
+    ? (Number(inputRating) === 0 ? 0 : (toIntegerRating(inputRating) ?? null))
+    : (status === "Favorite" ? 5 : null);
   const dbNotes = notes !== undefined ? (notes === "" ? null : notes) : (status === "Favorite" ? "#favorite" : null);
 
   await queryD1(
@@ -543,7 +562,7 @@ export async function getMediaReviews(mediaId: string, currentUserId?: string): 
     }
 
     const isOwner = r.user_id === currentUserId;
-    const rawRating = r.rating ? (r.rating > 5 ? r.rating / 2 : r.rating) : undefined;
+    const rawRating = toIntegerRating(r.rating);
 
     reviews.push({
       id: `${r.user_id}_${r.media_id}`,
@@ -788,6 +807,8 @@ export async function getFriendActivityStream(userId: string): Promise<Array<{
      JOIN users u ON n.from_user_id = u.id
      JOIN media m ON n.media_id = m.id
      WHERE n.type = 'activity'
+       AND LOWER(u.name) NOT LIKE '%tester%'
+       AND LOWER(u.email) NOT LIKE '%test%'
      ORDER BY n.created_at DESC
      LIMIT 25;`
   );
@@ -813,6 +834,8 @@ export async function getFriendsList(userId: string): Promise<Array<User>> {
      FROM friendships f
      JOIN users u ON f.friend_id = u.id
      WHERE f.user_id = ?
+       AND LOWER(u.name) NOT LIKE '%tester%'
+       AND LOWER(u.email) NOT LIKE '%test%'
      ORDER BY u.name ASC;`,
     [userId]
   );
@@ -823,6 +846,8 @@ export async function getSuggestedUsers(userId: string): Promise<Array<User & { 
   const rows = await queryD1<User>(
     `SELECT * FROM users
      WHERE id != ?
+       AND LOWER(name) NOT LIKE '%tester%'
+       AND LOWER(email) NOT LIKE '%test%'
      LIMIT 10;`,
     [userId]
   );
@@ -903,6 +928,8 @@ export async function searchUsers(
   const rows = await queryD1<User>(
     `SELECT * FROM users
      WHERE (LOWER(name) LIKE ? OR LOWER(email) LIKE ?)
+       AND LOWER(name) NOT LIKE '%tester%'
+       AND LOWER(email) NOT LIKE '%test%'
      ${currentUserId ? `AND id != '${currentUserId}'` : ""}
      LIMIT 20;`,
     [searchTerm, searchTerm]
@@ -1099,11 +1126,11 @@ export async function calculateProfileStats(userId: string): Promise<VaultStats>
     else totalRuntimeMins += item.type === "movie" ? 120 : item.type === "show" ? 300 : 60;
 
     if (item.userRating) {
-      const val = item.userRating > 5 ? item.userRating / 2 : item.userRating;
+      const val = toIntegerRating(item.userRating) || item.userRating;
       ratingSum += val;
       ratingCount++;
     } else if (item.rating) {
-      const val = item.rating > 5 ? item.rating / 2 : item.rating;
+      const val = toIntegerRating(item.rating) || item.rating;
       ratingSum += val;
       ratingCount++;
     }
@@ -1115,7 +1142,7 @@ export async function calculateProfileStats(userId: string): Promise<VaultStats>
   }
 
   const hoursWatched = Math.round(totalRuntimeMins / 60);
-  const avgRating = ratingCount > 0 ? Number((ratingSum / ratingCount).toFixed(1)) : 0;
+  const avgRating = ratingCount > 0 ? Math.round(ratingSum / ratingCount) : 0;
   const tasteScore = avgRating;
 
   const sortedGenres = Object.entries(genreCounts).sort((a, b) => b[1] - a[1]);

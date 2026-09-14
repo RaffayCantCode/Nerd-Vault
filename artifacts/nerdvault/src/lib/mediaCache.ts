@@ -10,9 +10,20 @@ class MediaEntityCache {
 
   set(item: UnifiedMedia): void {
     if (!item || !item.id) return;
-    this.items.set(item.id, item);
-    if (item.slug) {
-      this.items.set(item.slug, item);
+    const existing = this.items.get(item.id) || (item.slug ? this.items.get(item.slug) : undefined);
+    const merged: UnifiedMedia = existing
+      ? {
+          ...existing,
+          ...item,
+          runtime: item.runtime || existing.runtime,
+          airingStatus: item.airingStatus || existing.airingStatus,
+          franchise: item.franchise || existing.franchise,
+          similar: item.similar || existing.similar,
+        }
+      : item;
+    this.items.set(item.id, merged);
+    if (merged.slug) {
+      this.items.set(merged.slug, merged);
     }
   }
 

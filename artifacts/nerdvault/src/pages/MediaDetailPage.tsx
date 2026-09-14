@@ -254,6 +254,23 @@ export default function MediaDetailPage() {
       })()
     : media.year;
 
+  const isSeriesOrAnime = media.type === "Series" || media.type === "Anime";
+  const airingStatus = (() => {
+    if (media.airingStatus) return media.airingStatus;
+    if (media.releaseDate) {
+      const parts = media.releaseDate.split("-");
+      if (parts.length === 3) {
+        const releaseTime = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])).getTime();
+        if (!isNaN(releaseTime) && releaseTime > Date.now()) {
+          return "Upcoming";
+        }
+      }
+    } else if (media.year && Number(media.year) > new Date().getFullYear()) {
+      return "Upcoming";
+    }
+    return "Ongoing";
+  })();
+
   return (
     <div className="pb-16 space-y-10">
       {/* Top Back To Browse Button */}
@@ -368,7 +385,7 @@ export default function MediaDetailPage() {
             <div className="flex items-center gap-2">
               <Star size={17} className="text-[hsl(var(--accent))]" fill="currentColor" />
               <div>
-                <p className="font-display text-[17px] font-bold text-slate-200">{media.rating} / 5</p>
+                <p className="font-display text-[17px] font-bold text-slate-200">{Math.round(Number(media.rating) > 5 ? Number(media.rating) / 2 : (Number(media.rating) || 4))} / 5</p>
                 <p className="text-xs text-slate-400">Community score</p>
               </div>
             </div>
@@ -379,13 +396,6 @@ export default function MediaDetailPage() {
                   {heroGenres.join(", ")}
                 </p>
                 <p className="text-xs text-slate-400">Genre classification</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Users size={17} className="text-[hsl(var(--accent))]" />
-              <div>
-                <p className="font-display text-[17px] font-bold text-slate-200">{media.type}</p>
-                <p className="text-xs text-slate-400">Media format</p>
               </div>
             </div>
 
@@ -410,35 +420,60 @@ export default function MediaDetailPage() {
             </div>
           </div>
 
-          {/* Prominent Seasons & Episodes Count / Runtime Banner */}
-          {media.runtime && (
-            <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/[.12] bg-gradient-to-r from-[#141d24]/90 via-[#10171c]/80 to-[#0e1418]/90 p-4 sm:p-5 backdrop-blur-md shadow-xl">
-              <div className="flex items-center gap-3.5 sm:gap-4">
-                <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--primary))]/15 border border-[hsl(var(--primary))]/30 text-[hsl(var(--primary))] shadow-[0_0_24px_rgba(55,218,178,0.25)]">
+          {/* Refined Seasons & Episodes / Format Info Strip */}
+          {(isSeriesOrAnime || media.runtime) && (
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/[.08] bg-[#11171c]/60 p-3.5 sm:px-5 sm:py-3.5 backdrop-blur-md">
+              <div className="flex items-center gap-3.5">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/[.04] border border-white/[.08] text-slate-300">
                   {media.type === "Movie" ? (
-                    <Clock size={24} className="text-[hsl(var(--primary))]" />
+                    <Clock size={18} className="text-slate-300" />
                   ) : (
-                    <Tv size={24} className="text-[hsl(var(--primary))]" />
+                    <Tv size={18} className="text-slate-300" />
                   )}
                 </div>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-[hsl(var(--primary))]">
-                    {media.type === "Movie" ? "Feature Runtime" : "Seasons & Episodes"}
+                  <p className="text-[11px] font-mono-ui font-medium uppercase tracking-wider text-slate-400">
+                    {media.type === "Movie" ? "Runtime" : "Seasons & Episodes"}
                   </p>
-                  <p className="font-display text-xl sm:text-2xl lg:text-3xl font-extrabold text-white tracking-tight mt-0.5">
-                    {media.runtime}
-                  </p>
+                  {media.runtime ? (
+                    <p className="font-display text-base sm:text-lg font-bold text-slate-100 tracking-tight mt-0.5">
+                      {media.runtime}
+                    </p>
+                  ) : (
+                    <div className="mt-1 h-5 w-32 rounded bg-white/[.08] animate-pulse" />
+                  )}
                 </div>
               </div>
 
-              {media.releaseDate && (
-                <div className="flex items-center gap-2 rounded-xl bg-white/[.04] px-3.5 py-2 border border-white/[.08]">
-                  <Calendar size={14} className="text-[hsl(var(--primary))]" />
-                  <span className="text-xs font-medium text-slate-300">
-                    Premiered <span className="font-mono-ui">{releaseDateText}</span>
-                  </span>
-                </div>
-              )}
+              <div className="flex items-center gap-3 flex-wrap">
+                {isSeriesOrAnime && (
+                  airingStatus === "Completed" ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-1 text-xs font-semibold text-emerald-400">
+                      <CheckCircle2 size={13} className="text-emerald-400" />
+                      <span>Completed</span>
+                    </span>
+                  ) : airingStatus === "Upcoming" ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-400/10 border border-amber-400/25 px-2.5 py-1 text-xs font-semibold text-amber-300">
+                      <Clock size={13} className="text-amber-300" />
+                      <span>Upcoming</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 rounded-lg bg-[hsl(var(--primary))]/10 border border-[hsl(var(--primary))]/25 px-2.5 py-1 text-xs font-semibold text-[hsl(var(--primary))]">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--primary))] animate-pulse" />
+                      <span>Ongoing</span>
+                    </span>
+                  )
+                )}
+
+                {releaseDateText && (
+                  <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
+                    <Calendar size={13} className="text-slate-500" />
+                    <span>
+                      Premiered <strong className="font-mono-ui font-semibold text-slate-200">{releaseDateText}</strong>
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Plus, Heart, Check, Users, Sparkles, UserPlus, Search, UserCheck, Loader2, ArrowRight, X } from "lucide-react";
+import { Plus, Heart, Check, Users, Sparkles, UserPlus, Search, UserCheck, Loader2, ArrowRight, X, ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
 import { api, FriendRecommendation, UserProfile } from "../lib/api";
 import { Avatar } from "../components/common/Avatar";
 import { SectionHeading } from "../components/common/SectionHeading";
@@ -16,6 +16,7 @@ export default function FriendsPage() {
   const [searching, setSearching] = useState(false);
 
   const [activity, setActivity] = useState<any[]>([]);
+  const [activityExpanded, setActivityExpanded] = useState(true);
   const [recommendations, setRecommendations] = useState<FriendRecommendation[]>([]);
   const [suggestedUsers, setSuggestedUsers] = useState<UserProfile[]>([]);
   const [friends, setFriends] = useState<UserProfile[]>([]);
@@ -29,8 +30,8 @@ export default function FriendsPage() {
       api.getSocialActivity().then((res) => setActivity(res?.activity || [])).catch(() => {}),
       api.getRecommendations().then((res) => setRecommendations(res?.recommendations || [])).catch(() => {}),
       api.getFriends().then((res) => {
-        if (res?.friends) setFriends(res.friends);
-        if (res?.suggested) setSuggestedUsers(res.suggested);
+        if (res?.friends) setFriends(res.friends.filter((f: any) => !f.name?.toLowerCase().includes("test") && !f.email?.toLowerCase().includes("test")));
+        if (res?.suggested) setSuggestedUsers(res.suggested.filter((u: any) => !u.name?.toLowerCase().includes("test") && !u.email?.toLowerCase().includes("test")));
       }).catch(() => {}),
     ]).finally(() => setLoading(false));
   }, [user]);
@@ -46,7 +47,7 @@ export default function FriendsPage() {
       setSearching(true);
       api.searchUsers(searchQuery.trim())
         .then((res) => {
-          setSearchResults(res?.users || []);
+          setSearchResults((res?.users || []).filter((u: any) => !u.name?.toLowerCase().includes("test") && !u.email?.toLowerCase().includes("test")));
         })
         .catch(() => {})
         .finally(() => setSearching(false));
@@ -85,7 +86,7 @@ export default function FriendsPage() {
         title: rec.mediaTitle,
         type: (rec.mediaType as any) || "Movie",
         year: "2024",
-        rating: "4.5",
+        rating: "4",
         genre: "Recommended",
         genres: ["Recommended"],
         poster: rec.mediaPoster || "",
@@ -230,60 +231,95 @@ export default function FriendsPage() {
       <div className="grid gap-6 lg:grid-cols-[1.2fr_.8fr]">
         {/* Live Activity Stream */}
         <section className="nv-card rounded-3xl p-6 border border-white/[.08] space-y-4">
-          <SectionHeading
-            eyebrow="Live from your circle"
-            title="Recent activity"
-            action="Refresh"
-            onAction={() => {
-              api.getSocialActivity().then((res) => setActivity(res?.activity || [])).catch(() => {});
-              notify("Activity feed refreshed");
-            }}
-          />
-          {activity.length > 0 ? (
-            <div className="divide-y divide-white/[.06]">
-              {activity.map((act) => (
-                <div
-                  key={act.id}
-                  className="flex items-center gap-3.5 py-3.5 first:pt-0 last:pb-0"
-                >
-                  <Avatar
-                    initials={act.userName ? act.userName.slice(0, 2).toUpperCase() : "NV"}
-                    tone="teal"
-                    image={act.userAvatar}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[12px] leading-5 text-slate-300">
-                      <strong className="text-white font-bold">{act.userName}</strong>{" "}
-                      <span className="text-[hsl(var(--primary))] font-semibold">{act.action}</span>{" "}
-                      <strong className="text-white">{act.mediaTitle}</strong>
-                    </p>
-                    {act.detail && (
-                      <p className="mt-0.5 text-[11px] italic text-slate-400 line-clamp-1">
-                        {act.detail}
-                      </p>
-                    )}
-                    <span className="mt-1 font-mono-ui text-[9px] uppercase tracking-wider text-slate-500 block">
-                      {act.createdAt ? new Date(act.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Recently"}
-                    </span>
-                  </div>
-                  {act.mediaPoster && (
-                    <img
-                      src={act.mediaPoster}
-                      alt=""
-                      className="h-12 w-9 rounded-lg object-cover border border-white/[.08] shrink-0"
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center p-8 text-center border border-dashed border-white/[.08] rounded-2xl">
-              <Users size={24} className="text-slate-600 mb-2" />
-              <p className="text-[13px] font-bold text-slate-300">No friend activity yet</p>
-              <p className="text-[11px] text-slate-500 mt-1 max-w-[260px]">
-                Search for collectors above or add friends to see live tracking updates.
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold text-[hsl(var(--primary))] tracking-wide mb-1">
+                Live from your circle
               </p>
+              <div className="flex items-center gap-2.5">
+                <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-slate-100">
+                  Recent activity
+                </h2>
+                {activity.length > 0 && (
+                  <span className="rounded-full bg-white/[.06] border border-white/[.08] px-2.5 py-0.5 text-[11px] font-mono-ui font-medium text-slate-300">
+                    {activity.length}
+                  </span>
+                )}
+              </div>
             </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  api.getSocialActivity().then((res) => setActivity(res?.activity || [])).catch(() => {});
+                  notify("Activity feed refreshed");
+                }}
+                title="Refresh feed"
+                className="nv-button flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-[hsl(var(--primary))] px-3 py-1.5 rounded-xl bg-white/[.03] hover:bg-white/[.07] border border-white/[.06] transition"
+              >
+                <RefreshCw size={12} />
+                <span>Refresh</span>
+              </button>
+
+              <button
+                onClick={() => setActivityExpanded(!activityExpanded)}
+                data-testid="button-toggle-activity-expanded"
+                className="nv-button flex items-center gap-1.5 text-xs font-semibold text-slate-300 hover:text-white px-3 py-1.5 rounded-xl bg-white/[.05] hover:bg-white/[.1] border border-white/[.08] transition shadow-sm"
+                aria-expanded={activityExpanded}
+              >
+                <span>{activityExpanded ? "Collapse" : "Expand"}</span>
+                {activityExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+            </div>
+          </div>
+
+          {activityExpanded && (
+            activity.length > 0 ? (
+              <div className="divide-y divide-white/[.06] max-h-[460px] overflow-y-auto pr-1">
+                {activity.map((act) => (
+                  <div
+                    key={act.id}
+                    className="flex items-center gap-3.5 py-3.5 first:pt-0 last:pb-0"
+                  >
+                    <Avatar
+                      initials={act.userName ? act.userName.slice(0, 2).toUpperCase() : "NV"}
+                      tone="teal"
+                      image={act.userAvatar}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[12px] leading-5 text-slate-300">
+                        <strong className="text-white font-bold">{act.userName}</strong>{" "}
+                        <span className="text-[hsl(var(--primary))] font-semibold">{act.action}</span>{" "}
+                        <strong className="text-white">{act.mediaTitle}</strong>
+                      </p>
+                      {act.detail && (
+                        <p className="mt-0.5 text-[11px] italic text-slate-400 line-clamp-1">
+                          {act.detail}
+                        </p>
+                      )}
+                      <span className="mt-1 font-mono-ui text-[9px] uppercase tracking-wider text-slate-500 block">
+                        {act.createdAt ? new Date(act.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Recently"}
+                      </span>
+                    </div>
+                    {act.mediaPoster && (
+                      <img
+                        src={act.mediaPoster}
+                        alt=""
+                        className="h-12 w-9 rounded-lg object-cover border border-white/[.08] shrink-0"
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center p-8 text-center border border-dashed border-white/[.08] rounded-2xl">
+                <Users size={24} className="text-slate-600 mb-2" />
+                <p className="text-[13px] font-bold text-slate-300">No friend activity yet</p>
+                <p className="text-[11px] text-slate-500 mt-1 max-w-[260px]">
+                  Search for collectors above or add friends to see live tracking updates.
+                </p>
+              </div>
+            )
           )}
         </section>
 
@@ -350,14 +386,16 @@ export default function FriendsPage() {
       </div>
 
       {/* Suggested Users Directory */}
-      {suggestedUsers.length > 0 && (
+      {suggestedUsers.filter((p) => !p.name?.toLowerCase().includes("test") && !p.email?.toLowerCase().includes("test")).length > 0 && (
         <section className="space-y-4">
           <SectionHeading
             eyebrow="Community"
             title="Collectors on NerdVault"
           />
           <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-4">
-            {suggestedUsers.map((person) => {
+            {suggestedUsers
+              .filter((p) => !p.name?.toLowerCase().includes("test") && !p.email?.toLowerCase().includes("test"))
+              .map((person) => {
               const isRequested = friendStatuses[person.id] === "pending_sent";
               const initials = person.name ? person.name.slice(0, 2).toUpperCase() : "NV";
 

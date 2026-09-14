@@ -176,6 +176,13 @@ function formatKitsu(data: any): UnifiedMedia {
     backdrop,
     overview: (attr.synopsis || "No description provided.").replace(/<[^>]*>/g, ""),
     runtime: attr.episodeCount ? `${attr.episodeCount} Episodes` : undefined,
+    airingStatus: attr.status === "finished"
+      ? "Completed"
+      : attr.status === "current"
+      ? "Ongoing"
+      : attr.status === "upcoming" || attr.status === "unapproved"
+      ? "Upcoming"
+      : undefined,
     source: "anilist",
     sourceId: String(data.id),
   };
@@ -279,6 +286,13 @@ function formatAniList(item: any): UnifiedMedia {
     backdrop: item.bannerImage || undefined,
     overview: (item.description || "No description provided.").replace(/<[^>]*>/g, ""),
     runtime: item.episodes ? `${item.episodes} Episodes` : undefined,
+    airingStatus: item.status === "FINISHED" || item.status === "CANCELLED"
+      ? "Completed"
+      : item.status === "RELEASING" || item.status === "HIATUS"
+      ? "Ongoing"
+      : item.status === "NOT_YET_RELEASED"
+      ? "Upcoming"
+      : undefined,
     studio: item.studios?.nodes?.[0]?.name,
     source: "anilist",
     sourceId: String(item.id),
@@ -314,6 +328,11 @@ function formatJikan(item: any): UnifiedMedia {
     backdrop: undefined,
     overview: (item.synopsis || "No description provided.").replace(/\[Written by MAL Rewrite\]/g, "").trim(),
     runtime: item.episodes ? `${item.episodes} Episodes` : undefined,
+    airingStatus: typeof item.status === "string" && item.status.toLowerCase().includes("finish")
+      ? "Completed"
+      : typeof item.status === "string" && item.status.toLowerCase().includes("not yet")
+      ? "Upcoming"
+      : "Ongoing",
     studio: item.studios?.[0]?.name,
     source: "anilist",
     sourceId: String(item.mal_id),
@@ -725,6 +744,7 @@ export const anilistService = {
           id
           idMal
           isAdult
+          status
           title { romaji english native userPreferred }
           seasonYear
           startDate { year }
@@ -819,6 +839,8 @@ export const anilistService = {
         query ($id: Int) {
           Media(id: $id, type: ANIME, isAdult: false) {
             id
+            isAdult
+            status
             title { romaji english native userPreferred }
             seasonYear
             startDate { year }

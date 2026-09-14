@@ -13,6 +13,7 @@ export type UnifiedMedia = {
   backdrop?: string;
   overview: string;
   runtime?: string;
+  airingStatus?: "Completed" | "Ongoing" | "Upcoming" | string;
   director?: string;
   cast?: string[];
   platform?: string;
@@ -57,12 +58,16 @@ export type DiscoverOptions = {
 };
 
 export function toFiveStarRating(val: number | string | undefined | null): string {
-  if (val === undefined || val === null || val === "") return "4.0";
+  if (val === undefined || val === null || val === "") return "4";
   const num = Number(val);
-  if (isNaN(num)) return "4.0";
-  // If input is on 10-point scale (e.g. 8.6), convert to 5-point scale: 8.6 / 2 = 4.3
-  const normalized = num > 5 ? num / 2 : num;
-  return (Math.round(normalized * 10) / 10).toFixed(1);
+  if (isNaN(num) || num <= 0) return "4";
+  let normalized = num;
+  if (normalized > 10) {
+    normalized = normalized / 20;
+  } else if (normalized > 5) {
+    normalized = normalized / 2;
+  }
+  return String(Math.min(5, Math.max(1, Math.round(normalized))));
 }
 
 export function slugify(text: string): string {

@@ -143,7 +143,7 @@ export const onRequest: any = async (context: any) => {
             originalTitle: dbMedia.originalTitle || undefined,
             type: (dbMedia.type as any) || "Movie",
             year: dbMedia.releaseYear ? String(dbMedia.releaseYear) : "2024",
-            rating: dbMedia.rating ? String(dbMedia.rating) : "4.0",
+            rating: dbMedia.rating ? String(Math.min(5, Math.max(1, Math.round(Number(dbMedia.rating))))) : "4",
             genre: "Featured",
             genres: [],
             poster: dbMedia.coverUrl || "",
@@ -238,12 +238,16 @@ export const onRequest: any = async (context: any) => {
       if (!currentUserId) return jsonResponse({ error: "Unauthorized" }, 401);
       const body = await request.json().catch(() => ({}));
       const { mediaId, media, status, rating, notes, progress, isPrivate } = body;
+      const cleanRating = rating !== undefined && rating !== null
+        ? (Number(rating) === 0 ? 0 : Math.min(5, Math.max(1, Math.round(Number(rating) > 5 ? Number(rating) / 2 : Number(rating)))))
+        : undefined;
       const item = await trackMediaItem({
         userId: currentUserId,
         mediaId,
         mediaData: media || {},
         status: status || "Watching",
-        userRating: rating,
+        rating: cleanRating,
+        userRating: cleanRating,
         notes,
         progress,
         isPrivate: isPrivate ?? false,
@@ -329,7 +333,7 @@ export const onRequest: any = async (context: any) => {
           type: body.mediaData.type || "Movie",
           releaseYear: body.mediaData.releaseYear || body.mediaData.year ? Number(body.mediaData.releaseYear || body.mediaData.year) : undefined,
           runtime: body.mediaData.runtime ? Number(body.mediaData.runtime.toString().replace(/\D/g, "")) : undefined,
-          rating: body.mediaData.rating ? Number(body.mediaData.rating) : undefined,
+          rating: body.mediaData.rating ? Math.min(5, Math.max(1, Math.round(Number(body.mediaData.rating) > 5 ? Number(body.mediaData.rating) / 2 : Number(body.mediaData.rating)))) : undefined,
           coverUrl: rawCover,
           backdropUrl: rawBackdrop,
           trailerUrl: body.mediaData.trailerUrl,
@@ -443,7 +447,7 @@ export const onRequest: any = async (context: any) => {
         title: v.title,
         mediaType: v.type,
         time: "Recently",
-        rating: v.userRating,
+        rating: v.userRating !== undefined && v.userRating !== null ? Math.round(Number(v.userRating)) : (v.rating !== undefined && v.rating !== null ? Math.round(Number(v.rating)) : undefined),
       }));
       return jsonResponse({ user, stats, favorites, logs: vault, recentActivity: activity, isOwner: true });
     }
@@ -463,7 +467,7 @@ export const onRequest: any = async (context: any) => {
         title: v.title,
         mediaType: v.type,
         time: "Recently",
-        rating: v.userRating,
+        rating: v.userRating !== undefined && v.userRating !== null ? Math.round(Number(v.userRating)) : (v.rating !== undefined && v.rating !== null ? Math.round(Number(v.rating)) : undefined),
       }));
       return jsonResponse({ user, stats, favorites, logs: vault, recentActivity: activity, isOwner: currentUserId === targetUserId });
     }

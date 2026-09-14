@@ -138,7 +138,7 @@ export function FavoriteSelectModal({
                     </p>
                     <div className="flex items-center gap-1 text-[10px] font-bold text-[#acd986] mt-1">
                       <Star size={10} fill="currentColor" />
-                      <span>{item.rating} / 5</span>
+                      <span>{Math.round(Number(item.rating) > 5 ? Number(item.rating) / 2 : (Number(item.rating) || 4))} / 5</span>
                     </div>
                   </div>
                 </button>

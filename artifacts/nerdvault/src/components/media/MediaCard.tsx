@@ -27,7 +27,7 @@ export function MediaCard({
   const hasUserRating = inVault && rawRating !== undefined && rawRating !== null && Number(rawRating) > 0;
   const displayRating = hasUserRating
     ? Math.round(Number(rawRating) > 5 ? Number(rawRating) / 2 : Number(rawRating))
-    : item.rating;
+    : Math.round(Number(item.rating) > 5 ? Number(item.rating) / 2 : (Number(item.rating) || 4));
 
   const rawPoster = item.poster || (item as any).coverUrl || (item as any).cover_url || item.backdrop || (item as any).backdropUrl;
   const posterUrl = !imgError && rawPoster && typeof rawPoster === "string" && !rawPoster.includes("undefined") && rawPoster.trim() !== ""

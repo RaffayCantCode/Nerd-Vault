@@ -532,7 +532,7 @@ export default function ProfilePage() {
           </div>
           <div>
             <p className="font-display text-2xl font-bold text-slate-100">
-              {displayStats.averageRating ? `${displayStats.averageRating.toFixed(1)} / 5` : "0.0 / 5"}
+              {displayStats.averageRating ? `${Math.round(displayStats.averageRating)} / 5` : "0 / 5"}
             </p>
             <p className="text-[11px] text-slate-500">Avg. rating</p>
           </div>
@@ -719,7 +719,7 @@ export default function ProfilePage() {
                     </div>
                     <div className="flex justify-between py-2 text-[12px]">
                       <span className="text-slate-500 font-medium">Average Score</span>
-                      <span className="text-[#acd986] font-bold">★ {displayStats.averageRating ? displayStats.averageRating.toFixed(1) : "0.0"} / 5</span>
+                      <span className="text-[#acd986] font-bold">★ {displayStats.averageRating ? Math.round(displayStats.averageRating) : "0"} / 5</span>
                     </div>
                   </div>
                 </div>
@@ -765,7 +765,7 @@ export default function ProfilePage() {
                   {r.rating && (
                     <div className="flex items-center gap-1 rounded-xl bg-black/40 px-3 py-1.5 border border-white/[.08] text-[11px] font-bold text-[#acd986]">
                       <Star size={12} fill="currentColor" />
-                      <span>{r.rating} / 5</span>
+                      <span>{Math.round(Number(r.rating) > 5 ? Number(r.rating) / 2 : (Number(r.rating) || 4))} / 5</span>
                     </div>
                   )}
                 </div>
@@ -866,9 +866,13 @@ export default function ProfilePage() {
                           <div className="flex items-center gap-1 font-mono-ui text-[11px] font-bold text-[#acd986] bg-black/40 px-2.5 py-1 rounded-lg border border-white/[.08]">
                             <Star size={12} fill="currentColor" />
                             <span>
-                              {item.userRating
-                                ? Math.round(Number(item.userRating) > 5 ? Number(item.userRating) / 2 : Number(item.userRating))
-                                : item.rating} / 5
+                              {Math.round(
+                                Number(
+                                  item.userRating
+                                    ? (Number(item.userRating) > 5 ? Number(item.userRating) / 2 : item.userRating)
+                                    : (Number(item.rating) > 5 ? Number(item.rating) / 2 : item.rating)
+                                ) || 4
+                              )} / 5
                             </span>
                           </div>
                         )}

@@ -17,6 +17,7 @@ export type UnifiedMedia = {
   backdrop?: string;
   overview: string;
   runtime?: string;
+  airingStatus?: "Completed" | "Ongoing" | "Upcoming" | string;
   director?: string;
   cast?: string[];
   platform?: string;

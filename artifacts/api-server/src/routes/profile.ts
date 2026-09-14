@@ -63,7 +63,7 @@ async function handleGetProfile(targetId: string | undefined, currentUserId: str
     mediaType: i.type,
     title: i.title,
     time: "Recently",
-    rating: i.userRating ? (i.userRating > 5 ? (i.userRating / 2).toFixed(1) : i.userRating.toFixed(1)) : (i.rating ? (i.rating > 5 ? (i.rating / 2).toFixed(1) : i.rating.toFixed(1)) : undefined),
+    rating: i.userRating ? Math.round(i.userRating > 5 ? i.userRating / 2 : i.userRating) : (i.rating ? Math.round(i.rating > 5 ? i.rating / 2 : i.rating) : undefined),
     poster: i.coverUrl,
     notes: i.notes,
   }));

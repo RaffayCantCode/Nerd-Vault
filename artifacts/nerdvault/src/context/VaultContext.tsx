@@ -83,14 +83,14 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const trackMedia = async (item: UnifiedMedia, status: string, rating?: number, notes?: string) => {
-    const updatedRating = rating !== undefined
-      ? (rating === 0 ? undefined : rating)
-      : (status === "Favorite" ? 5 : item.userRating);
+    const cleanRating = rating !== undefined && rating !== null
+      ? (rating === 0 ? undefined : Math.min(5, Math.max(1, Math.round(Number(rating) > 5 ? Number(rating) / 2 : Number(rating)))))
+      : (status === "Favorite" ? 5 : (item.userRating ? Math.min(5, Math.max(1, Math.round(Number(item.userRating) > 5 ? Number(item.userRating) / 2 : Number(item.userRating)))) : undefined));
 
     const updatedItem: UnifiedMedia = {
       ...item,
       status: status as any,
-      userRating: updatedRating,
+      userRating: cleanRating,
       notes: notes !== undefined ? (notes === "" ? undefined : notes) : (status === "Favorite" ? item.notes || "#favorite" : item.notes),
     };
 
@@ -125,7 +125,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       const res = await api.trackMedia({
         mediaId: item.id,
         status,
-        rating: rating !== undefined ? rating : (status === "Favorite" ? 5 : item.userRating),
+        rating: cleanRating,
         notes: notes ?? (status === "Favorite" ? "#favorite" : undefined),
         media: item,
       });

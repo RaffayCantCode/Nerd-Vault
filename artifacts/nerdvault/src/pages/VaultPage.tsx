@@ -112,7 +112,7 @@ export default function VaultPage() {
     { label: "In your vault", value: String(stats?.totalCollected || vaultItems.length), meta: "Tracked titles" },
     { label: "Completed", value: String(completedCount), meta: "Finished titles" },
     { label: "Top genre", value: topGenre, meta: "Most logged" },
-    { label: "Avg. user rating", value: `${stats?.averageRating ? stats.averageRating.toFixed(1) : "0.0"} / 5`, meta: "Out of 5 stars" },
+    { label: "Avg. user rating", value: `${stats?.averageRating ? Math.round(stats.averageRating) : "0"} / 5`, meta: "Out of 5 stars" },
   ];
 
   const colors: Record<string, string> = {
