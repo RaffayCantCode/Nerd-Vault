@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { findUserById, updateUserProfile, calculateProfileStats, getUserVaultItems } from "@workspace/db";
+import { findUserById, updateUserProfile, computeProfileStatsFromVault, getUserVaultItems } from "@workspace/db";
 
 const router = Router();
 
@@ -28,7 +28,10 @@ async function handleGetProfile(targetId: string | undefined, currentUserId: str
     });
   }
 
-  const user = await findUserById(targetId);
+  const [user, vaultItems] = await Promise.all([
+    findUserById(targetId),
+    getUserVaultItems(targetId),
+  ]);
   if (!user) {
     return res.json({
       user: null,
@@ -48,10 +51,7 @@ async function handleGetProfile(targetId: string | undefined, currentUserId: str
     });
   }
 
-  const [stats, vaultItems] = await Promise.all([
-    calculateProfileStats(user.id),
-    getUserVaultItems(user.id),
-  ]);
+  const stats = computeProfileStatsFromVault(vaultItems);
 
   const favorites = vaultItems.filter((i) => {
     return i.status === "Favorite" || (i.notes && i.notes.includes("#favorite"));

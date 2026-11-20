@@ -28,6 +28,7 @@ import {
   sendFriendRecommendation,
   dismissFriendRecommendation,
   calculateProfileStats,
+  computeProfileStatsFromVault,
   getMediaReviews,
   updateUserProfile,
 } from "../../lib/db/src";
@@ -435,15 +436,15 @@ export const onRequest: any = async (context: any) => {
     // -------------------------------------------------------------
     if (path === "/api/profile" && method === "GET") {
       if (!currentUserId) return jsonResponse({ user: null, stats: null, favorites: [], logs: [], recentActivity: [] });
-      const user = await findUserById(currentUserId);
-      const [stats, vault] = await Promise.all([
-        calculateProfileStats(currentUserId),
+      const [user, vault] = await Promise.all([
+        findUserById(currentUserId),
         getUserVaultItems(currentUserId),
       ]);
+      const stats = computeProfileStatsFromVault(vault);
       const favorites = vault.filter((i) => i.status === "Favorite" || (i.notes && i.notes.includes("#favorite")));
       const activity = vault.slice(0, 10).map((v) => ({
         id: v.id,
-        type: v.status === "Completed" ? "Completed" : "Logged",
+        type: v.status === "Completed" ? "Completed" : v.status === "Favorite" ? "Favorited" : "Logged",
         title: v.title,
         mediaType: v.type,
         time: "Recently",
@@ -454,16 +455,16 @@ export const onRequest: any = async (context: any) => {
 
     if (path.startsWith("/api/profile/") && method === "GET") {
       const targetUserId = path.replace("/api/profile/", "");
-      const user = await findUserById(targetUserId);
-      if (!user) return jsonResponse({ error: "User not found" }, 404);
-      const [stats, vault] = await Promise.all([
-        calculateProfileStats(targetUserId),
+      const [user, vault] = await Promise.all([
+        findUserById(targetUserId),
         getUserVaultItems(targetUserId),
       ]);
+      if (!user) return jsonResponse({ error: "User not found" }, 404);
+      const stats = computeProfileStatsFromVault(vault);
       const favorites = vault.filter((i) => i.status === "Favorite" || (i.notes && i.notes.includes("#favorite")));
       const activity = vault.slice(0, 10).map((v) => ({
         id: v.id,
-        type: v.status === "Completed" ? "Completed" : "Logged",
+        type: v.status === "Completed" ? "Completed" : v.status === "Favorite" ? "Favorited" : "Logged",
         title: v.title,
         mediaType: v.type,
         time: "Recently",

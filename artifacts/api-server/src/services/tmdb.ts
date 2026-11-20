@@ -4,7 +4,7 @@ import { UnifiedMedia, slugify, toFiveStarRating } from "./types";
 const TMDB_API_KEY = process.env.TMDB_API_KEY || "e992852c2a6404df9d6218982f12c36e";
 const BASE_URL = "https://api.themoviedb.org/3";
 const IMG_BASE = "https://image.tmdb.org/t/p/w500";
-const BACKDROP_BASE = "https://image.tmdb.org/t/p/original";
+const BACKDROP_BASE = "https://image.tmdb.org/t/p/w1280";
 
 const GENRE_MAP: Record<number, string> = {
   28: "Action", 12: "Adventure", 16: "Animation", 35: "Comedy", 80: "Crime",
@@ -74,7 +74,7 @@ export function isReleasedTmdb(item: any, type: "Movie" | "Series" = "Movie"): b
   return true;
 }
 
-function formatMedia(item: any, defaultType: "Movie" | "Series"): UnifiedMedia {
+function formatMedia(item: any, defaultType: "Movie" | "Series", onTheAirIds?: Set<number>): UnifiedMedia {
   const isMovie = defaultType === "Movie";
   const itemIsAnime = isAnimeItem(item);
   const finalType: "Movie" | "Series" | "Anime" = itemIsAnime ? "Anime" : defaultType;
@@ -92,6 +92,18 @@ function formatMedia(item: any, defaultType: "Movie" | "Series"): UnifiedMedia {
 
   const rawRating = item.vote_average || 8.0;
 
+  let airingStatus: "Completed" | "Ongoing" | "Upcoming" | string | undefined;
+  if (!isMovie) {
+    if (item.status) {
+      const s = String(item.status).toLowerCase().trim();
+      if (s === "ended" || s === "canceled") airingStatus = "Completed";
+      else if (s === "returning series" || s === "in production" || s === "pilot") airingStatus = "Ongoing";
+      else if (s === "planned" || s === "post production") airingStatus = "Upcoming";
+    } else if (onTheAirIds && item.id && onTheAirIds.has(Number(item.id))) {
+      airingStatus = "Ongoing";
+    }
+  }
+
   return {
     id: `tmdb-${finalType.toLowerCase()}-${item.id}`,
     slug: slugify(title || `media-${item.id}`),
@@ -106,14 +118,87 @@ function formatMedia(item: any, defaultType: "Movie" | "Series"): UnifiedMedia {
     poster: item.poster_path ? `${IMG_BASE}${item.poster_path}` : "https://image.tmdb.org/t/p/w500/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg",
     backdrop: item.backdrop_path ? `${BACKDROP_BASE}${item.backdrop_path}` : undefined,
     overview: item.overview || "No synopsis available.",
+    airingStatus,
     source: "tmdb",
     sourceId: String(item.id),
   };
 }
 
+async function getOnTheAirTvIds(): Promise<Set<number>> {
+  const ids = await fetchWithCache<number[]>(
+    "tmdb:on_the_air_ids",
+    1000 * 60 * 30,
+    async () => {
+      try {
+        const [p1, p2] = await Promise.all([
+          fetch(`${BASE_URL}/tv/on_the_air?api_key=${TMDB_API_KEY}&language=en-US&page=1`).then((r) => (r.ok ? r.json() : { results: [] })).catch(() => ({ results: [] })),
+          fetch(`${BASE_URL}/tv/on_the_air?api_key=${TMDB_API_KEY}&language=en-US&page=2`).then((r) => (r.ok ? r.json() : { results: [] })).catch(() => ({ results: [] })),
+        ]);
+        const set = new Set<number>();
+        for (const item of [...((p1 as any).results || []), ...((p2 as any).results || [])]) {
+          if (item?.id) set.add(Number(item.id));
+        }
+        return Array.from(set);
+      } catch {
+        return [];
+      }
+    }
+  );
+  return new Set(ids);
+}
+
+const MOVIE_GENRE_NAME_TO_ID: Record<string, number> = {
+  action: 28,
+  adventure: 12,
+  animation: 16,
+  comedy: 35,
+  crime: 80,
+  documentary: 99,
+  drama: 18,
+  family: 10751,
+  fantasy: 14,
+  history: 36,
+  horror: 27,
+  music: 10402,
+  mystery: 9648,
+  romance: 10749,
+  "sci-fi": 878,
+  thriller: 53,
+  war: 10752,
+  western: 37,
+};
+
+const TV_GENRE_NAME_TO_ID: Record<string, number> = {
+  "action & adventure": 10759,
+  action: 10759,
+  adventure: 10759,
+  animation: 16,
+  comedy: 35,
+  crime: 80,
+  documentary: 99,
+  drama: 18,
+  family: 10751,
+  mystery: 9648,
+  reality: 10764,
+  "sci-fi & fantasy": 10765,
+  "sci-fi": 10765,
+  fantasy: 10765,
+  thriller: 9648,
+  romance: 18,
+  "war & politics": 10768,
+  war: 10768,
+  western: 37,
+};
+
+export function resolveTmdbGenreId(type: "Movie" | "Series", genre?: string): number | undefined {
+  if (!genre || genre === "All genres") return undefined;
+  const key = genre.toLowerCase().trim();
+  return type === "Series" ? TV_GENRE_NAME_TO_ID[key] : MOVIE_GENRE_NAME_TO_ID[key];
+}
+
 export const tmdbService = {
   async getTrendingMovies(page: number = 1): Promise<UnifiedMedia[]> {
-    const url = `${BASE_URL}/trending/movie/week?api_key=${TMDB_API_KEY}&page=${page}`;
+    const url = `${BASE_URL}/trending/movie/week?api_key=${TMDB_API_KEY}&language=en-US&page=${page}`;
     const data = await fetchWithCache(url, 1000 * 60 * 15);
     return (data.results || [])
       .filter((m: any) => !isAnimeItem(m) && isReleasedTmdb(m, "Movie"))
@@ -121,11 +206,35 @@ export const tmdbService = {
   },
 
   async getTrendingShows(page: number = 1): Promise<UnifiedMedia[]> {
-    const url = `${BASE_URL}/trending/tv/week?api_key=${TMDB_API_KEY}&page=${page}`;
-    const data = await fetchWithCache(url, 1000 * 60 * 15);
+    const url = `${BASE_URL}/trending/tv/week?api_key=${TMDB_API_KEY}&language=en-US&page=${page}`;
+    const [data, onTheAir] = await Promise.all([fetchWithCache(url, 1000 * 60 * 15), getOnTheAirTvIds()]);
     return (data.results || [])
       .filter((m: any) => !isAnimeItem(m) && !isNews(m) && isReleasedTmdb(m, "Series"))
-      .map((m: any) => ({ ...formatMedia(m, "Series"), curation: "Trending" as const }));
+      .map((m: any) => ({ ...formatMedia(m, "Series", onTheAir), curation: "Trending" as const }));
+  },
+
+  async getWeeklyMovies(weekStart: string, today: string): Promise<UnifiedMedia[]> {
+    const url = `${BASE_URL}/discover/movie?api_key=${TMDB_API_KEY}&language=en-US&sort_by=popularity.desc&include_adult=false&primary_release_date.gte=${weekStart}&primary_release_date.lte=${today}&page=1`;
+    const data = await fetchWithCache(url, 1000 * 60 * 15);
+    return (data.results || [])
+      .filter((m: any) => {
+        if (isAnimeItem(m) || !m.poster_path) return false;
+        const d = (m.release_date || "").slice(0, 10);
+        return d >= weekStart && d <= today;
+      })
+      .map((m: any) => ({ ...formatMedia(m, "Movie"), curation: "Trending" as const }));
+  },
+
+  async getWeeklyShows(weekStart: string, today: string): Promise<UnifiedMedia[]> {
+    const url = `${BASE_URL}/discover/tv?api_key=${TMDB_API_KEY}&language=en-US&sort_by=popularity.desc&include_adult=false&without_genres=10763,10767&first_air_date.gte=${weekStart}&first_air_date.lte=${today}&page=1`;
+    const [data, onTheAir] = await Promise.all([fetchWithCache(url, 1000 * 60 * 15), getOnTheAirTvIds()]);
+    return (data.results || [])
+      .filter((m: any) => {
+        if (isAnimeItem(m) || isNews(m) || !m.poster_path) return false;
+        const d = (m.first_air_date || "").slice(0, 10);
+        return d >= weekStart && d <= today;
+      })
+      .map((m: any) => ({ ...formatMedia(m, "Series", onTheAir), curation: "Trending" as const }));
   },
 
   async getPopularMovies(page: number = 1): Promise<UnifiedMedia[]> {
@@ -140,10 +249,10 @@ export const tmdbService = {
   async getPopularShows(page: number = 1): Promise<UnifiedMedia[]> {
     const today = new Date().toISOString().slice(0, 10);
     const url = `${BASE_URL}/discover/tv?api_key=${TMDB_API_KEY}&page=${page}&language=en-US&sort_by=popularity.desc&without_genres=10763&first_air_date.lte=${today}`;
-    const data = await fetchWithCache(url, 1000 * 60 * 30);
+    const [data, onTheAir] = await Promise.all([fetchWithCache(url, 1000 * 60 * 30), getOnTheAirTvIds()]);
     return (data.results || [])
       .filter((m: any) => !isAnimeItem(m) && !isNews(m) && isReleasedTmdb(m, "Series"))
-      .map((m: any) => ({ ...formatMedia(m, "Series"), curation: "Popular" as const }));
+      .map((m: any) => ({ ...formatMedia(m, "Series", onTheAir), curation: "Popular" as const }));
   },
 
   async getTopRatedMovies(page: number = 1): Promise<UnifiedMedia[]> {
@@ -158,10 +267,10 @@ export const tmdbService = {
   async getTopRatedShows(page: number = 1): Promise<UnifiedMedia[]> {
     const today = new Date().toISOString().slice(0, 10);
     const url = `${BASE_URL}/discover/tv?api_key=${TMDB_API_KEY}&page=${page}&language=en-US&sort_by=vote_average.desc&vote_count.gte=200&without_genres=10763&first_air_date.lte=${today}`;
-    const data = await fetchWithCache(url, 1000 * 60 * 30);
+    const [data, onTheAir] = await Promise.all([fetchWithCache(url, 1000 * 60 * 30), getOnTheAirTvIds()]);
     return (data.results || [])
       .filter((m: any) => !isAnimeItem(m) && !isNews(m) && isReleasedTmdb(m, "Series"))
-      .map((m: any) => ({ ...formatMedia(m, "Series"), curation: "Popular" as const }));
+      .map((m: any) => ({ ...formatMedia(m, "Series", onTheAir), curation: "Popular" as const }));
   },
 
   async getCultAndNiche(type: "Movie" | "Series", page: number = 1): Promise<UnifiedMedia[]> {
@@ -171,28 +280,37 @@ export const tmdbService = {
     const genreIds = type === "Series" ? "10765,9648,18" : "878,14,9648,53";
     const withoutParam = type === "Series" ? "&without_genres=10763" : "";
     const url = `${BASE_URL}/discover/${endpoint}?api_key=${TMDB_API_KEY}&with_genres=${genreIds}${withoutParam}&sort_by=vote_average.desc&vote_count.gte=180&page=${page}&${dateParam}`;
-    const data = await fetchWithCache(url, 1000 * 60 * 30);
+    const [data, onTheAir] = await Promise.all([
+      fetchWithCache(url, 1000 * 60 * 30),
+      type === "Series" ? getOnTheAirTvIds() : Promise.resolve(undefined),
+    ]);
     return (data.results || [])
       .filter((m: any) => !isAnimeItem(m) && !isNews(m) && isReleasedTmdb(m, type))
-      .map((m: any) => ({ ...formatMedia(m, type), curation: "Niche" as const }));
+      .map((m: any) => ({ ...formatMedia(m, type, onTheAir), curation: "Niche" as const }));
   },
 
-  async discover(params: { type?: "Movie" | "Series"; genreId?: number; sort?: string; page?: number }): Promise<UnifiedMedia[]> {
+  async discover(params: { type?: "Movie" | "Series"; genreId?: number; sort?: string; page?: number; minVotes?: number }): Promise<UnifiedMedia[]> {
     const today = new Date().toISOString().slice(0, 10);
-    const type = params.type === "Series" ? "tv" : "movie";
-    const dateParam = params.type === "Series" ? `first_air_date.lte=${today}` : `primary_release_date.lte=${today}`;
+    const isSeries = params.type === "Series";
+    const endpoint = isSeries ? "tv" : "movie";
+    const dateParam = isSeries ? `first_air_date.lte=${today}` : `primary_release_date.lte=${today}`;
     const page = params.page || 1;
-    let url = `${BASE_URL}/discover/${type}?api_key=${TMDB_API_KEY}&language=en-US&sort_by=popularity.desc&vote_count.gte=60&page=${page}&${dateParam}`;
-    if (params.type === "Series") {
+    const sortBy = params.sort || "popularity.desc";
+    const minVotes = params.minVotes ?? (sortBy === "vote_average.desc" ? 180 : 50);
+    let url = `${BASE_URL}/discover/${endpoint}?api_key=${TMDB_API_KEY}&language=en-US&sort_by=${sortBy}&vote_count.gte=${minVotes}&include_adult=false&page=${page}&${dateParam}`;
+    if (isSeries) {
       url += "&without_genres=10763";
     }
     if (params.genreId) {
       url += `&with_genres=${params.genreId}`;
     }
-    const data = await fetchWithCache(url, 1000 * 60 * 20);
+    const [data, onTheAir] = await Promise.all([
+      fetchWithCache(url, 1000 * 60 * 20),
+      isSeries ? getOnTheAirTvIds() : Promise.resolve(undefined),
+    ]);
     return (data.results || [])
-      .filter((m: any) => !isAnimeItem(m) && !isNews(m) && isReleasedTmdb(m, params.type === "Series" ? "Series" : "Movie"))
-      .map((m: any) => formatMedia(m, params.type === "Series" ? "Series" : "Movie"));
+      .filter((m: any) => !isAnimeItem(m) && !isNews(m) && isReleasedTmdb(m, isSeries ? "Series" : "Movie"))
+      .map((m: any) => formatMedia(m, isSeries ? "Series" : "Movie", onTheAir));
   },
 
   async search(query: string): Promise<UnifiedMedia[]> {
@@ -257,25 +375,28 @@ export const tmdbService = {
         }
       }
 
-      // --- Franchise Section ---
+      // --- Franchise Section (strictly released only) ---
       if (isMovie && data.belongs_to_collection) {
         try {
           const colUrl = `${BASE_URL}/collection/${data.belongs_to_collection.id}?api_key=${TMDB_API_KEY}`;
           const colData = await fetchWithCache(colUrl, 1000 * 60 * 60 * 24);
           if (colData && colData.parts && colData.parts.length > 0) {
             const parts = colData.parts
+              .filter((p: any) => isReleasedTmdb(p, "Movie"))
               .map((p: any) => formatMedia(p, "Movie"))
               .sort((a: UnifiedMedia, b: UnifiedMedia) => Number(a.year) - Number(b.year));
 
-            media.franchise = {
-              name: colData.name || data.belongs_to_collection.name || "Franchise Collection",
-              items: parts,
-            };
+            if (parts.length > 0) {
+              media.franchise = {
+                name: colData.name || data.belongs_to_collection.name || "Franchise Collection",
+                items: parts,
+              };
+            }
           }
         } catch {}
       }
 
-      // --- More Like This (Similar & Recommendations) ---
+      // --- More Like This (Similar & Recommendations, strictly released only) ---
       const recs = data.recommendations?.results || [];
       const sims = data.similar?.results || [];
       const combined = [...recs, ...sims];
@@ -283,7 +404,7 @@ export const tmdbService = {
       const similarItems: UnifiedMedia[] = [];
 
       for (const item of combined) {
-        if (!seen.has(item.id)) {
+        if (!seen.has(item.id) && isReleasedTmdb(item, type) && (type === "Movie" || !isNews(item))) {
           seen.add(item.id);
           similarItems.push(formatMedia(item, type));
           if (similarItems.length >= 12) break;

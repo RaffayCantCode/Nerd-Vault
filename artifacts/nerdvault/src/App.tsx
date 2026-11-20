@@ -1,4 +1,4 @@
-import React, { useEffect, type ReactNode } from "react";
+import React, { useEffect, lazy, Suspense, type ReactNode } from "react";
 import { Route, Switch, useLocation, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { CheckCircle2 } from "lucide-react";
@@ -14,13 +14,14 @@ import { AppShell } from "./components/layout/AppShell";
 import { AuthModal } from "./components/auth/AuthModal";
 
 import HomePage from "./pages/HomePage";
-import VaultPage from "./pages/VaultPage";
 import DiscoverPage from "./pages/DiscoverPage";
-import MediaDetailPage from "./pages/MediaDetailPage";
-import FriendsPage from "./pages/FriendsPage";
 import ProfilePage from "./pages/ProfilePage";
-import ShelfDetailPage from "./pages/ShelfDetailPage";
-import NotFound from "./pages/not-found";
+
+const VaultPage = lazy(() => import("./pages/VaultPage"));
+const MediaDetailPage = lazy(() => import("./pages/MediaDetailPage"));
+const FriendsPage = lazy(() => import("./pages/FriendsPage"));
+const ShelfDetailPage = lazy(() => import("./pages/ShelfDetailPage"));
+const NotFound = lazy(() => import("./pages/not-found"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,17 +34,25 @@ const queryClient = new QueryClient({
 
 function Router() {
   return (
-    <Switch>
-      <Route path="/" component={HomePage} />
-      <Route path="/vault" component={VaultPage} />
-      <Route path="/discover" component={DiscoverPage} />
-      <Route path="/shelf/:id" component={ShelfDetailPage} />
-      <Route path="/shelves/:id" component={ShelfDetailPage} />
-      <Route path="/media/:slug" component={MediaDetailPage} />
-      <Route path="/friends" component={FriendsPage} />
-      <Route path="/profile" component={ProfilePage} />
-      <Route component={NotFound} />
-    </Switch>
+    <Suspense
+      fallback={
+        <div className="flex min-h-[360px] items-center justify-center">
+          <div className="h-7 w-7 animate-spin rounded-full border-2 border-[hsl(var(--primary))] border-t-transparent" />
+        </div>
+      }
+    >
+      <Switch>
+        <Route path="/" component={HomePage} />
+        <Route path="/vault" component={VaultPage} />
+        <Route path="/discover" component={DiscoverPage} />
+        <Route path="/shelf/:id" component={ShelfDetailPage} />
+        <Route path="/shelves/:id" component={ShelfDetailPage} />
+        <Route path="/media/:slug" component={MediaDetailPage} />
+        <Route path="/friends" component={FriendsPage} />
+        <Route path="/profile" component={ProfilePage} />
+        <Route component={NotFound} />
+      </Switch>
+    </Suspense>
   );
 }
 

@@ -1,12 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, memo } from "react";
 import { Link } from "wouter";
 import { Star, ImageOff, X } from "lucide-react";
 import { UnifiedMedia } from "../../lib/api";
 import { mediaCache } from "../../lib/mediaCache";
 import { useVault } from "../../context/VaultContext";
-import { MediaTrackModal } from "./MediaTrackModal";
 
-export function MediaCard({
+export const MediaCard = memo(function MediaCard({
   item,
   compact = false,
 }: {
@@ -14,7 +13,6 @@ export function MediaCard({
   compact?: boolean;
 }) {
   const { isInVault, getItemStatus, getItemRating, removeMedia } = useVault();
-  const [modalOpen, setModalOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
 
   const inVault = isInVault(item.id);
@@ -35,13 +33,12 @@ export function MediaCard({
     : undefined;
 
   return (
-    <>
-      <div
-        data-testid={`card-media-${item.id}`}
-        className={`nv-poster-wrap group relative block cursor-pointer select-none ${
-          compact ? "w-[155px] shrink-0 sm:w-[185px] md:w-[205px]" : "min-w-0"
-        }`}
-      >
+    <div
+      data-testid={`card-media-${item.id}`}
+      className={`nv-poster-wrap group relative block cursor-pointer select-none ${
+        compact ? "w-[155px] shrink-0 sm:w-[185px] md:w-[205px]" : "min-w-0"
+      }`}
+    >
         <Link
           href={`/media/${item.id}`}
           className="block"
@@ -70,10 +67,18 @@ export function MediaCard({
             {/* Subtle Gradient Overlays for High Legibility */}
             <div className="absolute inset-0 bg-gradient-to-t from-[#090d10]/95 via-[#090d10]/35 to-[#090d10]/10" />
 
-            {/* Prominent Frosted Glass Media Type Badge */}
-            <span className="absolute left-2.5 top-2.5 sm:left-3 sm:top-3 rounded-lg bg-black/75 px-2.5 py-1 text-xs font-semibold text-slate-200 shadow-xl backdrop-blur-md border border-white/[.18]">
-              {item.type}
-            </span>
+            {/* Prominent Frosted Glass Media Type & Ongoing Status Badges */}
+            <div className="absolute left-2.5 top-2.5 sm:left-3 sm:top-3 flex items-center gap-1.5 flex-wrap max-w-[75%]">
+              <span className="rounded-lg bg-black/75 px-2.5 py-1 text-xs font-semibold text-slate-200 shadow-xl backdrop-blur-md border border-white/[.18]">
+                {item.type}
+              </span>
+              {(item.type === "Series" || item.type === "Anime") && item.airingStatus === "Ongoing" && (
+                <span className="inline-flex items-center gap-1 rounded-lg bg-[#08241d]/85 px-2 py-1 text-[10.5px] font-bold text-[hsl(var(--primary))] shadow-xl backdrop-blur-md border border-[hsl(var(--primary))]/40">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--primary))] shadow-[0_0_6px_hsl(var(--primary))] animate-pulse" />
+                  <span>Ongoing</span>
+                </span>
+              )}
+            </div>
 
             {/* Status Badge + One-Click Remove Cross (X) */}
             {inVault && (
@@ -116,12 +121,5 @@ export function MediaCard({
           </div>
         </Link>
       </div>
-
-      <MediaTrackModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        item={item}
-      />
-    </>
   );
-}
+});

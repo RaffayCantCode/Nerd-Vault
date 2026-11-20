@@ -141,15 +141,30 @@ export function isReleasedKitsu(item: any): boolean {
 export function isReleasedAniList(item: any): boolean {
   if (!item) return false;
   if (item.status === "NOT_YET_RELEASED") return false;
-  const today = new Date().toISOString().slice(0, 10);
-  if (item.startDate?.year) {
-    const y = String(item.startDate.year).padStart(4, "0");
-    const m = item.startDate.month ? String(item.startDate.month).padStart(2, "0") : "01";
-    const d = item.startDate.day ? String(item.startDate.day).padStart(2, "0") : "01";
-    if (`${y}-${m}-${d}` > today) return false;
-  }
-  const currentYear = new Date().getFullYear();
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+
   if (item.seasonYear && item.seasonYear > currentYear) return false;
+  if (!item.startDate?.year) return false;
+  if (item.startDate.year > currentYear) return false;
+
+  // If startDate is in the current year but month/day is TBA, treat conservatively as unreleased unless RELEASING/FINISHED
+  if (item.startDate.year === currentYear) {
+    if (!item.startDate.month) {
+      return item.status === "RELEASING" || item.status === "FINISHED";
+    }
+    if (item.startDate.month > currentMonth) return false;
+    if (item.startDate.month === currentMonth && !item.startDate.day) {
+      return item.status === "RELEASING" || item.status === "FINISHED";
+    }
+  }
+
+  const y = String(item.startDate.year).padStart(4, "0");
+  const m = item.startDate.month ? String(item.startDate.month).padStart(2, "0") : "01";
+  const d = item.startDate.day ? String(item.startDate.day).padStart(2, "0") : "01";
+  if (`${y}-${m}-${d}` > today) return false;
   return true;
 }
 
@@ -341,6 +356,29 @@ function formatJikan(item: any): UnifiedMedia {
 
 let anilistDownUntil = 0;
 
+function getCurrentAnimeSeason(): { season: "WINTER" | "SPRING" | "SUMMER" | "FALL"; seasonYear: number } {
+  const now = new Date();
+  const month = now.getMonth() + 1; // 1..12
+  const seasonYear = now.getFullYear();
+  if (month <= 3) return { season: "WINTER", seasonYear };
+  if (month <= 6) return { season: "SPRING", seasonYear };
+  if (month <= 9) return { season: "SUMMER", seasonYear };
+  return { season: "FALL", seasonYear };
+}
+
+function dedupeAnime(items: UnifiedMedia[]): UnifiedMedia[] {
+  const seenIds = new Set<string>();
+  const seenTitles = new Set<string>();
+  return items.filter((item) => {
+    if (!item || !item.id || !item.title) return false;
+    const normTitle = item.title.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+    if (seenIds.has(item.id) || (normTitle && seenTitles.has(normTitle))) return false;
+    seenIds.add(item.id);
+    if (normTitle) seenTitles.add(normTitle);
+    return true;
+  });
+}
+
 async function runGraphQLQuery(query: string, variables: any = {}) {
   if (Date.now() < anilistDownUntil) {
     throw new Error("AniList API is temporarily disabled upstream");
@@ -353,7 +391,7 @@ async function runGraphQLQuery(query: string, variables: any = {}) {
       let lastErr: any;
       for (let attempt = 0; attempt < 2; attempt++) {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const timeoutId = setTimeout(() => controller.abort(), 3200);
         try {
           const res = await fetch(ANILIST_GRAPHQL_URL, {
             method: "POST",
@@ -367,7 +405,7 @@ async function runGraphQLQuery(query: string, variables: any = {}) {
           });
           clearTimeout(timeoutId);
           if (res.status === 429) {
-            await new Promise((r) => setTimeout(r, 600));
+            await new Promise((r) => setTimeout(r, 400));
             continue;
           }
           if (res.status === 403) {
@@ -386,7 +424,7 @@ async function runGraphQLQuery(query: string, variables: any = {}) {
           if (err?.message?.includes("403") || err?.message?.includes("disabled")) {
             break;
           }
-          if (attempt === 0) await new Promise((r) => setTimeout(r, 300));
+          if (attempt === 0) await new Promise((r) => setTimeout(r, 250));
         }
       }
       throw lastErr;
@@ -394,75 +432,129 @@ async function runGraphQLQuery(query: string, variables: any = {}) {
   );
 }
 
-// Live Jikan Fallback (SFW enforced)
-async function fetchJikanTop(page: number = 1): Promise<UnifiedMedia[]> {
-  const cacheKey = `jikan:top:${page}`;
+// Live Jikan Seasonal Fallback (SFW enforced, timeout-guarded)
+async function fetchJikanSeasonal(page: number = 1): Promise<UnifiedMedia[]> {
+  const cacheKey = `jikan:seasonal:${page}`;
   return fetchWithCache(cacheKey, 1000 * 60 * 30, async () => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3000);
     try {
-      const url = `${JIKAN_BASE_URL}/top/anime?page=${page}&limit=20&filter=bypopularity&sfw=true`;
-      const res = await fetch(url, { headers: { "User-Agent": "NerdVault/2.0" } });
+      const url = `${JIKAN_BASE_URL}/seasons/now?page=${page}&limit=20&sfw=true`;
+      const res = await fetch(url, { headers: { "User-Agent": "NerdVault/2.0" }, signal: controller.signal });
       if (!res.ok) return [];
       const data: any = await res.json();
       const today = new Date().toISOString().slice(0, 10);
-      return (data.data || [])
-        .filter((item: any) => {
-          if (isAdultContent(item)) return false;
-          if (item.status === "Not yet aired") return false;
-          if (item.aired?.from && String(item.aired.from).slice(0, 10) > today) return false;
-          return true;
-        })
-        .map(formatJikan);
+      return dedupeAnime(
+        (data.data || [])
+          .filter((item: any) => {
+            if (isAdultContent(item)) return false;
+            if (item.status === "Not yet aired") return false;
+            if (item.aired?.from && String(item.aired.from).slice(0, 10) > today) return false;
+            return true;
+          })
+          .map(formatJikan)
+      );
     } catch {
       return [];
+    } finally {
+      clearTimeout(timer);
     }
   });
 }
 
-// Live TMDB Animation Fallback
-async function fetchTmdbAnimation(page: number = 1): Promise<UnifiedMedia[]> {
-  const cacheKey = `tmdb:anime:${page}`;
+// Live Jikan Top Fallback (SFW enforced, timeout-guarded)
+async function fetchJikanTop(page: number = 1): Promise<UnifiedMedia[]> {
+  const cacheKey = `jikan:top:${page}`;
   return fetchWithCache(cacheKey, 1000 * 60 * 30, async () => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3000);
     try {
-      const today = new Date().toISOString().slice(0, 10);
-      const url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_genres=16&with_original_language=ja&sort_by=popularity.desc&include_adult=false&first_air_date.lte=${today}&page=${page}`;
-      const res = await fetch(url, { headers: { "User-Agent": "NerdVault/2.0" } });
+      const url = `${JIKAN_BASE_URL}/top/anime?page=${page}&limit=20&filter=bypopularity&sfw=true`;
+      const res = await fetch(url, { headers: { "User-Agent": "NerdVault/2.0" }, signal: controller.signal });
       if (!res.ok) return [];
       const data: any = await res.json();
-      return (data.results || [])
-        .filter((m: any) => {
-          const date = m.first_air_date || "";
-          return date && date.slice(0, 10) <= today;
-        })
-        .map((m: any) => ({
-          id: `tmdb-anime-${m.id}`,
-          slug: slugify(m.name || m.original_name || `anime-${m.id}`),
-          title: m.name || m.original_name || "Anime",
-          originalTitle: m.original_name,
-          type: "Anime" as const,
-          year: (m.first_air_date || "").slice(0, 4) || "2024",
-          releaseDate: m.first_air_date || undefined,
-          rating: toFiveStarRating(m.vote_average || 8.0),
-          genre: "Anime",
-          genres: ["Anime", "Action", "Fantasy"],
-          poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://image.tmdb.org/t/p/w500/dqzenchTd7lp5zht7BdlqM7RBhD.jpg",
-          backdrop: m.backdrop_path ? `https://image.tmdb.org/t/p/w1280${m.backdrop_path}` : undefined,
-          overview: m.overview || "Popular Japanese anime series.",
-          source: "tmdb" as const,
-          sourceId: String(m.id),
-        }));
+      const today = new Date().toISOString().slice(0, 10);
+      return dedupeAnime(
+        (data.data || [])
+          .filter((item: any) => {
+            if (isAdultContent(item)) return false;
+            if (item.status === "Not yet aired") return false;
+            if (item.aired?.from && String(item.aired.from).slice(0, 10) > today) return false;
+            return true;
+          })
+          .map(formatJikan)
+      );
     } catch {
       return [];
+    } finally {
+      clearTimeout(timer);
+    }
+  });
+}
+
+// Live TMDB Animation Fallback (strictly recent + English titles only)
+async function fetchTmdbAnimation(page: number = 1): Promise<UnifiedMedia[]> {
+  const cacheKey = `tmdb:anime:recent:${page}`;
+  return fetchWithCache(cacheKey, 1000 * 60 * 30, async () => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3200);
+    try {
+      const now = new Date();
+      const today = now.toISOString().slice(0, 10);
+      const twoYearsAgo = `${now.getFullYear() - 2}-01-01`;
+      const url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&language=en-US&with_genres=16&with_original_language=ja&sort_by=popularity.desc&include_adult=false&first_air_date.gte=${twoYearsAgo}&first_air_date.lte=${today}&page=${page}`;
+      const res = await fetch(url, { headers: { "User-Agent": "NerdVault/2.0" }, signal: controller.signal });
+      if (!res.ok) return [];
+      const data: any = await res.json();
+      return dedupeAnime(
+        (data.results || [])
+          .filter((m: any) => {
+            const date = m.first_air_date || "";
+            return date && date.slice(0, 10) <= today && m.poster_path;
+          })
+          .map((m: any) => ({
+            id: `tmdb-anime-${m.id}`,
+            slug: slugify(m.name || m.original_name || `anime-${m.id}`),
+            title: m.name || m.original_name || "Anime",
+            originalTitle: m.original_name,
+            type: "Anime" as const,
+            year: (m.first_air_date || "").slice(0, 4) || String(now.getFullYear()),
+            releaseDate: m.first_air_date || undefined,
+            rating: toFiveStarRating(m.vote_average || 8.0),
+            genre: "Anime",
+            genres: ["Anime", "Action", "Fantasy"],
+            poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://image.tmdb.org/t/p/w500/dqzenchTd7lp5zht7BdlqM7RBhD.jpg",
+            backdrop: m.backdrop_path ? `https://image.tmdb.org/t/p/w1280${m.backdrop_path}` : undefined,
+            overview: m.overview || "Popular Japanese anime series.",
+            source: "tmdb" as const,
+            sourceId: String(m.id),
+          }))
+      );
+    } catch {
+      return [];
+    } finally {
+      clearTimeout(timer);
     }
   });
 }
 
 export const anilistService = {
-  async getTrendingAnime(page: number = 1): Promise<UnifiedMedia[]> {
-    const tmdbPromise = fetchTmdbAnimation(page).catch(() => []);
-    const query = `
-      query ($page: Int) {
+  async getSeasonalAnime(page: number = 1, genre?: string): Promise<UnifiedMedia[]> {
+    const { season, seasonYear } = getCurrentAnimeSeason();
+    const cleanGenre = genre && genre !== "All genres" ? genre : undefined;
+    const seasonalQuery = `
+      query ($page: Int, $season: MediaSeason, $seasonYear: Int, $genre: String) {
         Page(page: $page, perPage: 24) {
-          media(type: ANIME, isAdult: false, status_in: [FINISHED, RELEASING], sort: [TRENDING_DESC, POPULARITY_DESC]) {
+          media(
+            type: ANIME,
+            isAdult: false,
+            season: $season,
+            seasonYear: $seasonYear,
+            genre: $genre,
+            format_in: [TV, TV_SHORT, ONA, MOVIE],
+            status_in: [RELEASING, FINISHED],
+            sort: [TRENDING_DESC, POPULARITY_DESC]
+          ) {
             id
             isAdult
             status
@@ -482,46 +574,164 @@ export const anilistService = {
     `;
 
     try {
-      const [data, tmdbItems] = await Promise.all([
-        runGraphQLQuery(query, { page }).catch(() => null),
-        tmdbPromise,
-      ]);
+      const data = await runGraphQLQuery(seasonalQuery, { page, season, seasonYear, genre: cleanGenre }).catch(() => null);
+      const seasonalItems = dedupeAnime(
+        (data?.Page?.media || [])
+          .filter((item: any) => !isAdultContent(item) && isReleasedAniList(item))
+          .map((m: any) => ({ ...formatAniList(m), curation: "Trending" as const }))
+      );
 
-      const anilistItems = (data?.Page?.media || [])
-        .filter((item: any) => !isAdultContent(item) && isReleasedAniList(item))
-        .map((m: any) => ({ ...formatAniList(m), curation: "Trending" as const }));
-
-      const seenTitles = new Set(anilistItems.map((a: UnifiedMedia) => a.title.toLowerCase().trim()));
-      const uniqueTmdb = (tmdbItems || [])
-        .filter((t: UnifiedMedia) => !seenTitles.has(t.title.toLowerCase().trim()))
-        .map((t: UnifiedMedia) => ({ ...t, curation: "Trending" as const }));
-
-      const combined = [...anilistItems, ...uniqueTmdb];
-      if (combined.length > 0) {
-        const nonEcchi = combined.filter((i) => !isEcchi(i));
-        const ecchi = combined.filter((i) => isEcchi(i));
-        const prioritized = [...nonEcchi, ...ecchi];
-        const withBackdrop = prioritized.filter((i) => i.backdrop && i.backdrop.length > 5);
-        const withoutBackdrop = prioritized.filter((i) => !i.backdrop || i.backdrop.length <= 5);
-        return [...withBackdrop, ...withoutBackdrop].slice(0, 24);
+      const cleanSeasonal = seasonalItems.filter((i) => !isEcchi(i));
+      if (cleanSeasonal.length >= 12) {
+        return cleanSeasonal.slice(0, 24);
       }
+
+      // Supplement with currently airing trending anime from recent 12 months if current season just started
+      const trending = await this.getTrendingAnime(page, cleanGenre);
+      const minYear = seasonYear - 1;
+      const recentTrending = trending.filter((a) => !isEcchi(a) && Number(a.year) >= minYear);
+      const combined = dedupeAnime([...cleanSeasonal, ...recentTrending]);
+      if (combined.length > 0) return combined.slice(0, 24);
     } catch (err) {
-      console.warn("AniList trending live query failed, trying live Jikan SFW fallback:", err);
+      console.warn("AniList seasonal query failed:", err);
     }
 
-    const tmdbFallback = await tmdbPromise;
-    if (tmdbFallback && tmdbFallback.length > 0) return tmdbFallback.map((t: UnifiedMedia) => ({ ...t, curation: "Trending" as const }));
+    const jikanSeasonal = await fetchJikanSeasonal(page);
+    if (jikanSeasonal.length > 0) return jikanSeasonal.map((j) => ({ ...j, curation: "Trending" as const }));
 
-    const jikanFallback = await fetchJikanTop(page);
-    return jikanFallback.map((j: UnifiedMedia) => ({ ...j, curation: "Trending" as const }));
+    const kitsuFallback = await fetchKitsuTrending();
+    if (kitsuFallback.length > 0) return kitsuFallback.map((k) => ({ ...k, curation: "Trending" as const }));
+
+    return (await fetchTmdbAnimation(page)).map((t) => ({ ...t, curation: "Trending" as const }));
+  },
+
+  async getWeeklyAnime(weekStart: string, today: string): Promise<UnifiedMedia[]> {
+    const startInt = Number(weekStart.replace(/-/g, ""));
+    const endInt = Number(today.replace(/-/g, ""));
+    const query = `
+      query ($startInt: FuzzyDateInt, $endInt: FuzzyDateInt) {
+        Page(page: 1, perPage: 16) {
+          media(
+            type: ANIME,
+            isAdult: false,
+            format_in: [TV, TV_SHORT, ONA, MOVIE],
+            status_in: [RELEASING, FINISHED],
+            startDate_greater: $startInt,
+            startDate_lesser: $endInt,
+            sort: [POPULARITY_DESC, TRENDING_DESC]
+          ) {
+            id
+            isAdult
+            status
+            title { romaji english native }
+            seasonYear
+            startDate { year month day }
+            coverImage { large extraLarge }
+            bannerImage
+            averageScore
+            genres
+            description
+            episodes
+            studios(isMain: true) { nodes { name } }
+          }
+        }
+      }
+    `;
+    try {
+      // AniList startDate_greater / startDate_lesser are exclusive, so pad by 1 day on each side and filter strictly in JS
+      const startDateObj = new Date(`${weekStart}T00:00:00Z`);
+      startDateObj.setUTCDate(startDateObj.getUTCDate() - 1);
+      const endDateObj = new Date(`${today}T00:00:00Z`);
+      endDateObj.setUTCDate(endDateObj.getUTCDate() + 1);
+      const padStart = Number(startDateObj.toISOString().slice(0, 10).replace(/-/g, ""));
+      const padEnd = Number(endDateObj.toISOString().slice(0, 10).replace(/-/g, ""));
+
+      const data = await runGraphQLQuery(query, { startInt: padStart || startInt, endInt: padEnd || endInt }).catch(() => null);
+      return dedupeAnime(
+        (data?.Page?.media || [])
+          .filter((item: any) => !isAdultContent(item) && isReleasedAniList(item))
+          .map((m: any) => ({ ...formatAniList(m), curation: "Trending" as const }))
+          .filter((item: UnifiedMedia) => {
+            if (isEcchi(item)) return false;
+            return Boolean(item.releaseDate && item.releaseDate >= weekStart && item.releaseDate <= today);
+          })
+      );
+    } catch {
+      return [];
+    }
+  },
+
+  async getTrendingAnime(page: number = 1, genre?: string): Promise<UnifiedMedia[]> {
+    const cleanGenre = genre && genre !== "All genres" ? genre : undefined;
+    const query = `
+      query ($page: Int, $genre: String) {
+        Page(page: $page, perPage: 24) {
+          media(
+            type: ANIME,
+            isAdult: false,
+            genre: $genre,
+            format_in: [TV, TV_SHORT, ONA, MOVIE],
+            status_in: [RELEASING, FINISHED],
+            popularity_greater: 1000,
+            sort: [TRENDING_DESC, POPULARITY_DESC]
+          ) {
+            id
+            isAdult
+            status
+            title { romaji english native }
+            seasonYear
+            startDate { year month day }
+            coverImage { large extraLarge }
+            bannerImage
+            averageScore
+            genres
+            description
+            episodes
+            studios(isMain: true) { nodes { name } }
+          }
+        }
+      }
+    `;
+
+    try {
+      const data = await runGraphQLQuery(query, { page, genre: cleanGenre }).catch(() => null);
+      const anilistItems = dedupeAnime(
+        (data?.Page?.media || [])
+          .filter((item: any) => !isAdultContent(item) && isReleasedAniList(item))
+          .map((m: any) => ({ ...formatAniList(m), curation: "Trending" as const }))
+      );
+
+      if (anilistItems.length > 0) {
+        const nonEcchi = anilistItems.filter((i) => !isEcchi(i));
+        const ecchi = anilistItems.filter((i) => isEcchi(i));
+        return [...nonEcchi, ...ecchi].slice(0, 24);
+      }
+    } catch (err) {
+      console.warn("AniList trending live query failed, trying fallbacks:", err);
+    }
+
+    const kitsuFallback = await fetchKitsuTrending();
+    if (kitsuFallback.length > 0) return kitsuFallback.map((k) => ({ ...k, curation: "Trending" as const }));
+
+    const jikanFallback = await fetchJikanSeasonal(page);
+    if (jikanFallback.length > 0) return jikanFallback.map((j) => ({ ...j, curation: "Trending" as const }));
+
+    const tmdbFallback = await fetchTmdbAnimation(page);
+    return tmdbFallback.map((t) => ({ ...t, curation: "Trending" as const }));
   },
 
   async getPopularAnime(genre?: string, page: number = 1): Promise<UnifiedMedia[]> {
-    const tmdbPromise = fetchTmdbAnimation(page).catch(() => []);
     const query = `
       query ($genre: String, $page: Int) {
         Page(page: $page, perPage: 24) {
-          media(type: ANIME, isAdult: false, status_in: [FINISHED, RELEASING], sort: [SCORE_DESC, POPULARITY_DESC], genre: $genre) {
+          media(
+            type: ANIME,
+            isAdult: false,
+            format_in: [TV, ONA, MOVIE],
+            status_in: [FINISHED, RELEASING],
+            sort: [SCORE_DESC, POPULARITY_DESC],
+            genre: $genre
+          ) {
             id
             isAdult
             status
@@ -541,38 +751,27 @@ export const anilistService = {
     `;
 
     try {
-      const [data, tmdbItems] = await Promise.all([
-        runGraphQLQuery(query, { genre: genre || undefined, page }).catch(() => null),
-        tmdbPromise,
-      ]);
+      const data = await runGraphQLQuery(query, { genre: genre || undefined, page }).catch(() => null);
+      const anilistItems = dedupeAnime(
+        (data?.Page?.media || [])
+          .filter((item: any) => !isAdultContent(item) && isReleasedAniList(item))
+          .map((m: any) => ({ ...formatAniList(m), curation: "Popular" as const }))
+      );
 
-      const anilistItems = (data?.Page?.media || [])
-        .filter((item: any) => !isAdultContent(item) && isReleasedAniList(item))
-        .map((m: any) => ({ ...formatAniList(m), curation: "Popular" as const }));
-
-      const seenTitles = new Set(anilistItems.map((a: UnifiedMedia) => a.title.toLowerCase().trim()));
-      const uniqueTmdb = (tmdbItems || [])
-        .filter((t: UnifiedMedia) => !seenTitles.has(t.title.toLowerCase().trim()))
-        .map((t: UnifiedMedia) => ({ ...t, curation: "Popular" as const }));
-
-      const combined = [...anilistItems, ...uniqueTmdb];
-      if (combined.length > 0) {
-        const nonEcchi = combined.filter((i) => !isEcchi(i));
-        const ecchi = combined.filter((i) => isEcchi(i));
-        const prioritized = [...nonEcchi, ...ecchi];
-        const withBackdrop = prioritized.filter((i) => i.backdrop && i.backdrop.length > 5);
-        const withoutBackdrop = prioritized.filter((i) => !i.backdrop || i.backdrop.length <= 5);
-        return [...withBackdrop, ...withoutBackdrop].slice(0, 24);
+      if (anilistItems.length > 0) {
+        const nonEcchi = anilistItems.filter((i) => !isEcchi(i));
+        const ecchi = anilistItems.filter((i) => isEcchi(i));
+        return [...nonEcchi, ...ecchi].slice(0, 24);
       }
     } catch (err) {
-      console.warn("AniList popular live query failed, trying live Jikan fallback:", err);
+      console.warn("AniList popular live query failed, trying fallbacks:", err);
     }
 
-    const tmdbFallback = await tmdbPromise;
-    if (tmdbFallback && tmdbFallback.length > 0) return tmdbFallback.map((t: UnifiedMedia) => ({ ...t, curation: "Popular" as const }));
-
     const jikan = await fetchJikanTop(page);
-    return jikan.map((j: UnifiedMedia) => ({ ...j, curation: "Popular" as const }));
+    if (jikan.length > 0) return jikan.map((j) => ({ ...j, curation: "Popular" as const }));
+
+    const tmdbFallback = await fetchTmdbAnimation(page);
+    return tmdbFallback.map((t) => ({ ...t, curation: "Popular" as const }));
   },
 
   async getNicheAnime(genre?: string, page: number = 1): Promise<UnifiedMedia[]> {
@@ -761,11 +960,12 @@ export const anilistService = {
               node {
                 id
                 isAdult
+                status
                 title { romaji english native }
                 type
                 format
                 seasonYear
-                startDate { year }
+                startDate { year month day }
                 coverImage { large }
                 averageScore
                 genres
@@ -777,10 +977,11 @@ export const anilistService = {
               mediaRecommendation {
                 id
                 isAdult
+                status
                 title { romaji english native }
                 type
                 seasonYear
-                startDate { year }
+                startDate { year month day }
                 coverImage { large }
                 averageScore
                 genres
@@ -801,7 +1002,7 @@ export const anilistService = {
         const relationEdges = item.relations?.edges || [];
         const franchiseTypes = ["PREQUEL", "SEQUEL", "PARENT", "SIDE_STORY", "SPIN_OFF", "ALTERNATIVE"];
         const franchiseNodes = relationEdges
-          .filter((e: any) => e?.node && e.node.type === "ANIME" && !isAdultContent(e.node) && franchiseTypes.includes(e.relationType))
+          .filter((e: any) => e?.node && e.node.type === "ANIME" && !isAdultContent(e.node) && isReleasedAniList(e.node) && franchiseTypes.includes(e.relationType))
           .map((e: any) => formatAniList(e.node))
           .filter((n: UnifiedMedia) => n.id !== media.id);
 
@@ -817,7 +1018,7 @@ export const anilistService = {
 
         const recNodes = (item.recommendations?.nodes || [])
           .map((n: any) => n?.mediaRecommendation)
-          .filter((r: any) => r && r.id && r.id !== item.id && !isAdultContent(r))
+          .filter((r: any) => r && r.id && r.id !== item.id && !isAdultContent(r) && isReleasedAniList(r))
           .map(formatAniList);
 
         media.similar = recNodes;

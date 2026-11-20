@@ -1,5 +1,5 @@
 import { UnifiedMedia, HomeFeedData, DiscoverOptions } from "./types";
-import { tmdbService, isNews } from "./tmdb";
+import { tmdbService, isNews, resolveTmdbGenreId } from "./tmdb";
 import { anilistService, isHentaiOrAdult, isEcchi, fetchKitsuById, fetchKitsuByTitle } from "./anilist";
 import { igdbService } from "./igdb";
 import { mediaCache } from "./cache";
@@ -24,20 +24,28 @@ export function isOfficiallyReleased(item: UnifiedMedia | null | undefined): boo
   if (!item) return false;
   if (isHentaiOrAdult(item)) return false;
 
-  const today = new Date().toISOString().slice(0, 10);
-  const currentYear = new Date().getFullYear();
+  if (item.airingStatus && item.airingStatus.toLowerCase() === "upcoming") {
+    return false;
+  }
 
-  // If year is in the future (> currentYear), it is unreleased
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const currentYear = now.getFullYear();
+
+  // Must have a release date or year; reject future years strictly
   if (item.year) {
     const parsedYear = parseInt(item.year, 10);
     if (!isNaN(parsedYear) && parsedYear > currentYear) {
       return false;
     }
+  } else if (!item.releaseDate) {
+    return false;
   }
 
-  // If exact releaseDate is present, check against today's date
+  // If exact releaseDate is present, strictly require releaseDate <= today (only show once release day arrives)
   if (item.releaseDate) {
-    if (item.releaseDate > today) {
+    const d = item.releaseDate.slice(0, 10);
+    if (d > today) {
       return false;
     }
   }
@@ -86,40 +94,87 @@ function pickHeroCandidates(
   }));
 }
 
+function getThisWeekWindow(): { weekStart: string; today: string; weekStartSec: number; nowSec: number } {
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const weekStart = start.toISOString().slice(0, 10);
+  return {
+    weekStart,
+    today,
+    weekStartSec: Math.floor(start.getTime() / 1000),
+    nowSec: Math.floor(now.getTime() / 1000),
+  };
+}
+
+function dedupeList(items: UnifiedMedia[]): UnifiedMedia[] {
+  const seenIds = new Set<string>();
+  const seenTitles = new Set<string>();
+  return items.filter((item) => {
+    if (!item || !item.id || !item.title) return false;
+    const baseTitle = item.title.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+    const key = `${baseTitle}-${item.type}`;
+    if (seenIds.has(item.id) || (baseTitle && seenTitles.has(key))) return false;
+    seenIds.add(item.id);
+    if (baseTitle) seenTitles.add(key);
+    return true;
+  });
+}
+
+function isReleasedThisWeek(item: UnifiedMedia | null | undefined, weekStart: string, today: string): boolean {
+  if (!item || !item.releaseDate) return false;
+  const d = item.releaseDate.slice(0, 10);
+  return d >= weekStart && d <= today;
+}
+
 export const catalogAggregator = {
   async getHomeFeed(): Promise<HomeFeedData> {
-    // Ultra-fast memory cache for raw pools (15 min TTL) - sub-5ms response time!
+    const { weekStart, today, weekStartSec, nowSec } = getThisWeekWindow();
+
+    // Ultra-fast memory cache with stale-while-revalidate (15 min fresh, 60 min stale)
     const rawPools = await mediaCache.getOrFetch(
-      "home:raw_feed_pools",
+      `home:raw_feed_pools:${today}`,
       async () => {
         const [
           trendingMovies,
           topRatedMovies,
           trendingShows,
           topRatedShows,
-          topAnime,
+          seasonalAnime,
           popularAnime,
           trendingGames,
           popularGames,
+          weeklyMovies,
+          weeklyShows,
+          weeklyAnime,
+          weeklyGames,
         ] = await Promise.all([
-          withTimeout(tmdbService.getTrendingMovies(1).catch(() => []), 4500, []),
-          withTimeout(tmdbService.getTopRatedMovies(1).catch(() => []), 4500, []),
-          withTimeout(tmdbService.getTrendingShows(1).catch(() => []), 4500, []),
-          withTimeout(tmdbService.getTopRatedShows(1).catch(() => []), 4500, []),
-          withTimeout(anilistService.getTrendingAnime(1).catch(() => []), 4500, []),
-          withTimeout(anilistService.getPopularAnime(undefined, 1).catch(() => []), 4500, []),
-          withTimeout(igdbService.getTrendingGames(undefined, 1).catch(() => []), 4500, []),
-          withTimeout(igdbService.getPopularGames(undefined, 1).catch(() => []), 4500, []),
+          withTimeout(tmdbService.getTrendingMovies(1).catch(() => []), 3500, []),
+          withTimeout(tmdbService.getTopRatedMovies(1).catch(() => []), 3500, []),
+          withTimeout(tmdbService.getTrendingShows(1).catch(() => []), 3500, []),
+          withTimeout(tmdbService.getTopRatedShows(1).catch(() => []), 3500, []),
+          withTimeout(anilistService.getSeasonalAnime(1).catch(() => []), 3500, []),
+          withTimeout(anilistService.getPopularAnime(undefined, 1).catch(() => []), 3500, []),
+          withTimeout(igdbService.getTrendingGames(undefined, 1).catch(() => []), 3500, []),
+          withTimeout(igdbService.getPopularGames(undefined, 1).catch(() => []), 3500, []),
+          withTimeout(tmdbService.getWeeklyMovies(weekStart, today).catch(() => []), 3500, []),
+          withTimeout(tmdbService.getWeeklyShows(weekStart, today).catch(() => []), 3500, []),
+          withTimeout(anilistService.getWeeklyAnime(weekStart, today).catch(() => []), 3500, []),
+          withTimeout(igdbService.getWeeklyGames(weekStartSec, nowSec).catch(() => []), 3500, []),
         ]);
         return {
           trendingMovies,
           topRatedMovies,
           trendingShows,
           topRatedShows,
-          topAnime,
+          seasonalAnime,
           popularAnime,
           trendingGames,
           popularGames,
+          weeklyMovies,
+          weeklyShows,
+          weeklyAnime,
+          weeklyGames,
         };
       },
       1000 * 60 * 15
@@ -130,20 +185,24 @@ export const catalogAggregator = {
       topRatedMovies,
       trendingShows,
       topRatedShows,
-      topAnime,
+      seasonalAnime,
       popularAnime,
       trendingGames,
       popularGames,
+      weeklyMovies,
+      weeklyShows,
+      weeklyAnime,
+      weeklyGames,
     } = rawPools;
 
-    // Instant in-memory dynamic shuffle for variety on every single visit with strict released filter
-    const allMovies = shuffleArray([...trendingMovies, ...topRatedMovies]).filter(isOfficiallyReleased);
-    const allShows = shuffleArray([...trendingShows, ...topRatedShows]).filter((s) => isOfficiallyReleased(s) && !isNews(s));
+    // Deduplicated movies & shows
+    const allMovies = dedupeList([...trendingMovies, ...shuffleArray(topRatedMovies)]).filter(isOfficiallyReleased);
+    const allShows = dedupeList([...trendingShows, ...shuffleArray(topRatedShows)]).filter((s) => isOfficiallyReleased(s) && !isNews(s));
 
-    // Anime: strictly push Ecchi anime to the bottom of the rail so they appear far less and never dominate
-    const rawAnime = shuffleArray([...topAnime, ...popularAnime]).filter(isOfficiallyReleased);
-    const nonEcchiAnime = rawAnime.filter((a) => !isEcchi(a));
-    const ecchiAnime = rawAnime.filter((a) => isEcchi(a));
+    // Top Anime This Season: strictly current seasonal & new trending anime in accurate trending order (deduplicated, non-ecchi first)
+    const rawSeasonal = dedupeList(seasonalAnime || []).filter(isOfficiallyReleased);
+    const nonEcchiAnime = rawSeasonal.filter((a) => !isEcchi(a));
+    const ecchiAnime = rawSeasonal.filter((a) => isEcchi(a));
     const allAnime = [...nonEcchiAnime, ...ecchiAnime];
 
     // Games: combine trending and classic games, deduplicate by ID and base title
@@ -158,50 +217,45 @@ export const catalogAggregator = {
       return true;
     });
 
-    // Curate 6 to 8 Dynamic Featured Hero Slides across diverse categories
-    const heroTrendingMovies = pickHeroCandidates(trendingMovies, 2, "Trending Blockbuster");
-    const heroClassicMovies = pickHeroCandidates(topRatedMovies, 1, "Cinematic Masterpiece");
-    const heroTrendingShows = pickHeroCandidates(trendingShows, 2, "Must-Watch Series");
-    const heroClassicShows = pickHeroCandidates(topRatedShows, 1, "Critically Acclaimed");
-    const heroTrendingAnime = pickHeroCandidates(topAnime, 1, "Anime Sensation");
-    const heroClassicAnime = pickHeroCandidates(popularAnime, 1, "Anime Masterwork");
-    const heroTrendingGames = pickHeroCandidates(trendingGames || [], 1, "Trending Game");
-    const heroClassicGames = pickHeroCandidates(popularGames || [], 1, "Gaming Masterpiece");
+    // Curate exactly 4 Hero Slides: 1 Trending Movie, 1 Trending TV Series, 1 Trending Anime, 1 Trending Game
+    const heroMovie =
+      pickHeroCandidates(trendingMovies, 1, "Trending Movie")[0] ||
+      pickHeroCandidates(topRatedMovies, 1, "Featured Movie")[0];
+    const heroShow =
+      pickHeroCandidates(trendingShows, 1, "Trending Series")[0] ||
+      pickHeroCandidates(topRatedShows, 1, "Featured Series")[0];
+    const heroAnime =
+      pickHeroCandidates(nonEcchiAnime, 1, "Trending Anime")[0] ||
+      pickHeroCandidates(popularAnime, 1, "Featured Anime")[0];
+    const heroGame =
+      pickHeroCandidates(trendingGames || [], 1, "Trending Game")[0] ||
+      pickHeroCandidates(popularGames || [], 1, "Featured Game")[0];
 
-    const allHeroCandidates = [
-      ...heroTrendingMovies,
-      ...heroClassicMovies,
-      ...heroTrendingShows,
-      ...heroClassicShows,
-      ...heroTrendingAnime,
-      ...heroClassicAnime,
-      ...heroTrendingGames,
-      ...heroClassicGames,
-    ];
+    const featuredSlides = [heroMovie, heroShow, heroAnime, heroGame].filter(
+      (item): item is UnifiedMedia =>
+        Boolean(item && isOfficiallyReleased(item) && !isEcchi(item) && !isNews(item))
+    );
 
-    // Deduplicate hero slides by ID and base title to ensure no duplicate franchises/editions appear
-    const heroSeenIds = new Set<string>();
-    const heroSeenTitles = new Set<string>();
-    const uniqueHeroSlides = allHeroCandidates.filter((item) => {
-      if (!item || !isOfficiallyReleased(item) || isEcchi(item) || isNews(item)) return false;
-      const baseTitle = item.title.toLowerCase().replace(/(:.*|-.*|\(.*\))/g, "").trim();
-      const titleKey = `${baseTitle}-${item.type}`;
-      if (heroSeenIds.has(item.id) || heroSeenTitles.has(titleKey)) return false;
-      heroSeenIds.add(item.id);
-      heroSeenTitles.add(titleKey);
-      return true;
-    });
+    // Curated Weekly Drop: STRICTLY entries released THIS week (within the last 7 days up to today)
+    const cleanWeeklyMovies = (weeklyMovies || []).filter((i) => isReleasedThisWeek(i, weekStart, today) && !isEcchi(i) && !isNews(i));
+    const cleanWeeklyShows = (weeklyShows || []).filter((i) => isReleasedThisWeek(i, weekStart, today) && !isEcchi(i) && !isNews(i));
+    const cleanWeeklyAnime = (weeklyAnime || []).filter((i) => isReleasedThisWeek(i, weekStart, today) && !isEcchi(i) && !isNews(i));
+    const cleanWeeklyGames = (weeklyGames || []).filter((i) => isReleasedThisWeek(i, weekStart, today) && !isEcchi(i) && !isNews(i));
 
-    // Randomize slide order so visits start on varied media types (Movie, Anime, Game, Series)
-    const featuredSlides = shuffleArray(uniqueHeroSlides).slice(0, 8);
-
-    // Curated multi-media drop with randomized assortment (strictly clean)
-    const weeklyDrop: UnifiedMedia[] = shuffleArray([
-      ...allMovies.slice(1, 5),
-      ...allShows.slice(1, 5),
-      ...nonEcchiAnime.slice(1, 5),
-      ...allGames.slice(1, 5),
-    ]).filter((i) => isOfficiallyReleased(i) && !isEcchi(i) && !isNews(i));
+    const interleavedWeekly: UnifiedMedia[] = [];
+    const maxWeeklyLen = Math.max(
+      cleanWeeklyMovies.length,
+      cleanWeeklyShows.length,
+      cleanWeeklyAnime.length,
+      cleanWeeklyGames.length
+    );
+    for (let i = 0; i < maxWeeklyLen; i++) {
+      if (cleanWeeklyMovies[i]) interleavedWeekly.push(cleanWeeklyMovies[i]);
+      if (cleanWeeklyShows[i]) interleavedWeekly.push(cleanWeeklyShows[i]);
+      if (cleanWeeklyAnime[i]) interleavedWeekly.push(cleanWeeklyAnime[i]);
+      if (cleanWeeklyGames[i]) interleavedWeekly.push(cleanWeeklyGames[i]);
+    }
+    const weeklyDrop = dedupeList(interleavedWeekly).slice(0, 16);
 
     return {
       featured: featuredSlides[0] || null,
@@ -210,7 +264,7 @@ export const catalogAggregator = {
       trendingShows: allShows.slice(0, 16),
       topAnime: allAnime.slice(0, 16),
       popularGames: allGames.slice(0, 16),
-      weeklyDrop: weeklyDrop.slice(0, 16),
+      weeklyDrop,
     };
   },
 
@@ -276,8 +330,8 @@ export const catalogAggregator = {
       seedNum = 1;
     }
 
-    // Offset starting page across APIs based on visit seed (cycles 0..4)
-    const startOffset = seedNum % 5;
+    // Offset starting page across APIs based on visit seed (cycles 0..2 for fast cache reuse + fresh variety)
+    const startOffset = seedNum % 3;
     const fetchPage = page + startOffset;
 
     // Helper to ensure mutual exclusivity and strict deduplication across curation tiers
@@ -305,88 +359,205 @@ export const catalogAggregator = {
     };
 
     const isSingleType = type && type !== "All types";
+    const activeGenre = genre && genre !== "All genres" ? genre : undefined;
+    const activeCuration = curation && !curation.startsWith("All ") ? curation : undefined;
     let items: UnifiedMedia[] = [];
 
+    const matchMood = (i: UnifiedMedia): boolean => {
+      if (!mood) return true;
+      if (mood === "slow-burn") {
+        return i.genres.some((g) => ["Drama", "Mystery", "Thriller", "Sci-Fi"].includes(g));
+      }
+      if (mood === "otherworldly") {
+        return i.genres.some((g) => ["Sci-Fi", "Fantasy", "Animation", "Adventure"].includes(g));
+      }
+      if (mood === "beautiful-chaos") {
+        return i.genres.some((g) => ["Action", "Cyberpunk", "Animation", "Crime"].includes(g));
+      }
+      if (mood === "one-more-run") {
+        return i.type === "Game" || i.genres.some((g) => ["Action", "Roguelike", "Indie"].includes(g));
+      }
+      return true;
+    };
+
     if (isSingleType) {
-      // User picked a single media type (Movie, Series, Anime, or Game)
-      let tiers = { trending: [] as UnifiedMedia[], popular: [] as UnifiedMedia[], niche: [] as UnifiedMedia[] };
+      // User picked a single media type (Movie, Series, Anime, or Game) — query natively with type-specific filters
+      const cacheKey = `discover:single:${type}:c:${activeCuration || "all"}:g:${activeGenre || "all"}:p:${fetchPage}`;
 
       if (type === "Movie") {
-        const [trending, popular, niche] = await mediaCache.getOrFetch(
-          `discover:type:Movie:p:${fetchPage}`,
-          () =>
-            Promise.all([
-              withTimeout(tmdbService.getTrendingMovies(fetchPage).catch(() => []), 4500, []),
-              withTimeout(tmdbService.getPopularMovies(fetchPage).catch(() => []), 4500, []),
-              withTimeout(tmdbService.getCultAndNiche("Movie", fetchPage).catch(() => []), 4500, []),
-            ]),
+        const genreId = resolveTmdbGenreId("Movie", activeGenre);
+        const fetched = await mediaCache.getOrFetch(
+          cacheKey,
+          async () => {
+            if (activeCuration === "Trending") {
+              return genreId
+                ? withTimeout(tmdbService.discover({ type: "Movie", genreId, sort: "popularity.desc", page: fetchPage }).catch(() => []), 3500, [])
+                : withTimeout(tmdbService.getTrendingMovies(fetchPage).catch(() => []), 3500, []);
+            }
+            if (activeCuration === "Popular") {
+              return genreId
+                ? withTimeout(tmdbService.discover({ type: "Movie", genreId, sort: "popularity.desc", page: fetchPage }).catch(() => []), 3500, [])
+                : withTimeout(tmdbService.getPopularMovies(fetchPage).catch(() => []), 3500, []);
+            }
+            if (activeCuration === "Critically Acclaimed" || activeCuration === "Top Rated") {
+              return genreId
+                ? withTimeout(tmdbService.discover({ type: "Movie", genreId, sort: "vote_average.desc", minVotes: 250, page: fetchPage }).catch(() => []), 3500, [])
+                : withTimeout(tmdbService.getTopRatedMovies(fetchPage).catch(() => []), 3500, []);
+            }
+            if (activeCuration === "Hidden Gems" || activeCuration === "Niche") {
+              return genreId
+                ? withTimeout(tmdbService.discover({ type: "Movie", genreId, sort: "vote_average.desc", minVotes: 80, page: fetchPage + 1 }).catch(() => []), 3500, [])
+                : withTimeout(tmdbService.getCultAndNiche("Movie", fetchPage).catch(() => []), 3500, []);
+            }
+            if (genreId) {
+              const [pop, top] = await Promise.all([
+                withTimeout(tmdbService.discover({ type: "Movie", genreId, sort: "popularity.desc", page: fetchPage }).catch(() => []), 3500, []),
+                withTimeout(tmdbService.discover({ type: "Movie", genreId, sort: "vote_average.desc", minVotes: 150, page: fetchPage }).catch(() => []), 3500, []),
+              ]);
+              return dedupeList([...pop, ...top]);
+            }
+            const [trending, popular, niche] = await Promise.all([
+              withTimeout(tmdbService.getTrendingMovies(fetchPage).catch(() => []), 3500, []),
+              withTimeout(tmdbService.getPopularMovies(fetchPage).catch(() => []), 3500, []),
+              withTimeout(tmdbService.getCultAndNiche("Movie", fetchPage).catch(() => []), 3500, []),
+            ]);
+            const tiers = separateTiers(trending, popular, niche);
+            const merged: UnifiedMedia[] = [];
+            const maxLen = Math.max(tiers.trending.length, tiers.popular.length, tiers.niche.length);
+            for (let i = 0; i < maxLen; i++) {
+              if (tiers.trending[i]) merged.push(tiers.trending[i]);
+              if (tiers.popular[i]) merged.push(tiers.popular[i]);
+              if (tiers.niche[i]) merged.push(tiers.niche[i]);
+            }
+            return merged;
+          },
           1000 * 60 * 15
         );
-        tiers = separateTiers(trending, popular, niche);
+        items = fetched.filter((i) => isOfficiallyReleased(i) && !isNews(i) && matchMood(i));
       } else if (type === "Series") {
-        const [trending, popular, niche] = await mediaCache.getOrFetch(
-          `discover:type:Series:p:${fetchPage}`,
-          () =>
-            Promise.all([
-              withTimeout(tmdbService.getTrendingShows(fetchPage).catch(() => []), 4500, []),
-              withTimeout(tmdbService.getPopularShows(fetchPage).catch(() => []), 4500, []),
-              withTimeout(tmdbService.getCultAndNiche("Series", fetchPage).catch(() => []), 4500, []),
-            ]),
+        const genreId = resolveTmdbGenreId("Series", activeGenre);
+        const fetched = await mediaCache.getOrFetch(
+          cacheKey,
+          async () => {
+            if (activeCuration === "Trending") {
+              return genreId
+                ? withTimeout(tmdbService.discover({ type: "Series", genreId, sort: "popularity.desc", page: fetchPage }).catch(() => []), 3500, [])
+                : withTimeout(tmdbService.getTrendingShows(fetchPage).catch(() => []), 3500, []);
+            }
+            if (activeCuration === "Popular") {
+              return genreId
+                ? withTimeout(tmdbService.discover({ type: "Series", genreId, sort: "popularity.desc", page: fetchPage }).catch(() => []), 3500, [])
+                : withTimeout(tmdbService.getPopularShows(fetchPage).catch(() => []), 3500, []);
+            }
+            if (activeCuration === "Critically Acclaimed" || activeCuration === "Top Rated") {
+              return genreId
+                ? withTimeout(tmdbService.discover({ type: "Series", genreId, sort: "vote_average.desc", minVotes: 150, page: fetchPage }).catch(() => []), 3500, [])
+                : withTimeout(tmdbService.getTopRatedShows(fetchPage).catch(() => []), 3500, []);
+            }
+            if (activeCuration === "Hidden Gems" || activeCuration === "Niche") {
+              return genreId
+                ? withTimeout(tmdbService.discover({ type: "Series", genreId, sort: "vote_average.desc", minVotes: 60, page: fetchPage + 1 }).catch(() => []), 3500, [])
+                : withTimeout(tmdbService.getCultAndNiche("Series", fetchPage).catch(() => []), 3500, []);
+            }
+            if (genreId) {
+              const [pop, top] = await Promise.all([
+                withTimeout(tmdbService.discover({ type: "Series", genreId, sort: "popularity.desc", page: fetchPage }).catch(() => []), 3500, []),
+                withTimeout(tmdbService.discover({ type: "Series", genreId, sort: "vote_average.desc", minVotes: 120, page: fetchPage }).catch(() => []), 3500, []),
+              ]);
+              return dedupeList([...pop, ...top]);
+            }
+            const [trending, popular, niche] = await Promise.all([
+              withTimeout(tmdbService.getTrendingShows(fetchPage).catch(() => []), 3500, []),
+              withTimeout(tmdbService.getPopularShows(fetchPage).catch(() => []), 3500, []),
+              withTimeout(tmdbService.getCultAndNiche("Series", fetchPage).catch(() => []), 3500, []),
+            ]);
+            const tiers = separateTiers(trending, popular, niche);
+            const merged: UnifiedMedia[] = [];
+            const maxLen = Math.max(tiers.trending.length, tiers.popular.length, tiers.niche.length);
+            for (let i = 0; i < maxLen; i++) {
+              if (tiers.trending[i]) merged.push(tiers.trending[i]);
+              if (tiers.popular[i]) merged.push(tiers.popular[i]);
+              if (tiers.niche[i]) merged.push(tiers.niche[i]);
+            }
+            return merged;
+          },
           1000 * 60 * 15
         );
-        tiers = separateTiers(trending, popular, niche);
+        items = fetched.filter((i) => isOfficiallyReleased(i) && !isNews(i) && matchMood(i));
       } else if (type === "Anime") {
-        const [trending, popular, niche] = await mediaCache.getOrFetch(
-          `discover:type:Anime:p:${fetchPage}`,
-          () =>
-            Promise.all([
-              withTimeout(anilistService.getTrendingAnime(fetchPage).catch(() => []), 4500, []),
-              withTimeout(anilistService.getPopularAnime(undefined, fetchPage).catch(() => []), 4500, []),
-              withTimeout(anilistService.getNicheAnime(undefined, fetchPage).catch(() => []), 4500, []),
-            ]),
+        const fetched = await mediaCache.getOrFetch(
+          cacheKey,
+          async () => {
+            if (activeCuration === "This Season") {
+              return withTimeout(anilistService.getSeasonalAnime(fetchPage, activeGenre).catch(() => []), 3500, []);
+            }
+            if (activeCuration === "Trending") {
+              return withTimeout(anilistService.getTrendingAnime(fetchPage, activeGenre).catch(() => []), 3500, []);
+            }
+            if (activeCuration === "Top Rated" || activeCuration === "Popular") {
+              return withTimeout(anilistService.getPopularAnime(activeGenre, fetchPage).catch(() => []), 3500, []);
+            }
+            if (activeCuration === "Hidden Gems" || activeCuration === "Niche") {
+              return withTimeout(anilistService.getNicheAnime(activeGenre, fetchPage).catch(() => []), 3500, []);
+            }
+            const [trending, popular, niche] = await Promise.all([
+              withTimeout(anilistService.getTrendingAnime(fetchPage, activeGenre).catch(() => []), 3500, []),
+              withTimeout(anilistService.getPopularAnime(activeGenre, fetchPage).catch(() => []), 3500, []),
+              withTimeout(anilistService.getNicheAnime(activeGenre, fetchPage).catch(() => []), 3500, []),
+            ]);
+            const tiers = separateTiers(trending, popular, niche);
+            const merged: UnifiedMedia[] = [];
+            const maxLen = Math.max(tiers.trending.length, tiers.popular.length, tiers.niche.length);
+            for (let i = 0; i < maxLen; i++) {
+              if (tiers.trending[i]) merged.push(tiers.trending[i]);
+              if (tiers.popular[i]) merged.push(tiers.popular[i]);
+              if (tiers.niche[i]) merged.push(tiers.niche[i]);
+            }
+            return merged;
+          },
           1000 * 60 * 15
         );
-        tiers = separateTiers(trending, popular, niche);
+        items = fetched.filter((i) => isOfficiallyReleased(i) && matchMood(i));
       } else if (type === "Game") {
-        const [trending, popular, niche] = await mediaCache.getOrFetch(
-          `discover:type:Game:p:${fetchPage}`,
-          () =>
-            Promise.all([
-              withTimeout(igdbService.getTrendingGames(undefined, fetchPage).catch(() => []), 4500, []),
-              withTimeout(igdbService.getPopularGames(undefined, fetchPage).catch(() => []), 4500, []),
-              withTimeout(igdbService.getNicheGames(undefined, fetchPage).catch(() => []), 4500, []),
-            ]),
+        const fetched = await mediaCache.getOrFetch(
+          cacheKey,
+          async () => {
+            if (activeCuration === "AAA") {
+              return withTimeout(igdbService.getAAAGames(activeGenre, fetchPage).catch(() => []), 3500, []);
+            }
+            if (activeCuration === "Indie") {
+              return withTimeout(igdbService.getIndieGames(activeGenre, fetchPage).catch(() => []), 3500, []);
+            }
+            if (activeCuration === "Trending") {
+              return withTimeout(igdbService.getTrendingGames(activeGenre, fetchPage).catch(() => []), 3500, []);
+            }
+            if (activeCuration === "Popular" || activeCuration === "Top Rated") {
+              return withTimeout(igdbService.getPopularGames(activeGenre, fetchPage).catch(() => []), 3500, []);
+            }
+            if (activeCuration === "Hidden Gems" || activeCuration === "Niche") {
+              return withTimeout(igdbService.getNicheGames(activeGenre, fetchPage).catch(() => []), 3500, []);
+            }
+            const [trending, popular, niche] = await Promise.all([
+              withTimeout(igdbService.getTrendingGames(activeGenre, fetchPage).catch(() => []), 3500, []),
+              withTimeout(igdbService.getPopularGames(activeGenre, fetchPage).catch(() => []), 3500, []),
+              withTimeout(igdbService.getNicheGames(activeGenre, fetchPage).catch(() => []), 3500, []),
+            ]);
+            const tiers = separateTiers(trending, popular, niche);
+            const merged: UnifiedMedia[] = [];
+            const maxLen = Math.max(tiers.trending.length, tiers.popular.length, tiers.niche.length);
+            for (let i = 0; i < maxLen; i++) {
+              if (tiers.trending[i]) merged.push(tiers.trending[i]);
+              if (tiers.popular[i]) merged.push(tiers.popular[i]);
+              if (tiers.niche[i]) merged.push(tiers.niche[i]);
+            }
+            return merged;
+          },
           1000 * 60 * 15
         );
-        tiers = separateTiers(trending, popular, niche);
-      }
-
-      if (genre && genre !== "All genres") {
-        const matchGenre = (i: UnifiedMedia) =>
-          i.genre.toLowerCase() === genre.toLowerCase() ||
-          i.genres.some((g) => g.toLowerCase() === genre.toLowerCase());
-        tiers.trending = tiers.trending.filter(matchGenre);
-        tiers.popular = tiers.popular.filter(matchGenre);
-        tiers.niche = tiers.niche.filter(matchGenre);
-      }
-
-      if (curation === "Trending") {
-        items = tiers.trending;
-      } else if (curation === "Popular") {
-        items = tiers.popular;
-      } else if (curation === "Niche") {
-        items = tiers.niche;
-      } else {
-        // Equal 1:1:1 interleaving: Trending -> Popular -> Niche
-        const maxLen = Math.max(tiers.trending.length, tiers.popular.length, tiers.niche.length);
-        for (let i = 0; i < maxLen; i++) {
-          if (tiers.trending[i]) items.push(tiers.trending[i]);
-          if (tiers.popular[i]) items.push(tiers.popular[i]);
-          if (tiers.niche[i]) items.push(tiers.niche[i]);
-        }
+        items = fetched.filter((i) => isOfficiallyReleased(i) && matchMood(i));
       }
     } else {
-      // Ultra-fast memory cache for discover matrix pools (15 min TTL)
+      // All types: build 4 clean queues and strictly interleave Movie -> Series -> Anime -> Game repeating!
       const matrixPools = await mediaCache.getOrFetch(
         `discover:matrix:p:${fetchPage}`,
         async () => {
@@ -396,21 +567,21 @@ export const catalogAggregator = {
             animeTrending, animePopular, animeNiche,
             gameTrending, gamePopular, gameNiche,
           ] = await Promise.all([
-            withTimeout(tmdbService.getTrendingMovies(fetchPage).catch(() => []), 4500, []),
-            withTimeout(tmdbService.getPopularMovies(fetchPage).catch(() => []), 4500, []),
-            withTimeout(tmdbService.getCultAndNiche("Movie", fetchPage).catch(() => []), 4500, []),
+            withTimeout(tmdbService.getTrendingMovies(fetchPage).catch(() => []), 3500, []),
+            withTimeout(tmdbService.getPopularMovies(fetchPage).catch(() => []), 3500, []),
+            withTimeout(tmdbService.getCultAndNiche("Movie", fetchPage).catch(() => []), 3500, []),
 
-            withTimeout(tmdbService.getTrendingShows(fetchPage).catch(() => []), 4500, []),
-            withTimeout(tmdbService.getPopularShows(fetchPage).catch(() => []), 4500, []),
-            withTimeout(tmdbService.getCultAndNiche("Series", fetchPage).catch(() => []), 4500, []),
+            withTimeout(tmdbService.getTrendingShows(fetchPage).catch(() => []), 3500, []),
+            withTimeout(tmdbService.getPopularShows(fetchPage).catch(() => []), 3500, []),
+            withTimeout(tmdbService.getCultAndNiche("Series", fetchPage).catch(() => []), 3500, []),
 
-            withTimeout(anilistService.getTrendingAnime(fetchPage).catch(() => []), 4500, []),
-            withTimeout(anilistService.getPopularAnime(undefined, fetchPage).catch(() => []), 4500, []),
-            withTimeout(anilistService.getNicheAnime(undefined, fetchPage).catch(() => []), 4500, []),
+            withTimeout(anilistService.getTrendingAnime(fetchPage).catch(() => []), 3500, []),
+            withTimeout(anilistService.getPopularAnime(undefined, fetchPage).catch(() => []), 3500, []),
+            withTimeout(anilistService.getNicheAnime(undefined, fetchPage).catch(() => []), 3500, []),
 
-            withTimeout(igdbService.getTrendingGames(undefined, fetchPage).catch(() => []), 4500, []),
-            withTimeout(igdbService.getPopularGames(undefined, fetchPage).catch(() => []), 4500, []),
-            withTimeout(igdbService.getNicheGames(undefined, fetchPage).catch(() => []), 4500, []),
+            withTimeout(igdbService.getTrendingGames(undefined, fetchPage).catch(() => []), 3500, []),
+            withTimeout(igdbService.getPopularGames(undefined, fetchPage).catch(() => []), 3500, []),
+            withTimeout(igdbService.getNicheGames(undefined, fetchPage).catch(() => []), 3500, []),
           ]);
           return {
             movieTrending, moviePopular, movieNiche,
@@ -434,84 +605,69 @@ export const catalogAggregator = {
       const animes = separateTiers(animeTrending, animePopular, animeNiche);
       const games = separateTiers(gameTrending, gamePopular, gameNiche);
 
-      if (genre && genre !== "All genres") {
-        const matchGenre = (i: UnifiedMedia) =>
-          i.genre.toLowerCase() === genre.toLowerCase() ||
-          i.genres.some((g) => g.toLowerCase() === genre.toLowerCase());
-
-        movies.trending = movies.trending.filter(matchGenre);
-        movies.popular = movies.popular.filter(matchGenre);
-        movies.niche = movies.niche.filter(matchGenre);
-
-        series.trending = series.trending.filter(matchGenre);
-        series.popular = series.popular.filter(matchGenre);
-        series.niche = series.niche.filter(matchGenre);
-
-        animes.trending = animes.trending.filter(matchGenre);
-        animes.popular = animes.popular.filter(matchGenre);
-        animes.niche = animes.niche.filter(matchGenre);
-
-        games.trending = games.trending.filter(matchGenre);
-        games.popular = games.popular.filter(matchGenre);
-        games.niche = games.niche.filter(matchGenre);
-      }
-
-      if (curation === "Trending") {
-        const maxLen = Math.max(movies.trending.length, series.trending.length, animes.trending.length, games.trending.length);
-        for (let i = 0; i < maxLen; i++) {
-          if (movies.trending[i]) items.push(movies.trending[i]);
-          if (series.trending[i]) items.push(series.trending[i]);
-          if (animes.trending[i]) items.push(animes.trending[i]);
-          if (games.trending[i]) items.push(games.trending[i]);
+      const buildTypeQueue = (tiers: { trending: UnifiedMedia[]; popular: UnifiedMedia[]; niche: UnifiedMedia[] }) => {
+        let list: UnifiedMedia[] = [];
+        if (activeCuration === "Trending") {
+          list = tiers.trending;
+        } else if (activeCuration === "Popular") {
+          list = tiers.popular;
+        } else if (activeCuration === "Niche" || activeCuration === "Hidden Gems") {
+          list = tiers.niche;
+        } else {
+          const maxLen = Math.max(tiers.trending.length, tiers.popular.length, tiers.niche.length);
+          for (let i = 0; i < maxLen; i++) {
+            if (tiers.trending[i]) list.push(tiers.trending[i]);
+            if (tiers.popular[i]) list.push(tiers.popular[i]);
+            if (tiers.niche[i]) list.push(tiers.niche[i]);
+          }
         }
-      } else if (curation === "Popular") {
-        const maxLen = Math.max(movies.popular.length, series.popular.length, animes.popular.length, games.popular.length);
-        for (let i = 0; i < maxLen; i++) {
-          if (movies.popular[i]) items.push(movies.popular[i]);
-          if (series.popular[i]) items.push(series.popular[i]);
-          if (animes.popular[i]) items.push(animes.popular[i]);
-          if (games.popular[i]) items.push(games.popular[i]);
+
+        if (activeGenre) {
+          const gLower = activeGenre.toLowerCase();
+          list = list.filter(
+            (i) =>
+              i.genre.toLowerCase() === gLower ||
+              i.genres.some((g) => g.toLowerCase() === gLower)
+          );
         }
-      } else if (curation === "Niche") {
-        const maxLen = Math.max(movies.niche.length, series.niche.length, animes.niche.length, games.niche.length);
-        for (let i = 0; i < maxLen; i++) {
-          if (movies.niche[i]) items.push(movies.niche[i]);
-          if (series.niche[i]) items.push(series.niche[i]);
-          if (animes.niche[i]) items.push(animes.niche[i]);
-          if (games.niche[i]) items.push(games.niche[i]);
+
+        if (mood) {
+          list = list.filter(matchMood);
+        }
+
+        return dedupeList(list).filter(isOfficiallyReleased);
+      };
+
+      const movieQueue = buildTypeQueue(movies);
+      const seriesQueue = buildTypeQueue(series);
+      const animeQueue = buildTypeQueue(animes);
+      const gameQueue = buildTypeQueue(games);
+
+      const hasAllFour =
+        movieQueue.length > 0 &&
+        seriesQueue.length > 0 &&
+        animeQueue.length > 0 &&
+        gameQueue.length > 0;
+
+      if (hasAllFour) {
+        // Strict repeating cadence: Movie -> Series -> Anime -> Game -> Movie -> Series -> Anime -> Game...
+        const quadCount = Math.min(movieQueue.length, seriesQueue.length, animeQueue.length, gameQueue.length);
+        for (let i = 0; i < quadCount; i++) {
+          items.push(movieQueue[i], seriesQueue[i], animeQueue[i], gameQueue[i]);
         }
       } else {
-        // Equal 12-cell matrix: 1 Movie, 1 Series, 1 Anime, 1 Game across Trending, Popular, Niche
-        const maxLen = Math.max(
-          movies.trending.length, movies.popular.length, movies.niche.length,
-          series.trending.length, series.popular.length, series.niche.length,
-          animes.trending.length, animes.popular.length, animes.niche.length,
-          games.trending.length, games.popular.length, games.niche.length
-        );
-
+        // Graceful fallback if a specific genre/mood has 0 entries in one of the 4 mediums
+        const maxLen = Math.max(movieQueue.length, seriesQueue.length, animeQueue.length, gameQueue.length);
         for (let i = 0; i < maxLen; i++) {
-          // Cycle 1: Trending
-          if (movies.trending[i]) items.push(movies.trending[i]);
-          if (series.trending[i]) items.push(series.trending[i]);
-          if (animes.trending[i]) items.push(animes.trending[i]);
-          if (games.trending[i]) items.push(games.trending[i]);
-
-          // Cycle 2: Popular
-          if (movies.popular[i]) items.push(movies.popular[i]);
-          if (series.popular[i]) items.push(series.popular[i]);
-          if (animes.popular[i]) items.push(animes.popular[i]);
-          if (games.popular[i]) items.push(games.popular[i]);
-
-          // Cycle 3: Niche
-          if (movies.niche[i]) items.push(movies.niche[i]);
-          if (series.niche[i]) items.push(series.niche[i]);
-          if (animes.niche[i]) items.push(animes.niche[i]);
-          if (games.niche[i]) items.push(games.niche[i]);
+          if (movieQueue[i]) items.push(movieQueue[i]);
+          if (seriesQueue[i]) items.push(seriesQueue[i]);
+          if (animeQueue[i]) items.push(animeQueue[i]);
+          if (gameQueue[i]) items.push(gameQueue[i]);
         }
       }
     }
 
-    // Deduplicate across the entire combined list and enforce released media
+    // Final deduplication (already deduped per bucket in All-types mode so quad order is preserved!)
     const finalSeenIds = new Set<string>();
     const finalSeenTitles = new Set<string>();
     items = items.filter((item) => {
@@ -522,18 +678,6 @@ export const catalogAggregator = {
       finalSeenTitles.add(key);
       return true;
     });
-
-    if (mood) {
-      if (mood === "slow-burn") {
-        items = items.filter((i) => i.genres.some((g) => ["Drama", "Mystery", "Thriller", "Sci-Fi"].includes(g)));
-      } else if (mood === "otherworldly") {
-        items = items.filter((i) => i.genres.some((g) => ["Sci-Fi", "Fantasy", "Animation", "Adventure"].includes(g)));
-      } else if (mood === "beautiful-chaos") {
-        items = items.filter((i) => i.genres.some((g) => ["Action", "Cyberpunk", "Animation", "Crime"].includes(g)));
-      } else if (mood === "one-more-run") {
-        items = items.filter((i) => i.type === "Game" || i.genres.some((g) => ["Action", "Roguelike", "Indie"].includes(g)));
-      }
-    }
 
     if (sort === "Highest rated") {
       items.sort((a, b) => Number(b.rating) - Number(a.rating));

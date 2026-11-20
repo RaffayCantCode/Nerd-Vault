@@ -15,23 +15,81 @@ import { CustomSelect } from "../components/common/CustomSelect";
 import { useAuth } from "../context/AuthContext";
 import { useVault } from "../context/VaultContext";
 
+const PROFILE_CACHE_PREFIX = "nv_profile_cache_v1_";
+const PROFILE_CACHE_TTL_MS = 1000 * 60 * 10;
+
+function readProfileCache(cacheKey: string) {
+  try {
+    const raw = sessionStorage.getItem(PROFILE_CACHE_PREFIX + cacheKey);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed?.ts && Date.now() - parsed.ts < PROFILE_CACHE_TTL_MS) {
+      return parsed.data;
+    }
+  } catch {}
+  return null;
+}
+
+function writeProfileCache(cacheKey: string, data: any) {
+  try {
+    sessionStorage.setItem(PROFILE_CACHE_PREFIX + cacheKey, JSON.stringify({ data, ts: Date.now() }));
+  } catch {}
+}
+
 export default function ProfilePage() {
   const { id } = useParams<{ id?: string }>();
   const { user, openAuthModal, updateUser } = useAuth();
   const { vaultItems, stats, trackMedia, notify } = useVault();
 
+  const isViewingOwn = !id || (Boolean(user?.id) && id === user?.id);
+  const profileCacheKey = id || user?.id || "self";
+  const initialCached = React.useMemo(() => readProfileCache(profileCacheKey), [profileCacheKey]);
+
+  const derivedOwnerFavorites = React.useMemo(() => {
+    if (!isViewingOwn || !vaultItems.length) return [];
+    return vaultItems.filter((i) => i.status === "Favorite" || (i.notes && i.notes.includes("#favorite")));
+  }, [isViewingOwn, vaultItems]);
+
+  const derivedOwnerActivity = React.useMemo(() => {
+    if (!isViewingOwn || !vaultItems.length) return [];
+    return vaultItems.slice(0, 10).map((i) => ({
+      id: i.id,
+      type: i.status === "Completed" ? "Completed" : i.status === "Favorite" ? "Favorited" : i.status || "Tracked",
+      mediaType: i.type,
+      title: i.title,
+      time: "Recently",
+      rating: i.userRating
+        ? Math.round(i.userRating > 5 ? i.userRating / 2 : i.userRating)
+        : i.rating
+        ? Math.round(Number(i.rating) > 5 ? Number(i.rating) / 2 : Number(i.rating))
+        : undefined,
+      poster: i.poster,
+      notes: i.notes,
+    }));
+  }, [isViewingOwn, vaultItems]);
+
   const [activeTab, setActiveTab] = useState<"showcase" | "activity" | "logs">("showcase");
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [favoriteModalType, setFavoriteModalType] = useState<"Movie" | "Series" | "Anime" | "Game" | null>(null);
 
-  const [profileUser, setProfileUser] = useState<UserProfile | null>(null);
-  const [profileStats, setProfileStats] = useState<VaultStats | null>(null);
-  const [favorites, setFavorites] = useState<UnifiedMedia[]>([]);
-  const [logs, setLogs] = useState<UnifiedMedia[]>([]);
-  const [recentActivity, setRecentActivity] = useState<any[]>([]);
-  const [isOwner, setIsOwner] = useState(false);
+  const [profileUser, setProfileUser] = useState<UserProfile | null>(
+    () => initialCached?.user || (isViewingOwn ? user : null)
+  );
+  const [profileStats, setProfileStats] = useState<VaultStats | null>(
+    () => initialCached?.stats || (isViewingOwn ? stats : null)
+  );
+  const [favorites, setFavorites] = useState<UnifiedMedia[]>(
+    () => initialCached?.favorites || derivedOwnerFavorites
+  );
+  const [logs, setLogs] = useState<UnifiedMedia[]>(
+    () => initialCached?.logs || (isViewingOwn ? vaultItems : [])
+  );
+  const [recentActivity, setRecentActivity] = useState<any[]>(
+    () => initialCached?.recentActivity || derivedOwnerActivity
+  );
+  const [isOwner, setIsOwner] = useState(() => initialCached?.isOwner ?? isViewingOwn);
   const [friendRequested, setFriendRequested] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !initialCached && !(isViewingOwn && user));
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -115,13 +173,28 @@ export default function ProfilePage() {
   const [logSearch, setLogSearch] = useState("");
   const [logType, setLogType] = useState("All formats");
 
-  const loadProfile = () => {
-    setLoading(true);
+  const loadProfile = (silent: boolean = false) => {
+    if (!silent) {
+      const cached = readProfileCache(profileCacheKey);
+      if (cached) {
+        if (cached.user) setProfileUser(cached.user);
+        setIsOwner(cached.isOwner ?? isViewingOwn);
+        if (cached.stats) setProfileStats(cached.stats);
+        if (cached.favorites) setFavorites(cached.favorites);
+        if (cached.logs) setLogs(cached.logs);
+        if (cached.recentActivity) setRecentActivity(cached.recentActivity);
+        setLoading(false);
+      } else if (!(isViewingOwn && user)) {
+        setLoading(true);
+      }
+    }
     api.getProfile(id)
       .then((res: any) => {
         if (res?.user) {
           setProfileUser(res.user);
-          setIsOwner(res.isOwner ?? (!id || id === user?.id));
+          const ownerFlag = res.isOwner ?? (!id || id === user?.id);
+          setIsOwner(ownerFlag);
+          writeProfileCache(profileCacheKey, { ...res, isOwner: ownerFlag });
         } else {
           setProfileUser(null);
           setIsOwner(false);
@@ -133,15 +206,29 @@ export default function ProfilePage() {
       })
       .catch((err) => {
         console.error("Failed to load profile:", err);
-        setProfileUser(null);
-        setIsOwner(false);
+        if (!profileUser) {
+          setProfileUser(null);
+          setIsOwner(false);
+        }
       })
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     loadProfile();
-  }, [id, user]);
+  }, [id, user?.id]);
+
+  // Sync owner vault context immediately if vaultItems hydrate before /api/profile finishes
+  useEffect(() => {
+    if (!isViewingOwn) return;
+    if (user && !profileUser) setProfileUser(user);
+    if (stats && !profileStats) setProfileStats(stats);
+    if (vaultItems.length > 0) {
+      if (logs.length === 0) setLogs(vaultItems);
+      if (favorites.length === 0 && derivedOwnerFavorites.length > 0) setFavorites(derivedOwnerFavorites);
+      if (recentActivity.length === 0 && derivedOwnerActivity.length > 0) setRecentActivity(derivedOwnerActivity);
+    }
+  }, [isViewingOwn, user, stats, vaultItems, derivedOwnerFavorites, derivedOwnerActivity]);
 
   const isGuest = !user && !id;
 

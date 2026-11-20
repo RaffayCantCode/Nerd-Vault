@@ -1112,8 +1112,7 @@ export async function dismissFriendRecommendation(notificationId: string, userId
 // PROFILE & TASTE DNA COMPUTATION
 // -------------------------------------------------------------
 
-export async function calculateProfileStats(userId: string): Promise<VaultStats> {
-  const vaultItems = await getUserVaultItems(userId);
+export function computeProfileStatsFromVault(vaultItems: VaultItemWithMedia[]): VaultStats {
   const totalCollected = vaultItems.length;
 
   let totalRuntimeMins = 0;
@@ -1166,4 +1165,9 @@ export async function calculateProfileStats(userId: string): Promise<VaultStats>
     tasteScore,
     genresBreakdown,
   };
+}
+
+export async function calculateProfileStats(userId: string): Promise<VaultStats> {
+  const vaultItems = await getUserVaultItems(userId);
+  return computeProfileStatsFromVault(vaultItems);
 }

@@ -15,6 +15,7 @@ function getReqUserId(req: any): string | undefined {
 router.get("/home", async (req, res) => {
   try {
     const feed = await catalogAggregator.getHomeFeed();
+    res.set("Cache-Control", "public, max-age=60, stale-while-revalidate=600");
     res.json(feed);
   } catch (error: any) {
     res.status(500).json({ error: error.message || "Failed to fetch home feed" });
@@ -27,16 +28,20 @@ router.get("/home", async (req, res) => {
 router.get("/discover", async (req, res) => {
   try {
     const { type, genre, sort, q, search, mood, page, seed, curation } = req.query;
+    const queryStr = ((q || search) as string) || undefined;
     const result = await catalogAggregator.discover({
       type: type as string,
       genre: genre as string,
       sort: sort as any,
-      query: ((q || search) as string) || undefined,
+      query: queryStr,
       mood: mood as string,
       page: page ? parseInt(page as string, 10) : 1,
       seed: seed as string,
       curation: curation as string,
     });
+    if (!queryStr) {
+      res.set("Cache-Control", "public, max-age=60, stale-while-revalidate=600");
+    }
     res.json(result);
   } catch (error: any) {
     res.status(500).json({ error: error.message || "Failed to discover media" });

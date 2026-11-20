@@ -14,6 +14,7 @@ import { Avatar } from "../components/common/Avatar";
 import { MediaCard } from "../components/media/MediaCard";
 import { FriendRecModal } from "../components/media/FriendRecModal";
 import { MediaTrackModal } from "../components/media/MediaTrackModal";
+import { StatusDropdown } from "../components/media/StatusDropdown";
 
 function useBackdropPalette(imageUrl?: string) {
   const [palette, setPalette] = useState({
@@ -226,8 +227,21 @@ export default function MediaDetailPage() {
     notify("Liked review!");
   };
 
-  const franchiseItems = media.franchise?.items || [];
-  const similarItems = media.similar || [];
+  const isItemReleased = (i: UnifiedMedia): boolean => {
+    if (!i) return false;
+    if (i.airingStatus && i.airingStatus.toLowerCase() === "upcoming") return false;
+    const today = new Date().toISOString().slice(0, 10);
+    const currentYear = new Date().getFullYear();
+    if (i.year) {
+      const y = parseInt(i.year, 10);
+      if (!isNaN(y) && y > currentYear) return false;
+    }
+    if (i.releaseDate && i.releaseDate.slice(0, 10) > today) return false;
+    return true;
+  };
+
+  const franchiseItems = (media.franchise?.items || []).filter(isItemReleased);
+  const similarItems = (media.similar || []).filter(isItemReleased);
   const cleanGenres = (media.genres && media.genres.length > 0 ? media.genres : [media.genre])
     .filter(Boolean)
     .filter((g) => {
@@ -314,8 +328,14 @@ export default function MediaDetailPage() {
               className="hidden aspect-[2/3] w-36 rounded-2xl border border-white/[.16] object-cover shadow-2xl sm:block lg:w-44"
             />
             <div className="max-w-[650px]">
-              {/* Release Date & Prominent Genres */}
+              {/* Release Date, Ongoing Tag & Prominent Genres */}
               <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-300">
+                {isSeriesOrAnime && airingStatus === "Ongoing" && (
+                  <span className="inline-flex items-center gap-1.5 rounded-md bg-[#08241d]/90 border border-[hsl(var(--primary))]/45 px-2.5 py-1 text-xs font-bold text-[hsl(var(--primary))] shadow-sm backdrop-blur-md">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--primary))] shadow-[0_0_6px_hsl(var(--primary))] animate-pulse" />
+                    <span>Ongoing</span>
+                  </span>
+                )}
                 {releaseDateText && (
                   <span className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 border shadow-sm font-semibold transition-all duration-300 ${palette.badgeBg} ${palette.badgeBorder} ${palette.badgeText}`}>
                     <Calendar size={13} className="opacity-75" />
@@ -345,31 +365,24 @@ export default function MediaDetailPage() {
                 <button
                   onClick={() => handleAuthGuardedAction(() => setTrackModalOpen(true))}
                   data-testid="button-detail-add-vault"
-                  className="nv-button flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-3 text-xs sm:text-sm font-extrabold text-[#08211c] hover:bg-[#73e4c7] shadow-lg"
+                  className="nv-button flex h-[44px] sm:h-[46px] items-center gap-2 rounded-full bg-[hsl(var(--primary))] px-5 sm:px-6 text-xs sm:text-sm font-extrabold text-[#08211c] hover:bg-[#73e4c7] shadow-[0_8px_28px_rgba(55,218,178,.35),inset_0_1px_0_rgba(255,255,255,.45)] cursor-pointer"
                 >
                   {inVault ? <CheckCircle2 size={16} /> : <BookmarkPlus size={16} />}
                   {inVault ? `In Vault (${currentStatus})` : "Add to Vault"}
                 </button>
 
-                <select
-                  value={currentStatus === "Favorite" ? "Completed" : currentStatus}
-                  onChange={(e) => handleStatusChange(e.target.value)}
-                  data-testid="select-detail-status"
-                  className={`h-11 rounded-xl border px-3.5 text-xs sm:text-sm font-semibold outline-none backdrop-blur transition-all duration-300 ${palette.badgeBg} ${palette.badgeBorder} ${palette.badgeText}`}
-                >
-                  <option className="bg-[#12181d] text-white" value="Watching">Watching</option>
-                  <option className="bg-[#12181d] text-white" value="Completed">Completed</option>
-                  <option className="bg-[#12181d] text-white" value="Wishlist">Wishlist</option>
-                  <option className="bg-[#12181d] text-white" value="Paused">Paused</option>
-                  <option className="bg-[#12181d] text-white" value="Dropped">Dropped</option>
-                </select>
+                <StatusDropdown
+                  value={currentStatus}
+                  onChange={handleStatusChange}
+                  mediaType={media.type}
+                />
 
                 <button
                   onClick={() => handleAuthGuardedAction(() => setRecModalOpen(true))}
                   data-testid="button-detail-recommend"
-                  className="nv-button flex items-center gap-2 rounded-xl border border-white/[.15] bg-black/40 px-4 py-3 text-xs sm:text-sm font-semibold text-slate-200 backdrop-blur hover:bg-white/[.08]"
+                  className="nv-button flex h-[44px] sm:h-[46px] items-center gap-2 rounded-full border border-white/[.18] bg-[#0c1217]/75 px-5 text-xs sm:text-sm font-semibold text-slate-200 backdrop-blur-xl hover:bg-white/[.12] hover:border-white/[.3] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_24px_rgba(0,0,0,0.35)] cursor-pointer"
                 >
-                  <Share2 size={16} /> Recommend
+                  <Share2 size={15} /> Recommend
                 </button>
               </div>
             </div>

@@ -1,22 +1,50 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { Link } from "wouter";
-import { Play, BookmarkPlus, Check, CircleDot, ChevronLeft, ChevronRight, Sparkles, Star } from "lucide-react";
+import { Play, BookmarkPlus, Check, ChevronLeft, ChevronRight, Sparkles, Star, Shuffle } from "lucide-react";
 import { api, HomeFeedData, UnifiedMedia } from "../lib/api";
 import { mediaCache } from "../lib/mediaCache";
+import { discoverStore } from "../lib/discoverStore";
 import { MediaRail } from "../components/media/MediaRail";
 import { useVault } from "../context/VaultContext";
 import { useAuth } from "../context/AuthContext";
 
 const SLIDE_DURATION_MS = 8000; // 8 seconds per slide for a punchier, dynamic rhythm
+const HOME_CACHE_KEY = "nv_home_feed_cache_v3";
+const HOME_CACHE_TTL_MS = 1000 * 60 * 15;
 
 let cachedHomeFeed: HomeFeedData | null = null;
+let cachedHomeFeedAt = 0;
+
+function readPersistedHomeFeed(): { data: HomeFeedData; ts: number } | null {
+  if (cachedHomeFeed) return { data: cachedHomeFeed, ts: cachedHomeFeedAt };
+  try {
+    const raw = sessionStorage.getItem(HOME_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed?.data && parsed?.ts && Date.now() - parsed.ts < HOME_CACHE_TTL_MS) {
+      cachedHomeFeed = parsed.data;
+      cachedHomeFeedAt = parsed.ts;
+      return parsed;
+    }
+  } catch {}
+  return null;
+}
+
+function persistHomeFeed(data: HomeFeedData): void {
+  cachedHomeFeed = data;
+  cachedHomeFeedAt = Date.now();
+  try {
+    sessionStorage.setItem(HOME_CACHE_KEY, JSON.stringify({ data, ts: cachedHomeFeedAt }));
+  } catch {}
+}
 
 export default function HomePage() {
   const { user, openAuthModal } = useAuth();
   const { trackMedia, isInVault, notify } = useVault();
 
-  const [feed, setFeed] = useState<HomeFeedData | null>(cachedHomeFeed);
-  const [loading, setLoading] = useState(!cachedHomeFeed);
+  const initialCache = readPersistedHomeFeed();
+  const [feed, setFeed] = useState<HomeFeedData | null>(initialCache?.data || null);
+  const [loading, setLoading] = useState(!initialCache?.data);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [progress, setProgress] = useState(0); // 0 to 100%
   const [isPaused, setIsPaused] = useState(false);
@@ -27,16 +55,21 @@ export default function HomePage() {
   const thumbStripRef = useRef<HTMLDivElement>(null);
 
   const loadFeed = useCallback((forceFresh: boolean = false) => {
-    if (!forceFresh && cachedHomeFeed) {
-      setFeed(cachedHomeFeed);
+    const existing = readPersistedHomeFeed();
+    const isFresh = existing && Date.now() - existing.ts < 1000 * 60 * 3;
+    if (!forceFresh && existing?.data) {
+      setFeed(existing.data);
       setLoading(false);
-      return;
+      if (isFresh) return;
+      // Otherwise silently revalidate in background without showing skeleton
+    } else {
+      setLoading(true);
     }
-    setLoading(true);
+
     api.getHomeFeed()
       .then((data) => {
         if (data) {
-          cachedHomeFeed = data;
+          persistHomeFeed(data);
           setFeed(data);
           if (data.featuredSlides) {
             mediaCache.setMany(data.featuredSlides);
@@ -55,19 +88,54 @@ export default function HomePage() {
     loadFeed();
   }, [loadFeed]);
 
-  // Extract dynamic slides from backend aggregator (supports 6 to 8 varied slides)
+  // Warm Discover Page 1 in background when idle so navigating to Discover is instant
+  useEffect(() => {
+    if (!feed || discoverStore.isInitialized()) return;
+    const timer = window.setTimeout(() => {
+      if (discoverStore.isInitialized()) return;
+      const seed = discoverStore.getState().visitSeed;
+      api
+        .discover({ page: 1, seed, sort: "Recommended" })
+        .then((data) => {
+          if (discoverStore.isInitialized() || !data?.items?.length) return;
+          const seenIds = new Set<string>();
+          const seenTitles = new Set<string>();
+          const unique = data.items.filter((i) => {
+            const key = `${i.title.toLowerCase().trim()}-${i.type}`;
+            if (seenIds.has(i.id) || seenTitles.has(key)) return false;
+            seenIds.add(i.id);
+            seenTitles.add(key);
+            return true;
+          });
+          discoverStore.updateState({
+            items: unique,
+            page: 1,
+            hasMore: unique.length >= 8,
+            seenIds,
+            seenTitles,
+            isInitialized: true,
+          });
+        })
+        .catch(() => {});
+    }, 1200);
+    return () => window.clearTimeout(timer);
+  }, [feed]);
+
+  // Extract 4 dynamic hero slides (1 Movie, 1 Series, 1 Anime, 1 Game)
   const slides: UnifiedMedia[] = [];
   if (feed) {
     if (feed.featuredSlides && feed.featuredSlides.length > 0) {
-      slides.push(...feed.featuredSlides);
+      slides.push(...feed.featuredSlides.slice(0, 4));
     } else {
-      const candidates: UnifiedMedia[] = [
-        ...(feed.trendingMovies || []),
-        ...(feed.topAnime || []),
-        ...(feed.popularGames || []),
-        ...(feed.trendingShows || []),
-      ].filter((m) => m && m.backdrop && m.backdrop !== m.poster);
-      slides.push(...candidates.slice(0, 6));
+      const pickOne = (arr?: UnifiedMedia[]) =>
+        (arr || []).find((m) => m && m.backdrop && m.backdrop !== m.poster);
+      const fallbackFour = [
+        pickOne(feed.trendingMovies),
+        pickOne(feed.trendingShows),
+        pickOne(feed.topAnime),
+        pickOne(feed.popularGames),
+      ].filter((m): m is UnifiedMedia => Boolean(m));
+      slides.push(...fallbackFour);
     }
   }
 
@@ -182,20 +250,28 @@ export default function HomePage() {
 
   return (
     <div className="relative min-h-screen w-full">
-      {/* Full-Page Dynamic Ambient Atmosphere (Smooth crossfade between slide color washes) */}
+      {/* Full-Page Dynamic Ambient Atmosphere (Uses lightweight poster for blurred wash — 15x faster) */}
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-        {slides.map((slide, idx) => (
-          <img
-            key={`ambient-${slide.id}`}
-            src={slide.backdrop || slide.poster}
-            alt=""
-            aria-hidden="true"
-            decoding="async"
-            className={`absolute inset-0 h-full w-full object-cover scale-125 filter blur-[90px] sm:blur-[110px] saturate-[140%] transition-opacity duration-1000 ease-in-out ${
-              idx === currentSlide ? "opacity-60 sm:opacity-75" : "opacity-0"
-            }`}
-          />
-        ))}
+        {slides.map((slide, idx) => {
+          const isNear =
+            idx === currentSlide ||
+            idx === (currentSlide + 1) % slides.length ||
+            idx === (currentSlide - 1 + slides.length) % slides.length;
+          if (!isNear) return null;
+          return (
+            <img
+              key={`ambient-${slide.id}`}
+              src={slide.poster || slide.backdrop}
+              alt=""
+              aria-hidden="true"
+              decoding="async"
+              loading={idx === currentSlide ? "eager" : "lazy"}
+              className={`absolute inset-0 h-full w-full object-cover scale-125 filter blur-[90px] sm:blur-[110px] saturate-[140%] transition-opacity duration-1000 ease-in-out ${
+                idx === currentSlide ? "opacity-55 sm:opacity-70" : "opacity-0"
+              }`}
+            />
+          );
+        })}
         {/* Subtle natural vignette that maintains crisp readability across all media cards */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-[#070b0e]/85" />
       </div>
@@ -210,20 +286,28 @@ export default function HomePage() {
           }}
           className="nv-reveal relative z-10 w-full -mt-[76px] pt-[80px] min-h-[580px] h-[100dvh] max-h-[860px] flex flex-col justify-end"
         >
-          {/* Feathered Hero Artwork Container with Dynamic Crossfade */}
+          {/* Feathered Hero Artwork Container with Dynamic Crossfade (only mounts active & adjacent slides for fast initial paint) */}
           <div className="absolute inset-0 overflow-hidden [mask-image:linear-gradient(to_bottom,black_0%,black_60%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,black_0%,black_60%,transparent_100%)]">
-            {slides.map((slide, idx) => (
-              <img
-                key={`hero-art-${slide.id}`}
-                src={slide.backdrop || slide.poster}
-                alt={slide.title}
-                fetchPriority={idx === currentSlide ? "high" : "auto"}
-                decoding="async"
-                className={`absolute inset-0 h-full w-full object-cover object-center transition-opacity duration-1000 ease-in-out ${
-                  idx === currentSlide ? "opacity-95" : "opacity-0 pointer-events-none"
-                }`}
-              />
-            ))}
+            {slides.map((slide, idx) => {
+              const isNear =
+                idx === currentSlide ||
+                idx === (currentSlide + 1) % slides.length ||
+                idx === (currentSlide - 1 + slides.length) % slides.length;
+              if (!isNear) return null;
+              return (
+                <img
+                  key={`hero-art-${slide.id}`}
+                  src={slide.backdrop || slide.poster}
+                  alt={slide.title}
+                  fetchPriority={idx === currentSlide ? "high" : "low"}
+                  loading={idx === currentSlide ? "eager" : "lazy"}
+                  decoding="async"
+                  className={`absolute inset-0 h-full w-full object-cover object-center transition-opacity duration-700 ease-in-out ${
+                    idx === currentSlide ? "opacity-95" : "opacity-0 pointer-events-none"
+                  }`}
+                />
+              );
+            })}
             {/* Directional left gradient shadow for maximum text readability */}
             <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/55 to-transparent sm:max-w-[75%]" />
             <div className="absolute inset-0 bg-gradient-to-t from-[#070b0e] via-transparent to-transparent opacity-80" />
@@ -267,6 +351,13 @@ export default function HomePage() {
                       <span>{activeMedia.highlightTag}</span>
                     </span>
                   )}
+
+                  {(activeMedia.type === "Series" || activeMedia.type === "Anime") && activeMedia.airingStatus === "Ongoing" && (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[hsl(var(--primary))] bg-[#08241d]/85 px-3 py-1.5 rounded-xl border border-[hsl(var(--primary))]/40 backdrop-blur-md shadow-sm">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--primary))] shadow-[0_0_6px_hsl(var(--primary))] animate-pulse" />
+                      <span>Ongoing</span>
+                    </span>
+                  )}
                 </div>
 
                 <h2 className="font-display mt-3 sm:mt-4 text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white line-clamp-2 drop-shadow-[0_4px_20px_rgba(0,0,0,0.95)]">
@@ -278,23 +369,27 @@ export default function HomePage() {
                 </p>
 
                 {/* Primary Action Buttons */}
-                <div className="mt-5 sm:mt-6 flex flex-wrap items-center gap-3">
+                <div className="mt-5 sm:mt-6 flex flex-wrap items-center gap-2.5 sm:gap-3">
                   <Link
                     href={`/media/${activeMedia.id}`}
                     onClick={() => mediaCache.set(activeMedia)}
                     data-testid="link-hero-details"
-                    className="nv-button flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 sm:px-6 sm:py-3 text-xs sm:text-sm font-extrabold text-[#08211c] hover:bg-[#73e4c7] shadow-[0_0_28px_rgba(55,218,178,.45)] active:scale-95 transition"
+                    className="nv-button group flex items-center gap-2 rounded-full bg-[hsl(var(--primary))] px-5 py-2.5 sm:px-6 sm:py-3 text-xs sm:text-sm font-extrabold text-[#061c17] hover:bg-[#6ae5c6] shadow-[0_8px_30px_rgba(55,218,178,.38),inset_0_1px_0_rgba(255,255,255,.45)] active:scale-95 transition-all"
                   >
-                    <Play size={15} fill="currentColor" />
+                    <Play size={14} fill="currentColor" className="transition-transform group-hover:translate-x-0.5" />
                     View details
                   </Link>
 
                   <button
                     onClick={handleHeroTrack}
                     data-testid="button-hero-vault"
-                    className="nv-button flex items-center gap-2 rounded-xl border border-white/[.2] bg-black/60 px-4.5 py-2.5 sm:px-5 sm:py-3 text-xs sm:text-sm font-bold text-white backdrop-blur-md hover:bg-white/[.15] active:scale-95 transition"
+                    className={`nv-button flex items-center gap-2 rounded-full border px-5 py-2.5 sm:px-5.5 sm:py-3 text-xs sm:text-sm font-bold backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,.12),0_8px_24px_rgba(0,0,0,.35)] active:scale-95 transition-all cursor-pointer ${
+                      isSaved
+                        ? "border-[hsl(var(--primary))]/50 bg-[hsl(var(--primary))]/15 text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/25"
+                        : "border-white/[.18] bg-white/[.08] text-white hover:bg-white/[.16] hover:border-white/[.3]"
+                    }`}
                   >
-                    {isSaved ? <Check size={15} /> : <BookmarkPlus size={15} />}
+                    {isSaved ? <Check size={15} strokeWidth={2.5} /> : <BookmarkPlus size={15} />}
                     {isSaved ? "In your vault" : "Add to vault"}
                   </button>
 
@@ -302,60 +397,71 @@ export default function HomePage() {
                     onClick={handleShuffleHero}
                     data-testid="button-hero-shuffle"
                     title="Shuffle featured titles"
-                    className="nv-button flex items-center gap-1.5 rounded-xl border border-white/[.15] bg-black/40 px-3.5 py-2.5 text-xs font-semibold text-slate-300 backdrop-blur-md hover:text-[hsl(var(--primary))] hover:border-[hsl(var(--primary))]/50 active:scale-95 transition cursor-pointer"
+                    className="nv-button group flex items-center gap-2 rounded-full border border-white/[.14] bg-[#0a0f14]/70 px-4 py-2.5 sm:py-3 text-xs sm:text-[13px] font-semibold text-slate-200 backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,.08),0_8px_24px_rgba(0,0,0,.35)] hover:text-[hsl(var(--primary))] hover:border-[hsl(var(--primary))]/45 hover:bg-[#0e171d]/85 active:scale-95 transition-all cursor-pointer"
                   >
-                    <Sparkles size={13} className="text-[hsl(var(--primary))]" />
-                    <span className="hidden sm:inline">Shuffle spotlight</span>
+                    <Shuffle size={14} className="text-[hsl(var(--primary))] transition-transform duration-300 group-hover:rotate-180" />
+                    <span className="hidden sm:inline">Shuffle</span>
                   </button>
                 </div>
               </div>
 
-              {/* Right Column: Interactive Slides Strip with Mini Thumbnails */}
-              <div className="flex flex-col items-start lg:items-end flex-shrink-0 gap-3.5">
-                {/* Carousel Controls Bar */}
-                <div className="flex items-center gap-3">
+              {/* Right Column: Unified Glass Controls & Refined Mini Entry Strip */}
+              <div className="flex flex-col items-start lg:items-end flex-shrink-0 gap-3">
+                {/* Unified Glass Carousel Control Dock */}
+                <div className="inline-flex items-center gap-1 rounded-full border border-white/[.14] bg-[#0a0f14]/80 p-1 backdrop-blur-2xl shadow-[0_12px_32px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.08)]">
                   <button
+                    type="button"
                     onClick={handlePrevSlide}
                     aria-label="Previous slide"
-                    className="nv-button flex h-11 w-11 sm:h-13 sm:w-13 items-center justify-center rounded-2xl border border-white/20 bg-black/80 text-white backdrop-blur-xl transition hover:bg-white/20 hover:border-white/40 active:scale-90 shadow-[0_8px_24px_rgba(0,0,0,0.6)] cursor-pointer"
+                    className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full text-slate-300 transition-all hover:bg-white/[.12] hover:text-white active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary))] cursor-pointer"
                   >
-                    <ChevronLeft size={22} className="sm:w-6 sm:h-6" />
+                    <ChevronLeft size={18} strokeWidth={2.2} />
                   </button>
 
-                  {/* Slide Counter */}
-                  <div className="flex items-center gap-2 text-xs sm:text-sm md:text-base font-mono-ui font-black text-white bg-black/80 px-4 py-2.5 sm:px-5 sm:py-3 rounded-2xl border border-white/20 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.6)]">
-                    <CircleDot size={15} className="sm:w-[17px] sm:h-[17px] text-[hsl(var(--primary))] animate-pulse" />
-                    <span>{String(currentSlide + 1).padStart(2, "0")} / {String(slides.length).padStart(2, "0")}</span>
+                  <div className="flex items-center gap-2 px-2.5 sm:px-3 font-mono-ui text-xs font-bold tracking-wider select-none">
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full transition-colors ${
+                        isPaused
+                          ? "bg-amber-400/80"
+                          : "bg-[hsl(var(--primary))] shadow-[0_0_8px_hsl(var(--primary))] animate-pulse"
+                      }`}
+                    />
+                    <span className="text-white">{String(currentSlide + 1).padStart(2, "0")}</span>
+                    <span className="text-slate-500">/</span>
+                    <span className="text-slate-400">{String(slides.length).padStart(2, "0")}</span>
                   </div>
 
                   <button
+                    type="button"
                     onClick={handleNextSlide}
                     aria-label="Next slide"
-                    className="nv-button flex h-11 w-11 sm:h-13 sm:w-13 items-center justify-center rounded-2xl border border-white/20 bg-black/80 text-white backdrop-blur-xl transition hover:bg-white/20 hover:border-white/40 active:scale-90 shadow-[0_8px_24px_rgba(0,0,0,0.6)] cursor-pointer"
+                    className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full text-slate-300 transition-all hover:bg-white/[.12] hover:text-white active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary))] cursor-pointer"
                   >
-                    <ChevronRight size={22} className="sm:w-6 sm:h-6" />
+                    <ChevronRight size={18} strokeWidth={2.2} />
                   </button>
                 </div>
 
-                {/* Interactive Mini-Thumbnail Cards Carousel Strip */}
+                {/* Interactive Mini-Thumbnail Entry Strip */}
                 <div
                   ref={thumbStripRef}
-                  className="flex items-center gap-3 overflow-x-auto w-full max-w-[92vw] sm:max-w-[540px] lg:max-w-[600px] xl:max-w-[680px] p-2 scroll-smooth overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                  className="flex items-center gap-2.5 overflow-x-auto w-full max-w-[92vw] sm:max-w-[540px] lg:max-w-[600px] xl:max-w-[680px] py-2 px-3 -mx-1 scroll-smooth overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,transparent,black_14px,black_calc(100%-14px),transparent)] [-webkit-mask-image:linear-gradient(to_right,transparent,black_14px,black_calc(100%-14px),transparent)]"
                 >
                   {slides.map((slide, idx) => {
                     const isActive = currentSlide === idx;
+                    const displayScore = Math.round(Number(slide.rating) > 5 ? Number(slide.rating) / 2 : (Number(slide.rating) || 4));
                     return (
                       <button
+                        type="button"
                         key={`hero-thumb-${slide.id || idx}`}
                         onClick={() => handleSelectSlide(idx)}
                         aria-label={`Jump to slide: ${slide.title}`}
-                        className={`group relative flex items-center gap-2.5 rounded-2xl p-2 transition-all duration-300 text-left cursor-pointer flex-shrink-0 ${
+                        className={`group relative flex items-center gap-2.5 overflow-hidden rounded-[14px] p-2 pr-3 transition-all duration-300 text-left cursor-pointer flex-shrink-0 backdrop-blur-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary))] ${
                           isActive
-                            ? "border-2 border-[hsl(var(--primary))] bg-black/95 shadow-[0_0_28px_rgba(55,218,178,0.5)] ring-2 ring-[hsl(var(--primary))]/30 scale-[1.06] z-10"
-                            : "border border-white/12 bg-black/60 opacity-60 hover:opacity-100 hover:scale-[1.02] hover:border-white/30"
+                            ? "border border-[hsl(var(--primary))]/75 bg-[#0d161b]/90 shadow-[0_8px_28px_rgba(55,218,178,0.22),inset_0_1px_0_rgba(255,255,255,0.12)]"
+                            : "border border-white/[.09] bg-[#090e12]/65 opacity-70 hover:opacity-100 hover:bg-[#10181f]/85 hover:border-white/[.2]"
                         }`}
                       >
-                        <div className="relative h-12 w-9 sm:h-14 sm:w-10 overflow-hidden rounded-xl bg-black/50 flex-shrink-0 shadow-inner">
+                        <div className="relative h-12 w-8 sm:h-[52px] sm:w-9 overflow-hidden rounded-[7px] bg-black/50 flex-shrink-0 ring-1 ring-white/15">
                           <img
                             src={slide.poster || slide.backdrop}
                             alt=""
@@ -365,28 +471,32 @@ export default function HomePage() {
                           />
                         </div>
 
-                        <div className="hidden sm:flex flex-col min-w-[75px] max-w-[105px] pr-1.5">
-                          <div className="flex items-center gap-1">
-                            <span className="text-[11px] font-bold text-[hsl(var(--primary))] truncate">
+                        <div className="hidden sm:flex flex-col min-w-[88px] max-w-[126px] gap-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`text-[10px] font-bold uppercase tracking-wider truncate ${
+                              isActive ? "text-[hsl(var(--primary))]" : "text-slate-400 group-hover:text-slate-300"
+                            }`}>
                               {slide.type}
                             </span>
                             {isActive && (
-                              <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--primary))] shadow-[0_0_6px_hsl(var(--primary))] animate-pulse shrink-0" />
+                              <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--primary))] shadow-[0_0_6px_hsl(var(--primary))] shrink-0" />
                             )}
                           </div>
-                          <span className="text-xs font-bold text-white truncate">
+                          <span className="text-[12.5px] font-bold text-white truncate leading-tight">
                             {slide.title}
                           </span>
-                          <span className="font-mono-ui text-xs text-slate-300 flex items-center gap-0.5">
-                            ★ {Math.round(Number(slide.rating) > 5 ? Number(slide.rating) / 2 : (Number(slide.rating) || 4))}
+                          <span className="font-mono-ui text-[11px] text-slate-400 flex items-center gap-1">
+                            <Star size={10} fill="#acd986" stroke="#acd986" className="shrink-0" />
+                            <span className="text-slate-300 font-semibold">{displayScore}</span>
+                            {slide.year && <span className="text-slate-500">· {slide.year}</span>}
                           </span>
                         </div>
 
-                        {/* Active Slide Progress Line */}
+                        {/* Razor-thin inset bottom progress bar on active card */}
                         {isActive && (
-                          <div className="absolute bottom-0 inset-x-2 h-1 bg-white/20 rounded-full overflow-hidden">
+                          <div className="absolute bottom-0 inset-x-0 h-[2.5px] bg-white/[.08]">
                             <div
-                              className="h-full bg-[hsl(var(--primary))] shadow-[0_0_10px_hsl(var(--primary))]"
+                              className="h-full bg-gradient-to-r from-[hsl(var(--primary))] to-[#8cf0d6] shadow-[0_0_8px_hsl(var(--primary))]"
                               style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
                             />
                           </div>

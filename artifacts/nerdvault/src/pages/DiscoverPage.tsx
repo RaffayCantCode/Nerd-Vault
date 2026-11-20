@@ -6,16 +6,167 @@ import { CustomSelect } from "../components/common/CustomSelect";
 import { api, UnifiedMedia } from "../lib/api";
 import { useVault } from "../context/VaultContext";
 import { discoverStore } from "../lib/discoverStore";
+import { pickRandomDiscoverHeadline } from "../lib/discoverHeadlines";
+
+const DISCOVER_SESSION_CACHE_KEY = "nv_discover_initial_v3";
+const DISCOVER_SESSION_TTL_MS = 1000 * 60 * 10;
+
+const CURATIONS_BY_TYPE: Record<string, string[]> = {
+  "All types": ["All curations", "Trending", "Popular", "Niche"],
+  Movie: ["All curations", "Trending", "Popular", "Critically Acclaimed", "Hidden Gems"],
+  Series: ["All curations", "Trending", "Popular", "Critically Acclaimed", "Hidden Gems"],
+  Anime: ["All curations", "This Season", "Trending", "Top Rated", "Hidden Gems"],
+  Game: ["All editions", "AAA", "Indie", "Trending", "Popular", "Hidden Gems"],
+};
+
+const GENRES_BY_TYPE: Record<string, string[]> = {
+  "All types": [
+    "All genres",
+    "Action",
+    "Adventure",
+    "Comedy",
+    "Drama",
+    "Fantasy",
+    "Horror",
+    "Mystery",
+    "Romance",
+    "Sci-Fi",
+    "Thriller",
+  ],
+  Movie: [
+    "All genres",
+    "Action",
+    "Adventure",
+    "Animation",
+    "Comedy",
+    "Crime",
+    "Documentary",
+    "Drama",
+    "Family",
+    "Fantasy",
+    "History",
+    "Horror",
+    "Mystery",
+    "Romance",
+    "Sci-Fi",
+    "Thriller",
+    "War",
+  ],
+  Series: [
+    "All genres",
+    "Action & Adventure",
+    "Comedy",
+    "Crime",
+    "Documentary",
+    "Drama",
+    "Family",
+    "Mystery",
+    "Reality",
+    "Sci-Fi & Fantasy",
+    "Thriller",
+    "War & Politics",
+  ],
+  Anime: [
+    "All genres",
+    "Action",
+    "Adventure",
+    "Comedy",
+    "Drama",
+    "Fantasy",
+    "Romance",
+    "Sci-Fi",
+    "Slice of Life",
+    "Mystery",
+    "Psychological",
+    "Supernatural",
+    "Horror",
+    "Mecha",
+    "Sports",
+    "Thriller",
+    "Music",
+  ],
+  Game: [
+    "All genres",
+    "RPG",
+    "Action",
+    "Adventure",
+    "Shooter",
+    "Strategy",
+    "Indie",
+    "Platformer",
+    "Fighting",
+    "Racing",
+    "Simulator",
+    "Puzzle",
+    "Horror",
+    "Hack & Slash",
+    "Sport",
+  ],
+};
+
+function alignQuadOrder(list: UnifiedMedia[]): UnifiedMedia[] {
+  const movies: UnifiedMedia[] = [];
+  const series: UnifiedMedia[] = [];
+  const animes: UnifiedMedia[] = [];
+  const games: UnifiedMedia[] = [];
+
+  for (const item of list) {
+    if (item.type === "Movie") movies.push(item);
+    else if (item.type === "Series") series.push(item);
+    else if (item.type === "Anime") animes.push(item);
+    else if (item.type === "Game") games.push(item);
+  }
+
+  const ordered: UnifiedMedia[] = [];
+  if (movies.length > 0 && series.length > 0 && animes.length > 0 && games.length > 0) {
+    const quadCount = Math.min(movies.length, series.length, animes.length, games.length);
+    for (let i = 0; i < quadCount; i++) {
+      ordered.push(movies[i], series[i], animes[i], games[i]);
+    }
+    return ordered;
+  }
+
+  const maxLen = Math.max(movies.length, series.length, animes.length, games.length);
+  for (let i = 0; i < maxLen; i++) {
+    if (movies[i]) ordered.push(movies[i]);
+    if (series[i]) ordered.push(series[i]);
+    if (animes[i]) ordered.push(animes[i]);
+    if (games[i]) ordered.push(games[i]);
+  }
+  return ordered;
+}
+
+function readCachedDiscover(): { items: UnifiedMedia[]; seed: number } | null {
+  try {
+    const raw = sessionStorage.getItem(DISCOVER_SESSION_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed?.items) && parsed.items.length > 0 && Date.now() - parsed.ts < DISCOVER_SESSION_TTL_MS) {
+      return { items: parsed.items, seed: parsed.seed };
+    }
+  } catch {}
+  return null;
+}
+
+function writeCachedDiscover(items: UnifiedMedia[], seed: number): void {
+  try {
+    sessionStorage.setItem(
+      DISCOVER_SESSION_CACHE_KEY,
+      JSON.stringify({ items: items.slice(0, 60), seed, ts: Date.now() })
+    );
+  } catch {}
+}
 
 function isClientReleased(item: UnifiedMedia): boolean {
   if (!item) return false;
+  if (item.airingStatus && item.airingStatus.toLowerCase() === "upcoming") return false;
   const today = new Date().toISOString().slice(0, 10);
   const currentYear = new Date().getFullYear();
   if (item.year) {
     const y = parseInt(item.year, 10);
     if (!isNaN(y) && y > currentYear) return false;
   }
-  if (item.releaseDate && item.releaseDate > today) return false;
+  if (item.releaseDate && item.releaseDate.slice(0, 10) > today) return false;
   return true;
 }
 
@@ -29,9 +180,15 @@ export default function DiscoverPage() {
   const savedState = discoverStore.getState();
   const hasSavedSession = discoverStore.isInitialized();
 
+  // Randomize headline on every Discover page opening
+  const [headline, setHeadline] = useState(() => pickRandomDiscoverHeadline());
+
   // If query parameters are present in the URL, prioritize them; otherwise use saved session state
   const initialSearch = paramSearch !== null ? paramSearch : (hasSavedSession ? savedState.query : "");
   const initialType = paramType !== null ? paramType : (hasSavedSession ? savedState.type : "All types");
+
+  const isDefaultView = !initialSearch && initialType === "All types" && (!hasSavedSession || (savedState.genre === "All genres" && savedState.curation === "All curations" && !savedState.mood));
+  const persistedDefault = !hasSavedSession && isDefaultView ? readCachedDiscover() : null;
 
   const [query, setQuery] = useState(initialSearch);
   const [debouncedQuery, setDebouncedQuery] = useState(initialSearch);
@@ -40,12 +197,16 @@ export default function DiscoverPage() {
   const [sort, setSort] = useState(() => hasSavedSession ? savedState.sort : "Recommended");
   const [curation, setCuration] = useState(() => hasSavedSession ? savedState.curation : "All curations");
   const [mood, setMood] = useState<string | null>(() => hasSavedSession ? savedState.mood : null);
-  const [visitSeed, setVisitSeed] = useState(() => hasSavedSession ? savedState.visitSeed : Math.floor(Math.random() * 100000));
+  const [visitSeed, setVisitSeed] = useState(() =>
+    hasSavedSession ? savedState.visitSeed : (persistedDefault?.seed ?? Math.floor(Math.random() * 100000))
+  );
 
-  // Initialize items and page directly from persistent session if already visited in this session
-  const [items, setItems] = useState<UnifiedMedia[]>(() => hasSavedSession ? savedState.items : []);
+  // Initialize items directly from in-memory session or persisted sessionStorage for 0ms paint
+  const [items, setItems] = useState<UnifiedMedia[]>(() =>
+    hasSavedSession ? savedState.items : (persistedDefault?.items ?? [])
+  );
   const [page, setPage] = useState(() => hasSavedSession ? savedState.page : 1);
-  const [loading, setLoading] = useState(() => !hasSavedSession);
+  const [loading, setLoading] = useState(() => !hasSavedSession && !persistedDefault);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(() => hasSavedSession ? savedState.hasMore : true);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -56,24 +217,23 @@ export default function DiscoverPage() {
   const seenIdsRef = useRef<Set<string>>(hasSavedSession ? new Set(savedState.seenIds) : new Set());
   const seenTitlesRef = useRef<Set<string>>(hasSavedSession ? new Set(savedState.seenTitles) : new Set());
 
-  const genres = [
-    "All genres",
-    "Sci-Fi",
-    "Drama",
-    "Animation",
-    "Thriller",
-    "Action",
-    "Crime",
-    "Mystery",
-    "Comedy",
-    "Fantasy",
-    "Adventure",
-    "Horror",
-  ];
-
   const types = ["All types", "Movie", "Series", "Anime", "Game"];
-  const curations = ["All curations", "Trending", "Popular", "Niche"];
+  const curations = CURATIONS_BY_TYPE[type] || CURATIONS_BY_TYPE["All types"];
+  const genres = GENRES_BY_TYPE[type] || GENRES_BY_TYPE["All types"];
   const sortOptions = ["Recommended", "Highest rated", "Newest"];
+
+  const handleTypeChange = (nextType: string) => {
+    setType(nextType);
+    setMood(null);
+    const validCurations = CURATIONS_BY_TYPE[nextType] || CURATIONS_BY_TYPE["All types"];
+    if (!validCurations.includes(curation)) {
+      setCuration(validCurations[0]);
+    }
+    const validGenres = GENRES_BY_TYPE[nextType] || GENRES_BY_TYPE["All types"];
+    if (!validGenres.includes(genre)) {
+      setGenre("All genres");
+    }
+  };
 
   // Debounce search query
   useEffect(() => {
@@ -122,10 +282,30 @@ export default function DiscoverPage() {
 
   // Fetch initial batch (Page 1) fresh only on first site visit, page reload, or explicit filter/search change
   useEffect(() => {
-    // If returning from details page and session is already initialized, do NOT refetch or wipe items!
+    // If returning from details page or hydrated from persisted session cache, do NOT flash skeleton or refetch!
     if (isFirstMountRef.current) {
       isFirstMountRef.current = false;
       if (discoverStore.isInitialized() && discoverStore.getState().items.length > 0) {
+        return;
+      }
+      if (persistedDefault && persistedDefault.items.length > 0) {
+        const hydratedIds = new Set<string>();
+        const hydratedTitles = new Set<string>();
+        for (const i of persistedDefault.items) {
+          hydratedIds.add(i.id);
+          hydratedTitles.add(`${i.title.toLowerCase().trim()}-${i.type}`);
+        }
+        seenIdsRef.current = hydratedIds;
+        seenTitlesRef.current = hydratedTitles;
+        discoverStore.updateState({
+          items: persistedDefault.items,
+          page: 1,
+          hasMore: true,
+          seenIds: hydratedIds,
+          seenTitles: hydratedTitles,
+          isInitialized: true,
+          visitSeed: persistedDefault.seed,
+        });
         return;
       }
     }
@@ -157,7 +337,7 @@ export default function DiscoverPage() {
       genre: genre !== "All genres" ? genre : undefined,
       mood: mood || undefined,
       sort,
-      curation: curation !== "All curations" ? curation : undefined,
+      curation: !curation.startsWith("All ") ? curation : undefined,
       search: debouncedQuery.trim() || undefined,
       page: 1,
       seed: visitSeed,
@@ -167,16 +347,10 @@ export default function DiscoverPage() {
         const filtered = fetched.filter((i) => {
           if (!isClientReleased(i)) return false;
           if (type !== "All types" && (i.type || "").toLowerCase() !== type.toLowerCase()) return false;
-          if (genre !== "All genres") {
-            const match =
-              (i.genre && i.genre.toLowerCase() === genre.toLowerCase()) ||
-              (i.genres && i.genres.some((g) => g.toLowerCase() === genre.toLowerCase()));
-            if (!match) return false;
-          }
           return true;
         });
 
-        const unique = filtered.filter((i) => {
+        const uniqueRaw = filtered.filter((i) => {
           const key = `${i.title.toLowerCase().trim()}-${i.type}`;
           if (seenIdsRef.current.has(i.id) || seenTitlesRef.current.has(key)) return false;
           seenIdsRef.current.add(i.id);
@@ -184,9 +358,25 @@ export default function DiscoverPage() {
           return true;
         });
 
+        const unique =
+          type === "All types" && sort === "Recommended" && !debouncedQuery.trim()
+            ? alignQuadOrder(uniqueRaw)
+            : uniqueRaw;
+
         setItems(unique);
         const more = unique.length >= 8 && !debouncedQuery.trim();
         setHasMore(more);
+
+        if (
+          type === "All types" &&
+          genre === "All genres" &&
+          curation.startsWith("All ") &&
+          !mood &&
+          !debouncedQuery.trim() &&
+          unique.length > 0
+        ) {
+          writeCachedDiscover(unique, visitSeed);
+        }
 
         discoverStore.updateState({
           items: unique,
@@ -220,7 +410,7 @@ export default function DiscoverPage() {
       genre: genre !== "All genres" ? genre : undefined,
       mood: mood || undefined,
       sort,
-      curation: curation !== "All curations" ? curation : undefined,
+      curation: !curation.startsWith("All ") ? curation : undefined,
       search: debouncedQuery.trim() || undefined,
       page: nextPage,
       seed: visitSeed,
@@ -230,12 +420,6 @@ export default function DiscoverPage() {
         const filtered = newItems.filter((i) => {
           if (!isClientReleased(i)) return false;
           if (type !== "All types" && (i.type || "").toLowerCase() !== type.toLowerCase()) return false;
-          if (genre !== "All genres") {
-            const match =
-              (i.genre && i.genre.toLowerCase() === genre.toLowerCase()) ||
-              (i.genres && i.genres.some((g) => g.toLowerCase() === genre.toLowerCase()));
-            if (!match) return false;
-          }
           return true;
         });
 
@@ -244,13 +428,17 @@ export default function DiscoverPage() {
           discoverStore.updateState({ hasMore: false });
         } else {
           setItems((prev) => {
-            const unique = filtered.filter((i) => {
+            const uniqueRaw = filtered.filter((i) => {
               const key = `${i.title.toLowerCase().trim()}-${i.type}`;
               if (seenIdsRef.current.has(i.id) || seenTitlesRef.current.has(key)) return false;
               seenIdsRef.current.add(i.id);
               seenTitlesRef.current.add(key);
               return true;
             });
+            const unique =
+              type === "All types" && sort === "Recommended" && !debouncedQuery.trim()
+                ? alignQuadOrder(uniqueRaw)
+                : uniqueRaw;
             if (unique.length === 0) {
               return prev;
             }
@@ -303,6 +491,7 @@ export default function DiscoverPage() {
 
   const handleShuffle = () => {
     const newSeed = discoverStore.resetForShuffle();
+    setHeadline(pickRandomDiscoverHeadline());
     setVisitSeed(newSeed);
     setItems([]);
     setPage(1);
@@ -319,7 +508,7 @@ export default function DiscoverPage() {
       genre: genre !== "All genres" ? genre : undefined,
       mood: mood || undefined,
       sort,
-      curation: curation !== "All curations" ? curation : undefined,
+      curation: !curation.startsWith("All ") ? curation : undefined,
       search: debouncedQuery.trim() || undefined,
       page: 1,
       seed: newSeed,
@@ -329,16 +518,10 @@ export default function DiscoverPage() {
         const filtered = fetched.filter((i) => {
           if (!isClientReleased(i)) return false;
           if (type !== "All types" && (i.type || "").toLowerCase() !== type.toLowerCase()) return false;
-          if (genre !== "All genres") {
-            const match =
-              (i.genre && i.genre.toLowerCase() === genre.toLowerCase()) ||
-              (i.genres && i.genres.some((g) => g.toLowerCase() === genre.toLowerCase()));
-            if (!match) return false;
-          }
           return true;
         });
 
-        const unique = filtered.filter((i) => {
+        const uniqueRaw = filtered.filter((i) => {
           const key = `${i.title.toLowerCase().trim()}-${i.type}`;
           if (seenIdsRef.current.has(i.id) || seenTitlesRef.current.has(key)) return false;
           seenIdsRef.current.add(i.id);
@@ -346,9 +529,25 @@ export default function DiscoverPage() {
           return true;
         });
 
+        const unique =
+          type === "All types" && sort === "Recommended" && !debouncedQuery.trim()
+            ? alignQuadOrder(uniqueRaw)
+            : uniqueRaw;
+
         setItems(unique);
         const more = unique.length >= 8 && !debouncedQuery.trim();
         setHasMore(more);
+
+        if (
+          type === "All types" &&
+          genre === "All genres" &&
+          curation === "All curations" &&
+          !mood &&
+          !debouncedQuery.trim() &&
+          unique.length > 0
+        ) {
+          writeCachedDiscover(unique, visitSeed);
+        }
 
         discoverStore.updateState({
           items: unique,
@@ -389,9 +588,9 @@ export default function DiscoverPage() {
       <div className="nv-reveal">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <h2 className="font-display max-w-[620px] text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Find your next
+            {headline.lead}
             <br />
-            <span className="text-[hsl(var(--accent))]">obsession.</span>
+            <span className="text-[hsl(var(--accent))]">{headline.accent}</span>
           </h2>
           <p className="max-w-md text-sm leading-relaxed text-slate-400">
             Seamless continuous scroll across Movies, Series, Anime, and Games. Your browsing position and discovered titles are preserved as you explore.
@@ -428,10 +627,7 @@ export default function DiscoverPage() {
           <div className="flex gap-2.5 flex-wrap sm:flex-nowrap relative z-40">
             <CustomSelect
               value={type}
-              onChange={(val) => {
-                setType(val);
-                setMood(null);
-              }}
+              onChange={handleTypeChange}
               options={types}
               minWidth="120px"
             />
@@ -443,7 +639,7 @@ export default function DiscoverPage() {
                 setMood(null);
               }}
               options={curations}
-              minWidth="135px"
+              minWidth="145px"
             />
 
             <CustomSelect
@@ -453,7 +649,7 @@ export default function DiscoverPage() {
                 setMood(null);
               }}
               options={genres}
-              minWidth="130px"
+              minWidth="140px"
             />
 
             <CustomSelect
@@ -486,7 +682,7 @@ export default function DiscoverPage() {
             <span>Shuffle fresh mix</span>
           </button>
 
-          {(genre !== "All genres" || type !== "All types" || curation !== "All curations" || mood || query) && (
+          {(genre !== "All genres" || type !== "All types" || !curation.startsWith("All ") || mood || query) && (
             <button
               onClick={() => {
                 setGenre("All genres");

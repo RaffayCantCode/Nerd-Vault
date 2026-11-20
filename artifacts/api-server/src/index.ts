@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import app from "./app";
 import { logger } from "./lib/logger";
+import { catalogAggregator } from "./services/catalog-aggregator";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -44,4 +45,10 @@ if (Number.isNaN(port) || port <= 0) {
 app.listen(port, () => {
   logger.info({ port }, `NerdVault API Server listening on port ${port}`);
   console.log(`> NerdVault API server running at http://localhost:${port}`);
+
+  // Background cache warm-up so first visitor gets instant Home & Discover loads
+  Promise.allSettled([
+    catalogAggregator.getHomeFeed(),
+    catalogAggregator.discover({ page: 1, seed: 1 }),
+  ]).catch(() => {});
 });
