@@ -342,8 +342,23 @@ export default function DiscoverPage() {
       page: 1,
       seed: visitSeed,
     })
-      .then((data) => {
-        const fetched = data?.items || [];
+      .then(async (data) => {
+        let fetched = data?.items || [];
+        // Failsafe automatic retry on seed 1 if a non-search discover page transiently returned 0 items
+        if (fetched.length === 0 && !debouncedQuery.trim()) {
+          const retry = await api
+            .discover({
+              type: type !== "All types" ? type : undefined,
+              genre: genre !== "All genres" ? genre : undefined,
+              mood: mood || undefined,
+              sort,
+              curation: !curation.startsWith("All ") ? curation : undefined,
+              page: 1,
+              seed: 1,
+            })
+            .catch(() => null);
+          fetched = retry?.items || [];
+        }
         const filtered = fetched.filter((i) => {
           if (!isClientReleased(i)) return false;
           if (type !== "All types" && (i.type || "").toLowerCase() !== type.toLowerCase()) return false;

@@ -46,9 +46,13 @@ app.listen(port, () => {
   logger.info({ port }, `NerdVault API Server listening on port ${port}`);
   console.log(`> NerdVault API server running at http://localhost:${port}`);
 
-  // Background cache warm-up so first visitor gets instant Home & Discover loads
-  Promise.allSettled([
-    catalogAggregator.getHomeFeed(),
-    catalogAggregator.discover({ page: 1, seed: 1 }),
-  ]).catch(() => {});
+  // Sequential background cache warm-up (Home first, then Discover) to avoid upstream burst rate limits
+  catalogAggregator
+    .getHomeFeed()
+    .catch(() => {})
+    .finally(() => {
+      setTimeout(() => {
+        catalogAggregator.discover({ page: 1, seed: 1 }).catch(() => {});
+      }, 1200);
+    });
 });

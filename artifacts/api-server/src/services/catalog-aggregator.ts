@@ -131,7 +131,7 @@ export const catalogAggregator = {
   async getHomeFeed(): Promise<HomeFeedData> {
     const { weekStart, today, weekStartSec, nowSec } = getThisWeekWindow();
 
-    // Ultra-fast memory cache with stale-while-revalidate (15 min fresh, 60 min stale)
+    // Ultra-fast memory cache with stale-while-revalidate; only cache when all 4 categories succeeded
     const rawPools = await mediaCache.getOrFetch(
       `home:raw_feed_pools:${today}`,
       async () => {
@@ -149,18 +149,18 @@ export const catalogAggregator = {
           weeklyAnime,
           weeklyGames,
         ] = await Promise.all([
-          withTimeout(tmdbService.getTrendingMovies(1).catch(() => []), 3500, []),
-          withTimeout(tmdbService.getTopRatedMovies(1).catch(() => []), 3500, []),
-          withTimeout(tmdbService.getTrendingShows(1).catch(() => []), 3500, []),
-          withTimeout(tmdbService.getTopRatedShows(1).catch(() => []), 3500, []),
-          withTimeout(anilistService.getSeasonalAnime(1).catch(() => []), 3500, []),
-          withTimeout(anilistService.getPopularAnime(undefined, 1).catch(() => []), 3500, []),
-          withTimeout(igdbService.getTrendingGames(undefined, 1).catch(() => []), 3500, []),
-          withTimeout(igdbService.getPopularGames(undefined, 1).catch(() => []), 3500, []),
-          withTimeout(tmdbService.getWeeklyMovies(weekStart, today).catch(() => []), 3500, []),
-          withTimeout(tmdbService.getWeeklyShows(weekStart, today).catch(() => []), 3500, []),
-          withTimeout(anilistService.getWeeklyAnime(weekStart, today).catch(() => []), 3500, []),
-          withTimeout(igdbService.getWeeklyGames(weekStartSec, nowSec).catch(() => []), 3500, []),
+          withTimeout(tmdbService.getTrendingMovies(1).catch(() => []), 6500, []),
+          withTimeout(tmdbService.getTopRatedMovies(1).catch(() => []), 6500, []),
+          withTimeout(tmdbService.getTrendingShows(1).catch(() => []), 6500, []),
+          withTimeout(tmdbService.getTopRatedShows(1).catch(() => []), 6500, []),
+          withTimeout(anilistService.getSeasonalAnime(1).catch(() => []), 6500, []),
+          withTimeout(anilistService.getPopularAnime(undefined, 1).catch(() => []), 6500, []),
+          withTimeout(igdbService.getTrendingGames(undefined, 1).catch(() => []), 6500, []),
+          withTimeout(igdbService.getPopularGames(undefined, 1).catch(() => []), 6500, []),
+          withTimeout(tmdbService.getWeeklyMovies(weekStart, today).catch(() => []), 6500, []),
+          withTimeout(tmdbService.getWeeklyShows(weekStart, today).catch(() => []), 6500, []),
+          withTimeout(anilistService.getWeeklyAnime(weekStart, today).catch(() => []), 6500, []),
+          withTimeout(igdbService.getWeeklyGames(weekStartSec, nowSec).catch(() => []), 6500, []),
         ]);
         return {
           trendingMovies,
@@ -177,7 +177,13 @@ export const catalogAggregator = {
           weeklyGames,
         };
       },
-      1000 * 60 * 15
+      1000 * 60 * 15,
+      1000 * 60 * 60,
+      (pools) =>
+        pools.trendingMovies.length > 0 &&
+        pools.trendingShows.length > 0 &&
+        (pools.seasonalAnime.length >= 6 || pools.popularAnime.length >= 6) &&
+        (pools.trendingGames.length > 0 || pools.popularGames.length > 0)
     );
 
     const {
@@ -199,11 +205,16 @@ export const catalogAggregator = {
     const allMovies = dedupeList([...trendingMovies, ...shuffleArray(topRatedMovies)]).filter(isOfficiallyReleased);
     const allShows = dedupeList([...trendingShows, ...shuffleArray(topRatedShows)]).filter((s) => isOfficiallyReleased(s) && !isNews(s));
 
-    // Top Anime This Season: strictly current seasonal & new trending anime in accurate trending order (deduplicated, non-ecchi first)
+    // Top Anime This Season: current seasonal & new trending anime; failsafe top-up with popularAnime if < 10
     const rawSeasonal = dedupeList(seasonalAnime || []).filter(isOfficiallyReleased);
-    const nonEcchiAnime = rawSeasonal.filter((a) => !isEcchi(a));
-    const ecchiAnime = rawSeasonal.filter((a) => isEcchi(a));
-    const allAnime = [...nonEcchiAnime, ...ecchiAnime];
+    const nonEcchiSeasonal = rawSeasonal.filter((a) => !isEcchi(a));
+    const ecchiSeasonal = rawSeasonal.filter((a) => isEcchi(a));
+    let allAnime = [...nonEcchiSeasonal, ...ecchiSeasonal];
+    if (allAnime.length < 10 && popularAnime && popularAnime.length > 0) {
+      const topUp = popularAnime.filter((a) => isOfficiallyReleased(a) && !isEcchi(a));
+      allAnime = dedupeList([...allAnime, ...topUp]);
+    }
+    const nonEcchiAnime = allAnime.filter((a) => !isEcchi(a));
 
     // Games: combine trending and classic games, deduplicate by ID and base title
     const rawGames = shuffleArray([...(trendingGames || []), ...(popularGames || [])]).filter(isOfficiallyReleased);
@@ -217,19 +228,23 @@ export const catalogAggregator = {
       return true;
     });
 
-    // Curate exactly 4 Hero Slides: 1 Trending Movie, 1 Trending TV Series, 1 Trending Anime, 1 Trending Game
+    // Curate exactly 4 Hero Slides: 1 Trending Movie, 1 Trending TV Series, 1 Trending Anime, 1 Trending Game (failsafe fallback per category)
     const heroMovie =
       pickHeroCandidates(trendingMovies, 1, "Trending Movie")[0] ||
-      pickHeroCandidates(topRatedMovies, 1, "Featured Movie")[0];
+      pickHeroCandidates(topRatedMovies, 1, "Featured Movie")[0] ||
+      (allMovies[0] ? { ...allMovies[0], highlightTag: "Trending Movie" } : undefined);
     const heroShow =
       pickHeroCandidates(trendingShows, 1, "Trending Series")[0] ||
-      pickHeroCandidates(topRatedShows, 1, "Featured Series")[0];
+      pickHeroCandidates(topRatedShows, 1, "Featured Series")[0] ||
+      (allShows[0] ? { ...allShows[0], highlightTag: "Trending Series" } : undefined);
     const heroAnime =
       pickHeroCandidates(nonEcchiAnime, 1, "Trending Anime")[0] ||
-      pickHeroCandidates(popularAnime, 1, "Featured Anime")[0];
+      pickHeroCandidates(popularAnime, 1, "Featured Anime")[0] ||
+      (nonEcchiAnime[0] ? { ...nonEcchiAnime[0], highlightTag: "Trending Anime" } : undefined);
     const heroGame =
       pickHeroCandidates(trendingGames || [], 1, "Trending Game")[0] ||
-      pickHeroCandidates(popularGames || [], 1, "Featured Game")[0];
+      pickHeroCandidates(popularGames || [], 1, "Featured Game")[0] ||
+      (allGames[0] ? { ...allGames[0], highlightTag: "Trending Game" } : undefined);
 
     const featuredSlides = [heroMovie, heroShow, heroAnime, heroGame].filter(
       (item): item is UnifiedMedia =>
@@ -489,21 +504,21 @@ export const catalogAggregator = {
           cacheKey,
           async () => {
             if (activeCuration === "This Season") {
-              return withTimeout(anilistService.getSeasonalAnime(fetchPage, activeGenre).catch(() => []), 3500, []);
+              return withTimeout(anilistService.getSeasonalAnime(fetchPage, activeGenre).catch(() => []), 6500, []);
             }
             if (activeCuration === "Trending") {
-              return withTimeout(anilistService.getTrendingAnime(fetchPage, activeGenre).catch(() => []), 3500, []);
+              return withTimeout(anilistService.getTrendingAnime(fetchPage, activeGenre).catch(() => []), 6500, []);
             }
             if (activeCuration === "Top Rated" || activeCuration === "Popular") {
-              return withTimeout(anilistService.getPopularAnime(activeGenre, fetchPage).catch(() => []), 3500, []);
+              return withTimeout(anilistService.getPopularAnime(activeGenre, fetchPage).catch(() => []), 6500, []);
             }
             if (activeCuration === "Hidden Gems" || activeCuration === "Niche") {
-              return withTimeout(anilistService.getNicheAnime(activeGenre, fetchPage).catch(() => []), 3500, []);
+              return withTimeout(anilistService.getNicheAnime(activeGenre, fetchPage).catch(() => []), 6500, []);
             }
             const [trending, popular, niche] = await Promise.all([
-              withTimeout(anilistService.getTrendingAnime(fetchPage, activeGenre).catch(() => []), 3500, []),
-              withTimeout(anilistService.getPopularAnime(activeGenre, fetchPage).catch(() => []), 3500, []),
-              withTimeout(anilistService.getNicheAnime(activeGenre, fetchPage).catch(() => []), 3500, []),
+              withTimeout(anilistService.getTrendingAnime(fetchPage, activeGenre).catch(() => []), 6500, []),
+              withTimeout(anilistService.getPopularAnime(activeGenre, fetchPage).catch(() => []), 6500, []),
+              withTimeout(anilistService.getNicheAnime(activeGenre, fetchPage).catch(() => []), 6500, []),
             ]);
             const tiers = separateTiers(trending, popular, niche);
             const merged: UnifiedMedia[] = [];
@@ -513,7 +528,8 @@ export const catalogAggregator = {
               if (tiers.popular[i]) merged.push(tiers.popular[i]);
               if (tiers.niche[i]) merged.push(tiers.niche[i]);
             }
-            return merged;
+            if (merged.length > 0) return merged;
+            return withTimeout(anilistService.getPopularAnime(activeGenre, 1).catch(() => []), 6500, []);
           },
           1000 * 60 * 15
         );
@@ -523,24 +539,29 @@ export const catalogAggregator = {
           cacheKey,
           async () => {
             if (activeCuration === "AAA") {
-              return withTimeout(igdbService.getAAAGames(activeGenre, fetchPage).catch(() => []), 3500, []);
+              const res = await withTimeout(igdbService.getAAAGames(activeGenre, fetchPage).catch(() => []), 6500, []);
+              return res.length > 0 ? res : withTimeout(igdbService.getAAAGames(activeGenre, 1).catch(() => []), 6500, []);
             }
             if (activeCuration === "Indie") {
-              return withTimeout(igdbService.getIndieGames(activeGenre, fetchPage).catch(() => []), 3500, []);
+              const res = await withTimeout(igdbService.getIndieGames(activeGenre, fetchPage).catch(() => []), 6500, []);
+              return res.length > 0 ? res : withTimeout(igdbService.getIndieGames(activeGenre, 1).catch(() => []), 6500, []);
             }
             if (activeCuration === "Trending") {
-              return withTimeout(igdbService.getTrendingGames(activeGenre, fetchPage).catch(() => []), 3500, []);
+              const res = await withTimeout(igdbService.getTrendingGames(activeGenre, fetchPage).catch(() => []), 6500, []);
+              return res.length > 0 ? res : withTimeout(igdbService.getTrendingGames(activeGenre, 1).catch(() => []), 6500, []);
             }
             if (activeCuration === "Popular" || activeCuration === "Top Rated") {
-              return withTimeout(igdbService.getPopularGames(activeGenre, fetchPage).catch(() => []), 3500, []);
+              const res = await withTimeout(igdbService.getPopularGames(activeGenre, fetchPage).catch(() => []), 6500, []);
+              return res.length > 0 ? res : withTimeout(igdbService.getPopularGames(activeGenre, 1).catch(() => []), 6500, []);
             }
             if (activeCuration === "Hidden Gems" || activeCuration === "Niche") {
-              return withTimeout(igdbService.getNicheGames(activeGenre, fetchPage).catch(() => []), 3500, []);
+              const res = await withTimeout(igdbService.getNicheGames(activeGenre, fetchPage).catch(() => []), 6500, []);
+              return res.length > 0 ? res : withTimeout(igdbService.getNicheGames(activeGenre, 1).catch(() => []), 6500, []);
             }
             const [trending, popular, niche] = await Promise.all([
-              withTimeout(igdbService.getTrendingGames(activeGenre, fetchPage).catch(() => []), 3500, []),
-              withTimeout(igdbService.getPopularGames(activeGenre, fetchPage).catch(() => []), 3500, []),
-              withTimeout(igdbService.getNicheGames(activeGenre, fetchPage).catch(() => []), 3500, []),
+              withTimeout(igdbService.getTrendingGames(activeGenre, fetchPage).catch(() => []), 6500, []),
+              withTimeout(igdbService.getPopularGames(activeGenre, fetchPage).catch(() => []), 6500, []),
+              withTimeout(igdbService.getNicheGames(activeGenre, fetchPage).catch(() => []), 6500, []),
             ]);
             const tiers = separateTiers(trending, popular, niche);
             const merged: UnifiedMedia[] = [];
@@ -550,7 +571,9 @@ export const catalogAggregator = {
               if (tiers.popular[i]) merged.push(tiers.popular[i]);
               if (tiers.niche[i]) merged.push(tiers.niche[i]);
             }
-            return merged;
+            if (merged.length > 0) return merged;
+            // Failsafe fallback to page 1 popular games if offset page returned empty
+            return withTimeout(igdbService.getPopularGames(activeGenre, 1).catch(() => []), 6500, []);
           },
           1000 * 60 * 15
         );
@@ -567,21 +590,21 @@ export const catalogAggregator = {
             animeTrending, animePopular, animeNiche,
             gameTrending, gamePopular, gameNiche,
           ] = await Promise.all([
-            withTimeout(tmdbService.getTrendingMovies(fetchPage).catch(() => []), 3500, []),
-            withTimeout(tmdbService.getPopularMovies(fetchPage).catch(() => []), 3500, []),
-            withTimeout(tmdbService.getCultAndNiche("Movie", fetchPage).catch(() => []), 3500, []),
+            withTimeout(tmdbService.getTrendingMovies(fetchPage).catch(() => []), 6500, []),
+            withTimeout(tmdbService.getPopularMovies(fetchPage).catch(() => []), 6500, []),
+            withTimeout(tmdbService.getCultAndNiche("Movie", fetchPage).catch(() => []), 6500, []),
 
-            withTimeout(tmdbService.getTrendingShows(fetchPage).catch(() => []), 3500, []),
-            withTimeout(tmdbService.getPopularShows(fetchPage).catch(() => []), 3500, []),
-            withTimeout(tmdbService.getCultAndNiche("Series", fetchPage).catch(() => []), 3500, []),
+            withTimeout(tmdbService.getTrendingShows(fetchPage).catch(() => []), 6500, []),
+            withTimeout(tmdbService.getPopularShows(fetchPage).catch(() => []), 6500, []),
+            withTimeout(tmdbService.getCultAndNiche("Series", fetchPage).catch(() => []), 6500, []),
 
-            withTimeout(anilistService.getTrendingAnime(fetchPage).catch(() => []), 3500, []),
-            withTimeout(anilistService.getPopularAnime(undefined, fetchPage).catch(() => []), 3500, []),
-            withTimeout(anilistService.getNicheAnime(undefined, fetchPage).catch(() => []), 3500, []),
+            withTimeout(anilistService.getTrendingAnime(fetchPage).catch(() => []), 6500, []),
+            withTimeout(anilistService.getPopularAnime(undefined, fetchPage).catch(() => []), 6500, []),
+            withTimeout(anilistService.getNicheAnime(undefined, fetchPage).catch(() => []), 6500, []),
 
-            withTimeout(igdbService.getTrendingGames(undefined, fetchPage).catch(() => []), 3500, []),
-            withTimeout(igdbService.getPopularGames(undefined, fetchPage).catch(() => []), 3500, []),
-            withTimeout(igdbService.getNicheGames(undefined, fetchPage).catch(() => []), 3500, []),
+            withTimeout(igdbService.getTrendingGames(undefined, fetchPage).catch(() => []), 6500, []),
+            withTimeout(igdbService.getPopularGames(undefined, fetchPage).catch(() => []), 6500, []),
+            withTimeout(igdbService.getNicheGames(undefined, fetchPage).catch(() => []), 6500, []),
           ]);
           return {
             movieTrending, moviePopular, movieNiche,
@@ -590,7 +613,13 @@ export const catalogAggregator = {
             gameTrending, gamePopular, gameNiche,
           };
         },
-        1000 * 60 * 15
+        1000 * 60 * 15,
+        1000 * 60 * 60,
+        (pools) =>
+          (pools.movieTrending.length > 0 || pools.moviePopular.length > 0) &&
+          (pools.seriesTrending.length > 0 || pools.seriesPopular.length > 0) &&
+          (pools.animeTrending.length > 0 || pools.animePopular.length > 0) &&
+          (pools.gameTrending.length > 0 || pools.gamePopular.length > 0)
       );
 
       const {

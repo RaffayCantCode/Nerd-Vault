@@ -4,6 +4,12 @@ type CacheEntry<T> = {
   staleUntil: number;
 };
 
+function isEmptyCacheable(val: unknown): boolean {
+  if (val === null || val === undefined) return true;
+  if (Array.isArray(val) && val.length === 0) return true;
+  return false;
+}
+
 class MemoryCache {
   private cache = new Map<string, CacheEntry<unknown>>();
   private inFlight = new Map<string, Promise<unknown>>();
@@ -37,10 +43,12 @@ class MemoryCache {
     key: string,
     fetcher: () => Promise<T>,
     ttlMs: number = 1000 * 60 * 15,
-    staleTtlMs?: number
+    staleTtlMs?: number,
+    shouldCache?: (val: T) => boolean
   ): Promise<T> {
     const entry = this.cache.get(key) as CacheEntry<T> | undefined;
     const now = Date.now();
+    const canCache = shouldCache ?? ((v: T) => !isEmptyCacheable(v));
 
     if (entry) {
       // Fresh cache hit: instant return
@@ -52,7 +60,9 @@ class MemoryCache {
         if (!this.inFlight.has(key)) {
           const refreshPromise = fetcher()
             .then((val) => {
-              this.set(key, val, ttlMs, staleTtlMs);
+              if (canCache(val)) {
+                this.set(key, val, ttlMs, staleTtlMs);
+              }
               this.inFlight.delete(key);
               return val;
             })
@@ -71,7 +81,9 @@ class MemoryCache {
 
     const promise = fetcher()
       .then((val) => {
-        this.set(key, val, ttlMs, staleTtlMs);
+        if (canCache(val)) {
+          this.set(key, val, ttlMs, staleTtlMs);
+        }
         this.inFlight.delete(key);
         return val;
       })
@@ -96,7 +108,7 @@ export async function fetchWithCache<T = any>(
   urlOrKey: string,
   ttlMs: number = 1000 * 60 * 15,
   fetcher?: () => Promise<T>,
-  timeoutMs: number = 3800
+  timeoutMs: number = 5500
 ): Promise<T> {
   return mediaCache.getOrFetch<T>(
     urlOrKey,

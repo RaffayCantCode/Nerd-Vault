@@ -91,35 +91,71 @@ function formatGame(item: any): UnifiedMedia {
   };
 }
 
+// Lightweight pacer to stay strictly under Twitch/IGDB's 4 requests/sec limit
+let igdbLastRequestAt = 0;
+let igdbQueue: Promise<void> = Promise.resolve();
+
+function waitForIgdbSlot(): Promise<void> {
+  const next = igdbQueue.then(async () => {
+    const minGapMs = 260;
+    const elapsed = Date.now() - igdbLastRequestAt;
+    if (elapsed < minGapMs) {
+      await new Promise((r) => setTimeout(r, minGapMs - elapsed));
+    }
+    igdbLastRequestAt = Date.now();
+  });
+  igdbQueue = next.catch(() => {});
+  return next;
+}
+
 async function queryIGDB(endpoint: string, queryBody: string): Promise<any> {
-  const token = await getAccessToken();
   const cacheKey = `igdb:${endpoint}:${queryBody}`;
 
   return fetchWithCache(
     cacheKey,
     1000 * 60 * 30,
     async () => {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 3500);
-      try {
-        const res = await fetch(`${IGDB_API_URL}/${endpoint}`, {
-          method: "POST",
-          headers: {
-            "Client-ID": IGDB_CLIENT_ID,
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "text/plain",
-          },
-          body: queryBody,
-          signal: controller.signal,
-        });
+      let lastErr: any;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        await waitForIgdbSlot();
+        const token = await getAccessToken();
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 5500);
+        try {
+          const res = await fetch(`${IGDB_API_URL}/${endpoint}`, {
+            method: "POST",
+            headers: {
+              "Client-ID": IGDB_CLIENT_ID,
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "text/plain",
+            },
+            body: queryBody,
+            signal: controller.signal,
+          });
 
-        if (!res.ok) {
-          throw new Error(`IGDB query failed: ${res.status} ${res.statusText}`);
+          clearTimeout(timer);
+
+          if (res.status === 429 && attempt === 0) {
+            await new Promise((r) => setTimeout(r, 550));
+            continue;
+          }
+          if (res.status === 401 && attempt === 0) {
+            oauthToken = null;
+            continue;
+          }
+          if (!res.ok) {
+            throw new Error(`IGDB query failed: ${res.status} ${res.statusText}`);
+          }
+          return await res.json();
+        } catch (err) {
+          clearTimeout(timer);
+          lastErr = err;
+          if (attempt === 0) {
+            await new Promise((r) => setTimeout(r, 350));
+          }
         }
-        return res.json();
-      } finally {
-        clearTimeout(timer);
       }
+      throw lastErr;
     }
   );
 }

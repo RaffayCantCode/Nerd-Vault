@@ -379,6 +379,22 @@ function dedupeAnime(items: UnifiedMedia[]): UnifiedMedia[] {
   });
 }
 
+let anilistLastRequestAt = 0;
+let anilistQueue: Promise<void> = Promise.resolve();
+
+function waitForAnilistSlot(): Promise<void> {
+  const next = anilistQueue.then(async () => {
+    const minGapMs = 180;
+    const elapsed = Date.now() - anilistLastRequestAt;
+    if (elapsed < minGapMs) {
+      await new Promise((r) => setTimeout(r, minGapMs - elapsed));
+    }
+    anilistLastRequestAt = Date.now();
+  });
+  anilistQueue = next.catch(() => {});
+  return next;
+}
+
 async function runGraphQLQuery(query: string, variables: any = {}) {
   if (Date.now() < anilistDownUntil) {
     throw new Error("AniList API is temporarily disabled upstream");
@@ -390,8 +406,9 @@ async function runGraphQLQuery(query: string, variables: any = {}) {
     async () => {
       let lastErr: any;
       for (let attempt = 0; attempt < 2; attempt++) {
+        await waitForAnilistSlot();
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3200);
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
         try {
           const res = await fetch(ANILIST_GRAPHQL_URL, {
             method: "POST",
@@ -405,11 +422,11 @@ async function runGraphQLQuery(query: string, variables: any = {}) {
           });
           clearTimeout(timeoutId);
           if (res.status === 429) {
-            await new Promise((r) => setTimeout(r, 400));
+            await new Promise((r) => setTimeout(r, 650));
             continue;
           }
           if (res.status === 403) {
-            anilistDownUntil = Date.now() + 1000 * 60 * 5;
+            anilistDownUntil = Date.now() + 1000 * 60 * 2;
             throw new Error(`AniList returned status 403 (disabled upstream)`);
           }
           if (!res.ok) throw new Error(`AniList returned status ${res.status}`);
@@ -424,7 +441,7 @@ async function runGraphQLQuery(query: string, variables: any = {}) {
           if (err?.message?.includes("403") || err?.message?.includes("disabled")) {
             break;
           }
-          if (attempt === 0) await new Promise((r) => setTimeout(r, 250));
+          if (attempt === 0) await new Promise((r) => setTimeout(r, 350));
         }
       }
       throw lastErr;
@@ -586,11 +603,22 @@ export const anilistService = {
         return cleanSeasonal.slice(0, 24);
       }
 
-      // Supplement with currently airing trending anime from recent 12 months if current season just started
+      // Supplement with currently airing / trending anime so the rail is always well-populated
       const trending = await this.getTrendingAnime(page, cleanGenre);
       const minYear = seasonYear - 1;
       const recentTrending = trending.filter((a) => !isEcchi(a) && Number(a.year) >= minYear);
-      const combined = dedupeAnime([...cleanSeasonal, ...recentTrending]);
+      let combined = dedupeAnime([...cleanSeasonal, ...recentTrending]);
+      if (combined.length < 10) {
+        combined = dedupeAnime([...combined, ...trending.filter((a) => !isEcchi(a))]);
+      }
+      if (combined.length >= 6) return combined.slice(0, 24);
+
+      const kitsuExtra = await fetchKitsuTrending().catch(() => []);
+      combined = dedupeAnime([...combined, ...kitsuExtra.map((k) => ({ ...k, curation: "Trending" as const }))]);
+      if (combined.length >= 6) return combined.slice(0, 24);
+
+      const tmdbExtra = await fetchTmdbAnimation(page).catch(() => []);
+      combined = dedupeAnime([...combined, ...tmdbExtra.map((t) => ({ ...t, curation: "Trending" as const }))]);
       if (combined.length > 0) return combined.slice(0, 24);
     } catch (err) {
       console.warn("AniList seasonal query failed:", err);

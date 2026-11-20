@@ -9,19 +9,30 @@ import { useVault } from "../context/VaultContext";
 import { useAuth } from "../context/AuthContext";
 
 const SLIDE_DURATION_MS = 8000; // 8 seconds per slide for a punchier, dynamic rhythm
-const HOME_CACHE_KEY = "nv_home_feed_cache_v3";
+const HOME_CACHE_KEY = "nv_home_feed_cache_v4";
 const HOME_CACHE_TTL_MS = 1000 * 60 * 15;
 
 let cachedHomeFeed: HomeFeedData | null = null;
 let cachedHomeFeedAt = 0;
 
+function isCompleteHomeFeed(data: HomeFeedData | null | undefined): boolean {
+  if (!data) return false;
+  return (
+    (data.featuredSlides?.length ?? 0) >= 4 &&
+    (data.trendingMovies?.length ?? 0) >= 4 &&
+    (data.trendingShows?.length ?? 0) >= 4 &&
+    (data.topAnime?.length ?? 0) >= 4 &&
+    (data.popularGames?.length ?? 0) >= 4
+  );
+}
+
 function readPersistedHomeFeed(): { data: HomeFeedData; ts: number } | null {
-  if (cachedHomeFeed) return { data: cachedHomeFeed, ts: cachedHomeFeedAt };
+  if (cachedHomeFeed && isCompleteHomeFeed(cachedHomeFeed)) return { data: cachedHomeFeed, ts: cachedHomeFeedAt };
   try {
     const raw = sessionStorage.getItem(HOME_CACHE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (parsed?.data && parsed?.ts && Date.now() - parsed.ts < HOME_CACHE_TTL_MS) {
+    if (parsed?.data && parsed?.ts && Date.now() - parsed.ts < HOME_CACHE_TTL_MS && isCompleteHomeFeed(parsed.data)) {
       cachedHomeFeed = parsed.data;
       cachedHomeFeedAt = parsed.ts;
       return parsed;
@@ -31,6 +42,7 @@ function readPersistedHomeFeed(): { data: HomeFeedData; ts: number } | null {
 }
 
 function persistHomeFeed(data: HomeFeedData): void {
+  if (!isCompleteHomeFeed(data)) return;
   cachedHomeFeed = data;
   cachedHomeFeedAt = Date.now();
   try {
